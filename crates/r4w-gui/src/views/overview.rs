@@ -284,7 +284,7 @@ RECEIVE PATH:
         ui.add_space(8.0);
 
         ui.label(
-            "R4W is an open platform for developing, testing, and deploying SDR waveforms in Rust. \
+            "R4W is a platform for developing, testing, and deploying SDR waveforms in Rust. \
             It provides reusable DSP libraries, educational tools, and production-ready components.",
         );
 

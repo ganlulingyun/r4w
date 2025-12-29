@@ -1,6 +1,6 @@
 ---
 title: '<img src="images/r4w_logo_1.png" height="150px" style="margin-bottom: 20px;"><br>R4W: Rust for Waveforms'
-subtitle: "An Open Platform for SDR Development"
+subtitle: "A Platform for SDR Development"
 author: "R4W Development Team<br>(Aida, Joe Mooney, Claude Code)"
 date: "December 2025"
 header-includes: |
@@ -15,7 +15,7 @@ header-includes: |
 
 ## What is R4W?
 
-**R4W (Rust for Waveforms)** is an open platform for developing, testing, and deploying Software Defined Radio waveforms in Rust.
+**R4W (Rust for Waveforms)** is a platform for developing, testing, and deploying Software Defined Radio waveforms in Rust.
 
 ### Mission
 Enable engineers to build secure, high-performance SDR systems with modern tooling.

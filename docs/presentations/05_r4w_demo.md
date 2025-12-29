@@ -1,6 +1,6 @@
 ---
 title: '<img src="images/r4w_logo_1.png" height="200px" style="margin-bottom: 20px;"><br>R4W - Rust for Waveforms'
-subtitle: "An Open Platform for SDR Waveform Development"
+subtitle: "A Platform for SDR Waveform Development"
 author: "R4W Development Team<br>(Aida, Joe Mooney, Claude Code)"
 date: "December 2025"
 header-includes: |
