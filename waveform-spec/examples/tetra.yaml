@@ -1,0 +1,244 @@
+# TETRA Waveform Specification
+# Terrestrial Trunked Radio (formerly Trans-European Trunked Radio)
+#
+# TETRA is the European standard for digital mobile radio used by
+# emergency services, public safety, and military organizations.
+# This example demonstrates TDMA configuration with multiframe structure.
+
+---
+waveform:
+  name: "TETRA"
+  full_name: "Terrestrial Trunked Radio"
+  version: "1.0"
+  description: |
+    TETRA is an ETSI standard for digital trunked radio widely used by
+    European emergency services and adopted by NATO allies. It provides
+    voice and data communications with encryption support.
+
+    Key features:
+    - 4-slot TDMA in 25 kHz channels
+    - π/4-DQPSK modulation at 36 kbps
+    - TEA1/TEA2/TEA3 encryption
+    - Direct Mode Operation (DMO) and Trunked Mode Operation (TMO)
+    - Group calls, individual calls, broadcast
+
+  classification:
+    type: "digital"
+    category: "narrowband"
+    applications:
+      - "emergency services"
+      - "public safety"
+      - "military tactical"
+      - "utilities"
+      - "transportation"
+
+  lpd_lpi:
+    enabled: false                  # TETRA is not LPI by design
+    target_processing_gain_db: 0
+    below_noise_floor: false
+
+  standards_profile:
+    enabled: true
+    standard: "tetra"
+    tetra:
+      mode: "tmo"                   # Trunked Mode Operation
+      encryption: "tea2"            # TEA2 encryption
+
+modulation:
+  domain: "phase"
+  order: 4                          # QPSK (4 symbols)
+  scheme: "pi4-DQPSK"               # π/4 Differential QPSK
+
+  constellation:
+    type: "gray"
+    rotation_deg: 45                # π/4 rotation per symbol
+
+  differential:
+    enabled: true
+    reference: "previous"
+
+pulse_shaping:
+  enabled: true
+
+  filter:
+    type: "root_raised_cosine"
+    rolloff: 0.35
+    span_symbols: 8
+
+timing:
+  symbol_rate: 18000                # 18 ksymbols/sec
+  sample_rate: 144000               # 8 samples per symbol
+  samples_per_symbol: 8
+
+  burst:
+    enabled: false                  # TDMA handles bursting
+
+# TETRA TDMA structure - this is the key configuration
+access_method:
+  type: "tdma"
+
+  tdma:
+    enabled: true
+    frame_duration_ms: 56.67        # 56.67 ms per frame (4 slots)
+    slots_per_frame: 4              # 4 TDMA slots per frame
+    slot_duration_ms: 14.167        # 14.167 ms per slot
+    guard_time_ms: 0.833            # Guard time between slots
+
+    assignment:
+      type: "dynamic"               # Dynamic slot assignment by infrastructure
+      my_slot: 0                    # Assigned by registration
+
+    # TETRA frame structure
+    frame_structure:
+      - { type: "traffic", slots: 4, purpose: "voice/data" }
+
+    # TETRA multiframe structure (18 frames = 1 multiframe = 1.02 sec)
+    multiframe:
+      enabled: true
+      frames_per_multiframe: 18     # 18 frames per multiframe
+
+      hyperframe:
+        enabled: true
+        multiframes_per_hyperframe: 60  # 60 multiframes = 1 hyperframe
+
+  fdma:
+    enabled: true
+    channel_spacing_hz: 25000       # 25 kHz channel spacing
+    num_channels: 1                 # Single carrier per TETRA channel
+
+synchronization:
+  preamble:
+    enabled: true
+    type: "custom"                  # TETRA-specific preamble
+    length_symbols: 38              # 38-symbol preamble
+    spread_preamble: false
+
+  sync_word:
+    enabled: true
+    value: "0x1ACFFC1D"             # TETRA sync word (normal burst)
+    length_bits: 30
+
+  pilot_symbols:
+    enabled: true
+    spacing: 14                     # Training sequence in each burst
+
+  cfo_tolerance_hz: 500
+
+channel_coding:
+  enabled: true
+
+  fec:
+    type: "convolutional"           # RCPC coding
+    rate: "2/3"                     # Rate 2/3 for voice
+    constraint_length: 5
+
+    generator_polys:
+      - "0x13"
+      - "0x1B"
+
+  interleaving:
+    enabled: true
+    type: "block"
+    rows: 12
+    cols: 16
+
+  scrambling:
+    enabled: true
+    polynomial: "0x1D"
+    initial_state: "0x01"
+
+framing:
+  header:
+    enabled: true
+    length_bits: 60
+    fields:
+      - { name: "burst_type", bits: 2 }
+      - { name: "aach", bits: 14 }      # Access Assignment Channel
+      - { name: "training_seq", bits: 22 }
+      - { name: "tail_bits", bits: 22 }
+
+  payload:
+    min_bits: 64
+    max_bits: 432                   # Maximum voice/data bits per slot
+    default_bits: 274               # Typical voice frame
+
+  error_detection:
+    type: "crc16"
+    polynomial: "0x8005"
+
+spectral:
+  bandwidth:
+    null_to_null_hz: 25000          # 25 kHz channel
+    occupied_99_hz: 20000
+
+  psd:
+    target_dbm_hz: -80
+
+  sidelobe_suppression_db: 40       # Adjacent channel rejection
+
+channel:
+  target_ber: 1.0e-4
+  required_snr_db: 14               # Required for π/4-DQPSK
+
+  multipath:
+    tolerant: true
+    max_delay_spread_us: 5          # Urban environment
+
+  doppler:
+    max_shift_hz: 300               # Mobile at 100 km/h
+
+  jamming:
+    resistance: false
+
+security:
+  encryption:
+    enabled: true
+    algorithm: "TEA2"               # TETRA Encryption Algorithm 2
+
+  key_management:
+    type: "pre_shared"              # Infrastructure key distribution
+
+# TETRA has some proprietary components but mostly unclassified
+classified_components:
+  enabled: false                    # TETRA is commercially available
+
+  voice_codec:
+    classified: false
+    classification_level: null
+    description: "TETRA ACELP voice codec (4.567 kbps)"
+    trait_name: "TetraVoiceCodec"
+    simulator_provided: true
+    codec_type: "acelp"
+
+  wizard_guidance:
+    generate_traits: true
+    generate_simulators: true
+    generate_ffi_bindings: false
+    generate_build_cfg: true
+    document_interfaces: true
+
+    build_config:
+      default_feature: "simulator"
+      classified_features: []
+      link_external: false
+      external_lib_name: null
+
+implementation:
+  complexity: 4                     # Medium-high complexity
+  max_latency_ms: 50                # TDMA latency
+
+  targets:
+    - "simulation"
+    - "usrp"
+    - "embedded"
+
+  test_vectors:
+    enabled: true
+    include_ber_curves: true
+
+metrics:
+  processing_gain_db: 0             # No spreading
+  spectral_efficiency_bps_hz: 1.44  # 36 kbps in 25 kHz = 1.44 bps/Hz
+  data_rate_bps: 36000              # 36 kbps total (9 kbps per slot)
+  chip_rate: null
+  lpi_margin_db: 0

@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SDR & LoRa Tutorial - From Analog to Digital</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --card-bg: #16213e;
+            --accent: #0f3460;
+            --highlight: #e94560;
+            --text: #eaeaea;
+            --text-dim: #a0a0a0;
+            --code-bg: #0d1117;
+            --success: #4ade80;
+            --warning: #fbbf24;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-color);
+            color: var(--text);
+            line-height: 1.7;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--accent), var(--card-bg));
+            padding: 3rem 2rem;
+            text-align: center;
+            border-bottom: 3px solid var(--highlight);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+        }
+
+        nav {
+            background: var(--card-bg);
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--accent);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+
+        nav a {
+            color: var(--text);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+
+        nav a:hover {
+            background: var(--accent);
+        }
+
+        section {
+            background: var(--card-bg);
+            margin: 2rem 0;
+            padding: 2rem;
+            border-radius: 8px;
+            border-left: 4px solid var(--highlight);
+        }
+
+        h2 {
+            color: var(--highlight);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--accent);
+        }
+
+        h3 {
+            color: var(--text);
+            margin: 1.5rem 0 1rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+        }
+
+        .concept-box {
+            background: var(--accent);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+        }
+
+        .concept-box h4 {
+            color: var(--highlight);
+            margin-bottom: 0.5rem;
+        }
+
+        .try-it {
+            background: linear-gradient(135deg, #1e3a5f, #0f3460);
+            border: 2px solid var(--success);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+        }
+
+        .try-it h4 {
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+
+        .try-it h4::before {
+            content: "🔬 ";
+        }
+
+        .warning-box {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid var(--warning);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
+
+        .warning-box::before {
+            content: "⚠️ ";
+        }
+
+        code {
+            background: var(--code-bg);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: var(--code-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid var(--accent);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .diagram {
+            background: #0d1117;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+            text-align: center;
+            overflow-x: auto;
+        }
+
+        .diagram svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .ascii-diagram {
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            white-space: pre;
+            text-align: left;
+            display: inline-block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border: 1px solid var(--accent);
+        }
+
+        th {
+            background: var(--accent);
+            color: var(--highlight);
+        }
+
+        tr:nth-child(even) {
+            background: rgba(15, 52, 96, 0.3);
+        }
+
+        .equation {
+            background: var(--code-bg);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+            font-family: 'Times New Roman', serif;
+            font-size: 1.2rem;
+            margin: 1rem 0;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            background: var(--highlight);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 2rem;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .pipeline-step {
+            display: flex;
+            align-items: flex-start;
+            margin: 1rem 0;
+            padding: 1rem;
+            background: var(--accent);
+            border-radius: 8px;
+        }
+
+        .pipeline-step-content {
+            flex: 1;
+        }
+
+        .quiz {
+            background: var(--accent);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+        }
+
+        .quiz h4 {
+            color: var(--warning);
+            margin-bottom: 1rem;
+        }
+
+        .quiz-option {
+            display: block;
+            padding: 0.5rem 1rem;
+            margin: 0.5rem 0;
+            background: var(--card-bg);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .quiz-option:hover {
+            background: var(--bg-color);
+        }
+
+        .quiz-answer {
+            display: none;
+            padding: 1rem;
+            margin-top: 1rem;
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid var(--success);
+            border-radius: 4px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-dim);
+            border-top: 1px solid var(--accent);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            header h1 {
+                font-size: 1.8rem;
+            }
+
+            nav ul {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            section {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>SDR & LoRa Tutorial</h1>
+        <p>Understanding Software Defined Radio: From Analog Waves to Digital Bits</p>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#intro">Introduction</a></li>
+            <li><a href="#analog">Analog Signals</a></li>
+            <li><a href="#digital">Going Digital</a></li>
+            <li><a href="#iq">I/Q Explained</a></li>
+            <li><a href="#chirp">Chirps</a></li>
+            <li><a href="#lora">LoRa Deep Dive</a></li>
+            <li><a href="#pipeline">TX/RX Pipeline</a></li>
+            <li><a href="#hands-on">Hands-On</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+
+        <!-- Section 1: Introduction -->
+        <section id="intro">
+            <h2>1. What is Software Defined Radio?</h2>
+
+            <p>Traditional radios use hardware circuits (filters, mixers, amplifiers) to process signals. <strong>Software Defined Radio (SDR)</strong> moves most of this processing into software, giving us incredible flexibility.</p>
+
+            <div class="concept-box">
+                <h4>Key Insight</h4>
+                <p>An SDR captures raw radio waves and converts them to numbers (samples) that software can manipulate. This means we can implement any modulation scheme—AM, FM, LoRa, WiFi—just by changing code!</p>
+            </div>
+
+            <h3>The SDR Hardware Chain</h3>
+
+            <div class="diagram">
+                <div class="ascii-diagram">
+┌─────────┐    ┌─────────┐    ┌─────────┐    ┌─────────┐    ┌──────────┐
+│ Antenna │───►│   LNA   │───►│  Mixer  │───►│   ADC   │───►│ Computer │
+│         │    │(Amplify)│    │(Downmix)│    │(Sample) │    │(Process) │
+└─────────┘    └─────────┘    └─────────┘    └─────────┘    └──────────┘
+     │              │              │              │               │
+   Radio         Boost         Shift to       Convert        Software
+   waves         signal        baseband       to bits        magic!
+                </div>
+            </div>
+
+            <p>The <strong>ADC (Analog-to-Digital Converter)</strong> is where the magic happens—it samples the continuous analog signal thousands or millions of times per second, creating a stream of numbers we can process.</p>
+
+            <div class="try-it">
+                <h4>Try It: Launch the App</h4>
+                <p>Start the LoRa Explorer application:</p>
+                <pre><code>cargo run --bin lora-explorer</code></pre>
+                <p>Navigate to the <strong>Overview</strong> tab to see an introduction to the concepts we'll explore.</p>
+            </div>
+        </section>
+
+        <!-- Section 2: Analog Signals -->
+        <section id="analog">
+            <h2>2. Understanding Analog Signals</h2>
+
+            <p>Before we can understand digital signal processing, we need to understand what we're processing—analog signals.</p>
+
+            <h3>The Sine Wave: Foundation of All Signals</h3>
+
+            <p>Every radio signal can be decomposed into sine waves (thanks to Fourier). A sine wave has three properties:</p>
+
+            <table>
+                <tr>
+                    <th>Property</th>
+                    <th>Symbol</th>
+                    <th>What It Controls</th>
+                </tr>
+                <tr>
+                    <td>Amplitude</td>
+                    <td>A</td>
+                    <td>How "loud" or strong the signal is</td>
+                </tr>
+                <tr>
+                    <td>Frequency</td>
+                    <td>f</td>
+                    <td>How fast it oscillates (cycles per second, Hz)</td>
+                </tr>
+                <tr>
+                    <td>Phase</td>
+                    <td>φ</td>
+                    <td>Where in the cycle we start</td>
+                </tr>
+            </table>
+
+            <div class="equation">
+                s(t) = A · sin(2πft + φ)
+            </div>
+
+            <h3>Modulation: Encoding Information</h3>
+
+            <p>To send data over radio, we <strong>modulate</strong> (change) one or more of these properties:</p>
+
+            <ul style="margin-left: 2rem; margin-bottom: 1rem;">
+                <li><strong>AM (Amplitude Modulation)</strong>: Vary the amplitude</li>
+                <li><strong>FM (Frequency Modulation)</strong>: Vary the frequency</li>
+                <li><strong>PM (Phase Modulation)</strong>: Vary the phase</li>
+            </ul>
+
+            <div class="concept-box">
+                <h4>LoRa's Approach: Chirp Spread Spectrum</h4>
+                <p>LoRa uses <strong>frequency modulation</strong>, but in a special way—it continuously sweeps the frequency up or down (a "chirp"). This spreading provides incredible noise immunity and range.</p>
+            </div>
+        </section>
+
+        <!-- Section 3: Going Digital -->
+        <section id="digital">
+            <h2>3. From Analog to Digital: Sampling</h2>
+
+            <p>To process signals in software, we must convert continuous analog waves into discrete digital samples.</p>
+
+            <h3>The Sampling Process</h3>
+
+            <div class="diagram">
+                <div class="ascii-diagram">
+Analog Signal (continuous)          Digital Samples (discrete)
+
+    ╱╲      ╱╲                          •       •
+   ╱  ╲    ╱  ╲                        • •     • •
+  ╱    ╲  ╱    ╲                      •   •   •   •
+ ╱      ╲╱      ╲                    •     • •     •
+                            ───►
+ continuous voltage             numbers: [0.1, 0.5, 0.9, 0.7, 0.2, ...]
+ at every instant               at regular time intervals
+                </div>
+            </div>
+
+            <h3>Nyquist-Shannon Theorem</h3>
+
+            <div class="warning-box">
+                To accurately capture a signal, you must sample at <strong>at least twice</strong> the highest frequency present. This is the <strong>Nyquist rate</strong>.
+            </div>
+
+            <p>For LoRa with 125 kHz bandwidth, we need at least 250,000 samples per second (250 kHz sample rate). The app uses 125 kHz with 1x oversampling by default.</p>
+
+            <div class="equation">
+                f<sub>sample</sub> ≥ 2 × f<sub>max</sub>
+            </div>
+
+            <h3>Quantization</h3>
+
+            <p>Each sample must be represented with finite precision (e.g., 16-bit integers). This introduces small errors called <strong>quantization noise</strong>, but with enough bits, it's negligible.</p>
+
+            <table>
+                <tr>
+                    <th>Bit Depth</th>
+                    <th>Levels</th>
+                    <th>Dynamic Range</th>
+                </tr>
+                <tr>
+                    <td>8-bit</td>
+                    <td>256</td>
+                    <td>~48 dB</td>
+                </tr>
+                <tr>
+                    <td>12-bit</td>
+                    <td>4,096</td>
+                    <td>~72 dB</td>
+                </tr>
+                <tr>
+                    <td>16-bit</td>
+                    <td>65,536</td>
+                    <td>~96 dB</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- Section 4: I/Q Signals -->
+        <section id="iq">
+            <h2>4. I/Q Representation: The Heart of SDR</h2>
+
+            <p>This is the most important concept in SDR. Instead of sampling just amplitude, we sample <strong>two components</strong>:</p>
+
+            <ul style="margin-left: 2rem; margin-bottom: 1rem;">
+                <li><strong>I (In-phase)</strong>: The "real" part—aligned with a reference cosine</li>
+                <li><strong>Q (Quadrature)</strong>: The "imaginary" part—90° out of phase (sine)</li>
+            </ul>
+
+            <div class="concept-box">
+                <h4>Why Two Components?</h4>
+                <p>With I and Q, we can represent <strong>both amplitude AND phase</strong> at every sample. A single real sample only tells us amplitude—we'd lose phase information!</p>
+            </div>
+
+            <h3>Complex Numbers to the Rescue</h3>
+
+            <p>We represent each sample as a <strong>complex number</strong>:</p>
+
+            <div class="equation">
+                sample = I + jQ
+            </div>
+
+            <p>Where <code>j</code> is the imaginary unit (√-1). This isn't just mathematical convenience—it perfectly captures the physics of radio signals.</p>
+
+            <div class="diagram">
+                <svg width="300" height="300" viewBox="0 0 300 300">
+                    <!-- Axes -->
+                    <line x1="150" y1="20" x2="150" y2="280" stroke="#a0a0a0" stroke-width="1"/>
+                    <line x1="20" y1="150" x2="280" y2="150" stroke="#a0a0a0" stroke-width="1"/>
+
+                    <!-- Labels -->
+                    <text x="285" y="155" fill="#a0a0a0" font-size="14">I</text>
+                    <text x="155" y="15" fill="#a0a0a0" font-size="14">Q</text>
+
+                    <!-- Unit circle -->
+                    <circle cx="150" cy="150" r="80" fill="none" stroke="#0f3460" stroke-width="2" stroke-dasharray="5,5"/>
+
+                    <!-- Sample point -->
+                    <circle cx="210" cy="90" r="8" fill="#e94560"/>
+
+                    <!-- I component -->
+                    <line x1="150" y1="150" x2="210" y2="150" stroke="#4ade80" stroke-width="3"/>
+                    <text x="175" y="170" fill="#4ade80" font-size="12">I</text>
+
+                    <!-- Q component -->
+                    <line x1="210" y1="150" x2="210" y2="90" stroke="#fbbf24" stroke-width="3"/>
+                    <text x="220" y="125" fill="#fbbf24" font-size="12">Q</text>
+
+                    <!-- Vector -->
+                    <line x1="150" y1="150" x2="210" y2="90" stroke="#e94560" stroke-width="2"/>
+
+                    <!-- Angle arc -->
+                    <path d="M 170 150 A 20 20 0 0 0 165 135" fill="none" stroke="#a0a0a0" stroke-width="1"/>
+                    <text x="175" y="140" fill="#a0a0a0" font-size="10">φ</text>
+
+                    <!-- Legend -->
+                    <text x="20" y="270" fill="#e94560" font-size="12">Magnitude = √(I² + Q²)</text>
+                    <text x="20" y="290" fill="#a0a0a0" font-size="12">Phase = atan2(Q, I)</text>
+                </svg>
+            </div>
+
+            <h3>Key Operations</h3>
+
+            <table>
+                <tr>
+                    <th>Operation</th>
+                    <th>Formula</th>
+                    <th>What It Tells Us</th>
+                </tr>
+                <tr>
+                    <td>Magnitude</td>
+                    <td>√(I² + Q²)</td>
+                    <td>Signal strength</td>
+                </tr>
+                <tr>
+                    <td>Phase</td>
+                    <td>atan2(Q, I)</td>
+                    <td>Position in cycle</td>
+                </tr>
+                <tr>
+                    <td>Frequency</td>
+                    <td>d(phase)/dt</td>
+                    <td>Rate of phase change</td>
+                </tr>
+            </table>
+
+            <div class="try-it">
+                <h4>Try It: Constellation View</h4>
+                <p>In the app, go to <strong>Constellation</strong> tab. Generate a signal and observe:</p>
+                <ul style="margin-left: 1.5rem;">
+                    <li>Points cluster on a circle (constant amplitude)</li>
+                    <li>The phase rotates as frequency changes</li>
+                    <li>Add noise (lower SNR) to see points scatter</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- Section 5: Chirps -->
+        <section id="chirp">
+            <h2>5. Chirp Spread Spectrum (CSS)</h2>
+
+            <p>A <strong>chirp</strong> is a signal whose frequency changes linearly over time. LoRa uses chirps to encode data with remarkable noise immunity.</p>
+
+            <h3>Types of Chirps</h3>
+
+            <div class="diagram">
+                <div class="ascii-diagram">
+    Upchirp                          Downchirp
+    (frequency increases)            (frequency decreases)
+
+    freq                              freq
+    ▲                                 ▲
+    │        ╱                        │  ╲
+    │      ╱                          │    ╲
+    │    ╱                            │      ╲
+    │  ╱                              │        ╲
+    │╱                                │          ╲
+    └────────► time                   └────────────► time
+                </div>
+            </div>
+
+            <h3>Why Chirps?</h3>
+
+            <div class="concept-box">
+                <h4>Spreading Gain</h4>
+                <p>A chirp spreads energy across the entire bandwidth. To a narrowband interferer, our signal looks like noise. But our receiver knows the chirp pattern and can "de-spread" it, recovering the signal even below the noise floor!</p>
+            </div>
+
+            <p>This is why LoRa can achieve incredible range—it can decode signals that are <strong>20 dB below the noise</strong> (100x weaker than the noise).</p>
+
+            <h3>Symbol Encoding</h3>
+
+            <p>LoRa encodes data by <strong>cyclically shifting</strong> the chirp's starting frequency:</p>
+
+            <div class="diagram">
+                <div class="ascii-diagram">
+Symbol 0 (no shift)      Symbol 32 (shifted)      Symbol 64 (more shift)
+
+freq ▲      ╱|           freq ▲    ╱  |           freq ▲  ╱    |
+     │    ╱  |                │  ╱    |                │╱      |
+     │  ╱    |                │╱      |                │╲      |
+     │╱      |                │╲      |                │  ╲    |
+     └───────► t              └───────► t              └───────► t
+
+     start at f_min          start at f_min+Δ        wrap around!
+                </div>
+            </div>
+
+            <p>With SF7 (Spreading Factor 7), we have 2⁷ = 128 possible symbols (0-127). Higher SF means more symbols but slower data rate.</p>
+
+            <div class="try-it">
+                <h4>Try It: Chirp Visualization</h4>
+                <p>Go to the <strong>Chirp</strong> tab in the app:</p>
+                <ol style="margin-left: 1.5rem;">
+                    <li>Observe the time-domain I/Q waveforms</li>
+                    <li>Notice how the frequency sweeps linearly</li>
+                    <li>Try different spreading factors to see longer/shorter chirps</li>
+                    <li>Generate symbols with different values—watch the starting point shift!</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Section 6: LoRa Deep Dive -->
+        <section id="lora">
+            <h2>6. LoRa Modulation: The Complete Picture</h2>
+
+            <h3>LoRa Parameters</h3>
+
+            <table>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Values</th>
+                    <th>Effect</th>
+                </tr>
+                <tr>
+                    <td>Spreading Factor (SF)</td>
+                    <td>7-12</td>
+                    <td>Higher = more range, slower speed</td>
+                </tr>
+                <tr>
+                    <td>Bandwidth (BW)</td>
+                    <td>125, 250, 500 kHz</td>
+                    <td>Higher = faster, less range</td>
+                </tr>
+                <tr>
+                    <td>Coding Rate (CR)</td>
+                    <td>4/5, 4/6, 4/7, 4/8</td>
+                    <td>More redundancy = better error correction</td>
+                </tr>
+            </table>
+
+            <h3>Demodulation: Finding the Symbol</h3>
+
+            <p>The genius of LoRa demodulation is using the <strong>FFT</strong>:</p>
+
+            <div class="pipeline-step">
+                <span class="step-number">1</span>
+                <div class="pipeline-step-content">
+                    <strong>Multiply by conjugate downchirp</strong><br>
+                    <small>The received upchirp × downchirp = a single tone at a frequency proportional to the symbol</small>
+                </div>
+            </div>
+
+            <div class="pipeline-step">
+                <span class="step-number">2</span>
+                <div class="pipeline-step-content">
+                    <strong>Compute FFT</strong><br>
+                    <small>Transform to frequency domain—the symbol appears as a peak</small>
+                </div>
+            </div>
+
+            <div class="pipeline-step">
+                <span class="step-number">3</span>
+                <div class="pipeline-step-content">
+                    <strong>Find peak bin</strong><br>
+                    <small>The bin index = the transmitted symbol value!</small>
+                </div>
+            </div>
+
+            <div class="diagram">
+                <div class="ascii-diagram">
+Received Chirp    ×    Reference Downchirp    =    Single Tone
+
+     /                      \                         |
+    /                        \                        |
+   /            ×             \           =           |
+  /                            \                      |
+
+                    FFT
+                     ↓
+
+         ▲ magnitude
+         │
+         │      █
+         │      █
+         │  ░   █   ░
+         └──────────────► bin
+                ↑
+           symbol value!
+                </div>
+            </div>
+
+            <div class="try-it">
+                <h4>Try It: Watch Demodulation</h4>
+                <p>Go to <strong>Demodulation</strong> tab:</p>
+                <ol style="margin-left: 1.5rem;">
+                    <li>Generate a signal with a known payload</li>
+                    <li>Select different symbol indices to examine</li>
+                    <li>Watch the FFT spectrum—the peak indicates the symbol</li>
+                    <li>Increase noise (lower SNR) and watch the peak become harder to find</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Section 7: Pipeline -->
+        <section id="pipeline">
+            <h2>7. The Complete TX/RX Pipeline</h2>
+
+            <p>A LoRa transmission goes through multiple processing stages. Understanding each helps debug real-world issues.</p>
+
+            <h3>Transmitter Pipeline</h3>
+
+            <div class="diagram">
+                <div class="ascii-diagram">
+┌─────────┐   ┌───────────┐   ┌─────────┐   ┌───────────┐   ┌──────┐   ┌─────────┐
+│  Data   │──►│ Whitening │──►│ Hamming │──►│Interleave │──►│ Gray │──►│   CSS   │──► I/Q
+│ (bytes) │   │  (LFSR)   │   │  (FEC)  │   │ (Diagonal)│   │ Code │   │Modulate │   samples
+└─────────┘   └───────────┘   └─────────┘   └───────────┘   └──────┘   └─────────┘
+                </div>
+            </div>
+
+            <table>
+                <tr>
+                    <th>Stage</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td><strong>Whitening</strong></td>
+                    <td>Randomize data to avoid long runs of 0s or 1s (helps clock recovery)</td>
+                </tr>
+                <tr>
+                    <td><strong>Hamming FEC</strong></td>
+                    <td>Add redundancy to correct bit errors</td>
+                </tr>
+                <tr>
+                    <td><strong>Interleaving</strong></td>
+                    <td>Spread bits across symbols so burst errors become correctable</td>
+                </tr>
+                <tr>
+                    <td><strong>Gray Coding</strong></td>
+                    <td>Ensure adjacent symbols differ by only 1 bit (reduces errors)</td>
+                </tr>
+                <tr>
+                    <td><strong>CSS Modulation</strong></td>
+                    <td>Convert symbols to chirp waveforms</td>
+                </tr>
+            </table>
+
+            <h3>Preamble Structure</h3>
+
+            <p>Every LoRa packet starts with a preamble for synchronization:</p>
+
+            <div class="diagram">
+                <div class="ascii-diagram">
+│◄─────── Preamble ───────►│◄─ Sync ─►│◄─── Payload ────►│
+
+┌────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┬────┐
+│ ↗  │ ↗  │ ↗  │ ↗  │ ↗  │ ↗  │ ↗  │ ↗  │ ↘  │ ↘  │data│data│...
+│  ↗ │  ↗ │  ↗ │  ↗ │  ↗ │  ↗ │  ↗ │  ↗ │  ↘ │  ↘ │    │    │
+└────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┴────┘
+  8 identical upchirps       2.25      symbol chirps
+  (for timing sync)        downchirps  (your data!)
+                           (frame sync)
+                </div>
+            </div>
+
+            <h3>Receiver Pipeline</h3>
+
+            <div class="diagram">
+                <div class="ascii-diagram">
+I/Q ──►┌─────────┐   ┌───────┐   ┌──────┐   ┌───────────┐   ┌─────────┐   ┌───────────┐──► Data
+samples│Preamble │──►│  CFO  │──►│ CSS  │──►│   Gray    │──►│  De-    │──►│   FEC     │   (bytes)
+       │ Detect  │   │Correct│   │Demod │   │  Decode   │   │interleave   │  Decode   │
+       └─────────┘   └───────┘   └──────┘   └───────────┘   └─────────┘   └───────────┘
+                </div>
+            </div>
+
+            <div class="try-it">
+                <h4>Try It: Full Pipeline</h4>
+                <p>Go to <strong>Pipeline</strong> tab:</p>
+                <ol style="margin-left: 1.5rem;">
+                    <li>Enter a message to transmit</li>
+                    <li>Click "Run Full Pipeline"</li>
+                    <li>Watch data flow: TX → Channel → RX</li>
+                    <li>Compare transmitted vs received bytes</li>
+                    <li>Try lowering SNR to see errors creep in</li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- Section 8: Hands-On -->
+        <section id="hands-on">
+            <h2>8. Hands-On Exercises</h2>
+
+            <h3>Exercise 1: Observe Spreading Factor Trade-offs</h3>
+
+            <div class="try-it">
+                <h4>Steps:</h4>
+                <ol style="margin-left: 1.5rem;">
+                    <li>Set SF = 7, generate a signal, note the symbol count and duration</li>
+                    <li>Change to SF = 12, regenerate—how does it change?</li>
+                    <li>Check the <strong>Info</strong> in CLI: <code>cargo run --bin lora-sdr -- info --sf 7</code></li>
+                    <li>Compare bit rates and sensitivities</li>
+                </ol>
+                <p><strong>Expected:</strong> SF12 is ~32x slower but can decode signals ~15dB weaker!</p>
+            </div>
+
+            <h3>Exercise 2: Channel Impairments</h3>
+
+            <div class="try-it">
+                <h4>Steps:</h4>
+                <ol style="margin-left: 1.5rem;">
+                    <li>In Pipeline view, set SNR = 20 dB (clean channel)</li>
+                    <li>Transmit "Hello" and verify perfect reception</li>
+                    <li>Lower SNR to 5 dB—what happens?</li>
+                    <li>Try adding CFO (carrier frequency offset) of 100 Hz</li>
+                    <li>See how the receiver handles (or fails to handle) impairments</li>
+                </ol>
+            </div>
+
+            <h3>Exercise 3: CLI Simulation</h3>
+
+            <pre><code># Generate a chirp and save to file
+cargo run --bin lora-sdr -- chirp --output upchirp.iq --chirp-type up --sf 7
+
+# Simulate a noisy transmission
+cargo run --bin lora-sdr -- simulate --message "Test123" --snr 10.0 --channel awgn
+
+# Calculate parameters
+cargo run --bin lora-sdr -- info --sf 10 --bw 125 --cr 5 --payload-len 20</code></pre>
+
+            <h3>Exercise 4: Understand the Constellation</h3>
+
+            <div class="try-it">
+                <h4>Steps:</h4>
+                <ol style="margin-left: 1.5rem;">
+                    <li>Go to <strong>Constellation</strong> tab</li>
+                    <li>Generate a clean signal—observe points on a circle (constant envelope)</li>
+                    <li>Why a circle? LoRa is FM-based, so amplitude stays constant!</li>
+                    <li>Add noise (SNR = 5 dB)—watch points scatter off the circle</li>
+                    <li>This is why LoRa is robust: we only care about phase, not amplitude</li>
+                </ol>
+            </div>
+
+            <h3>Quiz: Test Your Understanding</h3>
+
+            <div class="quiz">
+                <h4>Question 1</h4>
+                <p>Why does LoRa use I/Q (complex) samples instead of just real samples?</p>
+                <label class="quiz-option">
+                    <input type="radio" name="q1" onclick="document.getElementById('a1').style.display='block'">
+                    A) To double the data rate
+                </label>
+                <label class="quiz-option">
+                    <input type="radio" name="q1" onclick="document.getElementById('a1').style.display='block'">
+                    B) To preserve phase information needed for frequency detection
+                </label>
+                <label class="quiz-option">
+                    <input type="radio" name="q1" onclick="document.getElementById('a1').style.display='block'">
+                    C) To reduce noise
+                </label>
+                <div id="a1" class="quiz-answer">
+                    <strong>Answer: B</strong> - I/Q samples capture both amplitude AND phase. Since LoRa encodes data in frequency (rate of phase change), we need phase information to demodulate. Real samples only give amplitude.
+                </div>
+            </div>
+
+            <div class="quiz">
+                <h4>Question 2</h4>
+                <p>How does FFT-based demodulation find the transmitted symbol?</p>
+                <label class="quiz-option">
+                    <input type="radio" name="q2" onclick="document.getElementById('a2').style.display='block'">
+                    A) By measuring signal amplitude
+                </label>
+                <label class="quiz-option">
+                    <input type="radio" name="q2" onclick="document.getElementById('a2').style.display='block'">
+                    B) By multiplying with downchirp, converting to a tone, then finding FFT peak
+                </label>
+                <label class="quiz-option">
+                    <input type="radio" name="q2" onclick="document.getElementById('a2').style.display='block'">
+                    C) By counting zero crossings
+                </label>
+                <div id="a2" class="quiz-answer">
+                    <strong>Answer: B</strong> - The received chirp is multiplied by a conjugate reference downchirp. This converts the sweeping chirp into a single tone whose frequency corresponds to the symbol. The FFT reveals this as a peak at the symbol's bin index.
+                </div>
+            </div>
+
+            <div class="quiz">
+                <h4>Question 3</h4>
+                <p>Why can LoRa decode signals below the noise floor?</p>
+                <label class="quiz-option">
+                    <input type="radio" name="q3" onclick="document.getElementById('a3').style.display='block'">
+                    A) It uses very high transmit power
+                </label>
+                <label class="quiz-option">
+                    <input type="radio" name="q3" onclick="document.getElementById('a3').style.display='block'">
+                    B) Processing gain from spreading—energy is spread over time and bandwidth, then coherently combined at receiver
+                </label>
+                <label class="quiz-option">
+                    <input type="radio" name="q3" onclick="document.getElementById('a3').style.display='block'">
+                    C) It only works in quiet environments
+                </label>
+                <div id="a3" class="quiz-answer">
+                    <strong>Answer: B</strong> - Spreading concentrates all the chirp's energy into a single FFT bin during demodulation, while noise spreads across all bins. This "processing gain" is proportional to the spreading factor—SF12 provides ~21 dB of gain!
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Next Steps</h2>
+
+            <p>Congratulations on completing this tutorial! Here are ways to continue learning:</p>
+
+            <ul style="margin-left: 2rem;">
+                <li><strong>Read the source code</strong>: The <code>lora-core</code> crate is well-documented</li>
+                <li><strong>Experiment with parameters</strong>: Try extreme values to see what breaks</li>
+                <li><strong>Add channel effects</strong>: Try Rayleigh fading, multipath</li>
+                <li><strong>Connect real hardware</strong>: If you have a USRP or RTL-SDR</li>
+                <li><strong>Read the SDR-LoRa paper</strong>: For mathematical details</li>
+            </ul>
+
+            <div class="concept-box">
+                <h4>Remember</h4>
+                <p>SDR is about turning <strong>physics into math</strong>, then using software to manipulate that math in ways that would be impossible with hardware alone. You now understand the fundamentals—keep experimenting!</p>
+            </div>
+        </section>
+
+    </div>
+
+    <footer>
+        <p>LoRa Explorer Tutorial | Part of the AI SDR LoRa Project</p>
+        <p><small>Built with Rust, egui, and rustfft</small></p>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+[package]
+name = "csi-queues"
+version = "0.1.0"
+edition = "2021"
+description = "Lock-free SPSC queues for CSI RED/BLACK boundary"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/r4w"
+readme = "../README.md"
+
+[features]
+default = []
+std = []
+
+[dependencies]
+csi-core = { path = "../csi-core" }
+# Future: bbqueue for lock-free SPSC
+# bbqueue = "0.5"

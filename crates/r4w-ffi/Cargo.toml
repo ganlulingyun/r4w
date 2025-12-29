@@ -1,0 +1,22 @@
+[package]
+name = "r4w-ffi"
+description = "C/C++ FFI bindings for R4W DSP functions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "r4w"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+r4w-core = { path = "../r4w-core" }
+num-complex = { workspace = true }
+
+[build-dependencies]
+cbindgen = "0.27"
+
+[features]
+default = []
+# Include ring buffer functions (for RT streaming)
+ringbuffer = []

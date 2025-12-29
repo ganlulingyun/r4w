@@ -1,0 +1,2132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>R4W Overview - R4W Documentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../index.html">Presentations</a>
+        <a href="index.html">Documentation</a>
+    </div>
+    <h1 id="r4w---rust-for-waveforms">R4W - Rust for Waveforms</h1>
+    <p><strong>A platform for developing, testing, and deploying SDR
+    waveforms in Rust.</strong></p>
+    <pre><code>    ██████╗ ██╗  ██╗██╗    ██╗
+    ██╔══██╗██║  ██║██║    ██║
+    ██████╔╝███████║██║ █╗ ██║     Rust 4 Waveforms
+    ██╔══██╗╚════██║██║███╗██║     SDR Developer Studio
+    ██║  ██║     ██║╚███╔███╔╝
+    ╚═╝  ╚═╝     ╚═╝ ╚══╝╚══╝</code></pre>
+    <h2 id="vision">Vision</h2>
+    <p>R4W is a <strong>waveform development platform</strong> that
+    brings the power of Rust to Software Defined Radio. We provide:</p>
+    <ol type="1">
+    <li><strong>A Foundation of Reusable Libraries</strong> - Core DSP
+    primitives, modulation/demodulation frameworks, and signal
+    processing building blocks</li>
+    <li><strong>Cross-Platform Deployment</strong> - Write once, deploy
+    everywhere: x86, ARM, WASM, FPGA</li>
+    <li><strong>Educational Tools</strong> - Interactive visualization
+    for learning SDR concepts</li>
+    <li><strong>Production-Ready Components</strong> - From prototyping
+    to field deployment</li>
+    </ol>
+    <h3 id="why-rust-for-sdr">Why Rust for SDR?</h3>
+    <table>
+    <colgroup>
+    <col style="width: 50%" />
+    <col style="width: 50%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Feature</th>
+    <th>Benefit</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Memory Safety</strong></td>
+    <td>No buffer overflows, data races, or undefined behavior in signal
+    processing</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Zero-Cost Abstractions</strong></td>
+    <td>High-level APIs with C-level performance</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Fearless Concurrency</strong></td>
+    <td>Safe parallel processing for real-time DSP</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Cross-Compilation</strong></td>
+    <td>Single codebase for ARM, x86, embedded, and WASM</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Cargo Ecosystem</strong></td>
+    <td>Rich library ecosystem: FFT, linear algebra, async I/O</td>
+    </tr>
+    <tr class="even">
+    <td><strong>SIMD Support</strong></td>
+    <td>Portable SIMD for vectorized operations</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>WASM Target</strong></td>
+    <td>Run in browsers for education and demos</td>
+    </tr>
+    <tr class="even">
+    <td><strong>No Runtime</strong></td>
+    <td>No garbage collection pauses - predictable real-time
+    behavior</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="proven-performance">Proven Performance</h3>
+    <p>R4W significantly outperforms GNU Radio on core DSP
+    operations:</p>
+    <table>
+    <colgroup>
+    <col style="width: 30%" />
+    <col style="width: 13%" />
+    <col style="width: 30%" />
+    <col style="width: 25%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Operation</th>
+    <th>R4W</th>
+    <th>GNU Radio</th>
+    <th>Speedup</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>FFT 1024-pt</strong></td>
+    <td>371 M samples/sec</td>
+    <td>50 M samples/sec</td>
+    <td><strong>7.4x faster</strong></td>
+    </tr>
+    <tr class="even">
+    <td><strong>FFT 4096-pt</strong></td>
+    <td>330 M samples/sec</td>
+    <td>12 M samples/sec</td>
+    <td><strong>27x faster</strong></td>
+    </tr>
+    <tr class="odd">
+    <td><strong>FFT 2048-pt</strong></td>
+    <td>179 M samples/sec</td>
+    <td>~25 M samples/sec</td>
+    <td><strong>7x faster</strong></td>
+    </tr>
+    </tbody>
+    </table>
+    <p><em>Benchmarks: R4W with rustfft. GNU Radio baseline: i7-10700K,
+    FFTW3+VOLK.</em></p>
+    <h3 id="cc-integration-phase-4-complete">C/C++ Integration (Phase 4
+    Complete ✓)</h3>
+    <p>For teams migrating from GNU Radio, R4W provides complete C/C++
+    interoperability:</p>
+    <ul>
+    <li><strong>C headers</strong> - Auto-generated via cbindgen
+    (<code>include/r4w.h</code>)</li>
+    <li><strong>C++ RAII wrappers</strong> - Modern C++ interface
+    (<code>include/r4w.hpp</code>)</li>
+    <li><strong>CMake integration</strong> -
+    <code>find_package(R4W)</code> support</li>
+    <li><strong>Example programs</strong> - C and C++ examples in
+    <code>examples/c/</code></li>
+    </ul>
+    <div class="sourceCode" id="cb2"><pre
+    class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;r4w.hpp&gt;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> waveform <span class="op">=</span> r4w<span class="op">::</span>Waveform<span class="op">::</span>bpsk<span class="op">(</span><span class="fl">48000.0</span><span class="op">,</span> <span class="fl">1200.0</span><span class="op">);</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate<span class="op">({</span><span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">});</span></span></code></pre></div>
+    <h2 id="platform-architecture">Platform Architecture</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           R4W Platform Stack                                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │                        Applications Layer                               │   │
+│   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌───────────────┐   │   │
+│   │  │ r4w-explorer│  │     r4w     │  │  r4w-web    │  │ Your Waveform │   │   │
+│   │  │   (GUI)     │  │    (CLI)    │  │   (WASM)    │  │  Application  │   │   │
+│   │  └─────────────┘  └─────────────┘  └─────────────┘  └───────────────┘   │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                      ▼                                          │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │                        Waveform Framework                               │   │
+│   │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐   │   │
+│   │  │   LoRa   │  │PSK/QAM   │  │   FSK    │  │ SINCGARS │  │HAVEQUICK │   │   │
+│   │  │   CSS    │  │BPSK/QPSK │  │ 2/4-FSK  │  │   FHSS   │  │UHF AM/FH │   │   │
+│   │  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘   │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                      ▼                                          │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │                          Core Libraries                                 │   │
+│   │  ┌───────────────┐  ┌───────────────┐  ┌───────────────────────────┐    │   │
+│   │  │   r4w-core    │  │   r4w-sim     │  │      r4w-gui (lib)        │    │   │
+│   │  │  DSP Kernels  │  │ Channel Models│  │  Visualization Components │    │   │
+│   │  │  FFT, Filters │  │ AWGN, Fading  │  │  egui Widgets             │    │   │
+│   │  │  Coding, FEC  │  │ UDP Transport │  │  Plot/Spectrum/Waterfall  │    │   │
+│   │  └───────────────┘  └───────────────┘  └───────────────────────────┘    │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                      ▼                                          │
+│   ┌─────────────────────────────────────────────────────────────────────────┐   │
+│   │                       Hardware Abstraction                              │   │
+│   │  ┌───────────────┐  ┌───────────────┐  ┌───────────────────────────┐    │   │
+│   │  │    SdrDevice  │  │   UDP I/Q     │  │       r4w-fpga            │    │   │
+│   │  │     Trait     │  │   Transport   │  │    Xilinx Zynq mmap       │    │   │
+│   │  │  USRP/RTL-SDR │  │  GNU Radio    │  │    Lattice FTDI/SPI       │    │   │
+│   │  └───────────────┘  └───────────────┘  └───────────────────────────┘    │   │
+│   └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="crate-overview">Crate Overview</h2>
+    <table>
+    <colgroup>
+    <col style="width: 23%" />
+    <col style="width: 30%" />
+    <col style="width: 46%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Crate</th>
+    <th>Purpose</th>
+    <th>Key Features</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>r4w-core</strong></td>
+    <td>DSP algorithms and waveform trait</td>
+    <td>FFT, chirp gen, PSK/FSK/QAM, FEC, Gray coding, benchmarking</td>
+    </tr>
+    <tr class="even">
+    <td><strong>r4w-sim</strong></td>
+    <td>Channel simulation and transport</td>
+    <td>AWGN/Rayleigh/Rician, UDP I/Q, device abstraction</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>r4w-fpga</strong></td>
+    <td>FPGA hardware acceleration</td>
+    <td>Xilinx Zynq, Lattice iCE40/ECP5, simulated backend</td>
+    </tr>
+    <tr class="even">
+    <td><strong>r4w-sandbox</strong></td>
+    <td>Waveform isolation</td>
+    <td>Secure memory, namespaces, seccomp, container/VM support</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>r4w-gui</strong></td>
+    <td>Visualization library + app</td>
+    <td>egui widgets, spectrum plots, constellation diagrams</td>
+    </tr>
+    <tr class="even">
+    <td><strong>r4w-cli</strong></td>
+    <td>Command-line tool (<code>r4w</code>)</td>
+    <td>TX/RX, benchmarking, remote agents, waveform simulation</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>r4w-web</strong></td>
+    <td>WebAssembly entry point</td>
+    <td>Browser-based demo and education</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="plugin-system">Plugin System</h2>
+    <p>R4W supports dynamic loading of waveform plugins at runtime.
+    Plugins are shared libraries (<code>.so</code> on Linux,
+    <code>.dll</code> on Windows, <code>.dylib</code> on macOS) that
+    implement the R4W plugin ABI.</p>
+    <h3 id="creating-a-plugin">Creating a Plugin</h3>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::plugin::</span><span class="op">{</span>PluginInfo<span class="op">,</span> PLUGIN_API_VERSION<span class="op">};</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::ffi::</span><span class="dt">c_char</span><span class="op">;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>no_mangle<span class="at">]</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">extern</span> <span class="st">&quot;C&quot;</span> <span class="kw">fn</span> r4w_plugin_api_version() <span class="op">-&gt;</span> <span class="dt">u32</span> <span class="op">{</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    PLUGIN_API_VERSION</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>no_mangle<span class="at">]</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">extern</span> <span class="st">&quot;C&quot;</span> <span class="kw">fn</span> r4w_plugin_info() <span class="op">-&gt;</span> <span class="op">*</span><span class="kw">const</span> PluginInfo <span class="op">{</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">static</span> INFO<span class="op">:</span> PluginInfo <span class="op">=</span> PluginInfo <span class="op">{</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>        name<span class="op">:</span> <span class="st">b&quot;my_waveform</span><span class="sc">\0</span><span class="st">&quot;</span><span class="op">.</span>as_ptr() <span class="kw">as</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">c_char</span><span class="op">,</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>        version<span class="op">:</span> <span class="st">b&quot;1.0.0</span><span class="sc">\0</span><span class="st">&quot;</span><span class="op">.</span>as_ptr() <span class="kw">as</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">c_char</span><span class="op">,</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        description<span class="op">:</span> <span class="st">b&quot;Custom waveform plugin</span><span class="sc">\0</span><span class="st">&quot;</span><span class="op">.</span>as_ptr() <span class="kw">as</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">c_char</span><span class="op">,</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>        author<span class="op">:</span> <span class="st">b&quot;Author Name</span><span class="sc">\0</span><span class="st">&quot;</span><span class="op">.</span>as_ptr() <span class="kw">as</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">c_char</span><span class="op">,</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        waveform_count<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">};</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="op">&amp;</span>INFO</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="loading-plugins">Loading Plugins</h3>
+    <div class="sourceCode" id="cb5"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::plugin::</span>PluginManager<span class="op">;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> manager <span class="op">=</span> <span class="pp">PluginManager::</span>new()<span class="op">;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>manager<span class="op">.</span>add_search_path(<span class="st">&quot;/usr/lib/r4w/plugins&quot;</span>)<span class="op">;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>manager<span class="op">.</span>discover_plugins()<span class="op">?;</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> wf <span class="kw">in</span> manager<span class="op">.</span>list_waveforms() <span class="op">{</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;{}: {}&quot;</span><span class="op">,</span> wf<span class="op">.</span>name<span class="op">,</span> wf<span class="op">.</span>description)<span class="op">;</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="building-plugins">Building Plugins</h3>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build the example plugin</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">-p</span> r4w-example-plugin</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Output: target/release/libr4w_example_plugin.so</span></span></code></pre></div>
+    <p>Enable the <code>plugins</code> feature in r4w-core for real
+    dynamic loading:</p>
+    <div class="sourceCode" id="cb7"><pre
+    class="sourceCode toml"><code class="sourceCode toml"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="dt">r4w-core</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">version</span><span class="op"> =</span> <span class="st">&quot;0.1&quot;</span><span class="op">, </span><span class="dt">features</span><span class="op"> =</span> <span class="op">[</span><span class="st">&quot;plugins&quot;</span><span class="op">] }</span></span></code></pre></div>
+    <h2 id="quick-start">Quick Start</h2>
+    <div class="sourceCode" id="cb8"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Clone and build</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/joemooney/r4w</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> r4w</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the GUI explorer</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w-explorer</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co"># List available waveforms</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> waveform <span class="at">--list</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate LoRa transmission</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> simulate <span class="at">--message</span> <span class="st">&quot;Hello R4W!&quot;</span> <span class="at">--snr</span> 10.0</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Run in browser (WASM)</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> crates/r4w-web <span class="kw">&amp;&amp;</span> <span class="ex">trunk</span> serve</span></code></pre></div>
+    <h2 id="available-waveforms">Available Waveforms</h2>
+    <p>R4W includes 38+ waveform implementations:</p>
+    <pre><code>Simple:       CW, OOK, PPM, ADS-B
+Analog:       AM-Broadcast, FM-Broadcast, NBFM
+Amplitude:    ASK, 4-ASK
+Frequency:    BFSK, 4-FSK
+Phase:        BPSK, QPSK, 8-PSK
+QAM:          16-QAM, 64-QAM, 256-QAM
+Multi-carrier: OFDM
+Spread:       DSSS, DSSS-QPSK, FHSS, LoRa (SF7-SF12)
+IoT/Radar:    Zigbee (802.15.4), UWB, FMCW
+HF/Military:  STANAG 4285, ALE, 3G-ALE, MIL-STD-188-110
+              SINCGARS*, HAVEQUICK*, Link-16*, P25*
+PMR:          TETRA, DMR (Tier II/III)</code></pre>
+    <p><strong>* Framework implementations</strong> - These waveforms
+    use a trait-based architecture where classified/proprietary
+    components (frequency hopping algorithms, TRANSEC, voice codecs) are
+    represented by simulator stubs. The unclassified signal processing,
+    modulation, and framing are fully implemented. See <a
+    href="porting-military.html">docs/PORTING_GUIDE_MILITARY.md</a>
+    for details.</p>
+    <h2 id="test-status">Test Status</h2>
+    <p>All tests pass across the workspace:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Crate</th>
+    <th>Tests</th>
+    <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>r4w-core</td>
+    <td>421</td>
+    <td>✅ Pass</td>
+    </tr>
+    <tr class="even">
+    <td>r4w-sim</td>
+    <td>50</td>
+    <td>✅ Pass</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w-gui</td>
+    <td>22</td>
+    <td>✅ Pass</td>
+    </tr>
+    <tr class="even">
+    <td>r4w-sandbox</td>
+    <td>14</td>
+    <td>✅ Pass</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w-fpga</td>
+    <td>7</td>
+    <td>✅ Pass</td>
+    </tr>
+    <tr class="even">
+    <td>r4w-ffi</td>
+    <td>7</td>
+    <td>✅ Pass</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w-example-plugin</td>
+    <td>6</td>
+    <td>✅ Pass</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Total</strong></td>
+    <td><strong>527</strong></td>
+    <td><strong>✅ All Pass</strong></td>
+    </tr>
+    </tbody>
+    </table>
+    <p>Run tests: <code>cargo test --workspace</code></p>
+    <h2 id="code-metrics">Code Metrics</h2>
+    <p>Measured with <code>tokei</code>:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Language</th>
+    <th>Code Lines</th>
+    <th>Files</th>
+    <th>Purpose</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Rust</strong></td>
+    <td>66,572</td>
+    <td>217</td>
+    <td>Core implementation (79%)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Coq</strong></td>
+    <td>6,324</td>
+    <td>27</td>
+    <td>Formal verification proofs</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>YAML</strong></td>
+    <td>3,445</td>
+    <td>11</td>
+    <td>Requirements, configs, waveform specs</td>
+    </tr>
+    <tr class="even">
+    <td><strong>HTML/CSS/JS</strong></td>
+    <td>3,378</td>
+    <td>4</td>
+    <td>Web interface</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>C/C++</strong></td>
+    <td>2,037</td>
+    <td>5</td>
+    <td>FFI bindings, hardware interfaces</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Makefile</strong></td>
+    <td>829</td>
+    <td>4</td>
+    <td>Build automation</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>TOML</strong></td>
+    <td>494</td>
+    <td>17</td>
+    <td>Cargo configs</td>
+    </tr>
+    <tr class="even">
+    <td><strong>CMake</strong></td>
+    <td>402</td>
+    <td>12</td>
+    <td>C/C++ build system</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>TCL</strong></td>
+    <td>198</td>
+    <td>4</td>
+    <td>FPGA tooling scripts</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Total</strong></td>
+    <td><strong>84,467</strong></td>
+    <td><strong>359</strong></td>
+    <td></td>
+    </tr>
+    </tbody>
+    </table>
+    <p><strong>Highlights:</strong> - Rust dominates (79%) as expected
+    for an SDR platform - 6,324 lines of Coq proofs demonstrates
+    commitment to formal verification - Extensive documentation: 9,690
+    comment lines in Markdown code blocks - Test density: 527 tests
+    covering 66k lines = ~1 test per 126 lines of Rust</p>
+    <h2 id="recent-updates">Recent Updates</h2>
+    <h3 id="december-2024">December 2024</h3>
+    <ul>
+    <li><strong>License Simplified</strong> - Changed from dual
+    MIT/Apache-2.0 to MIT only for maximum permissiveness</li>
+    <li><strong>License Files Added</strong> - <code>LICENSE</code> and
+    <code>THIRD_PARTY.md</code> with proper attributions</li>
+    <li><strong>Physical Layer Complete</strong> - All 6 phases
+    implemented:
+    <ul>
+    <li>Phase 1: Timing model (multi-clock architecture)</li>
+    <li>Phase 2: HAL enhancement (SigMF file I/O, driver stubs)</li>
+    <li>Phase 3: Observability (structured logging, metrics,
+    capture)</li>
+    <li>Phase 4: Real-time primitives (lock-free buffers, thread
+    priorities)</li>
+    <li>Phase 5: Plugin system (dynamic waveform loading)</li>
+    <li>Phase 6: Hardware drivers (RTL-SDR, SoapySDR, UHD stubs)</li>
+    </ul></li>
+    <li><strong>Lattice FPGA Support</strong> - Open-source iCE40/ECP5
+    with Yosys/nextpnr toolchain</li>
+    <li><strong>Crypto Boundary Design</strong> - CSI architecture for
+    RED/BLACK separation</li>
+    <li><strong>Waveform Specification System</strong> - YAML schema for
+    AI-assisted waveform generation</li>
+    </ul>
+    <hr />
+    <h1 id="waveform-wizard">Waveform Wizard</h1>
+    <p>The Waveform Wizard is an interactive GUI tool for designing new
+    waveforms and generating AI implementation prompts.</p>
+    <h2 id="features">Features</h2>
+    <ul>
+    <li><strong>Interactive Configuration</strong>: Step-by-step wizard
+    with presets for common waveform types</li>
+    <li><strong>YAML Specification</strong>: Generates complete waveform
+    specification following the R4W schema</li>
+    <li><strong>AI Implementation Prompt</strong>: Exports
+    self-contained prompt for Claude to implement the waveform</li>
+    <li><strong>Export Options</strong>: Choose between spec-only
+    (.yaml) or full implementation prompt (.md)</li>
+    </ul>
+    <h2 id="workflow">Workflow</h2>
+    <ol type="1">
+    <li><strong>Open the Wizard</strong>: Run
+    <code>cargo run --bin r4w-explorer</code> and navigate to “Waveform
+    Wizard”</li>
+    <li><strong>Select Preset or Configure</strong>: Choose from presets
+    (BPSK, QPSK, LoRa-like, etc.) or configure manually</li>
+    <li><strong>Review Specification</strong>: Preview the generated
+    YAML specification</li>
+    <li><strong>Export</strong>: Click “Export” and enable “Include R4W
+    Implementation Prompt”</li>
+    <li><strong>Implement with AI</strong>: Paste the exported content
+    into a fresh Claude Code session</li>
+    <li><strong>Test</strong>: Claude generates the waveform module,
+    factory registration, and tests</li>
+    </ol>
+    <h2 id="export-modes">Export Modes</h2>
+    <table>
+    <colgroup>
+    <col style="width: 16%" />
+    <col style="width: 29%" />
+    <col style="width: 27%" />
+    <col style="width: 27%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Mode</th>
+    <th>Extension</th>
+    <th>Contents</th>
+    <th>Use Case</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Spec Only</td>
+    <td><code>.yaml</code></td>
+    <td>Just the waveform specification</td>
+    <td>Storage, reference, manual implementation</td>
+    </tr>
+    <tr class="even">
+    <td>With Prompt</td>
+    <td><code>.md</code></td>
+    <td>Full R4W context + specification</td>
+    <td>AI-assisted implementation with Claude</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="registration-requirements">Registration Requirements</h2>
+    <p>When implementing a new waveform, two registrations are
+    needed:</p>
+    <ol type="1">
+    <li><strong>WaveformFactory</strong> (<code>mod.rs</code>): Makes
+    waveform available to CLI and core</li>
+    <li><strong>WaveformGroup</strong> (<code>app.rs</code>): Makes
+    waveform appear in GUI dropdown</li>
+    </ol>
+    <p>The implementation prompt documents both registration points.</p>
+    <h2 id="files">Files</h2>
+    <table>
+    <colgroup>
+    <col style="width: 40%" />
+    <col style="width: 60%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>File</th>
+    <th>Purpose</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><code>waveform-spec/schema.yaml</code></td>
+    <td>Complete specification schema</td>
+    </tr>
+    <tr class="even">
+    <td><code>waveform-spec/IMPLEMENTATION_PROMPT.md</code></td>
+    <td>AI implementation context template</td>
+    </tr>
+    <tr class="odd">
+    <td><code>waveform-spec/examples/</code></td>
+    <td>Example waveform specifications</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h1 id="waveform-developers-guide">Waveform Developer’s Guide</h1>
+    <p>This section covers how to implement new waveforms in R4W.</p>
+    <h2 id="the-waveform-trait">The Waveform Trait</h2>
+    <p>Every waveform implements the <code>Waveform</code> trait from
+    <code>r4w-core</code>:</p>
+    <div class="sourceCode" id="cb10"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> Waveform<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get information about this waveform</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> info(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> WaveformInfo<span class="op">;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Modulate bits to I/Q samples</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;;</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Demodulate I/Q samples to bits</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;;</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get constellation points for visualization</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> constellation_points(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;;</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get educational pipeline stages</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_modulation_stages(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>ModulationStage<span class="op">&gt;;</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_demodulation_steps(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>DemodulationStep<span class="op">&gt;;</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> WaveformInfo <span class="op">{</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> name<span class="op">:</span> <span class="op">&amp;</span><span class="ot">&#39;static</span> <span class="dt">str</span><span class="op">,</span>           <span class="co">// Short name (e.g., &quot;QPSK&quot;)</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> full_name<span class="op">:</span> <span class="op">&amp;</span><span class="ot">&#39;static</span> <span class="dt">str</span><span class="op">,</span>      <span class="co">// Full name (e.g., &quot;Quadrature Phase Shift Keying&quot;)</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> bits_per_symbol<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span>          <span class="co">// Spectral efficiency</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> sample_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span>             <span class="co">// Operating sample rate</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> symbol_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span>             <span class="co">// Symbol rate in Hz</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> carries_data<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span>           <span class="co">// Does this waveform carry data?</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="creating-a-new-waveform">Creating a New Waveform</h2>
+    <h3 id="step-1-create-the-waveform-struct">Step 1: Create the
+    Waveform Struct</h3>
+    <div class="sourceCode" id="cb11"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/my_waveform.rs</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="kw">crate</span><span class="pp">::types::</span>IQSample<span class="op">;</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="kw">crate</span><span class="pp">::waveform::</span><span class="op">{</span>Waveform<span class="op">,</span> WaveformInfo<span class="op">,</span> ModulationStage<span class="op">,</span> DemodulationStep<span class="op">};</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> MyWaveform <span class="op">{</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    symbol_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ... your parameters</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> MyWaveform <span class="op">{</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new(sample_rate<span class="op">:</span> <span class="dt">f64</span>) <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>            sample_rate<span class="op">,</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>            symbol_rate<span class="op">:</span> sample_rate <span class="op">/</span> <span class="dv">10.0</span><span class="op">,</span>  <span class="co">// 10 samples per symbol</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="step-2-implement-the-trait">Step 2: Implement the Trait</h3>
+    <div class="sourceCode" id="cb12"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> Waveform <span class="cf">for</span> MyWaveform <span class="op">{</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> info(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> WaveformInfo <span class="op">{</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>        WaveformInfo <span class="op">{</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>            name<span class="op">:</span> <span class="st">&quot;MyWave&quot;</span><span class="op">,</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>            full_name<span class="op">:</span> <span class="st">&quot;My Custom Waveform&quot;</span><span class="op">,</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>            bits_per_symbol<span class="op">:</span> <span class="dv">2</span><span class="op">,</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>            sample_rate<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>sample_rate<span class="op">,</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>            symbol_rate<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>symbol_rate<span class="op">,</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>            carries_data<span class="op">:</span> <span class="cn">true</span><span class="op">,</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples_per_symbol <span class="op">=</span> (<span class="kw">self</span><span class="op">.</span>sample_rate <span class="op">/</span> <span class="kw">self</span><span class="op">.</span>symbol_rate) <span class="kw">as</span> <span class="dt">usize</span><span class="op">;</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> samples <span class="op">=</span> <span class="dt">Vec</span><span class="pp">::</span>new()<span class="op">;</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Process bits in groups based on bits_per_symbol</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> chunk <span class="kw">in</span> bits<span class="op">.</span>chunks(<span class="dv">2</span>) <span class="op">{</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> symbol <span class="op">=</span> <span class="cf">match</span> (chunk<span class="op">.</span>get(<span class="dv">0</span>)<span class="op">,</span> chunk<span class="op">.</span>get(<span class="dv">1</span>)) <span class="op">{</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>                (<span class="cn">Some</span>(<span class="op">&amp;</span><span class="cn">false</span>)<span class="op">,</span> <span class="cn">Some</span>(<span class="op">&amp;</span><span class="cn">false</span>)) <span class="op">=&gt;</span> <span class="pp">IQSample::</span>new(<span class="op">-</span><span class="dv">1.0</span><span class="op">,</span> <span class="op">-</span><span class="dv">1.0</span>)<span class="op">,</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>                (<span class="cn">Some</span>(<span class="op">&amp;</span><span class="cn">false</span>)<span class="op">,</span> <span class="cn">Some</span>(<span class="op">&amp;</span><span class="cn">true</span>))  <span class="op">=&gt;</span> <span class="pp">IQSample::</span>new(<span class="op">-</span><span class="dv">1.0</span><span class="op">,</span>  <span class="dv">1.0</span>)<span class="op">,</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>                (<span class="cn">Some</span>(<span class="op">&amp;</span><span class="cn">true</span>)<span class="op">,</span>  <span class="cn">Some</span>(<span class="op">&amp;</span><span class="cn">false</span>)) <span class="op">=&gt;</span> <span class="pp">IQSample::</span>new( <span class="dv">1.0</span><span class="op">,</span> <span class="op">-</span><span class="dv">1.0</span>)<span class="op">,</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>                (<span class="cn">Some</span>(<span class="op">&amp;</span><span class="cn">true</span>)<span class="op">,</span>  <span class="cn">Some</span>(<span class="op">&amp;</span><span class="cn">true</span>))  <span class="op">=&gt;</span> <span class="pp">IQSample::</span>new( <span class="dv">1.0</span><span class="op">,</span>  <span class="dv">1.0</span>)<span class="op">,</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>                _ <span class="op">=&gt;</span> <span class="pp">IQSample::</span>new(<span class="dv">1.0</span><span class="op">,</span> <span class="dv">1.0</span>)<span class="op">,</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a>            <span class="op">};</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Repeat symbol for samples_per_symbol</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>            samples<span class="op">.</span>extend(<span class="pp">std::iter::</span>repeat(symbol)<span class="op">.</span>take(samples_per_symbol))<span class="op">;</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>        samples</span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples_per_symbol <span class="op">=</span> (<span class="kw">self</span><span class="op">.</span>sample_rate <span class="op">/</span> <span class="kw">self</span><span class="op">.</span>symbol_rate) <span class="kw">as</span> <span class="dt">usize</span><span class="op">;</span></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> bits <span class="op">=</span> <span class="dt">Vec</span><span class="pp">::</span>new()<span class="op">;</span></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> chunk <span class="kw">in</span> samples<span class="op">.</span>chunks(samples_per_symbol) <span class="op">{</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Average samples in symbol period</span></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> avg <span class="op">=</span> chunk<span class="op">.</span>iter()<span class="op">.</span>fold(<span class="pp">IQSample::</span>new(<span class="dv">0.0</span><span class="op">,</span> <span class="dv">0.0</span>)<span class="op">,</span> <span class="op">|</span>acc<span class="op">,</span> s<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>                <span class="pp">IQSample::</span>new(acc<span class="op">.</span>re <span class="op">+</span> s<span class="op">.</span>re<span class="op">,</span> acc<span class="op">.</span>im <span class="op">+</span> s<span class="op">.</span>im)</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> avg <span class="op">=</span> <span class="pp">IQSample::</span>new(</span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>                avg<span class="op">.</span>re <span class="op">/</span> chunk<span class="op">.</span>len() <span class="kw">as</span> <span class="dt">f32</span><span class="op">,</span></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a>                avg<span class="op">.</span>im <span class="op">/</span> chunk<span class="op">.</span>len() <span class="kw">as</span> <span class="dt">f32</span><span class="op">,</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>            )<span class="op">;</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Decision regions</span></span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>            bits<span class="op">.</span>push(avg<span class="op">.</span>re <span class="op">&gt;</span> <span class="dv">0.0</span>)<span class="op">;</span>  <span class="co">// Bit 0</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>            bits<span class="op">.</span>push(avg<span class="op">.</span>im <span class="op">&gt;</span> <span class="dv">0.0</span>)<span class="op">;</span>  <span class="co">// Bit 1</span></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>        bits</span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> constellation_points(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>        <span class="pp">vec!</span>[</span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>            <span class="pp">IQSample::</span>new(<span class="op">-</span><span class="dv">1.0</span><span class="op">,</span> <span class="op">-</span><span class="dv">1.0</span>)<span class="op">,</span>  <span class="co">// 00</span></span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>            <span class="pp">IQSample::</span>new(<span class="op">-</span><span class="dv">1.0</span><span class="op">,</span>  <span class="dv">1.0</span>)<span class="op">,</span>  <span class="co">// 01</span></span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a>            <span class="pp">IQSample::</span>new( <span class="dv">1.0</span><span class="op">,</span> <span class="op">-</span><span class="dv">1.0</span>)<span class="op">,</span>  <span class="co">// 10</span></span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>            <span class="pp">IQSample::</span>new( <span class="dv">1.0</span><span class="op">,</span>  <span class="dv">1.0</span>)<span class="op">,</span>  <span class="co">// 11</span></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_modulation_stages(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>ModulationStage<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Return educational visualization stages</span></span>
+<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a>        <span class="pp">vec!</span>[</span>
+<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a>            ModulationStage <span class="op">{</span></span>
+<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a>                name<span class="op">:</span> <span class="st">&quot;Bit Grouping&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb12-70"><a href="#cb12-70" aria-hidden="true" tabindex="-1"></a>                description<span class="op">:</span> <span class="st">&quot;Group bits into dibits&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb12-71"><a href="#cb12-71" aria-hidden="true" tabindex="-1"></a>                samples<span class="op">:</span> <span class="pp">vec!</span>[]<span class="op">,</span>  <span class="co">// Intermediate data</span></span>
+<span id="cb12-72"><a href="#cb12-72" aria-hidden="true" tabindex="-1"></a>            <span class="op">},</span></span>
+<span id="cb12-73"><a href="#cb12-73" aria-hidden="true" tabindex="-1"></a>            ModulationStage <span class="op">{</span></span>
+<span id="cb12-74"><a href="#cb12-74" aria-hidden="true" tabindex="-1"></a>                name<span class="op">:</span> <span class="st">&quot;Symbol Mapping&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb12-75"><a href="#cb12-75" aria-hidden="true" tabindex="-1"></a>                description<span class="op">:</span> <span class="st">&quot;Map dibits to constellation points&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb12-76"><a href="#cb12-76" aria-hidden="true" tabindex="-1"></a>                samples<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>modulate(bits)<span class="op">,</span></span>
+<span id="cb12-77"><a href="#cb12-77" aria-hidden="true" tabindex="-1"></a>            <span class="op">},</span></span>
+<span id="cb12-78"><a href="#cb12-78" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb12-79"><a href="#cb12-79" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-80"><a href="#cb12-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-81"><a href="#cb12-81" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_demodulation_steps(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>DemodulationStep<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb12-82"><a href="#cb12-82" aria-hidden="true" tabindex="-1"></a>        <span class="pp">vec!</span>[</span>
+<span id="cb12-83"><a href="#cb12-83" aria-hidden="true" tabindex="-1"></a>            DemodulationStep <span class="op">{</span></span>
+<span id="cb12-84"><a href="#cb12-84" aria-hidden="true" tabindex="-1"></a>                name<span class="op">:</span> <span class="st">&quot;Symbol Detection&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb12-85"><a href="#cb12-85" aria-hidden="true" tabindex="-1"></a>                description<span class="op">:</span> <span class="st">&quot;Find nearest constellation point&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb12-86"><a href="#cb12-86" aria-hidden="true" tabindex="-1"></a>                data<span class="op">:</span> samples<span class="op">.</span>to_vec()<span class="op">,</span></span>
+<span id="cb12-87"><a href="#cb12-87" aria-hidden="true" tabindex="-1"></a>                bits<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>demodulate(samples)<span class="op">,</span></span>
+<span id="cb12-88"><a href="#cb12-88" aria-hidden="true" tabindex="-1"></a>            <span class="op">},</span></span>
+<span id="cb12-89"><a href="#cb12-89" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb12-90"><a href="#cb12-90" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-91"><a href="#cb12-91" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="step-3-register-with-waveformfactory">Step 3: Register with
+    WaveformFactory</h3>
+    <div class="sourceCode" id="cb13"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">// In crates/r4w-core/src/waveform/factory.rs</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> WaveformFactory <span class="op">{</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> create(name<span class="op">:</span> <span class="op">&amp;</span><span class="dt">str</span><span class="op">,</span> sample_rate<span class="op">:</span> <span class="dt">f64</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> Waveform<span class="op">&gt;&gt;</span> <span class="op">{</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">match</span> name<span class="op">.</span>to_uppercase()<span class="op">.</span>as_str() <span class="op">{</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>            <span class="co">// ... existing waveforms ...</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;MYWAVE&quot;</span> <span class="op">|</span> <span class="st">&quot;MY-WAVE&quot;</span> <span class="op">=&gt;</span> <span class="cn">Some</span>(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">MyWaveform::</span>new(sample_rate)))<span class="op">,</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>            _ <span class="op">=&gt;</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> list() <span class="op">-&gt;</span> <span class="op">&amp;</span><span class="ot">&#39;static</span> [<span class="op">&amp;</span><span class="ot">&#39;static</span> <span class="dt">str</span>] <span class="op">{</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>        <span class="op">&amp;</span>[</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>            <span class="co">// ... existing ...</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>            <span class="st">&quot;MyWave&quot;</span><span class="op">,</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>        ]</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="step-4-add-tests">Step 4: Add Tests</h3>
+    <div class="sourceCode" id="cb14"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>cfg<span class="at">(</span>test<span class="at">)]</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> tests <span class="op">{</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">use</span> <span class="kw">super</span><span class="pp">::</span><span class="op">*;</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> test_roundtrip() <span class="op">{</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> waveform <span class="op">=</span> <span class="pp">MyWaveform::</span>new(<span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> original_bits <span class="op">=</span> <span class="pp">vec!</span>[<span class="cn">true</span><span class="op">,</span> <span class="cn">false</span><span class="op">,</span> <span class="cn">true</span><span class="op">,</span> <span class="cn">true</span><span class="op">,</span> <span class="cn">false</span><span class="op">,</span> <span class="cn">false</span>]<span class="op">;</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate(<span class="op">&amp;</span>original_bits)<span class="op">;</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> recovered_bits <span class="op">=</span> waveform<span class="op">.</span>demodulate(<span class="op">&amp;</span>samples)<span class="op">;</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>        <span class="pp">assert_eq!</span>(original_bits<span class="op">,</span> recovered_bits)<span class="op">;</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> test_with_noise() <span class="op">{</span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>        <span class="kw">use</span> <span class="pp">r4w_sim::channel::</span>AwgnChannel<span class="op">;</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> waveform <span class="op">=</span> <span class="pp">MyWaveform::</span>new(<span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> bits <span class="op">=</span> <span class="pp">vec!</span>[<span class="cn">true</span><span class="op">;</span> <span class="dv">100</span>]<span class="op">;</span></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate(<span class="op">&amp;</span>bits)<span class="op">;</span></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> noisy <span class="op">=</span> <span class="pp">AwgnChannel::</span>new(<span class="dv">10.0</span>)<span class="op">.</span>apply(<span class="op">&amp;</span>samples)<span class="op">;</span>  <span class="co">// 10 dB SNR</span></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> recovered <span class="op">=</span> waveform<span class="op">.</span>demodulate(<span class="op">&amp;</span>noisy)<span class="op">;</span></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> errors <span class="op">=</span> bits<span class="op">.</span>iter()<span class="op">.</span>zip(<span class="op">&amp;</span>recovered)</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>filter(<span class="op">|</span>(a<span class="op">,</span> b)<span class="op">|</span> a <span class="op">!=</span> b)</span>
+<span id="cb14-29"><a href="#cb14-29" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>count()<span class="op">;</span></span>
+<span id="cb14-30"><a href="#cb14-30" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> ber <span class="op">=</span> errors <span class="kw">as</span> <span class="dt">f64</span> <span class="op">/</span> bits<span class="op">.</span>len() <span class="kw">as</span> <span class="dt">f64</span><span class="op">;</span></span>
+<span id="cb14-31"><a href="#cb14-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-32"><a href="#cb14-32" aria-hidden="true" tabindex="-1"></a>        <span class="pp">assert!</span>(ber <span class="op">&lt;</span> <span class="dv">0.1</span><span class="op">,</span> <span class="st">&quot;BER too high: {:.2}%&quot;</span><span class="op">,</span> ber <span class="op">*</span> <span class="dv">100.0</span>)<span class="op">;</span></span>
+<span id="cb14-33"><a href="#cb14-33" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb14-34"><a href="#cb14-34" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <hr />
+    <h1 id="porting-guide">Porting Guide</h1>
+    <p>This section covers how to port existing waveform implementations
+    to R4W.</p>
+    <h2 id="from-cc-sdr-code">From C/C++ SDR Code</h2>
+    <h3 id="step-1-identify-the-core-functions">Step 1: Identify the
+    Core Functions</h3>
+    <p>Look for these patterns in the original code: -
+    <code>modulate()</code>, <code>encode()</code>, <code>tx()</code> →
+    maps to <code>Waveform::modulate()</code> -
+    <code>demodulate()</code>, <code>decode()</code>, <code>rx()</code>
+    → maps to <code>Waveform::demodulate()</code> - Complex number types
+    → use <code>num_complex::Complex&lt;f32&gt;</code> or
+    <code>IQSample</code></p>
+    <h3 id="step-2-replace-c-idioms-with-rust">Step 2: Replace C Idioms
+    with Rust</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>C/C++ Pattern</th>
+    <th>Rust Equivalent</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><code>float* samples</code></td>
+    <td><code>&amp;[IQSample]</code> or
+    <code>Vec&lt;IQSample&gt;</code></td>
+    </tr>
+    <tr class="even">
+    <td><code>malloc</code>/<code>free</code></td>
+    <td>Stack allocation or <code>Vec</code></td>
+    </tr>
+    <tr class="odd">
+    <td><code>fftw_plan</code></td>
+    <td><code>rustfft::FftPlanner</code></td>
+    </tr>
+    <tr class="even">
+    <td><code>memcpy</code></td>
+    <td><code>.clone()</code> or <code>.copy_from_slice()</code></td>
+    </tr>
+    <tr class="odd">
+    <td>Raw pointer arithmetic</td>
+    <td>Iterator methods</td>
+    </tr>
+    <tr class="even">
+    <td><code>#define SYMBOL_SIZE 128</code></td>
+    <td><code>const SYMBOL_SIZE: usize = 128;</code></td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="example-porting-a-simple-fsk-modulator">Example: Porting a
+    Simple FSK Modulator</h3>
+    <p><strong>Original C code:</strong></p>
+    <div class="sourceCode" id="cb15"><pre
+    class="sourceCode c"><code class="sourceCode c"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> fsk_modulate<span class="op">(</span><span class="dt">float</span><span class="op">*</span> samples<span class="op">,</span> <span class="dt">int</span><span class="op">*</span> bits<span class="op">,</span> <span class="dt">int</span> n_bits<span class="op">,</span> <span class="dt">float</span> sample_rate<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    <span class="dt">float</span> f0 <span class="op">=</span> <span class="fl">1200.0</span><span class="op">,</span> f1 <span class="op">=</span> <span class="fl">2200.0</span><span class="op">;</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">int</span> samples_per_bit <span class="op">=</span> <span class="op">(</span><span class="dt">int</span><span class="op">)(</span>sample_rate <span class="op">/</span> <span class="fl">300.0</span><span class="op">);</span>  <span class="co">// 300 baud</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> n_bits<span class="op">;</span> i<span class="op">++)</span> <span class="op">{</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>        <span class="dt">float</span> freq <span class="op">=</span> bits<span class="op">[</span>i<span class="op">]</span> <span class="op">?</span> f1 <span class="op">:</span> f0<span class="op">;</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> j <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> j <span class="op">&lt;</span> samples_per_bit<span class="op">;</span> j<span class="op">++)</span> <span class="op">{</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>            <span class="dt">int</span> idx <span class="op">=</span> i <span class="op">*</span> samples_per_bit <span class="op">+</span> j<span class="op">;</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>            <span class="dt">float</span> t <span class="op">=</span> <span class="op">(</span><span class="dt">float</span><span class="op">)</span>idx <span class="op">/</span> sample_rate<span class="op">;</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>            samples<span class="op">[</span>idx <span class="op">*</span> <span class="dv">2</span><span class="op">]</span> <span class="op">=</span> cosf<span class="op">(</span><span class="dv">2</span> <span class="op">*</span> M_PI <span class="op">*</span> freq <span class="op">*</span> t<span class="op">);</span>      <span class="co">// I</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>            samples<span class="op">[</span>idx <span class="op">*</span> <span class="dv">2</span> <span class="op">+</span> <span class="dv">1</span><span class="op">]</span> <span class="op">=</span> sinf<span class="op">(</span><span class="dv">2</span> <span class="op">*</span> M_PI <span class="op">*</span> freq <span class="op">*</span> t<span class="op">);</span>  <span class="co">// Q</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p><strong>Ported Rust code:</strong></p>
+    <div class="sourceCode" id="cb16"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::</span><span class="dt">f32</span><span class="pp">::consts::</span>PI<span class="op">;</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">num_complex::</span>Complex<span class="op">;</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> BfskWaveform <span class="op">{</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    baud_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    f0<span class="op">:</span> <span class="dt">f32</span><span class="op">,</span>  <span class="co">// Mark frequency</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    f1<span class="op">:</span> <span class="dt">f32</span><span class="op">,</span>  <span class="co">// Space frequency</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> BfskWaveform <span class="op">{</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new(sample_rate<span class="op">:</span> <span class="dt">f64</span>) <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>            sample_rate<span class="op">,</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>            baud_rate<span class="op">:</span> <span class="dv">300.0</span><span class="op">,</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>            f0<span class="op">:</span> <span class="dv">1200.0</span><span class="op">,</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>            f1<span class="op">:</span> <span class="dv">2200.0</span><span class="op">,</span></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> Waveform <span class="cf">for</span> BfskWaveform <span class="op">{</span></span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples_per_bit <span class="op">=</span> (<span class="kw">self</span><span class="op">.</span>sample_rate <span class="op">/</span> <span class="kw">self</span><span class="op">.</span>baud_rate) <span class="kw">as</span> <span class="dt">usize</span><span class="op">;</span></span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>        bits<span class="op">.</span>iter()</span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>enumerate()</span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>flat_map(<span class="op">|</span>(bit_idx<span class="op">,</span> <span class="op">&amp;</span>bit)<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> freq <span class="op">=</span> <span class="cf">if</span> bit <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>f1 <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>f0 <span class="op">};</span></span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>                (<span class="dv">0</span><span class="op">..</span>samples_per_bit)<span class="op">.</span>map(<span class="kw">move</span> <span class="op">|</span>j<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>                    <span class="kw">let</span> sample_idx <span class="op">=</span> bit_idx <span class="op">*</span> samples_per_bit <span class="op">+</span> j<span class="op">;</span></span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>                    <span class="kw">let</span> t <span class="op">=</span> sample_idx <span class="kw">as</span> <span class="dt">f32</span> <span class="op">/</span> <span class="kw">self</span><span class="op">.</span>sample_rate <span class="kw">as</span> <span class="dt">f32</span><span class="op">;</span></span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>                    <span class="kw">let</span> phase <span class="op">=</span> <span class="dv">2.0</span> <span class="op">*</span> PI <span class="op">*</span> freq <span class="op">*</span> t<span class="op">;</span></span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">IQSample::</span>new(phase<span class="op">.</span>cos()<span class="op">,</span> phase<span class="op">.</span>sin())</span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span>)</span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Use Goertzel algorithm for each frequency</span></span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples_per_bit <span class="op">=</span> (<span class="kw">self</span><span class="op">.</span>sample_rate <span class="op">/</span> <span class="kw">self</span><span class="op">.</span>baud_rate) <span class="kw">as</span> <span class="dt">usize</span><span class="op">;</span></span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a>        samples<span class="op">.</span>chunks(samples_per_bit)</span>
+<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>chunk<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> power_f0 <span class="op">=</span> goertzel_power(chunk<span class="op">,</span> <span class="kw">self</span><span class="op">.</span>f0<span class="op">,</span> <span class="kw">self</span><span class="op">.</span>sample_rate <span class="kw">as</span> <span class="dt">f32</span>)<span class="op">;</span></span>
+<span id="cb16-48"><a href="#cb16-48" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> power_f1 <span class="op">=</span> goertzel_power(chunk<span class="op">,</span> <span class="kw">self</span><span class="op">.</span>f1<span class="op">,</span> <span class="kw">self</span><span class="op">.</span>sample_rate <span class="kw">as</span> <span class="dt">f32</span>)<span class="op">;</span></span>
+<span id="cb16-49"><a href="#cb16-49" aria-hidden="true" tabindex="-1"></a>                power_f1 <span class="op">&gt;</span> power_f0</span>
+<span id="cb16-50"><a href="#cb16-50" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb16-51"><a href="#cb16-51" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb16-52"><a href="#cb16-52" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb16-53"><a href="#cb16-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-54"><a href="#cb16-54" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ... rest of trait implementation</span></span>
+<span id="cb16-55"><a href="#cb16-55" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="from-gnu-radio">From GNU Radio</h2>
+    <p>GNU Radio blocks can be ported by:</p>
+    <ol type="1">
+    <li><strong>Identify the block type</strong>: Source, Sink, or
+    Signal Processing</li>
+    <li><strong>Map GR types to Rust types</strong>:
+    <ul>
+    <li><code>gr_complex</code> → <code>Complex&lt;f32&gt;</code> /
+    <code>IQSample</code></li>
+    <li><code>pmt::pmt_t</code> → Rust enums or structs</li>
+    <li><code>work()</code> function → iterator-based processing</li>
+    </ul></li>
+    </ol>
+    <h3 id="example-porting-a-gnu-radio-block">Example: Porting a GNU
+    Radio Block</h3>
+    <p><strong>GNU Radio Python block:</strong></p>
+    <div class="sourceCode" id="cb17"><pre
+    class="sourceCode python"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> my_block(gr.sync_block):</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> work(<span class="va">self</span>, input_items, output_items):</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>        in0 <span class="op">=</span> input_items[<span class="dv">0</span>]</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> output_items[<span class="dv">0</span>]</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(<span class="bu">len</span>(in0)):</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>            out[i] <span class="op">=</span> in0[i] <span class="op">*</span> <span class="va">self</span>.gain</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="bu">len</span>(out)</span></code></pre></div>
+    <p><strong>Rust equivalent:</strong></p>
+    <div class="sourceCode" id="cb18"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> GainBlock <span class="op">{</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    gain<span class="op">:</span> <span class="dt">f32</span><span class="op">,</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> GainBlock <span class="op">{</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new(gain<span class="op">:</span> <span class="dt">f32</span>) <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span> gain <span class="op">}</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> process(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> input<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>        input<span class="op">.</span>iter()</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>s<span class="op">|</span> <span class="pp">IQSample::</span>new(s<span class="op">.</span>re <span class="op">*</span> <span class="kw">self</span><span class="op">.</span>gain<span class="op">,</span> s<span class="op">.</span>im <span class="op">*</span> <span class="kw">self</span><span class="op">.</span>gain))</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">// For streaming/real-time, use an iterator adapter:</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> process_stream<span class="op">&lt;</span><span class="ot">&#39;a</span><span class="op">&gt;</span>(<span class="op">&amp;</span><span class="ot">&#39;a</span> <span class="kw">self</span><span class="op">,</span> input<span class="op">:</span> <span class="kw">impl</span> <span class="bu">Iterator</span><span class="op">&lt;</span>Item <span class="op">=</span> IQSample<span class="op">&gt;</span> <span class="op">+</span> <span class="ot">&#39;a</span>)</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>        <span class="op">-&gt;</span> <span class="kw">impl</span> <span class="bu">Iterator</span><span class="op">&lt;</span>Item <span class="op">=</span> IQSample<span class="op">&gt;</span> <span class="op">+</span> <span class="ot">&#39;a</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>    <span class="op">{</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>        input<span class="op">.</span>map(<span class="kw">move</span> <span class="op">|</span>s<span class="op">|</span> <span class="pp">IQSample::</span>new(s<span class="op">.</span>re <span class="op">*</span> <span class="kw">self</span><span class="op">.</span>gain<span class="op">,</span> s<span class="op">.</span>im <span class="op">*</span> <span class="kw">self</span><span class="op">.</span>gain))</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <hr />
+    <h1 id="fpga-integration-architecture">FPGA Integration
+    Architecture</h1>
+    <p>R4W is designed for FPGA acceleration, with <strong>Xilinx Zynq
+    as the primary target platform</strong>.</p>
+    <h2 id="priority-roadmap">Priority Roadmap</h2>
+    <table>
+    <colgroup>
+    <col style="width: 26%" />
+    <col style="width: 26%" />
+    <col style="width: 26%" />
+    <col style="width: 21%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Priority</th>
+    <th>Platform</th>
+    <th>Use Case</th>
+    <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>1st</strong></td>
+    <td><strong>Xilinx Zynq</strong></td>
+    <td>Production SDR, high-performance</td>
+    <td><strong>Active Development</strong></td>
+    </tr>
+    <tr class="even">
+    <td><strong>2nd</strong></td>
+    <td><strong>Lattice iCE40/ECP5</strong></td>
+    <td>Low-cost prototyping, education</td>
+    <td><strong>Implemented</strong></td>
+    </tr>
+    <tr class="odd">
+    <td>3rd</td>
+    <td>Intel/Altera</td>
+    <td>Enterprise, high-end</td>
+    <td>Future</td>
+    </tr>
+    <tr class="even">
+    <td>4th</td>
+    <td>LiteX SoC</td>
+    <td>Open-source FPGA SoCs</td>
+    <td>Exploratory</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h2 id="xilinx-zynq-integration-primary-target">Xilinx Zynq
+    Integration (Primary Target)</h2>
+    <p>The Zynq combines ARM Cortex-A cores with FPGA fabric, making it
+    ideal for R4W:</p>
+    <pre><code>┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Xilinx Zynq SoC                                     │
+├─────────────────────────────────┬───────────────────────────────────────────┤
+│      Processing System (PS)     │        Programmable Logic (PL)            │
+│  ┌───────────────────────────┐  │  ┌─────────────────────────────────────┐  │
+│  │   ARM Cortex-A9/A53       │  │  │         DSP Accelerators            │  │
+│  │   Running Linux + R4W     │  │  │  ┌──────────┐  ┌──────────────────┐ │  │
+│  │                           │  │  │  │ FFT Core │  │ Chirp Correlator │ │  │
+│  │  ┌─────────────────────┐  │  │  │  │ (Radix-4)│  │ (LoRa demod)     │ │  │
+│  │  │    r4w-core         │  │  │  │  └──────────┘  └──────────────────┘ │  │
+│  │  │    r4w-cli          │◄─┼──┼──┤  ┌──────────┐  ┌──────────────────┐ │  │
+│  │  │    r4w-explorer     │  │  │  │  │FIR Filter│  │ Symbol Detector  │ │  │
+│  │  └─────────────────────┘  │  │  │  │(up to    │  │ (matched filter) │ │  │
+│  │           │               │  │  │  │ 256 taps)│  │                  │ │  │
+│  │           │ mmap()        │  │  │  └──────────┘  └──────────────────┘ │  │
+│  │           ▼               │  │  │  ┌──────────┐  ┌──────────────────┐ │  │
+│  │  ┌─────────────────────┐  │  │  │  │ NCO/DDS  │  │  CORDIC          │ │  │
+│  │  │    /dev/mem         │  │  │  │  │(carrier) │  │  (sin/cos)       │ │  │
+│  │  │    /dev/uio*        │◄─┼──┼──┤  └──────────┘  └──────────────────┘ │  │
+│  │  └─────────────────────┘  │  │  └─────────────────────────────────────┘  │
+│  │           │               │  │           ▲           │                   │
+│  └───────────┼───────────────┘  │           │           ▼                   │
+│              │                  │  ┌─────────────────────────────────────┐  │
+│              │   AXI-Lite       │  │        AXI DMA Engine               │  │
+│              └──────────────────┼──┤  (scatter-gather, up to 8 channels) │  │
+│                                 │  └─────────────────────────────────────┘  │
+│                                 │           │           │                   │
+│                                 │           ▼           ▼                   │
+│                                 │  ┌─────────────┐ ┌─────────────────────┐  │
+│                                 │  │  ADC/DAC    │ │  RF Frontend        │  │
+│                                 │  │  Interface  │ │  (AD9361/AD9364)    │  │
+│                                 │  └─────────────┘ └─────────────────────┘  │
+└─────────────────────────────────┴───────────────────────────────────────────┘</code></pre>
+    <h3 id="zynq-target-boards">Zynq Target Boards</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Board</th>
+    <th>Zynq Device</th>
+    <th>Use Case</th>
+    <th>Approx. Cost</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>PYNQ-Z2</strong></td>
+    <td>Zynq-7020</td>
+    <td>Learning, prototyping</td>
+    <td>$120</td>
+    </tr>
+    <tr class="even">
+    <td><strong>ZedBoard</strong></td>
+    <td>Zynq-7020</td>
+    <td>Development</td>
+    <td>$500</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>ADALM-PLUTO</strong></td>
+    <td>Zynq-7010 + AD9363</td>
+    <td>Complete SDR</td>
+    <td>$150</td>
+    </tr>
+    <tr class="even">
+    <td><strong>ZCU102</strong></td>
+    <td>Zynq UltraScale+</td>
+    <td>High-performance</td>
+    <td>$3,000</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Red Pitaya</strong></td>
+    <td>Zynq-7010</td>
+    <td>Test equipment + SDR</td>
+    <td>$300</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="zynq-communication-methods">Zynq Communication Methods</h3>
+    <div class="sourceCode" id="cb20"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co">/// r4w-fpga crate (planned)</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">mod</span> zynq <span class="op">{</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">use</span> <span class="pp">std::fs::</span>OpenOptions<span class="op">;</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">use</span> <span class="pp">std::os::unix::io::</span>AsRawFd<span class="op">;</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Memory-mapped register access via /dev/mem</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">struct</span> ZynqMmap <span class="op">{</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>        base_addr<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>        size<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>        ptr<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> <span class="dt">u8</span><span class="op">,</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">impl</span> ZynqMmap <span class="op">{</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>        <span class="co">/// Map FPGA registers into userspace</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">pub</span> <span class="kw">fn</span> new(base_addr<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> size<span class="op">:</span> <span class="dt">usize</span>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Self</span><span class="op">,</span> <span class="pp">std::io::</span><span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> fd <span class="op">=</span> <span class="pp">OpenOptions::</span>new()</span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>read(<span class="cn">true</span>)</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>write(<span class="cn">true</span>)</span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>open(<span class="st">&quot;/dev/mem&quot;</span>)<span class="op">?;</span></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> ptr <span class="op">=</span> <span class="kw">unsafe</span> <span class="op">{</span></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>                <span class="pp">libc::</span>mmap(</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">std::ptr::</span>null_mut()<span class="op">,</span></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>                    size<span class="op">,</span></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">libc::</span>PROT_READ <span class="op">|</span> <span class="pp">libc::</span>PROT_WRITE<span class="op">,</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">libc::</span>MAP_SHARED<span class="op">,</span></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>                    fd<span class="op">.</span>as_raw_fd()<span class="op">,</span></span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>                    base_addr <span class="kw">as</span> <span class="pp">libc::</span><span class="dt">off_t</span><span class="op">,</span></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>                )</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>            <span class="op">};</span></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> ptr <span class="op">==</span> <span class="pp">libc::</span>MAP_FAILED <span class="op">{</span></span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a>                <span class="cf">return</span> <span class="cn">Err</span>(<span class="pp">std::io::</span><span class="bu">Error</span><span class="pp">::</span>last_os_error())<span class="op">;</span></span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a>            <span class="cn">Ok</span>(<span class="dt">Self</span> <span class="op">{</span> base_addr<span class="op">,</span> size<span class="op">,</span> ptr<span class="op">:</span> ptr <span class="kw">as</span> <span class="op">*</span><span class="kw">mut</span> <span class="dt">u8</span> <span class="op">}</span>)</span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a>        <span class="co">/// Write to FPGA register</span></span>
+<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a>        <span class="kw">pub</span> <span class="kw">fn</span> write_reg(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> offset<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> value<span class="op">:</span> <span class="dt">u32</span>) <span class="op">{</span></span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a>            <span class="kw">unsafe</span> <span class="op">{</span></span>
+<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> reg <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>ptr<span class="op">.</span>add(offset) <span class="kw">as</span> <span class="op">*</span><span class="kw">mut</span> <span class="dt">u32</span><span class="op">;</span></span>
+<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a>                <span class="pp">std::ptr::</span>write_volatile(reg<span class="op">,</span> value)<span class="op">;</span></span>
+<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a>        <span class="co">/// Read from FPGA register</span></span>
+<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a>        <span class="kw">pub</span> <span class="kw">fn</span> read_reg(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> offset<span class="op">:</span> <span class="dt">usize</span>) <span class="op">-&gt;</span> <span class="dt">u32</span> <span class="op">{</span></span>
+<span id="cb20-49"><a href="#cb20-49" aria-hidden="true" tabindex="-1"></a>            <span class="kw">unsafe</span> <span class="op">{</span></span>
+<span id="cb20-50"><a href="#cb20-50" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> reg <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>ptr<span class="op">.</span>add(offset) <span class="kw">as</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">u32</span><span class="op">;</span></span>
+<span id="cb20-51"><a href="#cb20-51" aria-hidden="true" tabindex="-1"></a>                <span class="pp">std::ptr::</span>read_volatile(reg)</span>
+<span id="cb20-52"><a href="#cb20-52" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb20-53"><a href="#cb20-53" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb20-54"><a href="#cb20-54" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb20-55"><a href="#cb20-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-56"><a href="#cb20-56" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// UIO-based interrupt handling</span></span>
+<span id="cb20-57"><a href="#cb20-57" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">struct</span> ZynqUio <span class="op">{</span></span>
+<span id="cb20-58"><a href="#cb20-58" aria-hidden="true" tabindex="-1"></a>        fd<span class="op">:</span> <span class="pp">std::fs::</span>File<span class="op">,</span></span>
+<span id="cb20-59"><a href="#cb20-59" aria-hidden="true" tabindex="-1"></a>        irq_count<span class="op">:</span> <span class="dt">u32</span><span class="op">,</span></span>
+<span id="cb20-60"><a href="#cb20-60" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb20-61"><a href="#cb20-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-62"><a href="#cb20-62" aria-hidden="true" tabindex="-1"></a>    <span class="kw">impl</span> ZynqUio <span class="op">{</span></span>
+<span id="cb20-63"><a href="#cb20-63" aria-hidden="true" tabindex="-1"></a>        <span class="kw">pub</span> <span class="kw">fn</span> new(uio_device<span class="op">:</span> <span class="op">&amp;</span><span class="dt">str</span>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Self</span><span class="op">,</span> <span class="pp">std::io::</span><span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb20-64"><a href="#cb20-64" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> fd <span class="op">=</span> <span class="pp">OpenOptions::</span>new()</span>
+<span id="cb20-65"><a href="#cb20-65" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>read(<span class="cn">true</span>)</span>
+<span id="cb20-66"><a href="#cb20-66" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>write(<span class="cn">true</span>)</span>
+<span id="cb20-67"><a href="#cb20-67" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>open(uio_device)<span class="op">?;</span></span>
+<span id="cb20-68"><a href="#cb20-68" aria-hidden="true" tabindex="-1"></a>            <span class="cn">Ok</span>(<span class="dt">Self</span> <span class="op">{</span> fd<span class="op">,</span> irq_count<span class="op">:</span> <span class="dv">0</span> <span class="op">}</span>)</span>
+<span id="cb20-69"><a href="#cb20-69" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb20-70"><a href="#cb20-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-71"><a href="#cb20-71" aria-hidden="true" tabindex="-1"></a>        <span class="co">/// Wait for interrupt from FPGA</span></span>
+<span id="cb20-72"><a href="#cb20-72" aria-hidden="true" tabindex="-1"></a>        <span class="kw">pub</span> <span class="kw">fn</span> wait_irq(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">u32</span><span class="op">,</span> <span class="pp">std::io::</span><span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb20-73"><a href="#cb20-73" aria-hidden="true" tabindex="-1"></a>            <span class="kw">use</span> <span class="pp">std::io::</span><span class="bu">Read</span><span class="op">;</span></span>
+<span id="cb20-74"><a href="#cb20-74" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> <span class="kw">mut</span> buf <span class="op">=</span> [<span class="dv">0u8</span><span class="op">;</span> <span class="dv">4</span>]<span class="op">;</span></span>
+<span id="cb20-75"><a href="#cb20-75" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>fd<span class="op">.</span>read_exact(<span class="op">&amp;</span><span class="kw">mut</span> buf)<span class="op">?;</span></span>
+<span id="cb20-76"><a href="#cb20-76" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>irq_count <span class="op">=</span> <span class="dt">u32</span><span class="pp">::</span>from_ne_bytes(buf)<span class="op">;</span></span>
+<span id="cb20-77"><a href="#cb20-77" aria-hidden="true" tabindex="-1"></a>            <span class="cn">Ok</span>(<span class="kw">self</span><span class="op">.</span>irq_count)</span>
+<span id="cb20-78"><a href="#cb20-78" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb20-79"><a href="#cb20-79" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb20-80"><a href="#cb20-80" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="zynq-vivado-ip-cores-implemented">Zynq Vivado IP Cores
+    (Implemented)</h3>
+    <p>Located in <code>vivado/ip/</code>:</p>
+    <table>
+    <colgroup>
+    <col style="width: 16%" />
+    <col style="width: 18%" />
+    <col style="width: 20%" />
+    <col style="width: 28%" />
+    <col style="width: 15%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>IP Core</th>
+    <th>Function</th>
+    <th>Interface</th>
+    <th>Resource Est.</th>
+    <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><code>r4w_fft</code></td>
+    <td>1024-pt Radix-4 FFT</td>
+    <td>AXI-Stream + AXI-Lite</td>
+    <td>~15k LUTs</td>
+    <td>✅ Done</td>
+    </tr>
+    <tr class="even">
+    <td><code>r4w_fir</code></td>
+    <td>256-tap FIR filter</td>
+    <td>AXI-Stream + AXI-Lite</td>
+    <td>~8k LUTs</td>
+    <td>✅ Done</td>
+    </tr>
+    <tr class="odd">
+    <td><code>r4w_chirp_gen</code></td>
+    <td>LoRa chirp generator</td>
+    <td>AXI-Lite + AXI-Stream</td>
+    <td>~2k LUTs</td>
+    <td>✅ Done</td>
+    </tr>
+    <tr class="even">
+    <td><code>r4w_chirp_corr</code></td>
+    <td>Chirp correlator</td>
+    <td>AXI-Stream + AXI-Lite</td>
+    <td>~12k LUTs</td>
+    <td>✅ Done</td>
+    </tr>
+    <tr class="odd">
+    <td><code>r4w_nco</code></td>
+    <td>Numerically Controlled Oscillator</td>
+    <td>AXI-Lite</td>
+    <td>~1.5k LUTs</td>
+    <td>✅ Done</td>
+    </tr>
+    <tr class="even">
+    <td><code>r4w_dma</code></td>
+    <td>DMA controller for PS↔︎PL</td>
+    <td>AXI-Stream + AXI-Lite</td>
+    <td>~3k LUTs</td>
+    <td>✅ Done</td>
+    </tr>
+    </tbody>
+    </table>
+    <p><strong>Build with Vivado:</strong></p>
+    <div class="sourceCode" id="cb21"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> vivado</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="ex">vivado</span> <span class="at">-mode</span> batch <span class="at">-source</span> scripts/build_project.tcl</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="ex">vivado</span> <span class="at">-mode</span> batch <span class="at">-source</span> scripts/build_bitstream.tcl</span></code></pre></div>
+    <p><strong>Deploy to PYNQ-Z2:</strong></p>
+    <div class="sourceCode" id="cb22"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">scp</span> output/r4w_design.bit xilinx@pynq:/home/xilinx/</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="co"># On PYNQ:</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> fpgautil <span class="at">-b</span> r4w_design.bit <span class="at">-o</span> r4w-overlay.dtbo</span></code></pre></div>
+    <hr />
+    <h2 id="lattice-fpga-integration-secondary-target">Lattice FPGA
+    Integration (Secondary Target)</h2>
+    <p>Lattice FPGAs are ideal for <strong>low-cost, low-power</strong>
+    applications and <strong>education</strong>.</p>
+    <h3 id="lattice-product-families">Lattice Product Families</h3>
+    <table>
+    <colgroup>
+    <col style="width: 14%" />
+    <col style="width: 23%" />
+    <col style="width: 21%" />
+    <col style="width: 17%" />
+    <col style="width: 23%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Family</th>
+    <th>Logic Cells</th>
+    <th>DSP Blocks</th>
+    <th>Use Case</th>
+    <th>Open Tools?</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>iCE40 UP5K</strong></td>
+    <td>5,280</td>
+    <td>8 DSPs</td>
+    <td>IoT, battery-powered</td>
+    <td><strong>Yes</strong> (Yosys+nextpnr)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>iCE40 HX8K</strong></td>
+    <td>7,680</td>
+    <td>0</td>
+    <td>Prototyping</td>
+    <td><strong>Yes</strong></td>
+    </tr>
+    <tr class="odd">
+    <td><strong>ECP5</strong></td>
+    <td>12k-85k</td>
+    <td>12-156 DSPs</td>
+    <td>Mid-range SDR</td>
+    <td><strong>Yes</strong> (Yosys+nextpnr)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>CrossLink-NX</strong></td>
+    <td>17k-40k</td>
+    <td>28-56 DSPs</td>
+    <td>High-speed I/O</td>
+    <td>Partial</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Certus-NX</strong></td>
+    <td>17k-39k</td>
+    <td>28-56 DSPs</td>
+    <td>General purpose</td>
+    <td>No</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="why-lattice-for-r4w">Why Lattice for R4W?</h3>
+    <ol type="1">
+    <li><p><strong>Open-Source Toolchain</strong>: iCE40 and ECP5 work
+    with fully open-source tools:</p>
+    <ul>
+    <li><strong>Yosys</strong>: Synthesis</li>
+    <li><strong>nextpnr</strong>: Place and route</li>
+    <li><strong>Project IceStorm/Trellis</strong>: Bitstream
+    generation</li>
+    <li>No expensive Xilinx/Intel licenses needed!</li>
+    </ul></li>
+    <li><p><strong>Low Cost</strong>: iCE40 UP5K boards start at $12
+    (Upduino), ECP5 at $45 (OrangeCrab)</p></li>
+    <li><p><strong>USB Programming</strong>: Simple <code>iceprog</code>
+    or <code>openFPGALoader</code> - no JTAG dongles</p></li>
+    <li><p><strong>Rust Integration</strong>: The open toolchain
+    integrates well with Rust build systems</p></li>
+    </ol>
+    <h3 id="lattice-target-boards">Lattice Target Boards</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Board</th>
+    <th>FPGA</th>
+    <th>Features</th>
+    <th>Approx. Cost</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Upduino v3</strong></td>
+    <td>iCE40 UP5K</td>
+    <td>5k LUTs, 1Mbit SPRAM, RGB LED</td>
+    <td>$12</td>
+    </tr>
+    <tr class="even">
+    <td><strong>iCEBreaker</strong></td>
+    <td>iCE40 UP5K</td>
+    <td>PMOD, USB-C</td>
+    <td>$70</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>OrangeCrab</strong></td>
+    <td>ECP5-25F</td>
+    <td>24k LUTs, DDR3, USB-C</td>
+    <td>$45</td>
+    </tr>
+    <tr class="even">
+    <td><strong>ULX3S</strong></td>
+    <td>ECP5-12F/85F</td>
+    <td>WiFi, HDMI, buttons</td>
+    <td>$100-200</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Colorlight i5</strong></td>
+    <td>ECP5-25F</td>
+    <td>Cheap (LED controller)</td>
+    <td>$15</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="lattice-communication-spiusb">Lattice Communication
+    (SPI/USB)</h3>
+    <div class="sourceCode" id="cb23"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co">/// r4w-fpga crate (planned) - Lattice support</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">mod</span> lattice <span class="op">{</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">use</span> <span class="pp">std::io::</span><span class="op">{</span><span class="bu">Read</span><span class="op">,</span> <span class="bu">Write</span><span class="op">};</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// SPI-based communication with iCE40/ECP5</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">struct</span> LatticeSpi <span class="op">{</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>        device<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>        speed_hz<span class="op">:</span> <span class="dt">u32</span><span class="op">,</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">impl</span> LatticeSpi <span class="op">{</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">pub</span> <span class="kw">fn</span> new(spi_device<span class="op">:</span> <span class="op">&amp;</span><span class="dt">str</span><span class="op">,</span> speed_hz<span class="op">:</span> <span class="dt">u32</span>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Self</span><span class="op">,</span> <span class="pp">std::io::</span><span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Uses spidev for Linux SPI access</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>            <span class="cn">Ok</span>(<span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a>                device<span class="op">:</span> spi_device<span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a>                speed_hz<span class="op">,</span></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a>        <span class="co">/// Send samples to FPGA for processing</span></span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a>        <span class="kw">pub</span> <span class="kw">fn</span> send_samples(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> <span class="pp">std::io::</span><span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a>            <span class="co">// SPI transaction to FPGA</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a>            <span class="pp">todo!</span>()</span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a>        <span class="co">/// Receive processed samples from FPGA</span></span>
+<span id="cb23-27"><a href="#cb23-27" aria-hidden="true" tabindex="-1"></a>        <span class="kw">pub</span> <span class="kw">fn</span> recv_samples(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> buffer<span class="op">:</span> <span class="op">&amp;</span><span class="kw">mut</span> [<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">usize</span><span class="op">,</span> <span class="pp">std::io::</span><span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb23-28"><a href="#cb23-28" aria-hidden="true" tabindex="-1"></a>            <span class="pp">todo!</span>()</span>
+<span id="cb23-29"><a href="#cb23-29" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb23-30"><a href="#cb23-30" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb23-31"><a href="#cb23-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-32"><a href="#cb23-32" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// USB-based communication via FTDI</span></span>
+<span id="cb23-33"><a href="#cb23-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">struct</span> LatticeFtdi <span class="op">{</span></span>
+<span id="cb23-34"><a href="#cb23-34" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Uses libftdi or ftd2xx</span></span>
+<span id="cb23-35"><a href="#cb23-35" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb23-36"><a href="#cb23-36" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="open-source-toolchain-integration">Open-Source Toolchain
+    Integration</h3>
+    <div class="sourceCode" id="cb24"><pre
+    class="sourceCode makefile"><code class="sourceCode makefile"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Example: Building FPGA bitstream with open tools</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="dt">YOSYS</span> <span class="ch">:=</span><span class="st"> yosys</span></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="dt">NEXTPNR</span> <span class="ch">:=</span><span class="st"> nextpnr-ice40</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="dt">ICEPACK</span> <span class="ch">:=</span><span class="st"> icepack</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="dt">ICEPROG</span> <span class="ch">:=</span><span class="st"> iceprog</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Synthesize Verilog to JSON</span></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="dv">%.json:</span><span class="dt"> %.v</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="er">    </span><span class="ch">$(</span><span class="dt">YOSYS</span><span class="ch">)</span> -p <span class="st">&quot;synth_ice40 -top top -json </span><span class="ch">$@</span><span class="st">&quot;</span> <span class="ch">$&lt;</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Place and route</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a><span class="dv">%.asc:</span><span class="dt"> %.json %.pcf</span></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a><span class="er">    </span><span class="ch">$(</span><span class="dt">NEXTPNR</span><span class="ch">)</span> --up5k --package sg48 --json <span class="ch">$&lt;</span> --pcf <span class="ch">$(</span><span class="kw">word</span><span class="st"> 2</span><span class="kw">,</span><span class="ch">$^)</span> --asc <span class="ch">$@</span></span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate bitstream</span></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a><span class="dv">%.bin:</span><span class="dt"> %.asc</span></span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a><span class="er">    </span><span class="ch">$(</span><span class="dt">ICEPACK</span><span class="ch">)</span> <span class="ch">$&lt;</span> <span class="ch">$@</span></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a><span class="co"># Program FPGA</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a><span class="dv">program:</span><span class="dt"> design.bin</span></span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a><span class="er">    </span><span class="ch">$(</span><span class="dt">ICEPROG</span><span class="ch">)</span> <span class="ch">$&lt;</span></span></code></pre></div>
+    <h3 id="lattice-ip-cores-implemented">Lattice IP Cores
+    (Implemented)</h3>
+    <p>Located in <code>lattice/ip/</code>:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>IP Core</th>
+    <th>FPGA</th>
+    <th>Function</th>
+    <th>Est. LUTs</th>
+    <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><code>r4w_spi_slave</code></td>
+    <td>iCE40/ECP5</td>
+    <td>SPI slave interface</td>
+    <td>~200</td>
+    <td>Done</td>
+    </tr>
+    <tr class="even">
+    <td><code>r4w_nco</code></td>
+    <td>iCE40/ECP5</td>
+    <td>NCO/DDS (LUT or CORDIC)</td>
+    <td>~200</td>
+    <td>Done</td>
+    </tr>
+    <tr class="odd">
+    <td><code>r4w_chirp_gen</code></td>
+    <td>iCE40/ECP5</td>
+    <td>LoRa chirp generator</td>
+    <td>~500</td>
+    <td>Done</td>
+    </tr>
+    </tbody>
+    </table>
+    <p><strong>Build with open-source toolchain:</strong></p>
+    <div class="sourceCode" id="cb25"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> lattice/scripts</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> ice40    <span class="co"># Build for iCE40-HX8K</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> ecp5     <span class="co"># Build for ECP5-25K</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> sim      <span class="co"># Run simulation</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> lint     <span class="co"># Verilator lint check</span></span></code></pre></div>
+    <p><strong>Future Lattice IP:</strong> | IP Core | FPGA | Function |
+    Est. LUTs | |———|——|———-|———–| | <code>r4w_fft_256</code> |
+    iCE40/ECP5 | 256-pt FFT | ~3k | | <code>r4w_fir_32</code> | iCE40 |
+    32-tap FIR | ~500 | | <code>r4w_fir_128</code> | ECP5 | 128-tap FIR
+    | ~2k |</p>
+    <hr />
+    <h2 id="fpga-bridge-trait">FPGA Bridge Trait</h2>
+    <p>All FPGA platforms implement a common trait:</p>
+    <div class="sourceCode" id="cb26"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co">/// Trait for FPGA-accelerated operations</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> FpgaAccelerator<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get platform info</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> info(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> FpgaInfo<span class="op">;</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if FPGA is available and configured</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_available(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get FPGA capabilities</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> capabilities(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> FpgaCapabilities<span class="op">;</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Offload FFT computation</span></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> fft(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]<span class="op">,</span> inverse<span class="op">:</span> <span class="dt">bool</span>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;,</span> FpgaError<span class="op">&gt;;</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Offload FIR filtering</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> fir_filter(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]<span class="op">,</span> taps<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">f32</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;,</span> FpgaError<span class="op">&gt;;</span></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Offload complete modulation</span></span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> waveform_id<span class="op">:</span> <span class="dt">u32</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;,</span> FpgaError<span class="op">&gt;;</span></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Offload complete demodulation</span></span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> waveform_id<span class="op">:</span> <span class="dt">u32</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;,</span> FpgaError<span class="op">&gt;;</span></span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Stream processing (for real-time)</span></span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> start_stream(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> config<span class="op">:</span> StreamConfig) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>StreamHandle<span class="op">,</span> FpgaError<span class="op">&gt;;</span></span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> stop_stream(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> handle<span class="op">:</span> StreamHandle) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> FpgaError<span class="op">&gt;;</span></span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> FpgaInfo <span class="op">{</span></span>
+<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> platform<span class="op">:</span> FpgaPlatform<span class="op">,</span></span>
+<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> device<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> bitstream_version<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">String</span><span class="op">&gt;,</span></span>
+<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-35"><a href="#cb26-35" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">enum</span> FpgaPlatform <span class="op">{</span></span>
+<span id="cb26-36"><a href="#cb26-36" aria-hidden="true" tabindex="-1"></a>    XilinxZynq <span class="op">{</span> part<span class="op">:</span> <span class="dt">String</span> <span class="op">},</span></span>
+<span id="cb26-37"><a href="#cb26-37" aria-hidden="true" tabindex="-1"></a>    LatticeIce40 <span class="op">{</span> variant<span class="op">:</span> <span class="dt">String</span> <span class="op">},</span></span>
+<span id="cb26-38"><a href="#cb26-38" aria-hidden="true" tabindex="-1"></a>    LatticeEcp5 <span class="op">{</span> variant<span class="op">:</span> <span class="dt">String</span> <span class="op">},</span></span>
+<span id="cb26-39"><a href="#cb26-39" aria-hidden="true" tabindex="-1"></a>    IntelCyclone <span class="op">{</span> variant<span class="op">:</span> <span class="dt">String</span> <span class="op">},</span></span>
+<span id="cb26-40"><a href="#cb26-40" aria-hidden="true" tabindex="-1"></a>    Other(<span class="dt">String</span>)<span class="op">,</span></span>
+<span id="cb26-41"><a href="#cb26-41" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb26-42"><a href="#cb26-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-43"><a href="#cb26-43" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> FpgaCapabilities <span class="op">{</span></span>
+<span id="cb26-44"><a href="#cb26-44" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> max_fft_size<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb26-45"><a href="#cb26-45" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> max_fir_taps<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb26-46"><a href="#cb26-46" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> supported_waveforms<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">String</span><span class="op">&gt;,</span></span>
+<span id="cb26-47"><a href="#cb26-47" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> dma_buffer_size<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb26-48"><a href="#cb26-48" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> clock_frequency_hz<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb26-49"><a href="#cb26-49" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> dsp_blocks<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb26-50"><a href="#cb26-50" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> logic_cells<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb26-51"><a href="#cb26-51" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="high-level-synthesis-hls-integration">High-Level Synthesis
+    (HLS) Integration</h2>
+    <p>R4W DSP kernels are designed to be HLS-friendly for Vitis HLS
+    (Xilinx):</p>
+    <div class="sourceCode" id="cb27"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co">// DSP kernel designed for potential HLS transpilation</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>inline<span class="at">(</span>never<span class="at">)]</span>  <span class="co">// Preserve function boundary for HLS</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">fn</span> chirp_correlate_kernel(</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>    samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample<span class="op">;</span> <span class="dv">1024</span>]<span class="op">,</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>    chirp<span class="op">:</span> <span class="op">&amp;</span>[IQSample<span class="op">;</span> <span class="dv">1024</span>]<span class="op">,</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> [IQSample<span class="op">;</span> <span class="dv">1024</span>] <span class="op">{</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> result <span class="op">=</span> [<span class="pp">IQSample::</span>new(<span class="dv">0.0</span><span class="op">,</span> <span class="dv">0.0</span>)<span class="op">;</span> <span class="dv">1024</span>]<span class="op">;</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">// HLS pragma: pipeline this loop</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="dv">0</span><span class="op">..</span><span class="dv">1024</span> <span class="op">{</span></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>        result[i] <span class="op">=</span> <span class="pp">IQSample::</span>new(</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>            samples[i]<span class="op">.</span>re <span class="op">*</span> chirp[i]<span class="op">.</span>re <span class="op">+</span> samples[i]<span class="op">.</span>im <span class="op">*</span> chirp[i]<span class="op">.</span>im<span class="op">,</span></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>            samples[i]<span class="op">.</span>im <span class="op">*</span> chirp[i]<span class="op">.</span>re <span class="op">-</span> samples[i]<span class="op">.</span>re <span class="op">*</span> chirp[i]<span class="op">.</span>im<span class="op">,</span></span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>        )<span class="op">;</span></span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>    result</span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p>For Lattice (no HLS), we provide hand-written Verilog:</p>
+    <div class="sourceCode" id="cb28"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co">// r4w_correlator.v - Hand-optimized for iCE40/ECP5</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> r4w_correlator #<span class="op">(</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">parameter</span> N <span class="op">=</span> <span class="dv">256</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a><span class="op">)</span> <span class="op">(</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span>        clk<span class="op">,</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span>        rst<span class="op">,</span></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span>        valid_in<span class="op">,</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span> sample_re<span class="op">,</span>  <span class="co">// Q15.16 fixed-point</span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span> sample_im<span class="op">,</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span> chirp_re<span class="op">,</span></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span> chirp_im<span class="op">,</span></span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>    <span class="dt">output</span> <span class="dt">reg</span>         valid_out<span class="op">,</span></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    <span class="dt">output</span> <span class="dt">reg</span>  <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span> result_re<span class="op">,</span></span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    <span class="dt">output</span> <span class="dt">reg</span>  <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span> result_im</span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a><span class="op">);</span></span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Complex multiply: (a+bi)(c+di) = (ac-bd) + (ad+bc)i</span></span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">always</span> <span class="op">@(</span><span class="kw">posedge</span> clk<span class="op">)</span> <span class="kw">begin</span></span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a>        <span class="kw">if</span> <span class="op">(</span>rst<span class="op">)</span> <span class="kw">begin</span></span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>            valid_out <span class="op">&lt;=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span> <span class="kw">else</span> <span class="kw">if</span> <span class="op">(</span>valid_in<span class="op">)</span> <span class="kw">begin</span></span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>            result_re <span class="op">&lt;=</span> <span class="op">(</span>sample_re * chirp_re <span class="op">-</span> sample_im * chirp_im<span class="op">)</span> <span class="op">&gt;&gt;&gt;</span> <span class="dv">16</span><span class="op">;</span></span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a>            result_im <span class="op">&lt;=</span> <span class="op">(</span>sample_re * chirp_im <span class="op">+</span> sample_im * chirp_re<span class="op">)</span> <span class="op">&gt;&gt;&gt;</span> <span class="dv">16</span><span class="op">;</span></span>
+<span id="cb28-23"><a href="#cb28-23" aria-hidden="true" tabindex="-1"></a>            valid_out <span class="op">&lt;=</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb28-24"><a href="#cb28-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span> <span class="kw">else</span> <span class="kw">begin</span></span>
+<span id="cb28-25"><a href="#cb28-25" aria-hidden="true" tabindex="-1"></a>            valid_out <span class="op">&lt;=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb28-26"><a href="#cb28-26" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb28-27"><a href="#cb28-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb28-28"><a href="#cb28-28" aria-hidden="true" tabindex="-1"></a><span class="kw">endmodule</span></span></code></pre></div>
+    <hr />
+    <h1 id="waveform-performance-benchmarks">Waveform Performance
+    Benchmarks</h1>
+    <p>Real-world benchmark data from distributed TX/RX testing (Pi 500
+    → Pi 3, 125 kHz):</p>
+    <h2 id="clean-channel-performance">Clean Channel Performance</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Metric</th>
+    <th>BPSK</th>
+    <th>QPSK</th>
+    <th>LoRa (SF7)</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Throughput</td>
+    <td>85,771 Sps</td>
+    <td>77,224 Sps</td>
+    <td>83,129 Sps</td>
+    </tr>
+    <tr class="even">
+    <td>Bits/symbol</td>
+    <td>1</td>
+    <td>2</td>
+    <td>7</td>
+    </tr>
+    <tr class="odd">
+    <td>Demod rate</td>
+    <td>168 bps</td>
+    <td>228 bps</td>
+    <td><strong>322 bps</strong></td>
+    </tr>
+    <tr class="even">
+    <td>Avg latency</td>
+    <td><strong>29 μs</strong></td>
+    <td>38 μs</td>
+    <td>395 μs</td>
+    </tr>
+    <tr class="odd">
+    <td>P99 latency</td>
+    <td><strong>56 μs</strong></td>
+    <td>61 μs</td>
+    <td>565 μs</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2
+    id="performance-under-noise-bits-decoded-8-second-test">Performance
+    Under Noise (Bits Decoded, 8-second test)</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>SNR</th>
+    <th>BPSK</th>
+    <th>QPSK</th>
+    <th>LoRa (SF7)</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>20 dB</td>
+    <td>1,296</td>
+    <td>1,861</td>
+    <td><strong>2,616</strong></td>
+    </tr>
+    <tr class="even">
+    <td>10 dB</td>
+    <td>1,266</td>
+    <td>1,895</td>
+    <td><strong>2,620</strong></td>
+    </tr>
+    <tr class="odd">
+    <td>5 dB</td>
+    <td>1,336</td>
+    <td>1,904</td>
+    <td><strong>2,580</strong></td>
+    </tr>
+    <tr class="even">
+    <td>0 dB</td>
+    <td>1,221</td>
+    <td>1,892</td>
+    <td><strong>2,428</strong></td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="lora-spreading-factor-comparison">LoRa Spreading Factor
+    Comparison</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Parameter</th>
+    <th>SF7</th>
+    <th>SF12</th>
+    <th>Ratio</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Symbol time @ 125kHz</td>
+    <td>1.02 ms</td>
+    <td>32.77 ms</td>
+    <td>32x slower</td>
+    </tr>
+    <tr class="even">
+    <td>Data rate</td>
+    <td>~5.5 kbps</td>
+    <td>~293 bps</td>
+    <td>19x slower</td>
+    </tr>
+    <tr class="odd">
+    <td>Processing gain</td>
+    <td>7 dB</td>
+    <td>21 dB</td>
+    <td>+14 dB</td>
+    </tr>
+    <tr class="even">
+    <td>Typical range</td>
+    <td>2-5 km</td>
+    <td>10-15 km</td>
+    <td>~3x farther</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h1 id="remote-lab-distributed-testing">Remote Lab (Distributed
+    Testing)</h1>
+    <p>Deploy R4W agents to Raspberry Pis for distributed TX/RX
+    testing:</p>
+    <pre><code>┌─────────────────┐         ┌─────────────────┐
+│   Development   │         │   TX Agent      │
+│   Machine       │  TCP    │   (Raspberry Pi)│
+│                 │ ────────│                 │
+│   r4w-explorer  │  6000   │   r4w agent     │
+│   (GUI)         │         │                 │
+│                 │         └────────┬────────┘
+│                 │                  │ UDP I/Q
+│                 │         ┌────────▼────────┐
+│                 │  TCP    │   RX Agent      │
+│                 │ ────────│   (Raspberry Pi)│
+│                 │  6000   │   r4w agent     │
+└─────────────────┘         └─────────────────┘</code></pre>
+    <h2 id="deployment">Deployment</h2>
+    <div class="sourceCode" id="cb30"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build for ARM</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-cli-arm64</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Deploy to both Pis</span></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> deploy-both TX_HOST=joe@192.168.1.100 RX_HOST=joe@192.168.1.101</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Start testing from GUI or CLI</span></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> remote <span class="at">-a</span> 192.168.1.100 start-tx <span class="at">-w</span> BPSK <span class="at">-t</span> 192.168.1.101:5000</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> remote <span class="at">-a</span> 192.168.1.101 start-rx <span class="at">-w</span> BPSK <span class="at">-p</span> 5000</span></code></pre></div>
+    <hr />
+    <h1 id="security-waveform-isolation">Security &amp; Waveform
+    Isolation</h1>
+    <p>R4W addresses a critical need in SDR deployments:
+    <strong>preventing interference between waveforms</strong> and
+    <strong>separating sensitive communications</strong>. The
+    <code>r4w-sandbox</code> crate provides 8 levels of isolation, from
+    basic memory safety to complete air-gapped systems.</p>
+    <h2 id="why-isolation-matters">Why Isolation Matters</h2>
+    <ul>
+    <li><strong>Multi-classification environments</strong>: Run SECRET
+    and UNCLASSIFIED waveforms on shared hardware</li>
+    <li><strong>Multi-tenant systems</strong>: Prevent one customer’s
+    waveform from affecting another</li>
+    <li><strong>Cryptographic separation</strong>: Isolate encrypted
+    from plaintext processing</li>
+    <li><strong>Fault containment</strong>: A bug in one waveform cannot
+    crash others</li>
+    <li><strong>Regulatory compliance</strong>: Meet government/defense
+    isolation requirements</li>
+    </ul>
+    <h2 id="isolation-levels-overview">Isolation Levels Overview</h2>
+    <pre><code>┌────────────────────────────────────────────────────────────────────────────┐
+│                         Isolation Levels                                   │
+├────────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  L1  ┌──────────────┐   Rust memory safety                   TURN-KEY      │
+│      │  No Sandbox  │   - Zero-cost, always-on                             │
+│      └──────────────┘   - Prevents buffer overflows, use-after-free        │
+│                                                                            │
+│  L2  ┌──────────────┐   Linux namespaces                     TURN-KEY      │
+│      │  Namespaces  │   - Process, network, mount isolation                │
+│      └──────────────┘   - Separate /proc, network stack per waveform       │
+│                                                                            │
+│  L3  ┌──────────────┐   Seccomp + LSM (SELinux/AppArmor)     TURN-KEY      │
+│      │ Syscall Lock │   - Restrict system calls to DSP operations          │
+│      └──────────────┘   - Mandatory access control policies                │
+│                                                                            │
+│  L4  ┌──────────────┐   Container (Docker/Podman)            TEMPLATES     │
+│      │  Container   │   - cgroups for resource limits                      │
+│      └──────────────┘   - Pre-built Dockerfile provided                    │
+│                                                                            │
+│  L5  ┌──────────────┐   MicroVM (Firecracker)                CONFIG        │
+│      │   MicroVM    │   - VM-level isolation, minimal overhead             │
+│      └──────────────┘   - Sub-second boot times                            │
+│                                                                            │
+│  L6  ┌──────────────┐   Full VM (KVM/QEMU)                   CONFIG        │
+│      │   Full VM    │   - Complete virtual machine isolation               │
+│      └──────────────┘   - For certification requirements                   │
+│                                                                            │
+│  L7  ┌──────────────┐   Hardware isolation                   SETUP         │
+│      │   Hardware   │   - FPGA partitions with AXI firewalls               │
+│      └──────────────┘   - CPU pinning, IOMMU, memory encryption            │
+│                                                                            │
+│  L8  ┌──────────────┐   Air gap                              SETUP         │
+│      │   Air Gap    │   - Physically separate systems                      │
+│      └──────────────┘   - Data diodes for one-way transfer                 │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="turn-key-features">Turn-Key Features</h2>
+    <p>The following security features work out of the box:</p>
+    <table>
+    <colgroup>
+    <col style="width: 31%" />
+    <col style="width: 44%" />
+    <col style="width: 24%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Feature</th>
+    <th>Description</th>
+    <th>Crate</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>SecureBuffer</strong></td>
+    <td>Memory zeroization on drop, mlock to prevent swap</td>
+    <td><code>r4w-sandbox</code></td>
+    </tr>
+    <tr class="even">
+    <td><strong>EncryptedBuffer</strong></td>
+    <td>AES-GCM encrypted memory for keys</td>
+    <td><code>r4w-sandbox</code></td>
+    </tr>
+    <tr class="odd">
+    <td><strong>GuardedBuffer</strong></td>
+    <td>Guard pages to detect overflows</td>
+    <td><code>r4w-sandbox</code></td>
+    </tr>
+    <tr class="even">
+    <td><strong>Namespace Isolation</strong></td>
+    <td>PID/NET/MOUNT/USER separation</td>
+    <td><code>r4w-sandbox</code></td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Seccomp Profiles</strong></td>
+    <td>DSP-optimized syscall allowlists</td>
+    <td><code>r4w-sandbox</code></td>
+    </tr>
+    <tr class="even">
+    <td><strong>Shared Memory IPC</strong></td>
+    <td>Zero-copy sample transfer between sandboxes</td>
+    <td><code>r4w-sandbox</code></td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Control Channels</strong></td>
+    <td>Unix socket communication for isolated waveforms</td>
+    <td><code>r4w-sandbox</code></td>
+    </tr>
+    <tr class="even">
+    <td><strong>FPGA Partitions</strong></td>
+    <td>AXI firewall configuration for PL isolation</td>
+    <td><code>r4w-sandbox</code></td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="quick-example">Quick Example</h2>
+    <div class="sourceCode" id="cb32"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sandbox::</span><span class="op">{</span>Sandbox<span class="op">,</span> IsolationLevel<span class="op">,</span> SecureBuffer<span class="op">};</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sandbox::policy::</span><span class="op">{</span>SeccompProfile<span class="op">,</span> Capability<span class="op">};</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Create a sandbox for classified waveform processing</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> sandbox <span class="op">=</span> <span class="pp">Sandbox::</span>builder()</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>isolation_level(<span class="pp">IsolationLevel::</span>L3_LSM)</span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>waveform(<span class="st">&quot;SINCGARS&quot;</span>)</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>memory_limit(<span class="dv">512</span> <span class="op">*</span> <span class="dv">1024</span> <span class="op">*</span> <span class="dv">1024</span>)    <span class="co">// 512 MB limit</span></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>cpu_limit(<span class="dv">100</span>)                       <span class="co">// 1 CPU core</span></span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>seccomp_profile(<span class="pp">SeccompProfile::</span>DSP) <span class="co">// DSP-only syscalls</span></span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>capabilities(<span class="op">&amp;</span>[<span class="pp">Capability::</span>IpcLock]) <span class="co">// Allow mlock for secure memory</span></span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>allow_network(<span class="cn">false</span>)                 <span class="co">// No network access</span></span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()<span class="op">?;</span></span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a><span class="co">// Run classified processing in isolation</span></span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a>sandbox<span class="op">.</span>run(<span class="op">||</span> <span class="op">{</span></span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">// This code runs with:</span></span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a>    <span class="co">// - Isolated PID namespace (can&#39;t see other processes)</span></span>
+<span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">// - Restricted syscalls (only DSP operations)</span></span>
+<span id="cb32-20"><a href="#cb32-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">// - Memory limits enforced</span></span>
+<span id="cb32-21"><a href="#cb32-21" aria-hidden="true" tabindex="-1"></a>    <span class="co">// - No network access</span></span>
+<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> key <span class="op">=</span> <span class="pp">SecureBuffer::</span>new(<span class="dv">32</span>)<span class="op">;</span>  <span class="co">// Auto-zeroized on drop</span></span>
+<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a>    process_sincgars(<span class="op">&amp;</span>samples<span class="op">,</span> <span class="op">&amp;</span>key)<span class="op">;</span></span>
+<span id="cb32-24"><a href="#cb32-24" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">?;</span></span></code></pre></div>
+    <p>For complete documentation, see: - <a
+    href="isolation-guide.html">docs/ISOLATION_GUIDE.md</a> -
+    Comprehensive isolation architecture - <a
+    href="security-guide.html">docs/SECURITY_GUIDE.md</a> -
+    Security best practices</p>
+    <hr />
+    <h1 id="crypto-boundary-architecture-commercial-secure-sdr">Crypto
+    Boundary Architecture (Commercial Secure SDR)</h1>
+    <p>For commercial secure SDR applications requiring formal
+    separation between trusted and untrusted domains, R4W supports
+    integration with a <strong>Crypto Service Interface
+    (CSI)</strong>.</p>
+    <h2 id="architecture-overview">Architecture Overview</h2>
+    <pre><code>┌─────────────────────────────────────────┐
+│ Application (Voice/Data)                │  RED (Trusted)
+│   PlaintextIn { payload, policy_id }    │
+├═════════════════════════════════════════┤
+│ Crypto Service Interface (CSI)          │  ← CRYPTO BOUNDARY
+│   - AEAD encryption/decryption          │
+│   - Replay protection (sliding window)  │
+│   - Key references (no raw keys)        │
+│   - Zeroization with observable state   │
+├═════════════════════════════════════════┤
+│ Waveform Layer (sees only ciphertext)   │  BLACK (Untrusted)
+│   modulate(&amp;[u8]) -&gt; Vec&lt;IQSample&gt;      │
+├─────────────────────────────────────────┤
+│ HAL / RF Hardware                       │  BLACK
+└─────────────────────────────────────────┘</code></pre>
+    <h2 id="why-r4w-is-already-compatible">Why R4W is Already
+    Compatible</h2>
+    <ol type="1">
+    <li><strong>Waveform trait takes <code>&amp;[u8]</code></strong> -
+    opaque bytes, whether plaintext or ciphertext</li>
+    <li><strong>HAL is already “untrusted”</strong> - only moves IQ
+    samples, no plaintext exposure</li>
+    <li><strong>Real-time infrastructure aligns</strong> - lock-free
+    queues, <code>no_std</code> readiness</li>
+    </ol>
+    <h2 id="key-security-properties">Key Security Properties</h2>
+    <table>
+    <colgroup>
+    <col style="width: 43%" />
+    <col style="width: 56%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Property</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Directionality</strong></td>
+    <td>Plaintext only enters CSI; ciphertext only exits</td>
+    </tr>
+    <tr class="even">
+    <td><strong>No RF metadata with plaintext</strong></td>
+    <td>Frequency, modulation, etc. never cross boundary</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Replay protection</strong></td>
+    <td>Per-flow sliding window (64-128 packets)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Key references</strong></td>
+    <td>Never raw key material in waveform code</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Zeroization</strong></td>
+    <td>Explicit command with observable state transition</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="integration-strategy">Integration Strategy</h2>
+    <p>CSI is designed as an <strong>optional layer</strong> that sits
+    above the waveform:</p>
+    <div class="sourceCode" id="cb34"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Without CSI (educational/hobby)</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate(plaintext_bytes)<span class="op">;</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a><span class="co">// With CSI (commercial secure)</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>csi<span class="op">.</span>submit_plaintext(plaintext_msg)<span class="op">?;</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(ct) <span class="op">=</span> csi<span class="op">.</span>poll_ciphertext() <span class="op">{</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate(<span class="op">&amp;</span>ct<span class="op">.</span>ciphertext)<span class="op">;</span></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="implementation-status">Implementation Status</h2>
+    <table>
+    <colgroup>
+    <col style="width: 25%" />
+    <col style="width: 28%" />
+    <col style="width: 46%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Phase</th>
+    <th>Status</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Architecture Design</td>
+    <td><strong>Complete</strong></td>
+    <td>Documented in <code>docs/CRYPTO_BOUNDARY.md</code></td>
+    </tr>
+    <tr class="even">
+    <td>CSI Specification</td>
+    <td><strong>Complete</strong></td>
+    <td>Flow management, replay, zeroization</td>
+    </tr>
+    <tr class="odd">
+    <td>R4W Compatibility</td>
+    <td><strong>Ready</strong></td>
+    <td>No changes needed to existing code</td>
+    </tr>
+    <tr class="even">
+    <td>CSI Implementation</td>
+    <td>Future</td>
+    <td><code>csi-core</code>, <code>csi-queues</code>,
+    <code>csi-backend-soft</code></td>
+    </tr>
+    <tr class="odd">
+    <td>Embedded Target</td>
+    <td>Future</td>
+    <td>STM32H7 (no_std), Zynq</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="target-platforms">Target Platforms</h2>
+    <table>
+    <colgroup>
+    <col style="width: 30%" />
+    <col style="width: 30%" />
+    <col style="width: 39%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Platform</th>
+    <th>Use Case</th>
+    <th>CSI Backend</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Desktop SDR</td>
+    <td>Educational, development</td>
+    <td>Software (ChaCha20-Poly1305)</td>
+    </tr>
+    <tr class="even">
+    <td>STM32H7</td>
+    <td>Embedded radio control plane</td>
+    <td>Software or secure element</td>
+    </tr>
+    <tr class="odd">
+    <td>Zynq</td>
+    <td>Production SDR with FPGA PHY</td>
+    <td>Hardware crypto acceleration</td>
+    </tr>
+    </tbody>
+    </table>
+    <p>For complete documentation: <a
+    href="crypto-boundary.html">docs/CRYPTO_BOUNDARY.md</a></p>
+    <hr />
+    <h1 id="documentation">Documentation</h1>
+    <p>For comprehensive documentation, see the <a
+    href="index.html">docs/</a> directory:</p>
+    <table>
+    <colgroup>
+    <col style="width: 43%" />
+    <col style="width: 56%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Document</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><a href="index.html">docs/README.md</a></td>
+    <td>Documentation index and navigation guide</td>
+    </tr>
+    <tr class="even">
+    <td><a
+    href="waveform-guide.html">docs/WAVEFORM_DEVELOPERS_GUIDE.md</a></td>
+    <td>Complete guide for waveform developers: debugging, testing,
+    deployment</td>
+    </tr>
+    <tr class="odd">
+    <td><a
+    href="physical-layer-guide.html">docs/PHYSICAL_LAYER_GUIDE.md</a></td>
+    <td>Timing model, HAL, RT primitives, configuration,
+    observability</td>
+    </tr>
+    <tr class="even">
+    <td><a
+    href="tick-scheduler.html">docs/TICK_SCHEDULER_GUIDE.md</a></td>
+    <td>Discrete event simulation and time control</td>
+    </tr>
+    <tr class="odd">
+    <td><a
+    href="realtime-guide.html">docs/REALTIME_SCHEDULER_GUIDE.md</a></td>
+    <td>TX/RX coordination, FHSS, TDMA timing</td>
+    </tr>
+    <tr class="even">
+    <td><a
+    href="fpga-guide.html">docs/FPGA_DEVELOPERS_GUIDE.md</a></td>
+    <td>FPGA engineer’s guide: IP cores, register maps,
+    collaboration</td>
+    </tr>
+    <tr class="odd">
+    <td><a
+    href="security-guide.html">docs/SECURITY_GUIDE.md</a></td>
+    <td>Security: memory safety, crypto, isolation, secure
+    deployment</td>
+    </tr>
+    <tr class="even">
+    <td><a
+    href="isolation-guide.html">docs/ISOLATION_GUIDE.md</a></td>
+    <td>Waveform isolation: containers, VMs, hardware separation</td>
+    </tr>
+    <tr class="odd">
+    <td><a
+    href="porting-military.html">docs/PORTING_GUIDE_MILITARY.md</a></td>
+    <td>Military waveform porting: SINCGARS, HAVEQUICK, Link-16,
+    P25</td>
+    </tr>
+    <tr class="even">
+    <td><a href="overview.html">MISSING_FEATURES.md</a></td>
+    <td>Production readiness assessment and roadmap</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h1 id="references">References</h1>
+    <ul>
+    <li>SDR-LoRa Paper: “SDR-LoRa, an open-source, full-fledged
+    implementation of LoRa on Software-Defined-Radios”</li>
+    <li>Semtech LoRa Patent: “Chirp Spread Spectrum” modulation</li>
+    <li>GNU Radio Project: https://gnuradio.org</li>
+    <li>Rust SDR Ecosystem: uhd-rs, soapysdr-rs, rustfft</li>
+    </ul>
+</body>
+</html>

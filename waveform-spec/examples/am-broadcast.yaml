@@ -1,0 +1,166 @@
+# AM Broadcast Radio Waveform Specification
+#
+# Standard AM broadcasting as used in the Medium Wave (MW) band.
+# This is one of the oldest radio modulation techniques, still in widespread use.
+#
+# Key characteristics:
+#   - Simple envelope detection at receiver
+#   - Carrier always present (unlike DSB-SC)
+#   - Both sidebands transmitted (redundant but robust)
+#   - Audio bandwidth limited to ~5 kHz
+#
+# Example use: Generating/analyzing AM broadcast signals for SDR experimentation
+
+---
+waveform:
+  name: "AM-BROADCAST"
+  full_name: "AM Broadcast (DSB-FC)"
+  version: "1.0"
+  description: |
+    Standard Amplitude Modulation as used in AM broadcast radio (MW band).
+    Double-Sideband Full-Carrier (DSB-FC) modulation where the carrier
+    amplitude is varied proportionally to the audio signal.
+
+  classification:
+    type: "analog"
+    category: "narrowband"
+    applications:
+      - "AM broadcast radio (540-1600 kHz)"
+      - "Aviation communication"
+      - "Amateur radio (10m AM)"
+      - "Educational demonstrations"
+
+  lpd_lpi:
+    enabled: false                  # AM is easy to detect
+
+modulation:
+  domain: "amplitude"
+  scheme: "AM-DSB-FC"
+
+  # Not applicable for analog
+  order: null
+  constellation: null
+  differential:
+    enabled: false
+
+  # Analog modulation parameters
+  analog:
+    enabled: true
+    carrier_freq_hz: 1000000        # 1 MHz (example MW frequency)
+
+    am:
+      enabled: true
+      modulation_index: 0.8         # 80% modulation depth (typical broadcast)
+      variant: "dsb_fc"             # Double Sideband Full Carrier
+      envelope_detector: true       # Simple diode detector works
+
+    fm:
+      enabled: false
+
+    baseband:
+      type: "audio"
+      bandwidth_hz: 5000            # 5 kHz audio (AM broadcast standard)
+      dc_coupled: false
+
+# No spread spectrum for AM broadcast
+spread_spectrum:
+  enabled: false
+
+# No digital pulse shaping (analog)
+pulse_shaping:
+  enabled: false
+
+timing:
+  sample_rate: 48000                # Standard audio sample rate
+  # Symbol rate not applicable for analog voice
+
+synchronization:
+  # AM broadcast doesn't use digital sync
+  preamble:
+    enabled: false
+  sync_word:
+    enabled: false
+  cfo_tolerance_hz: 100             # Receiver AFC tolerance
+
+# No digital channel coding
+channel_coding:
+  enabled: false
+
+# No digital framing
+framing:
+  header:
+    enabled: false
+  payload:
+    type: "continuous"              # Continuous audio stream
+
+spectral:
+  bandwidth:
+    null_to_null_hz: 10000          # 2 × 5 kHz (both sidebands)
+    occupied_99_hz: 9000            # Practical occupied bandwidth
+
+  # AM has significant carrier power
+  psd:
+    carrier_power_fraction: 0.66    # 2/3 power in carrier for m=1
+    sideband_power_fraction: 0.34   # 1/3 power in sidebands
+
+channel:
+  target_ber: null                  # Analog - use SNR instead
+  required_snr_db: 10               # Minimum for intelligible speech
+
+  multipath:
+    tolerant: false                 # AM susceptible to multipath fading
+    # Reason: Deep fades on carrier cause total signal loss
+
+  doppler:
+    max_shift_hz: 50                # Low for broadcast (stationary)
+
+  jamming:
+    resistance: false               # Very vulnerable to jamming/interference
+
+implementation:
+  complexity: 1                     # Simplest modulation
+  max_latency_ms: 10
+
+  targets:
+    - "simulation"
+    - "sdr_playback"
+    - "analog_circuit"
+
+metrics:
+  # AM efficiency calculations
+  modulation_efficiency: 0.33       # For m=1, only 1/3 power is in sidebands
+  bandwidth_efficiency: 1.0         # bps/Hz not applicable for analog
+  snr_improvement_db: 0             # No processing gain
+
+# ============================================================================
+# EDUCATIONAL NOTES
+# ============================================================================
+#
+# AM Signal Structure:
+#   s(t) = A_c[1 + m·x(t)]·cos(2πf_c·t)
+#
+# Where:
+#   A_c = Carrier amplitude
+#   m   = Modulation index (depth)
+#   x(t)= Normalized baseband signal (-1 to +1)
+#   f_c = Carrier frequency
+#
+# Power Distribution (for sinusoidal modulating signal):
+#   P_carrier = A_c²/2
+#   P_sideband = m²·P_carrier/2 (each sideband)
+#   P_total = P_carrier(1 + m²/2)
+#
+# At 100% modulation (m=1):
+#   - 2/3 (66.7%) of power is in the carrier (wasted)
+#   - 1/3 (33.3%) of power is in sidebands (information)
+#
+# Why DSB-FC is still used:
+#   1. Simple envelope detection (diode + capacitor)
+#   2. No carrier recovery needed at receiver
+#   3. Robust against fading and multipath
+#   4. Compatible with billions of AM radios worldwide
+#
+# Variations:
+#   - DSB-SC: Suppressed carrier (more efficient, complex receiver)
+#   - SSB: Single sideband (half bandwidth, even more complex)
+#   - VSB: Vestigial sideband (TV video, compromise)

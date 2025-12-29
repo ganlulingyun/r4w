@@ -1,0 +1,607 @@
+# Waveform Specification Schema v1.0
+#
+# This schema defines all parameters needed to fully specify a digital waveform.
+# It serves as both documentation and a prompt template for AI-assisted implementation.
+#
+# Usage:
+#   1. Fill in this template with your waveform requirements
+#   2. Feed the completed spec to Claude as a prompt
+#   3. Claude will generate the Rust implementation
+#
+# For LPD/LPI waveforms, pay special attention to:
+#   - spread_spectrum section (processing gain)
+#   - spectral section (power spectral density)
+#   - hopping section (frequency agility)
+
+---
+# ============================================================================
+# WAVEFORM IDENTITY
+# ============================================================================
+waveform:
+  name: "EXAMPLE-WAVEFORM"          # Short identifier (uppercase, hyphens)
+  full_name: "Example Waveform"     # Human-readable name
+  version: "1.0"
+  description: |
+    Brief description of the waveform's purpose and characteristics.
+
+  classification:
+    type: "digital"                 # digital | analog | hybrid
+    category: "spread_spectrum"     # narrowband | wideband | spread_spectrum | multi_carrier
+    applications:                   # Primary use cases
+      - "tactical communications"
+      - "covert signaling"
+
+  lpd_lpi:                          # Low Probability of Detection/Intercept
+    enabled: true
+    target_processing_gain_db: 20   # Desired spreading gain
+    below_noise_floor: true         # Design to operate below thermal noise
+
+  # Standards profile for military/government waveforms
+  # This provides shortcuts for well-known standards
+  standards_profile:
+    enabled: false
+    standard: null                  # milstd_188_110 | milstd_188_141 | stanag_4285 |
+                                    # sincgars | havequick | link16 | p25 | tetra | dmr
+    # MIL-STD-188-110 (HF Data Modem)
+    milstd_188_110:
+      appendix: "B"                 # A | B | C (appendix version)
+      mode: "4800_bps"              # 75 | 150 | 300 | 600 | 1200 | 2400 | 4800 | 9600
+      interleave: "long"            # short | long
+
+    # MIL-STD-188-141 (ALE - Automatic Link Establishment)
+    milstd_188_141:
+      generation: "3G"              # 2G | 3G | 4G
+      linking_protection: false     # LQA-based linking
+
+    # STANAG-4285 (NATO HF Data Modem)
+    stanag_4285:
+      mode: "1200_bps"              # 75 | 150 | 300 | 600 | 1200 | 2400 | 3600
+      interleave: "long"
+
+    # SINCGARS profile
+    sincgars:
+      mode: "sc"                    # sc (single channel) | fh (frequency hopping)
+      data_rate: "16kbps"           # 16kbps | 1.2kbps (low speed data)
+
+    # HAVEQUICK profile
+    havequick:
+      version: "ii"                 # i | ii | iia
+      net_type: "training"          # training | combat
+
+    # Link-16 profile
+    link16:
+      terminal_type: "class2"       # class1 | class2 | class2m | class2h
+      npg_list: []                  # Network Participation Groups
+
+    # P25 profile
+    p25:
+      phase: 1                      # 1 | 2
+      trunking: false
+
+    # TETRA profile
+    tetra:
+      mode: "tmo"                   # tmo (trunked) | dmo (direct)
+      encryption: "tea1"            # tea1 | tea2 | tea3 | none
+
+    # DMR profile
+    dmr:
+      tier: 2                       # 1 | 2 | 3
+      mode: "direct"                # direct | repeater | trunked
+
+# ============================================================================
+# MODULATION
+# ============================================================================
+modulation:
+  # Primary modulation domain
+  domain: "phase"                   # amplitude | frequency | phase | hybrid
+
+  # === DIGITAL MODULATION ===
+  # Symbol alphabet (for digital modulation)
+  order: 4                          # Number of symbols (2=binary, 4=quaternary, etc.)
+  scheme: "QPSK"                    # Specific scheme name
+
+  # Constellation mapping (for digital PSK/QAM)
+  constellation:
+    type: "gray"                    # gray | natural | custom
+    rotation_deg: 0                 # Constellation rotation (e.g., π/4 QPSK = 45)
+    # Custom constellation points (if type: custom)
+    # points:
+    #   - { i: 1.0, q: 0.0, bits: "00" }
+    #   - { i: 0.0, q: 1.0, bits: "01" }
+
+  # Differential encoding (useful for avoiding phase ambiguity)
+  differential:
+    enabled: false
+    reference: "previous"           # previous | fixed
+
+  # === ANALOG MODULATION ===
+  # Parameters for AM, FM, PM analog modulation
+  analog:
+    enabled: false                  # Set true for analog waveforms (AM, FM, etc.)
+
+    # Carrier settings (distinct from baseband)
+    carrier_freq_hz: 1000000        # Carrier frequency in Hz
+
+    # Amplitude Modulation (AM)
+    am:
+      enabled: false
+      modulation_index: 1.0         # m = 0.0-1.0 (1.0 = 100% modulation)
+      variant: "dsb_fc"             # dsb_fc | dsb_sc | ssb_usb | ssb_lsb | vestigial
+      # dsb_fc = Double Sideband Full Carrier (standard AM radio)
+      # dsb_sc = Double Sideband Suppressed Carrier
+      # ssb_usb = Single Sideband Upper
+      # ssb_lsb = Single Sideband Lower
+      envelope_detector: true       # Can be demodulated with simple envelope detector
+
+    # Frequency Modulation (FM)
+    fm:
+      enabled: false
+      deviation_hz: 75000           # Peak frequency deviation (75 kHz for FM broadcast)
+      modulation_index: null        # β = deviation / max_baseband_freq (calculated)
+      variant: "wbfm"               # nbfm | wbfm
+      # nbfm = Narrowband FM (voice, β < 1)
+      # wbfm = Wideband FM (broadcast, β > 1)
+      preemphasis_us: 75            # Pre-emphasis time constant (75μs NA, 50μs EU)
+      stereo:
+        enabled: false
+        pilot_freq_hz: 19000        # 19 kHz pilot tone
+
+    # Baseband signal characteristics
+    baseband:
+      type: "voice"                 # voice | audio | data | tone
+      bandwidth_hz: 5000            # Maximum baseband frequency
+      dc_coupled: false             # Whether baseband includes DC component
+
+# ============================================================================
+# SPREAD SPECTRUM (Critical for LPD/LPI)
+# ============================================================================
+spread_spectrum:
+  enabled: true
+
+  technique: "dsss"                 # dsss | fhss | thss | css | hybrid
+
+  # Direct Sequence Spread Spectrum
+  dsss:
+    enabled: true
+    chip_rate: 1000000              # chips/second
+    chips_per_symbol: 127           # Spreading factor (processing gain in linear)
+
+    pn_sequence:
+      type: "gold"                  # lfsr | gold | kasami | barker | custom
+      length: 127                   # Sequence length (often 2^n - 1)
+      polynomial: "0x83"            # Generator polynomial (for LFSR-based)
+      # For Gold codes: two LFSR polynomials
+      poly_a: "0x83"
+      poly_b: "0x8E"
+      initial_state: "0x01"
+
+    # Correlation properties
+    cross_correlation_bound: -17    # dB (for multi-user)
+
+  # Frequency Hopping Spread Spectrum
+  fhss:
+    enabled: false
+    num_channels: 50                # Number of hop frequencies
+    hop_rate: 100                   # Hops per second
+    dwell_time_ms: 10               # Time on each frequency
+    bandwidth_per_hop_hz: 25000     # Instantaneous bandwidth
+    total_bandwidth_hz: 2000000     # Total hopping bandwidth
+
+    hop_pattern:
+      type: "pseudo_random"         # pseudo_random | adaptive | hybrid
+      seed: 0x12345678
+
+  # Time Hopping Spread Spectrum
+  thss:
+    enabled: false
+    frame_slots: 100                # Slots per frame
+    active_slots: 5                 # Slots used for transmission
+
+  # Chirp Spread Spectrum (like LoRa)
+  css:
+    enabled: false
+    spreading_factor: 7             # SF5-SF12
+    bandwidth_hz: 125000
+
+# ============================================================================
+# PULSE SHAPING
+# ============================================================================
+pulse_shaping:
+  enabled: true
+
+  filter:
+    type: "root_raised_cosine"      # rectangular | raised_cosine | root_raised_cosine | gaussian
+
+    # Raised Cosine / Root Raised Cosine parameters
+    rolloff: 0.35                   # Roll-off factor (α), 0 to 1
+    span_symbols: 8                 # Filter length in symbols
+
+    # Gaussian filter parameters (for GMSK)
+    bt_product: 0.3                 # Bandwidth-time product
+
+  # Spectral mask compliance
+  spectral_mask:
+    enabled: false
+    # standard: "MIL-STD-188-110D"
+
+# ============================================================================
+# TIMING
+# ============================================================================
+timing:
+  symbol_rate: 1000                 # Symbols per second (baud)
+  sample_rate: 125000               # Samples per second
+  samples_per_symbol: 125           # Derived: sample_rate / symbol_rate
+
+  # Burst mode (useful for LPD)
+  burst:
+    enabled: false
+    burst_duration_ms: 10
+    burst_interval_ms: 100          # Average time between bursts
+    random_interval: true           # Randomize burst timing
+
+# ============================================================================
+# ACCESS METHOD (TDMA/FDMA/CDMA)
+# ============================================================================
+access_method:
+  type: "fdma"                      # fdma | tdma | cdma | hybrid | aloha
+
+  # TDMA parameters (Time Division Multiple Access)
+  tdma:
+    enabled: false
+    frame_duration_ms: 60           # Total frame duration
+    slots_per_frame: 4              # Number of slots in a frame
+    slot_duration_ms: 14.167        # Derived: frame_duration / slots (with guard)
+    guard_time_ms: 0.833            # Guard time between slots
+
+    # Slot assignment
+    assignment:
+      type: "fixed"                 # fixed | dynamic | reservation
+      my_slot: 1                    # Slot assigned to this terminal (0-indexed)
+
+    # Frame structure (for complex protocols)
+    frame_structure:
+      - { type: "control", slots: 1, purpose: "signaling" }
+      - { type: "traffic", slots: 3, purpose: "voice/data" }
+
+    # Multi-frame structure (for trunking systems like TETRA, P25, DMR)
+    multiframe:
+      enabled: false
+      frames_per_multiframe: 18     # TETRA: 18 frames per multiframe
+      hyperframe:
+        enabled: false
+        multiframes_per_hyperframe: 60
+
+  # FDMA parameters (Frequency Division Multiple Access)
+  fdma:
+    enabled: true                   # Default: simple FDMA
+    channel_spacing_hz: 25000       # Channel spacing
+    num_channels: 1                 # Number of frequency channels
+
+  # CDMA parameters (Code Division Multiple Access)
+  cdma:
+    enabled: false
+    code_family: "walsh"            # walsh | gold | kasami | ovsf
+    num_codes: 64                   # Number of orthogonal codes
+    my_code_index: 0                # Assigned code for this terminal
+
+    # Multi-user detection
+    multi_user:
+      enabled: false
+      max_users: 8
+      interference_cancellation: false
+
+  # ALOHA / Contention-based access
+  aloha:
+    enabled: false
+    variant: "slotted"              # pure | slotted
+    backoff_algorithm: "exponential" # exponential | linear | uniform
+    max_retries: 5
+    slot_time_ms: 10
+
+# ============================================================================
+# SYNCHRONIZATION
+# ============================================================================
+synchronization:
+  preamble:
+    enabled: true
+    type: "barker"                  # barker | zadoff_chu | gold | chirp | custom
+    length_symbols: 13              # Barker-13 for example
+    # Preamble should also be spread for LPD
+    spread_preamble: true
+
+  sync_word:
+    enabled: true
+    value: "0x12"                   # Unique word for frame sync
+    length_bits: 8
+
+  # Carrier/timing recovery
+  pilot_symbols:
+    enabled: false
+    spacing: 10                     # Insert pilot every N symbols
+
+  cfo_tolerance_hz: 100             # Carrier frequency offset tolerance
+
+# ============================================================================
+# CHANNEL CODING (FEC)
+# ============================================================================
+channel_coding:
+  enabled: true
+
+  fec:
+    type: "convolutional"           # none | hamming | convolutional | turbo | ldpc
+    rate: "1/2"                     # Code rate (e.g., 1/2, 2/3, 3/4)
+    constraint_length: 7            # For convolutional codes
+
+    # Specific code parameters
+    generator_polys:                # For convolutional
+      - "0x6D"
+      - "0x4F"
+
+  interleaving:
+    enabled: true
+    type: "block"                   # block | convolutional | random
+    rows: 8
+    cols: 16
+
+  scrambling:
+    enabled: true
+    polynomial: "0x108"             # x^8 + x^4 + x^3 + x^2 + 1
+    initial_state: "0xFF"
+
+# ============================================================================
+# FRAMING
+# ============================================================================
+framing:
+  # Packet structure
+  header:
+    enabled: true
+    length_bits: 16
+    fields:
+      - { name: "length", bits: 8 }
+      - { name: "type", bits: 4 }
+      - { name: "flags", bits: 4 }
+
+  payload:
+    min_bits: 8
+    max_bits: 2048
+    default_bits: 256
+
+  error_detection:
+    type: "crc16"                   # none | crc8 | crc16 | crc32
+    polynomial: "0x1021"            # CRC-CCITT
+
+# ============================================================================
+# SPECTRAL CHARACTERISTICS
+# ============================================================================
+spectral:
+  # Bandwidth definitions
+  bandwidth:
+    null_to_null_hz: 2000           # Main lobe bandwidth
+    occupied_99_hz: 1800            # 99% power bandwidth
+
+  # For LPD/LPI: Power Spectral Density
+  psd:
+    target_dbm_hz: -130             # Target PSD (should be below noise floor)
+    # Thermal noise floor ≈ -174 dBm/Hz at room temperature
+    # With 10 dB NF receiver: -164 dBm/Hz
+
+  sidelobe_suppression_db: 30       # Desired sidelobe level
+
+# ============================================================================
+# RADAR PARAMETERS (For FMCW, Pulse Doppler, etc.)
+# ============================================================================
+radar:
+  enabled: false                    # Set true for radar waveforms (not communications)
+  type: "fmcw"                      # fmcw | pulse_doppler | cw | noise
+
+  # Common radar parameters
+  carrier_freq_hz: 77e9             # Carrier frequency (77 GHz automotive, 24 GHz ISM)
+  tx_power_dbm: 10                  # Transmit power
+
+  # FMCW (Frequency Modulated Continuous Wave) parameters
+  fmcw:
+    enabled: true
+    chirp_bandwidth_hz: 150e6       # Chirp bandwidth (150 MHz typical)
+    chirp_duration_us: 40           # Chirp duration in microseconds
+    chirp_slope_hz_per_us: 3.75e6   # Derived: bandwidth / duration
+    num_chirps: 128                 # Number of chirps per frame
+    chirp_direction: "up"           # up | down | triangle | sawtooth
+
+    # Chirp sequence (for velocity measurement)
+    chirp_repetition_time_us: 50    # Time between chirp starts
+    idle_time_us: 10                # Idle time between chirps
+
+  # Pulse Doppler parameters
+  pulse_doppler:
+    enabled: false
+    pulse_width_us: 1               # Pulse width
+    pri_us: 100                     # Pulse Repetition Interval
+    prf_hz: 10000                   # Pulse Repetition Frequency (derived: 1/PRI)
+    duty_cycle: 0.01                # Derived: pulse_width / PRI
+    num_pulses: 64                  # Pulses per coherent processing interval
+
+  # Derived radar performance metrics (filled in by wizard)
+  performance:
+    range_resolution_m: 1.0         # Derived: c / (2 * bandwidth)
+    max_unambiguous_range_m: 300    # Derived: c * chirp_duration / 2
+    velocity_resolution_mps: 0.5    # Derived from Doppler processing
+    max_unambiguous_velocity_mps: 50 # Derived: lambda / (4 * chirp_rep_time)
+    angular_resolution_deg: null    # For phased array (if applicable)
+
+  # Signal processing
+  processing:
+    range_fft_size: 256             # FFT size for range processing
+    doppler_fft_size: 128           # FFT size for Doppler processing
+    window: "hanning"               # none | hanning | hamming | blackman | kaiser
+    cfar:                           # Constant False Alarm Rate detection
+      enabled: true
+      type: "ca"                    # ca (cell averaging) | os (ordered statistic) | go
+      guard_cells: 4
+      training_cells: 16
+      threshold_factor: 10          # dB above noise floor
+
+# ============================================================================
+# CHANNEL REQUIREMENTS
+# ============================================================================
+channel:
+  target_ber: 1.0e-5                # Target bit error rate
+  required_snr_db: 10               # SNR for target BER (pre-spreading)
+
+  # With processing gain, effective SNR requirement is reduced
+  # effective_snr = required_snr - processing_gain
+
+  multipath:
+    tolerant: true
+    max_delay_spread_us: 10         # For equalizer design
+
+  doppler:
+    max_shift_hz: 100               # Maximum Doppler shift
+
+  jamming:
+    resistance: true
+    jam_margin_db: 20               # Processing gain available for jamming
+
+# ============================================================================
+# SECURITY (Optional)
+# ============================================================================
+security:
+  encryption:
+    enabled: false
+    algorithm: "AES-256"
+
+  key_management:
+    type: "pre_shared"              # pre_shared | diffie_hellman
+
+# ============================================================================
+# CLASSIFIED COMPONENTS (For Military/Government Waveforms)
+# ============================================================================
+# This section documents which components require classified implementations.
+# The R4W framework provides trait-based architecture where classified algorithms
+# can be provided by external crates without modifying the core framework.
+#
+# When generating code, the wizard will:
+# 1. Create trait definitions for classified components
+# 2. Provide simulator implementations for development/testing
+# 3. Document the interface for classified replacements
+# 4. Generate build configurations for linking classified modules
+#
+classified_components:
+  enabled: false                    # Set true if waveform has classified elements
+
+  # Frequency hopping algorithm
+  hopping_algorithm:
+    classified: false
+    classification_level: null      # unclassified | cui | secret | top_secret
+    description: "Frequency hopping sequence generator"
+    trait_name: "HoppingAlgorithm"
+    simulator_provided: true        # Framework provides non-secure simulator
+    inputs:
+      - "time_of_day"
+      - "net_id"
+      - "crypto_key"
+    outputs:
+      - "next_frequency_hz"
+      - "dwell_time_ms"
+
+  # Transmission security (TRANSEC)
+  transec:
+    classified: false
+    classification_level: null
+    description: "Transmission security encryption"
+    trait_name: "TransecProvider"
+    simulator_provided: true
+    crypto_type: null               # type1 | type2 | type3 | commercial
+
+  # COMSEC (Communications Security)
+  comsec:
+    classified: false
+    classification_level: null
+    description: "End-to-end message encryption"
+    trait_name: "ComsecProvider"
+    simulator_provided: true
+
+  # Voice codec (may be proprietary)
+  voice_codec:
+    classified: false
+    classification_level: null
+    description: "Voice encoding/decoding"
+    trait_name: "VoiceCodec"
+    simulator_provided: true
+    codec_type: null                # cvsd | lpc10 | melp | ambe | imbe | opus
+
+  # Network ID and routing
+  network_routing:
+    classified: false
+    classification_level: null
+    description: "Network identification and message routing"
+    trait_name: "NetworkRouter"
+    simulator_provided: true
+
+  # Time synchronization
+  time_sync:
+    classified: false
+    classification_level: null
+    description: "Precise time synchronization for TDMA/FHSS"
+    trait_name: "TimeSync"
+    simulator_provided: true
+    sync_source: null               # gps | internal | network | external
+
+  # IFF/SIF (Identification Friend or Foe)
+  iff:
+    classified: false
+    classification_level: null
+    description: "Identification Friend or Foe"
+    trait_name: "IffProvider"
+    simulator_provided: false       # No simulator for IFF
+
+  # Wizard generation hints
+  wizard_guidance:
+    generate_traits: true           # Generate Rust trait definitions
+    generate_simulators: true       # Generate non-secure simulator implementations
+    generate_ffi_bindings: false    # Generate C FFI for external classified libs
+    generate_build_cfg: true        # Generate Cargo feature flags for classified modules
+    document_interfaces: true       # Generate interface documentation
+
+    # Build configuration hints
+    build_config:
+      default_feature: "simulator"  # Use simulator by default
+      classified_features:          # Features to enable classified implementations
+        - "classified_hopping"
+        - "classified_transec"
+        - "classified_comsec"
+      link_external: false          # Link to external classified library
+      external_lib_name: null       # Name of external library (e.g., "sincgars_classified")
+
+# ============================================================================
+# IMPLEMENTATION HINTS
+# ============================================================================
+implementation:
+  # Complexity estimates
+  complexity: 4                     # 1-5 scale
+
+  # Real-time requirements
+  max_latency_ms: 10
+
+  # Hardware targets
+  targets:
+    - "simulation"
+    - "usrp"
+    - "embedded"
+
+  # Test vectors
+  test_vectors:
+    enabled: true
+    include_ber_curves: true
+
+# ============================================================================
+# CALCULATED METRICS (Filled in by wizard/validator)
+# ============================================================================
+metrics:
+  # These are computed from the above parameters
+  processing_gain_db: 21.0          # 10*log10(chips_per_symbol)
+  spectral_efficiency_bps_hz: 0.01  # bits/s/Hz after spreading
+  data_rate_bps: 2000               # Effective data rate
+  chip_rate: 1000000                # Total chip rate
+
+  # LPI figure of merit
+  lpi_margin_db: 30                 # How far below noise floor

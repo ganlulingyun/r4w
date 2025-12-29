@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="R4W Development Team (Aida, Joe Mooney, Claude Code)">
+  <title> Workshop Series</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@5.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@5.1.0/dist/reveal.css">
+  <style>
+    .reveal .sourceCode {  /* see #7635 */
+      overflow: visible;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@5.1.0/dist/theme/night.css" id="theme">
+  <style>
+    .reveal pre {
+      margin: 0 auto;
+      width: fit-content;
+    }
+    .reveal pre code {
+      text-align: left;
+    }
+    .reveal section img {
+      max-height: 60vh;
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide">
+  <h1 class="title"><img src="images/r4w_logo_1.png" height="150px" style="margin-bottom: 20px;"><br>Workshop
+Series</h1>
+  <p class="subtitle">From Beginner to Waveform Developer</p>
+  <p class="author">R4W Development Team<br>(Aida, Joe Mooney, Claude
+Code)</p>
+  <p class="date">December 2025</p>
+</section>
+
+<section id="workshop-overview" class="slide level2">
+<h2>Workshop Overview</h2>
+<p>11 hands-on workshops covering SDR fundamentals to advanced
+topics.</p>
+<table>
+<thead>
+<tr class="header">
+<th>Duration</th>
+<th>Topics</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Total</strong></td>
+<td>~11 hours</td>
+</tr>
+<tr class="even">
+<td><strong>Beginner</strong></td>
+<td>4 workshops</td>
+</tr>
+<tr class="odd">
+<td><strong>Intermediate</strong></td>
+<td>4 workshops</td>
+</tr>
+<tr class="even">
+<td><strong>Advanced</strong></td>
+<td>3 workshops</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="learning-path" class="slide level2">
+<h2>Learning Path</h2>
+<pre><code>      ┌─────────────────────┐
+      │   01: Installation  │
+      └──────────┬──────────┘
+                 │
+      ┌──────────▼──────────┐
+      │   02: I/Q Basics    │
+      └──────────┬──────────┘
+                 │
+    ┌────────────┼────────────┐
+    │            │            │
+┌───▼───┐  ┌─────▼─────┐  ┌───▼───┐
+│03: OOK│  │04: FSK/PSK│  │07:Chan│
+└───┬───┘  └─────┬─────┘  └───┬───┘
+    │            │            │
+    └─────┬──────┘            │
+          │                   │
+     ┌────▼────┐              │
+     │ 05: QAM │◄─────────────┘
+     └────┬────┘
+          │
+     ┌────▼───────┐
+     │06: Spread  │
+     │  Spectrum  │
+     └────┬───────┘
+          │
+     ┌────▼────────────┐
+     │08: Build Your   │
+     │   Own Waveform  │
+     └────┬────────────┘
+          │
+    ┌─────┴─────┐
+    │           │
+┌───▼────┐ ┌────▼────┐
+│09:Explr│ │10:RT/FPG│
+└────────┘ └────┬────┘
+                │
+           ┌────▼────┐
+           │11:RT Sch│
+           └─────────┘</code></pre>
+</section>
+<section id="workshop-01-getting-started" class="slide level2">
+<h2>Workshop 01: Getting Started</h2>
+<p><strong>Duration: 30 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Topic</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Installation</td>
+<td>Rust, cargo, dependencies</td>
+</tr>
+<tr class="even">
+<td>First Run</td>
+<td>Build and run explorer</td>
+</tr>
+<tr class="odd">
+<td>CLI Basics</td>
+<td>Commands, help, examples</td>
+</tr>
+<tr class="even">
+<td>Project Tour</td>
+<td>Directory structure</td>
+</tr>
+</tbody>
+</table>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/joemooney/r4w.git</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> r4w <span class="kw">&amp;&amp;</span> <span class="ex">cargo</span> build <span class="at">--release</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w-explorer</span></code></pre></div>
+</section>
+<section id="workshop-02-iq-signals" class="slide level2">
+<h2>Workshop 02: I/Q Signals</h2>
+<p><strong>Duration: 45 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Topic</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Complex Numbers</td>
+<td>Real + imaginary</td>
+</tr>
+<tr class="even">
+<td>I/Q Samples</td>
+<td>In-phase, quadrature</td>
+</tr>
+<tr class="odd">
+<td>Time Domain</td>
+<td>Waveform visualization</td>
+</tr>
+<tr class="even">
+<td>Sampling</td>
+<td>Nyquist, aliasing</td>
+</tr>
+</tbody>
+</table>
+<p>Learn the foundation of all SDR!</p>
+</section>
+<section id="workshop-03-basic-modulation" class="slide level2">
+<h2>Workshop 03: Basic Modulation</h2>
+<p><strong>Duration: 45 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Modulation</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>CW</strong></td>
+<td>Continuous wave (carrier only)</td>
+</tr>
+<tr class="even">
+<td><strong>OOK</strong></td>
+<td>On-Off Keying</td>
+</tr>
+<tr class="odd">
+<td><strong>ASK</strong></td>
+<td>Amplitude Shift Keying</td>
+</tr>
+</tbody>
+</table>
+<p>Simplest forms of digital modulation.</p>
+</section>
+<section id="workshop-04-fsk-and-psk" class="slide level2">
+<h2>Workshop 04: FSK and PSK</h2>
+<p><strong>Duration: 60 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Modulation</th>
+<th>Bits/Symbol</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>FSK</strong></td>
+<td>1</td>
+<td>Frequency shift</td>
+</tr>
+<tr class="even">
+<td><strong>GFSK</strong></td>
+<td>1</td>
+<td>Gaussian filtered FSK</td>
+</tr>
+<tr class="odd">
+<td><strong>BPSK</strong></td>
+<td>1</td>
+<td>Binary phase shift</td>
+</tr>
+<tr class="even">
+<td><strong>QPSK</strong></td>
+<td>2</td>
+<td>Quadrature PSK</td>
+</tr>
+<tr class="odd">
+<td><strong>8PSK</strong></td>
+<td>3</td>
+<td>8-point PSK</td>
+</tr>
+</tbody>
+</table>
+<p>Frequency vs phase modulation trade-offs.</p>
+</section>
+<section id="workshop-05-qam" class="slide level2">
+<h2>Workshop 05: QAM</h2>
+<p><strong>Duration: 60 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>QAM Order</th>
+<th>Bits/Symbol</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>4-QAM</td>
+<td>2</td>
+<td>Same as QPSK</td>
+</tr>
+<tr class="even">
+<td>16-QAM</td>
+<td>4</td>
+<td>WiFi, LTE</td>
+</tr>
+<tr class="odd">
+<td>64-QAM</td>
+<td>6</td>
+<td>High-rate WiFi</td>
+</tr>
+<tr class="even">
+<td>256-QAM</td>
+<td>8</td>
+<td>Cable modems</td>
+</tr>
+</tbody>
+</table>
+<p>Combines amplitude and phase modulation.</p>
+</section>
+<section id="constellation-diagrams" class="slide level2">
+<h2>Constellation Diagrams</h2>
+<p>Visual representation of symbol positions:</p>
+<pre><code>         Q (Imaginary)
+          │
+    ●     │     ●      16-QAM:
+          │            16 points
+   ───────┼───────     4 bits/symbol
+          │
+    ●     │     ●
+          │
+        I (Real)</code></pre>
+</section>
+<section id="workshop-06-spread-spectrum" class="slide level2">
+<h2>Workshop 06: Spread Spectrum</h2>
+<p><strong>Duration: 75 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Technique</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>DSSS</strong></td>
+<td>Direct Sequence - spreading code</td>
+</tr>
+<tr class="even">
+<td><strong>FHSS</strong></td>
+<td>Frequency Hopping - channel hopping</td>
+</tr>
+<tr class="odd">
+<td><strong>CSS</strong></td>
+<td>Chirp Spread Spectrum (LoRa)</td>
+</tr>
+</tbody>
+</table>
+<p>Trade bandwidth for noise immunity.</p>
+</section>
+<section id="lora-chirps" class="slide level2">
+<h2>LoRa Chirps</h2>
+<p>Chirp Spread Spectrum modulation:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Parameter</th>
+<th>Values</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Spreading Factor</td>
+<td>SF5-SF12</td>
+</tr>
+<tr class="even">
+<td>Bandwidth</td>
+<td>125/250/500 kHz</td>
+</tr>
+<tr class="odd">
+<td>Chips/Symbol</td>
+<td>2^SF</td>
+</tr>
+<tr class="even">
+<td>Range</td>
+<td>Up to 15 km</td>
+</tr>
+</tbody>
+</table>
+<p>Symbol = cyclic shift of base chirp.</p>
+</section>
+<section id="workshop-07-channel-effects" class="slide level2">
+<h2>Workshop 07: Channel Effects</h2>
+<p><strong>Duration: 60 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Effect</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>AWGN</strong></td>
+<td>Additive White Gaussian Noise</td>
+</tr>
+<tr class="even">
+<td><strong>Fading</strong></td>
+<td>Signal strength variation</td>
+</tr>
+<tr class="odd">
+<td><strong>Multipath</strong></td>
+<td>Reflections, delays</td>
+</tr>
+<tr class="even">
+<td><strong>Doppler</strong></td>
+<td>Frequency shift from motion</td>
+</tr>
+</tbody>
+</table>
+<p>Simulate real-world conditions.</p>
+</section>
+<section id="ber-and-snr" class="slide level2">
+<h2>BER and SNR</h2>
+<table>
+<thead>
+<tr class="header">
+<th>SNR (dB)</th>
+<th>BPSK BER</th>
+<th>QPSK BER</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>0.08</td>
+<td>0.08</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>0.006</td>
+<td>0.006</td>
+</tr>
+<tr class="odd">
+<td>10</td>
+<td>4e-6</td>
+<td>4e-6</td>
+</tr>
+<tr class="even">
+<td>15</td>
+<td>3e-12</td>
+<td>3e-12</td>
+</tr>
+</tbody>
+</table>
+<p>Higher SNR = lower bit errors.</p>
+</section>
+<section id="workshop-08-building-waveforms" class="slide level2">
+<h2>Workshop 08: Building Waveforms</h2>
+<p><strong>Duration: 90 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Step</th>
+<th>Task</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Implement <code>Waveform</code> trait</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Write <code>modulate()</code></td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Write <code>demodulate()</code></td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Define constellation</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Add unit tests</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Register in factory</td>
+</tr>
+</tbody>
+</table>
+<p>Build your own waveform!</p>
+</section>
+<section id="the-waveform-trait" class="slide level2">
+<h2>The Waveform Trait</h2>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> Waveform<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> info(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> WaveformInfo<span class="op">;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample])</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>        <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;;</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> constellation_points(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="workshop-09-explorer-deep-dive" class="slide level2">
+<h2>Workshop 09: Explorer Deep Dive</h2>
+<p><strong>Duration: 60 minutes</strong></p>
+<p>Every GUI feature explained:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Panel</th>
+<th>Features</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Overview</strong></td>
+<td>Waveform intro, SDR concepts</td>
+</tr>
+<tr class="even">
+<td><strong>Waveform Lab</strong></td>
+<td>Parameter tweaking</td>
+</tr>
+<tr class="odd">
+<td><strong>Streaming</strong></td>
+<td>Real-time visualization</td>
+</tr>
+<tr class="even">
+<td><strong>Code Explorer</strong></td>
+<td>Implementation details</td>
+</tr>
+<tr class="odd">
+<td><strong>Performance</strong></td>
+<td>Benchmarks, metrics</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="workshop-10-rt-and-fpga" class="slide level2">
+<h2>Workshop 10: RT and FPGA</h2>
+<p><strong>Duration: 75 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Topic</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Real-Time Concepts</td>
+<td>Latency, jitter, deadlines</td>
+</tr>
+<tr class="even">
+<td>RT Primitives</td>
+<td>Lock-free buffers, memory locking</td>
+</tr>
+<tr class="odd">
+<td>FPGA Overview</td>
+<td>IP cores, Zynq integration</td>
+</tr>
+<tr class="even">
+<td>Acceleration</td>
+<td>FFT, FIR, chirp in hardware</td>
+</tr>
+</tbody>
+</table>
+<p>Prepare for production systems.</p>
+</section>
+<section id="workshop-11-real-time-scheduling" class="slide level2">
+<h2>Workshop 11: Real-Time Scheduling</h2>
+<p><strong>Duration: 90 minutes</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Topic</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>TickScheduler</td>
+<td>Virtual time simulation</td>
+</tr>
+<tr class="even">
+<td>RealTimeScheduler</td>
+<td>Wall-clock events</td>
+</tr>
+<tr class="odd">
+<td>State Machine</td>
+<td>TX/RX coordination</td>
+</tr>
+<tr class="even">
+<td>FHSS Implementation</td>
+<td>Frequency hopping</td>
+</tr>
+<tr class="odd">
+<td>TDMA Implementation</td>
+<td>Time slot management</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="workshop-format" class="slide level2">
+<h2>Workshop Format</h2>
+<p>Each workshop includes:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Section</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Objectives</strong></td>
+<td>What you’ll learn</td>
+</tr>
+<tr class="even">
+<td><strong>Background</strong></td>
+<td>Theory and concepts</td>
+</tr>
+<tr class="odd">
+<td><strong>Hands-On</strong></td>
+<td>Code exercises</td>
+</tr>
+<tr class="even">
+<td><strong>Explorer</strong></td>
+<td>GUI experiments</td>
+</tr>
+<tr class="odd">
+<td><strong>Challenges</strong></td>
+<td>Advanced exercises</td>
+</tr>
+<tr class="even">
+<td><strong>Key Takeaways</strong></td>
+<td>Summary points</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="prerequisites" class="slide level2">
+<h2>Prerequisites</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Requirement</th>
+<th>Details</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Rust</strong></td>
+<td><code>rustup</code> installed</td>
+</tr>
+<tr class="even">
+<td><strong>Git</strong></td>
+<td>Clone repository</td>
+</tr>
+<tr class="odd">
+<td><strong>Build tools</strong></td>
+<td>C compiler, pkg-config</td>
+</tr>
+<tr class="even">
+<td><strong>Programming</strong></td>
+<td>Basic experience</td>
+</tr>
+<tr class="odd">
+<td><strong>Math</strong></td>
+<td>Complex numbers helpful</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="quick-reference" class="slide level2">
+<h2>Quick Reference</h2>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the Explorer GUI</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w-explorer</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># CLI commands</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> <span class="at">--help</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> waveform <span class="at">--list</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> modulate <span class="at">--message</span> <span class="st">&quot;Hello&quot;</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Run in browser (WASM)</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> crates/r4w-web <span class="kw">&amp;&amp;</span> <span class="ex">trunk</span> serve</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Run all tests</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> test</span></code></pre></div>
+</section>
+<section id="workshop-materials" class="slide level2">
+<h2>Workshop Materials</h2>
+<p>Each workshop has:</p>
+<table>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>XX-topic.md</code></td>
+<td>Full workshop content</td>
+</tr>
+<tr class="even">
+<td>Code examples</td>
+<td>In crates/r4w-core</td>
+</tr>
+<tr class="odd">
+<td>Explorer tabs</td>
+<td>Visual experiments</td>
+</tr>
+<tr class="even">
+<td>Exercises</td>
+<td>Hands-on practice</td>
+</tr>
+</tbody>
+</table>
+<p>Location: <code>workshops/</code></p>
+</section>
+<section id="skills-progression" class="slide level2">
+<h2>Skills Progression</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Level</th>
+<th>Workshops</th>
+<th>Skills</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Beginner</strong></td>
+<td>01-03</td>
+<td>Basics, simple modulation</td>
+</tr>
+<tr class="even">
+<td><strong>Intermediate</strong></td>
+<td>04-07</td>
+<td>PSK, QAM, spread spectrum</td>
+</tr>
+<tr class="odd">
+<td><strong>Advanced</strong></td>
+<td>08-11</td>
+<td>Implementation, RT, FPGA</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="hands-on-examples" class="slide level2">
+<h2>Hands-On Examples</h2>
+<p>From Workshop 04 (BPSK):</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Generate BPSK samples</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> bits <span class="op">=</span> <span class="pp">vec!</span>[<span class="cn">true</span><span class="op">,</span> <span class="cn">false</span><span class="op">,</span> <span class="cn">true</span><span class="op">,</span> <span class="cn">true</span>]<span class="op">;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> waveform <span class="op">=</span> <span class="pp">BpskWaveform::</span>new(<span class="dv">1e6</span><span class="op">,</span> <span class="dv">100e3</span>)<span class="op">;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate(<span class="op">&amp;</span>bits)<span class="op">;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Visualize in Explorer!</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> recovered <span class="op">=</span> waveform<span class="op">.</span>demodulate(<span class="op">&amp;</span>samples)<span class="op">;</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="pp">assert_eq!</span>(bits<span class="op">,</span> recovered)<span class="op">;</span></span></code></pre></div>
+</section>
+<section id="challenges" class="slide level2">
+<h2>Challenges</h2>
+<p>Each workshop includes optional challenges:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Workshop</th>
+<th>Challenge</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>03</td>
+<td>Add pulse shaping to OOK</td>
+</tr>
+<tr class="even">
+<td>05</td>
+<td>Implement Gray coding</td>
+</tr>
+<tr class="odd">
+<td>06</td>
+<td>Build PN sequence generator</td>
+</tr>
+<tr class="even">
+<td>08</td>
+<td>Create Manchester encoding</td>
+</tr>
+<tr class="odd">
+<td>11</td>
+<td>Implement CSMA/CA</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="getting-help" class="slide level2">
+<h2>Getting Help</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Resource</th>
+<th>Location</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GitHub Issues</td>
+<td>github.com/joemooney/r4w/issues</td>
+</tr>
+<tr class="even">
+<td>Documentation</td>
+<td><code>cargo doc --open</code></td>
+</tr>
+<tr class="odd">
+<td>CLAUDE.md</td>
+<td>Project guidance</td>
+</tr>
+<tr class="even">
+<td>OVERVIEW.md</td>
+<td>Architecture reference</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="summary" class="slide level2">
+<h2>Summary</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Metric</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Workshops</strong></td>
+<td>11</td>
+</tr>
+<tr class="even">
+<td><strong>Total Duration</strong></td>
+<td>~11 hours</td>
+</tr>
+<tr class="odd">
+<td><strong>Topics</strong></td>
+<td>CW to FPGA</td>
+</tr>
+<tr class="even">
+<td><strong>Waveforms Covered</strong></td>
+<td>20+</td>
+</tr>
+<tr class="odd">
+<td><strong>Hands-On Exercises</strong></td>
+<td>50+</td>
+</tr>
+</tbody>
+</table>
+<p><strong>From zero to waveform developer!</strong></p>
+</section>
+<section id="questions" class="slide level2">
+<h2>Questions?</h2>
+<p><strong>R4W - Workshop Series</strong></p>
+<p>github.com/joemooney/r4w</p>
+<p>Start: <code>workshops/01-getting-started.md</code></p>
+</section>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/reveal.js@5.1.0/dist/reveal.js"></script>
+
+  <!-- reveal.js plugins -->
+  <script src="https://unpkg.com/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script src="https://unpkg.com/reveal.js@5.1.0/plugin/search/search.js"></script>
+  <script src="https://unpkg.com/reveal.js@5.1.0/plugin/zoom/zoom.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+        // Display controls in the bottom right corner
+        controls: true,
+
+        // Help the user learn the controls by providing hints, for example by
+        // bouncing the down arrow when they first encounter a vertical slide
+        controlsTutorial: true,
+
+        // Determines where controls appear, "edges" or "bottom-right"
+        controlsLayout: 'bottom-right',
+
+        // Visibility rule for backwards navigation arrows; "faded", "hidden"
+        // or "visible"
+        controlsBackArrows: 'faded',
+
+        // Display a presentation progress bar
+        progress: true,
+
+        // Display the page number of the current slide
+        slideNumber: true,
+
+        // 'all', 'print', or 'speaker'
+        showSlideNumber: 'all',
+
+        // Add the current slide number to the URL hash so that reloading the
+        // page/copying the URL will return you to the same slide
+        hash: true,
+
+        // Start with 1 for the hash rather than 0
+        hashOneBasedIndex: false,
+
+        // Flags if we should monitor the hash and change slides accordingly
+        respondToHashChanges: true,
+
+        // Push each slide change to the browser history
+        history: false,
+
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+
+        // Enable the slide overview mode
+        overview: true,
+
+        // Disables the default reveal.js slide layout (scaling and centering)
+        // so that you can use custom CSS layout
+        disableLayout: false,
+
+        // Vertical centering of slides
+        center: true,
+
+        // Enables touch navigation on devices with touch input
+        touch: true,
+
+        // Loop the presentation
+        loop: false,
+
+        // Change the presentation direction to be RTL
+        rtl: false,
+
+        // see https://revealjs.com/vertical-slides/#navigation-mode
+        navigationMode: 'default',
+
+        // Randomizes the order of slides each time the presentation loads
+        shuffle: false,
+
+        // Turns fragments on and off globally
+        fragments: true,
+
+        // Flags whether to include the current fragment in the URL,
+        // so that reloading brings you to the same fragment position
+        fragmentInURL: true,
+
+        // Flags if the presentation is running in an embedded mode,
+        // i.e. contained within a limited portion of the screen
+        embedded: false,
+
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+
+        // Flags if it should be possible to pause the presentation (blackout)
+        pause: true,
+
+        // Flags if speaker notes should be visible to all viewers
+        showNotes: false,
+
+        // Global override for autoplaying embedded media (null/true/false)
+        autoPlayMedia: null,
+
+        // Global override for preloading lazy-loaded iframes (null/true/false)
+        preloadIframes: null,
+
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+
+        // Use this method for navigation when auto-sliding
+        autoSlideMethod: null,
+
+        // Specify the average time in seconds that you think you will spend
+        // presenting each slide. This is used to show a pacing timer in the
+        // speaker view
+        defaultTiming: null,
+
+        // Enable slide navigation via mouse wheel
+        mouseWheel: false,
+
+        // The display mode that will be used to show slides
+        display: 'block',
+
+        // Hide cursor if inactive
+        hideInactiveCursor: true,
+
+        // Time before the cursor is hidden (in ms)
+        hideCursorTime: 5000,
+
+        // Opens links in an iframe preview overlay
+        previewLinks: false,
+
+        // Transition style (none/fade/slide/convex/concave/zoom)
+        transition: 'slide',
+
+        // Transition speed (default/fast/slow)
+        transitionSpeed: 'default',
+
+        // Transition style for full page slide backgrounds
+        // (none/fade/slide/convex/concave/zoom)
+        backgroundTransition: 'fade',
+
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+
+        // Number of slides away from the current that are visible on mobile
+        // devices. It is advisable to set this to a lower number than
+        // viewDistance in order to save resources.
+        mobileViewDistance: 2,
+
+        // The "normal" size of the presentation, aspect ratio will be preserved
+        // when the presentation is scaled to fit different resolutions. Can be
+        // specified using percentage units.
+        width: 1920,
+
+        height: 1080,
+
+        // reveal.js plugins
+        plugins: [
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    </body>
+</html>

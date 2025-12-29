@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="description" content="R4W - Rust for Waveforms - An interactive educational tool for learning about digital modulation and SDR">
+    <title>R4W - Rust for Waveforms</title>
+
+    <!-- Trunk will inject the WASM and JS bindings here -->
+    <link data-trunk rel="rust" data-wasm-opt="2" />
+
+    <style>
+        /* Reset and full-screen canvas */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a2e;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Loading indicator */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: #1a1a2e;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        #loading h1 {
+            font-size: 2em;
+            margin-bottom: 0.5em;
+            color: #4a9eff;
+        }
+
+        #loading p {
+            font-size: 1.2em;
+            color: #888;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #333;
+            border-top-color: #4a9eff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1em;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Error message */
+        #error {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #4a1010;
+            color: #ff6b6b;
+            padding: 2em;
+            border-radius: 8px;
+            max-width: 80%;
+            text-align: center;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner"></div>
+        <h1>SDR Waveform Explorer</h1>
+        <p>Loading...</p>
+    </div>
+
+    <div id="error">
+        <h2>Error Loading Application</h2>
+        <p id="error-message"></p>
+    </div>
+
+    <script>
+        // Handle errors during loading
+        window.onerror = function(message, source, lineno, colno, error) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+            return true;
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+/usr/bin/cc CMakeFiles/fft_demo.dir/fft_demo.c.o -o fft_demo  -Wl,-rpath,/home/joe/ai/ai-sdr-lora/examples/c/../../target/release /home/joe/ai/ai-sdr-lora/target/release/libr4w.so -lm -lpthread -ldl 

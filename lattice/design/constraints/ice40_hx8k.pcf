@@ -1,0 +1,56 @@
+# Pin Constraints for iCE40-HX8K (iCEstick/Generic HX8K-CT256)
+# R4W FPGA Acceleration Layer
+#
+# This file maps R4W signals to physical pins.
+# Adjust for your specific board.
+
+# =====================================================================
+# Clock Input (12 MHz oscillator on most boards)
+# =====================================================================
+set_io clk_12mhz   J3       # 12 MHz on iCEstick
+
+# =====================================================================
+# SPI Interface (directly to FTDI on iCEstick)
+# =====================================================================
+# These pins connect to the FTDI chip for SPI communication
+set_io spi_clk     R11      # SPI clock from FTDI
+set_io spi_cs_n    R12      # SPI chip select (directly from FTDI)
+set_io spi_mosi    P11      # MOSI (Master Out, Slave In)
+set_io spi_miso    P12      # MISO (Master In, Slave Out)
+
+# =====================================================================
+# I/Q DAC Output (directly to DAC or external hardware)
+# =====================================================================
+# These can be directly connected to DAC or other signal processing hardware
+# NOTE: Pin assignments below are placeholders for HX8K-CT256 package.
+# Update for your specific board. Leaving unconstrained for synthesis test.
+
+# I Channel (12-bit) - unconstrained, will be auto-placed
+# set_io dac_i[0]    A2
+# set_io dac_i[1]    A1
+# ... (assign based on your board)
+
+# Q Channel (12-bit) - unconstrained, will be auto-placed
+# set_io dac_q[0]    A3
+# ... (assign based on your board)
+
+# DAC Valid strobe - unconstrained
+# set_io dac_valid   H4
+
+# =====================================================================
+# Status LEDs
+# =====================================================================
+set_io led_busy    B5       # LED D1 on iCEstick
+set_io led_done    B4       # LED D2 on iCEstick
+
+# =====================================================================
+# Alternative: TinyFPGA BX Pin Configuration
+# Uncomment these and comment above for TinyFPGA BX
+# =====================================================================
+# set_io clk_12mhz   B2       # 16 MHz oscillator
+# set_io spi_clk     H2       # SPI clock
+# set_io spi_cs_n    H9       # SPI CS
+# set_io spi_mosi    D9       # MOSI
+# set_io spi_miso    C9       # MISO
+# set_io led_busy    B3       # On-board LED
+# set_io led_done    B4

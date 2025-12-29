@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R4W Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .doc-card {
+            background: #16213e;
+            border-radius: 8px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .doc-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.2);
+        }
+        .doc-card h3 {
+            margin-top: 0;
+            font-size: 1.1em;
+        }
+        .doc-card p {
+            color: #888;
+            font-size: 0.9em;
+            margin-bottom: 0;
+        }
+        .doc-card a {
+            text-decoration: none;
+        }
+        .section-title {
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="../index.html">Presentations</a>
+        <a href="index.html">Documentation</a>
+    </div>
+
+    <h1>R4W Documentation</h1>
+    <p>Comprehensive guides for developing with R4W - Rust for Waveforms.</p>
+
+    <h2 class="section-title">Getting Started</h2>
+    <div class="doc-grid">
+        <div class="doc-card">
+            <a href="readme.html">
+                <h3>README</h3>
+                <p>Project overview, quick start, and basic usage</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="overview.html">
+                <h3>Platform Overview</h3>
+                <p>Detailed architecture and design philosophy</p>
+            </a>
+        </div>
+    </div>
+
+    <h2 class="section-title">Developer Guides</h2>
+    <div class="doc-grid">
+        <div class="doc-card">
+            <a href="waveform-guide.html">
+                <h3>Waveform Developer's Guide</h3>
+                <p>Building custom SDR waveforms in Rust</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="fpga-guide.html">
+                <h3>FPGA Developer's Guide</h3>
+                <p>Hardware acceleration with Zynq and Lattice</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="physical-layer-guide.html">
+                <h3>Physical Layer Guide</h3>
+                <p>HAL, timing, and hardware abstraction</p>
+            </a>
+        </div>
+    </div>
+
+    <h2 class="section-title">Real-Time & Scheduling</h2>
+    <div class="doc-grid">
+        <div class="doc-card">
+            <a href="realtime-guide.html">
+                <h3>Real-Time Scheduler Guide</h3>
+                <p>Deterministic scheduling for SDR</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="tick-scheduler.html">
+                <h3>Tick Scheduler Guide</h3>
+                <p>Time-sliced execution model</p>
+            </a>
+        </div>
+    </div>
+
+    <h2 class="section-title">Security</h2>
+    <div class="doc-grid">
+        <div class="doc-card">
+            <a href="security-guide.html">
+                <h3>Security Guide</h3>
+                <p>Security architecture and best practices</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="isolation-guide.html">
+                <h3>Isolation Guide</h3>
+                <p>8 levels of waveform sandboxing</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="crypto-boundary.html">
+                <h3>Cryptographic Boundary</h3>
+                <p>Red/black separation and crypto handling</p>
+            </a>
+        </div>
+    </div>
+
+    <h2 class="section-title">Waveform Porting</h2>
+    <div class="doc-grid">
+        <div class="doc-card">
+            <a href="porting-military.html">
+                <h3>Military Porting Guide</h3>
+                <p>Porting military waveforms to R4W</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="porting/sincgars.html">
+                <h3>SINCGARS</h3>
+                <p>Single Channel Ground and Airborne Radio</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="porting/havequick.html">
+                <h3>Have Quick</h3>
+                <p>Anti-jam frequency hopping</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="porting/link16.html">
+                <h3>Link-16</h3>
+                <p>Tactical data link</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="porting/p25.html">
+                <h3>P25</h3>
+                <p>Public safety radio standard</p>
+            </a>
+        </div>
+        <div class="doc-card">
+            <a href="porting/milstd188110.html">
+                <h3>MIL-STD-188-110</h3>
+                <p>HF data modem standard</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

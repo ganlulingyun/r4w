@@ -1,0 +1,19 @@
+[package]
+name = "csi-backend-hw"
+version = "0.1.0"
+edition = "2021"
+description = "Hardware crypto acceleration backend for CSI"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/r4w"
+readme = "../README.md"
+
+[features]
+default = []
+std = []
+stm32h7 = []
+zynq = []
+
+[dependencies]
+csi-core = { path = "../csi-core" }
+# Future: HAL traits for hardware crypto
+# embedded-hal = "1.0"

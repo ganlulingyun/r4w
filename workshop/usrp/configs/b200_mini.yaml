@@ -1,0 +1,71 @@
+# B200 mini USRP Configuration
+# trace:FR-0092 | ai:claude
+
+device:
+  driver: uhd
+  type: b200
+  # Serial number (optional)
+  # serial: "ABC123"
+  # Note: B200 mini uses USB, no IP address needed
+
+rf:
+  # Center frequency in Hz
+  # B200 range: 70 MHz - 6 GHz
+  frequency: 915000000  # 915 MHz (US ISM band)
+
+  # Sample rate in Hz
+  # B200 mini max: 56 MS/s (limited by USB 3.0 bandwidth)
+  # Recommended for reliable operation: ≤30 MS/s
+  sample_rate: 1000000  # 1 MS/s (good for LoRa)
+
+  # Analog bandwidth in Hz
+  # Will be set to nearest supported value
+  bandwidth: 1000000
+
+  # Gain settings in dB
+  # B200 range: 0-76 dB
+  rx_gain: 40.0
+  tx_gain: 40.0
+
+  # Antenna ports
+  # B200 mini: "TX/RX" and "RX2"
+  rx_antenna: "TX/RX"
+  tx_antenna: "TX/RX"
+
+clock:
+  # Clock source: internal, external
+  # Note: B200 mini doesn't have GPSDO option
+  source: internal
+
+  # Time source: none, external
+  time_source: none
+
+  # External 10 MHz reference (if using external)
+  # Connect to REF IN SMA
+  # ref_freq: 10000000
+
+streaming:
+  # Buffer size in samples
+  buffer_size: 8192
+
+  # Number of buffers
+  num_buffers: 4
+
+  # Sample format
+  format: cf32  # Complex float32 (native)
+
+usb:
+  # USB hints for performance
+  # Smaller values reduce latency, larger values reduce overhead
+  recv_frame_size: 16384
+  num_recv_frames: 32
+  send_frame_size: 16384
+  num_send_frames: 32
+
+notes: |
+  B200 mini Tips:
+  - Use USB 3.0 port (blue connector) for best performance
+  - Avoid USB hubs if possible
+  - For full-duplex at high rates, may need to reduce sample rate
+  - External amplifiers recommended for TX power beyond ~10 dBm
+  - Temperature: Allow 5 minutes warm-up for frequency stability

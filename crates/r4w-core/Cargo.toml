@@ -1,0 +1,93 @@
+[package]
+name = "r4w-core"
+description = "Core DSP algorithms for R4W waveform modulation and demodulation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+# Enable parallel processing with rayon
+parallel = ["dep:rayon", "dep:rand", "dep:rand_distr"]
+# Enable FPGA hardware acceleration
+fpga = ["dep:r4w-fpga"]
+# Enable FPGA with Zynq support
+fpga-zynq = ["fpga", "r4w-fpga/zynq"]
+# Enable FPGA with Lattice support
+fpga-lattice = ["fpga", "r4w-fpga/lattice"]
+# Enable all FPGA backends
+fpga-full = ["fpga", "r4w-fpga/full"]
+# Enable dynamic plugin loading
+plugins = ["dep:libloading"]
+
+[dependencies]
+rustfft = { workspace = true }
+num-complex = { workspace = true }
+ndarray = { workspace = true }
+realfft = { workspace = true }
+num-traits = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+hostname = { workspace = true }
+directories = { workspace = true }
+
+# Platform-specific dependencies
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+
+# Optional: parallelization and channel simulation
+rayon = { workspace = true, optional = true }
+rand = { workspace = true, optional = true }
+rand_distr = { workspace = true, optional = true }
+
+# Optional: FPGA acceleration
+r4w-fpga = { path = "../r4w-fpga", optional = true }
+
+# Optional: Dynamic plugin loading
+libloading = { version = "0.8", optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+criterion = { workspace = true }
+rayon = { workspace = true }  # Always available for benchmarks
+rand = { workspace = true }   # Always available for benchmarks
+rand_distr = { workspace = true }  # Always available for benchmarks
+tempfile = "3.10"  # For capture tests
+
+[[bench]]
+name = "dsp_bench"
+harness = false
+
+[[bench]]
+name = "parallel_bench"
+harness = false
+required-features = ["parallel"]
+
+[[bench]]
+name = "ringbuffer_bench"
+harness = false
+
+[[bench]]
+name = "gnuradio_comparison"
+harness = false
+
+[[bench]]
+name = "latency_bench"
+harness = false
+
+[[bench]]
+name = "rt_jitter_bench"
+harness = false
+
+[[bench]]
+name = "pagefault_bench"
+harness = false
+
+[[bench]]
+name = "hop_timing_bench"
+harness = false

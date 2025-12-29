@@ -1,0 +1,44 @@
+[package]
+name = "r4w-fpga"
+description = "R4W FPGA acceleration layer - Xilinx Zynq and Lattice support"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["sim"]
+
+# Software simulation (no hardware required)
+sim = []
+
+# Xilinx Zynq support (requires Linux with /dev/mem access)
+zynq = ["dep:libc", "dep:nix"]
+
+# Lattice iCE40/ECP5 support
+lattice = ["dep:libftdi1-sys"]
+
+# Enable all hardware backends
+full = ["zynq", "lattice"]
+
+[dependencies]
+# Complex number support (same as r4w-core uses)
+num-complex = { workspace = true }
+
+# Error handling
+thiserror = "2.0"
+
+# Logging
+tracing = { workspace = true }
+
+# For Zynq mmap support
+libc = { version = "0.2", optional = true }
+nix = { version = "0.29", optional = true, features = ["mman", "fs"] }
+
+# For Lattice FTDI support
+libftdi1-sys = { version = "1.1", optional = true }
+
+# Async support for streaming
+tokio = { workspace = true, optional = true }
+
+[dev-dependencies]
+approx = { workspace = true }

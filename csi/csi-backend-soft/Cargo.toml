@@ -1,0 +1,17 @@
+[package]
+name = "csi-backend-soft"
+version = "0.1.0"
+edition = "2021"
+description = "Software AEAD backend for CSI (ChaCha20-Poly1305)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/r4w"
+readme = "../README.md"
+
+[features]
+default = []
+std = []
+
+[dependencies]
+csi-core = { path = "../csi-core" }
+# Future: RustCrypto AEAD
+# chacha20poly1305 = { version = "0.10", default-features = false }

@@ -1,0 +1,278 @@
+# SINCGARS Frequency Hopping Waveform Specification
+# Single Channel Ground and Airborne Radio System
+#
+# This example demonstrates how to specify a military waveform with
+# classified components using R4W's trait-based architecture.
+#
+# IMPORTANT: This specification generates framework code with simulator stubs.
+# Classified hopping algorithms and TRANSEC must be provided by external modules.
+
+---
+waveform:
+  name: "SINCGARS-FH"
+  full_name: "Single Channel Ground and Airborne Radio System - Frequency Hopping"
+  version: "1.0"
+  description: |
+    SINCGARS is the standard VHF combat net radio for US military ground and
+    airborne units. This specification covers the frequency hopping (FH) mode
+    which provides anti-jam and LPI capabilities through rapid frequency changes.
+
+    The framework provides unclassified signal processing while classified
+    hopping algorithms and TRANSEC are implemented through pluggable traits.
+
+  classification:
+    type: "digital"
+    category: "spread_spectrum"
+    applications:
+      - "tactical voice communications"
+      - "tactical data messaging"
+      - "anti-jam operations"
+      - "LPI/LPD communications"
+
+  lpd_lpi:
+    enabled: true
+    target_processing_gain_db: 15   # From frequency diversity
+    below_noise_floor: false        # Not CSS, uses FM
+
+  standards_profile:
+    enabled: true
+    standard: "sincgars"
+    sincgars:
+      mode: "fh"                    # Frequency hopping mode
+      data_rate: "16kbps"           # 16 kbps data rate
+
+# FM modulation (SINCGARS uses narrowband FM)
+modulation:
+  domain: "frequency"
+
+  analog:
+    enabled: true
+    carrier_freq_hz: 50000000       # 30-87.975 MHz VHF band (mid-range)
+
+    fm:
+      enabled: true
+      deviation_hz: 6250            # ±6.25 kHz deviation for NBFM
+      variant: "nbfm"
+      preemphasis_us: 0             # No pre-emphasis for voice
+
+    baseband:
+      type: "voice"
+      bandwidth_hz: 3000            # 300-3000 Hz voice band
+      dc_coupled: false
+
+# FHSS configuration
+spread_spectrum:
+  enabled: true
+  technique: "fhss"
+
+  fhss:
+    enabled: true
+    num_channels: 2320              # Total VHF channels (25 kHz spacing)
+    hop_rate: 100                   # 100 hops/second nominal
+    dwell_time_ms: 10               # 10ms per hop
+    bandwidth_per_hop_hz: 25000     # 25 kHz channel spacing
+    total_bandwidth_hz: 58000000    # 30-87.975 MHz = ~58 MHz
+
+    hop_pattern:
+      type: "pseudo_random"         # Pattern determined by CLASSIFIED algorithm
+      seed: 0x00000000              # Seed from TRANSEC key (CLASSIFIED)
+
+pulse_shaping:
+  enabled: false                    # FM does not use pulse shaping
+
+timing:
+  symbol_rate: 16000                # 16 kbps data rate
+  sample_rate: 100000               # 100 kHz sample rate
+  samples_per_symbol: 6.25
+
+  burst:
+    enabled: false                  # Continuous transmission within dwell
+
+access_method:
+  type: "fdma"                      # Each net uses FDMA within FHSS
+
+  fdma:
+    enabled: true
+    channel_spacing_hz: 25000
+    num_channels: 2320
+
+synchronization:
+  preamble:
+    enabled: true
+    type: "custom"                  # SINCGARS preamble format
+    length_symbols: 64
+    spread_preamble: false
+
+  sync_word:
+    enabled: true
+    value: "0x00"                   # Net ID determines sync (CLASSIFIED)
+    length_bits: 16
+
+  cfo_tolerance_hz: 1000            # Tight frequency tolerance
+
+channel_coding:
+  enabled: true
+
+  fec:
+    type: "convolutional"
+    rate: "1/2"
+    constraint_length: 7
+    generator_polys:
+      - "0x6D"
+      - "0x4F"
+
+  interleaving:
+    enabled: true
+    type: "block"
+    rows: 8
+    cols: 32
+
+  scrambling:
+    enabled: true
+    polynomial: "0x108"
+    initial_state: "0xFF"
+
+framing:
+  header:
+    enabled: true
+    length_bits: 32
+    fields:
+      - { name: "net_id", bits: 16 }
+      - { name: "msg_type", bits: 4 }
+      - { name: "priority", bits: 4 }
+      - { name: "reserved", bits: 8 }
+
+  payload:
+    min_bits: 8
+    max_bits: 1024
+    default_bits: 256
+
+  error_detection:
+    type: "crc16"
+    polynomial: "0x1021"
+
+spectral:
+  bandwidth:
+    null_to_null_hz: 25000          # Single channel bandwidth
+    occupied_99_hz: 20000
+
+  psd:
+    target_dbm_hz: -100             # Low power for LPI
+
+  sidelobe_suppression_db: 20
+
+channel:
+  target_ber: 1.0e-4
+  required_snr_db: 12
+
+  multipath:
+    tolerant: true
+    max_delay_spread_us: 50
+
+  doppler:
+    max_shift_hz: 500               # Mobile ground/airborne platforms
+
+  jamming:
+    resistance: true
+    jam_margin_db: 15               # From frequency hopping
+
+security:
+  encryption:
+    enabled: true
+    algorithm: "TRANSEC"            # Classified TRANSEC encryption
+
+  key_management:
+    type: "pre_shared"              # COMSEC key fill
+
+# CLASSIFIED COMPONENTS - This is the key section for military waveforms
+classified_components:
+  enabled: true
+
+  hopping_algorithm:
+    classified: true
+    classification_level: "secret"
+    description: |
+      SINCGARS frequency hopping algorithm generates pseudo-random hop
+      sequences based on TRANSEC key material, time of day, and net ID.
+      The algorithm must ensure orthogonal sequences for nets operating
+      in the same area while maximizing frequency diversity.
+    trait_name: "SincgarsHopper"
+    simulator_provided: true
+    inputs:
+      - "transec_key"
+      - "time_of_day"
+      - "net_id"
+      - "hopset_index"
+    outputs:
+      - "frequency_hz"
+      - "dwell_time_ms"
+      - "lockout_channels"
+
+  transec:
+    classified: true
+    classification_level: "secret"
+    description: |
+      SINCGARS TRANSEC provides transmission security through the
+      frequency hopping algorithm. TRANSEC keys determine the hopping
+      sequence and must be loaded via secure key fill device.
+    trait_name: "SincgarsTransec"
+    simulator_provided: true
+    crypto_type: "type1"
+
+  comsec:
+    classified: false               # COMSEC is optional overlay
+    classification_level: null
+    description: "End-to-end voice/data encryption (optional)"
+    trait_name: "SincgarsComsec"
+    simulator_provided: true
+
+  voice_codec:
+    classified: false
+    classification_level: null
+    description: "CVSD voice codec for tactical voice"
+    trait_name: "CvsdCodec"
+    simulator_provided: true
+    codec_type: "cvsd"
+
+  time_sync:
+    classified: false               # GPS-based sync is unclassified
+    classification_level: null
+    description: "Time synchronization for coherent hopping"
+    trait_name: "SincgarsTimeSync"
+    simulator_provided: true
+    sync_source: "gps"
+
+  wizard_guidance:
+    generate_traits: true
+    generate_simulators: true
+    generate_ffi_bindings: true     # For linking classified libs
+    generate_build_cfg: true
+    document_interfaces: true
+
+    build_config:
+      default_feature: "simulator"
+      classified_features:
+        - "sincgars_classified_hopping"
+        - "sincgars_classified_transec"
+      link_external: true
+      external_lib_name: "sincgars_classified"
+
+implementation:
+  complexity: 5                     # High complexity
+  max_latency_ms: 5                 # Low latency for voice
+
+  targets:
+    - "simulation"
+    - "usrp"
+    - "zynq"
+
+  test_vectors:
+    enabled: true
+    include_ber_curves: true
+
+metrics:
+  processing_gain_db: 15.0          # From frequency diversity (~100 hops/s)
+  spectral_efficiency_bps_hz: 0.64  # 16 kbps in 25 kHz channel
+  data_rate_bps: 16000
+  chip_rate: null                   # N/A for FHSS
+  lpi_margin_db: 10

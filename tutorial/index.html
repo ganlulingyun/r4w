@@ -1,0 +1,2462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R4W - Rust for Waveforms - Interactive Tutorial</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent: #58a6ff;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-purple: #a371f7;
+            --border: #30363d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Navigation */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar h1 {
+            font-size: 1.2rem;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .sidebar .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 30px;
+        }
+
+        .nav-section {
+            margin-bottom: 25px;
+        }
+
+        .nav-section h3 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .nav-item.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .nav-item.completed::before {
+            content: "✓";
+            color: var(--accent-green);
+            margin-right: 8px;
+            font-weight: bold;
+        }
+
+        .nav-item .level {
+            font-size: 0.7rem;
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: auto;
+        }
+
+        .progress-bar {
+            background: var(--bg-tertiary);
+            height: 6px;
+            border-radius: 3px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            background: var(--accent-green);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        /* Main Content */
+        .main {
+            margin-left: 280px;
+            flex: 1;
+            padding: 40px 60px;
+            max-width: 900px;
+        }
+
+        .module {
+            display: none;
+        }
+
+        .module.active {
+            display: block;
+        }
+
+        .module h1 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .module h2 {
+            font-size: 1.5rem;
+            margin: 30px 0 15px;
+            color: var(--accent);
+        }
+
+        .module h3 {
+            font-size: 1.2rem;
+            margin: 25px 0 10px;
+        }
+
+        .module p {
+            margin-bottom: 15px;
+            color: var(--text-primary);
+        }
+
+        .module ul, .module ol {
+            margin: 15px 0 15px 25px;
+        }
+
+        .module li {
+            margin-bottom: 8px;
+        }
+
+        /* Code blocks */
+        .code-block {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.5;
+        }
+
+        code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+        }
+
+        /* Info boxes */
+        .info-box {
+            border-radius: 8px;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-left: 4px solid;
+        }
+
+        .info-box.concept {
+            background: rgba(88, 166, 255, 0.1);
+            border-color: var(--accent);
+        }
+
+        .info-box.tip {
+            background: rgba(63, 185, 80, 0.1);
+            border-color: var(--accent-green);
+        }
+
+        .info-box.warning {
+            background: rgba(210, 153, 34, 0.1);
+            border-color: var(--accent-yellow);
+        }
+
+        .info-box.math {
+            background: rgba(163, 113, 247, 0.1);
+            border-color: var(--accent-purple);
+        }
+
+        .info-box h4 {
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        /* Warning box */
+        .warning-box {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid var(--accent-red);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .warning-box h3 {
+            color: var(--accent-red);
+            margin-bottom: 10px;
+        }
+
+        /* Concept cards */
+        .concept-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+        }
+
+        .concept-card h3 {
+            color: var(--accent);
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .concept-card ul {
+            margin-left: 20px;
+        }
+
+        .concept-card li {
+            margin: 8px 0;
+        }
+
+        /* Comparison tables */
+        .comparison-table {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        .comparison-table table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .comparison-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .comparison-table td.highlight {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        /* Diagram pre blocks */
+        .diagram pre {
+            text-align: left;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            color: var(--text-secondary);
+            overflow-x: auto;
+        }
+
+        /* Interactive diagrams */
+        .diagram {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        .diagram canvas {
+            max-width: 100%;
+            border-radius: 4px;
+        }
+
+        .diagram-controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .diagram-controls label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .diagram-controls input[type="range"] {
+            width: 120px;
+        }
+
+        .diagram-controls input[type="number"] {
+            width: 70px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 5px;
+            color: var(--text-primary);
+        }
+
+        /* Quiz elements */
+        .quiz {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 25px;
+            margin: 30px 0;
+        }
+
+        .quiz h4 {
+            color: var(--accent);
+            margin-bottom: 15px;
+        }
+
+        .quiz-question {
+            margin-bottom: 20px;
+        }
+
+        .quiz-question p {
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .quiz-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .quiz-option {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .quiz-option:hover {
+            border-color: var(--accent);
+        }
+
+        .quiz-option.selected {
+            border-color: var(--accent);
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .quiz-option.correct {
+            border-color: var(--accent-green);
+            background: rgba(63, 185, 80, 0.1);
+        }
+
+        .quiz-option.incorrect {
+            border-color: var(--accent-red);
+            background: rgba(248, 81, 73, 0.1);
+        }
+
+        .quiz-option input {
+            margin-right: 12px;
+        }
+
+        .quiz-submit {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            margin-top: 15px;
+        }
+
+        .quiz-submit:hover {
+            opacity: 0.9;
+        }
+
+        .quiz-result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .quiz-result.show {
+            display: block;
+        }
+
+        .quiz-result.pass {
+            background: rgba(63, 185, 80, 0.1);
+            border: 1px solid var(--accent-green);
+        }
+
+        .quiz-result.fail {
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid var(--accent-red);
+        }
+
+        /* Navigation buttons */
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        .nav-btn:hover {
+            border-color: var(--accent);
+            background: var(--bg-tertiary);
+        }
+
+        .nav-btn.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: white;
+        }
+
+        /* ASCII art diagrams */
+        .ascii-diagram {
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.85rem;
+            background: var(--bg-tertiary);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.4;
+        }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+            }
+            .main {
+                margin-left: 0;
+                padding: 20px;
+            }
+            .container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <h1>R4W Tutorial</h1>
+            <p class="subtitle">Rust for Waveforms - Interactive Guide</p>
+
+            <div class="nav-section">
+                <h3>Foundations</h3>
+                <div class="nav-item active" onclick="showModule('intro')">
+                    Introduction
+                    <span class="level">Start</span>
+                </div>
+                <div class="nav-item" onclick="showModule('iq')">
+                    I/Q Signals
+                    <span class="level">L1</span>
+                </div>
+                <div class="nav-item" onclick="showModule('sampling')">
+                    Sampling & Nyquist
+                    <span class="level">L1</span>
+                </div>
+                <div class="nav-item" onclick="showModule('frequency')">
+                    Frequency Domain
+                    <span class="level">L1</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h3>Waveforms (Simple → Complex)</h3>
+                <div class="nav-item" onclick="showModule('cw')">
+                    CW / Tone
+                    <span class="level">L2</span>
+                </div>
+                <div class="nav-item" onclick="showModule('ook')">
+                    OOK (On-Off Keying)
+                    <span class="level">L2</span>
+                </div>
+                <div class="nav-item" onclick="showModule('fsk')">
+                    FSK
+                    <span class="level">L3</span>
+                </div>
+                <div class="nav-item" onclick="showModule('psk')">
+                    BPSK / QPSK
+                    <span class="level">L3</span>
+                </div>
+                <div class="nav-item" onclick="showModule('qam')">
+                    QAM
+                    <span class="level">L4</span>
+                </div>
+                <div class="nav-item" onclick="showModule('css')">
+                    CSS / LoRa
+                    <span class="level">L5</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h3>Advanced Topics</h3>
+                <div class="nav-item" onclick="showModule('channel')">
+                    Channel Effects
+                    <span class="level">L4</span>
+                </div>
+                <div class="nav-item" onclick="showModule('sync')">
+                    Synchronization
+                    <span class="level">L4</span>
+                </div>
+                <div class="nav-item" onclick="showModule('fec')">
+                    Error Correction
+                    <span class="level">L5</span>
+                </div>
+            </div>
+
+            <div class="nav-section">
+                <h3>Performance Analysis</h3>
+                <div class="nav-item" onclick="showModule('comparison')">
+                    Waveform Comparison
+                    <span class="level">L3</span>
+                </div>
+                <div class="nav-item" onclick="showModule('lora-sf')">
+                    LoRa SF Trade-offs
+                    <span class="level">L4</span>
+                </div>
+            </div>
+
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p class="progress-text"><span id="progressText">0</span>% Complete</p>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main">
+            <!-- Introduction Module -->
+            <article class="module active" id="module-intro">
+                <h1>Welcome to R4W - Rust for Waveforms</h1>
+                <p>This interactive tutorial will guide you from the fundamentals of signal processing to designing your own wireless waveforms using Rust.</p>
+
+                <div class="info-box concept">
+                    <h4>What You'll Learn</h4>
+                    <ul>
+                        <li>How radio signals are represented digitally (I/Q samples)</li>
+                        <li>The mathematics behind modulation and demodulation</li>
+                        <li>Designing waveforms from CW tones to complex spread spectrum</li>
+                        <li>Implementing waveforms in Rust using the R4W platform</li>
+                    </ul>
+                </div>
+
+                <h2>What is a Waveform?</h2>
+                <p>A <strong>waveform</strong> is the complete specification of how information is encoded onto a radio signal. It includes:</p>
+                <ul>
+                    <li><strong>Modulation</strong> - How bits become symbols</li>
+                    <li><strong>Pulse shaping</strong> - Spectral characteristics</li>
+                    <li><strong>Framing</strong> - Preamble, header, payload structure</li>
+                    <li><strong>Coding</strong> - Error detection/correction</li>
+                </ul>
+
+                <h2>The SDR Revolution</h2>
+                <p>Traditional radios implement waveforms in hardware (ASICs, FPGAs). <strong>Software Defined Radio (SDR)</strong> moves this to software:</p>
+
+                <div class="ascii-diagram">
+┌─────────────────────────────────────────────────────────────────┐
+│                    Traditional Radio                            │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐      │
+│  │ Antenna  │ → │ RF Front │ → │ Hardware │ → │  Audio/  │      │
+│  │          │   │   End    │   │  Demod   │   │  Data    │      │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘      │
+│                                     ↑                           │
+│                              Fixed circuit                      │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                   Software Defined Radio                        │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐      │
+│  │ Antenna  │ → │ RF Front │ → │   ADC    │ → │ Software │      │
+│  │          │   │   End    │   │  (I/Q)   │   │ (Rust!)  │      │
+│  └──────────┘   └──────────┘   └──────────┘   └──────────┘      │
+│                                     ↑                           │
+│                              Flexible code                      │
+└─────────────────────────────────────────────────────────────────┘
+                </div>
+
+                <h2>Learning Path</h2>
+                <p>We'll progress from simple to complex:</p>
+
+                <div class="ascii-diagram">
+Level 1: Foundations          Level 2: Basic         Level 3: Digital
+┌───────────────────┐        ┌───────────────┐      ┌───────────────┐
+│ • I/Q Signals     │   →    │ • CW (Tone)   │  →   │ • FSK         │
+│ • Sampling        │        │ • OOK         │      │ • BPSK/QPSK   │
+│ • Frequency       │        │               │      │               │
+└───────────────────┘        └───────────────┘      └───────────────┘
+                                                            ↓
+Level 5: Spread Spectrum     Level 4: Advanced
+┌───────────────────┐        ┌───────────────┐
+│ • CSS / LoRa      │   ←    │ • QAM         │
+│ • OFDM (future)   │        │ • Channel FX  │
+└───────────────────┘        └───────────────┘
+                </div>
+
+                <div class="info-box tip">
+                    <h4>Hands-On Practice</h4>
+                    <p>Throughout this tutorial, you'll use the LoRa Explorer app to visualize concepts. Launch it with:</p>
+                    <div class="code-block">cargo run --bin lora-explorer</div>
+                </div>
+
+                <div class="nav-buttons">
+                    <div></div>
+                    <button class="nav-btn primary" onclick="showModule('iq')">
+                        Start Learning: I/Q Signals →
+                    </button>
+                </div>
+            </article>
+
+            <!-- I/Q Signals Module -->
+            <article class="module" id="module-iq">
+                <h1>I/Q Signals: The Foundation</h1>
+                <p>Every SDR represents radio signals using <strong>I/Q (In-phase/Quadrature)</strong> samples. Understanding this is essential for everything else.</p>
+
+                <h2>Why I/Q?</h2>
+                <p>A radio signal at frequency <code>f</code> can be written as:</p>
+
+                <div class="info-box math">
+                    <h4>Signal Representation</h4>
+                    <p><code>s(t) = A(t) · cos(2πft + φ(t))</code></p>
+                    <p>Where A(t) is amplitude and φ(t) is phase, both carrying information.</p>
+                </div>
+
+                <p>Using trigonometry, we can rewrite this as:</p>
+
+                <div class="info-box math">
+                    <h4>I/Q Decomposition</h4>
+                    <p><code>s(t) = I(t) · cos(2πft) - Q(t) · sin(2πft)</code></p>
+                    <p>Where:</p>
+                    <ul>
+                        <li><code>I(t) = A(t) · cos(φ(t))</code> — In-phase component</li>
+                        <li><code>Q(t) = A(t) · sin(φ(t))</code> — Quadrature component</li>
+                    </ul>
+                </div>
+
+                <h2>Complex Numbers: I + jQ</h2>
+                <p>We represent I/Q as a <strong>complex number</strong>:</p>
+
+                <div class="ascii-diagram">
+        Q (Imaginary)
+        ↑
+        │      ╱ Complex sample
+        │     ╱
+        │    • (I, Q)
+        │   ╱│
+        │  ╱ │ A = √(I² + Q²)  ← Magnitude (amplitude)
+        │ ╱  │
+        │╱ φ │                  ← Phase = atan2(Q, I)
+    ────┼────────→ I (Real)
+        │
+                </div>
+
+                <div class="code-block">// In Rust (our codebase)
+use num_complex::Complex64;
+
+// A single I/Q sample
+let sample = Complex64::new(0.7, 0.3);  // I=0.7, Q=0.3
+
+// Get magnitude and phase
+let amplitude = sample.norm();      // √(0.7² + 0.3²) = 0.762
+let phase = sample.arg();           // atan2(0.3, 0.7) = 0.405 rad</div>
+
+                <h2>Why This Matters</h2>
+                <ul>
+                    <li><strong>Amplitude modulation</strong>: Change the magnitude</li>
+                    <li><strong>Phase modulation</strong>: Change the angle</li>
+                    <li><strong>Frequency modulation</strong>: Continuously rotate the phase</li>
+                </ul>
+
+                <div class="diagram">
+                    <canvas id="iqCanvas" width="400" height="300"></canvas>
+                    <div class="diagram-controls">
+                        <label>
+                            I: <input type="range" id="iValue" min="-1" max="1" step="0.05" value="0.7">
+                            <span id="iDisplay">0.7</span>
+                        </label>
+                        <label>
+                            Q: <input type="range" id="qValue" min="-1" max="1" step="0.05" value="0.3">
+                            <span id="qDisplay">0.3</span>
+                        </label>
+                    </div>
+                    <p style="margin-top:10px; color: var(--text-secondary);">
+                        Magnitude: <span id="magDisplay">0.76</span> |
+                        Phase: <span id="phaseDisplay">23.2°</span>
+                    </p>
+                </div>
+
+                <h2>I/Q in SDR Hardware</h2>
+                <p>SDR hardware (like a USRP) contains a "mixer" that extracts I and Q:</p>
+
+                <div class="ascii-diagram">
+                    ┌─────────────────────────────────────────────┐
+                    │              SDR Receiver                   │
+                    │                                             │
+  RF Input ─────────┤────┬─────[ × ]─────[LPF]─────[ADC]───→ I samples
+                    │    │       ↑                                │
+                    │    │   cos(2πf₀t)  ← Local Oscillator       │
+                    │    │                                        │
+                    │    └─────[ × ]─────[LPF]─────[ADC]───→ Q samples
+                    │            ↑                                │
+                    │       -sin(2πf₀t)  ← 90° shifted            │
+                    └─────────────────────────────────────────────┘
+                </div>
+
+                <!-- Quiz -->
+                <div class="quiz">
+                    <h4>Knowledge Check</h4>
+                    <div class="quiz-question" data-correct="2">
+                        <p>1. If a sample has I=0 and Q=1, what is its phase?</p>
+                        <div class="quiz-options">
+                            <label class="quiz-option">
+                                <input type="radio" name="q1" value="0"> 0° (pointing right)
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q1" value="1"> 45°
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q1" value="2"> 90° (pointing up)
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q1" value="3"> 180° (pointing left)
+                            </label>
+                        </div>
+                    </div>
+                    <div class="quiz-question" data-correct="1">
+                        <p>2. What happens to the magnitude when you double both I and Q?</p>
+                        <div class="quiz-options">
+                            <label class="quiz-option">
+                                <input type="radio" name="q2" value="0"> It stays the same
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q2" value="1"> It doubles
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q2" value="2"> It quadruples
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q2" value="3"> It halves
+                            </label>
+                        </div>
+                    </div>
+                    <button class="quiz-submit" onclick="checkQuiz(this)">Check Answers</button>
+                    <div class="quiz-result"></div>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('intro')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('sampling')">
+                        Next: Sampling & Nyquist →
+                    </button>
+                </div>
+            </article>
+
+            <!-- Sampling Module -->
+            <article class="module" id="module-sampling">
+                <h1>Sampling & The Nyquist Theorem</h1>
+                <p>Digital systems work with discrete samples, not continuous signals. Understanding sampling is crucial for SDR.</p>
+
+                <h2>From Continuous to Discrete</h2>
+                <p>An SDR's ADC (Analog-to-Digital Converter) takes <code>fs</code> samples per second:</p>
+
+                <div class="ascii-diagram">
+Continuous signal:     ──╱╲──╱╲──╱╲──╱╲──╱╲──╱╲──
+
+Sampled (discrete):    • • • • • • • • • • • • • •
+                       ↑   ↑   ↑   ↑   ↑   ↑   ↑
+                       Sample points at rate fs
+                </div>
+
+                <h2>The Nyquist-Shannon Theorem</h2>
+
+                <div class="info-box concept">
+                    <h4>Nyquist Theorem</h4>
+                    <p>To perfectly reconstruct a signal, you must sample at <strong>at least twice</strong> the highest frequency:</p>
+                    <p style="text-align:center; font-size:1.2rem; margin-top:10px;">
+                        <code>fs ≥ 2 · fmax</code>
+                    </p>
+                </div>
+
+                <h3>What Happens if We Sample Too Slowly?</h3>
+                <p><strong>Aliasing</strong> — high frequencies appear as lower frequencies:</p>
+
+                <div class="ascii-diagram">
+Original signal (10 Hz):
+
+    ╱╲  ╱╲  ╱╲  ╱╲  ╱╲  ╱╲  ╱╲  ╱╲  ╱╲  ╱╲
+   ╱  ╲╱  ╲╱  ╲╱  ╲╱  ╲╱  ╲╱  ╲╱  ╲╱  ╲╱  ╲
+
+Sampled at 12 Hz (below Nyquist = 20 Hz):
+
+    •       •       •       •       •       •
+     ╲     ╱ ╲     ╱ ╲     ╱ ╲     ╱ ╲     ╱
+      ╲   ╱   ╲   ╱   ╲   ╱   ╲   ╱   ╲   ╱
+       ╲ ╱     ╲ ╱     ╲ ╱     ╲ ╱     ╲ ╱
+
+    Appears as 2 Hz signal! (Aliased)
+                </div>
+
+                <h2>Bandwidth and Sample Rate</h2>
+                <p>For SDR with complex I/Q samples:</p>
+
+                <div class="info-box math">
+                    <h4>SDR Bandwidth Rule</h4>
+                    <p>Complex (I/Q) sampling at rate <code>fs</code> captures bandwidth <code>fs</code> centered around the tuned frequency:</p>
+                    <p><code>Usable bandwidth = fs</code> (not fs/2, because I/Q gives both sidebands)</p>
+                </div>
+
+                <div class="code-block">// LoRa bandwidth examples
+// SF7 with 125 kHz bandwidth:
+let sample_rate = 125_000.0;  // 125 kHz sample rate
+let bandwidth = 125_000.0;     // Full 125 kHz usable
+
+// With 2x oversampling:
+let sample_rate = 250_000.0;  // Better timing resolution
+let bandwidth = 125_000.0;     // Still 125 kHz signal</div>
+
+                <h2>Practical Considerations</h2>
+                <ul>
+                    <li><strong>Oversampling</strong>: Using higher than minimum rate improves timing resolution</li>
+                    <li><strong>Anti-aliasing filter</strong>: Hardware filter before ADC prevents aliasing</li>
+                    <li><strong>Decimation</strong>: Reducing sample rate in software after filtering</li>
+                </ul>
+
+                <div class="quiz">
+                    <h4>Knowledge Check</h4>
+                    <div class="quiz-question" data-correct="1">
+                        <p>1. What is the minimum sample rate to capture a 50 kHz signal?</p>
+                        <div class="quiz-options">
+                            <label class="quiz-option">
+                                <input type="radio" name="q3" value="0"> 50 kHz
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q3" value="1"> 100 kHz
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q3" value="2"> 200 kHz
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q3" value="3"> 25 kHz
+                            </label>
+                        </div>
+                    </div>
+                    <div class="quiz-question" data-correct="2">
+                        <p>2. You sample at 1 MHz. A 1.3 MHz signal enters. What frequency will it appear as?</p>
+                        <div class="quiz-options">
+                            <label class="quiz-option">
+                                <input type="radio" name="q4" value="0"> 1.3 MHz
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q4" value="1"> 0.3 MHz (aliased up)
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q4" value="2"> 0.3 MHz (aliased down, appears at fs - 1.3M = -0.3M → 0.3M)
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q4" value="3"> It will be filtered out
+                            </label>
+                        </div>
+                    </div>
+                    <button class="quiz-submit" onclick="checkQuiz(this)">Check Answers</button>
+                    <div class="quiz-result"></div>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('iq')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('frequency')">
+                        Next: Frequency Domain →
+                    </button>
+                </div>
+            </article>
+
+            <!-- Frequency Domain Module -->
+            <article class="module" id="module-frequency">
+                <h1>The Frequency Domain & FFT</h1>
+                <p>Signals can be viewed in time (oscilloscope) or frequency (spectrum analyzer). The FFT connects these views.</p>
+
+                <h2>Time vs Frequency</h2>
+                <div class="ascii-diagram">
+TIME DOMAIN                         FREQUENCY DOMAIN
+(What you see on oscilloscope)      (What you see on spectrum analyzer)
+
+Pure tone:
+   ╱╲  ╱╲  ╱╲  ╱╲                         │
+  ╱  ╲╱  ╲╱  ╲╱  ╲           →           ▄│
+                                          │
+                                    ──────┴──────→ freq
+
+Two tones mixed:
+   ╱╲╱╲╱╲╱╲                              ▄│▄
+  ╱        ╲                  →          ││
+                                    ──────┴──────→ freq
+
+Noise:
+  ╱╲╱╱╲╱╲/╲╲/╱                     ▄▄▄▄▄▄▄▄▄▄▄
+  ╱╲╱╲╱╲/╱╲                   →          │
+                                    ──────┴──────→ freq
+                </div>
+
+                <h2>The Fourier Transform</h2>
+                <p>The FFT (Fast Fourier Transform) efficiently computes which frequencies are present:</p>
+
+                <div class="info-box math">
+                    <h4>Discrete Fourier Transform</h4>
+                    <p><code>X[k] = Σ x[n] · e^(-j2πkn/N)</code></p>
+                    <p>Converts N time samples into N frequency bins.</p>
+                </div>
+
+                <div class="code-block">// Using FFT in our codebase
+use lora_core::fft_utils::FftProcessor;
+
+let samples: Vec&lt;Complex64&gt; = get_samples();
+let mut fft = FftProcessor::new(samples.len());
+let spectrum = fft.fft(&samples);
+
+// Find the peak frequency
+let (peak_bin, magnitude, phase) = FftProcessor::find_peak(&spectrum);
+
+// Convert bin to frequency
+let freq_resolution = sample_rate / samples.len() as f64;
+let peak_freq = peak_bin as f64 * freq_resolution;</div>
+
+                <h2>FFT Properties</h2>
+                <ul>
+                    <li><strong>Frequency resolution</strong>: <code>Δf = fs / N</code> (sample rate / FFT size)</li>
+                    <li><strong>Time resolution</strong>: <code>Δt = N / fs</code> (FFT size / sample rate)</li>
+                    <li><strong>Trade-off</strong>: Better frequency resolution = worse time resolution</li>
+                </ul>
+
+                <div class="info-box tip">
+                    <h4>Why This Matters for LoRa</h4>
+                    <p>LoRa demodulation uses FFT to find which symbol was transmitted:</p>
+                    <ol>
+                        <li>Multiply received chirp by reference downchirp</li>
+                        <li>Result is a single tone at a frequency</li>
+                        <li>FFT finds the peak → that's your symbol!</li>
+                    </ol>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('sampling')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('cw')">
+                        Next: CW (Your First Waveform) →
+                    </button>
+                </div>
+            </article>
+
+            <!-- CW Module -->
+            <article class="module" id="module-cw">
+                <h1>CW: The Simplest Waveform</h1>
+                <p>A Continuous Wave (CW) is just a pure tone — the simplest possible signal. It's the building block for everything else.</p>
+
+                <h2>Mathematical Definition</h2>
+                <div class="info-box math">
+                    <h4>CW Signal</h4>
+                    <p><code>s(t) = A · e^(j2πft) = A · (cos(2πft) + j·sin(2πft))</code></p>
+                    <p>A constant amplitude rotating in the complex plane.</p>
+                </div>
+
+                <h2>Generating CW in Code</h2>
+                <div class="code-block">use std::f64::consts::PI;
+use num_complex::Complex64;
+
+fn generate_cw(
+    frequency: f64,      // Tone frequency in Hz
+    sample_rate: f64,    // Samples per second
+    duration: f64,       // Duration in seconds
+    amplitude: f64,      // Signal amplitude
+) -> Vec&lt;Complex64&gt; {
+    let num_samples = (sample_rate * duration) as usize;
+
+    (0..num_samples)
+        .map(|n| {
+            let t = n as f64 / sample_rate;
+            let phase = 2.0 * PI * frequency * t;
+            Complex64::new(
+                amplitude * phase.cos(),  // I
+                amplitude * phase.sin(),  // Q
+            )
+        })
+        .collect()
+}
+
+// Example: 1 kHz tone at 125 kHz sample rate
+let tone = generate_cw(1000.0, 125000.0, 0.01, 1.0);</div>
+
+                <h2>Visualizing CW</h2>
+                <div class="ascii-diagram">
+I/Q Plane (Constellation):       Time Domain:           Spectrum:
+
+      Q                              I(t)                   │
+      ↑                           ╱╲  ╱╲  ╱╲                │
+      │    ●→                    ╱  ╲╱  ╲╱  ╲               ▄
+      │   ╱                                                 │
+      │  ╱  CW rotates                                 ─────┴────→ f
+   ───●───→ I             Q(t)                              ↑
+      │                          ╱╲  ╱╲  ╱╲          Single spike
+                                ╱  ╲╱  ╲╱  ╲         at frequency
+                </div>
+
+                <h2>Using CW</h2>
+                <p>CW by itself carries no data, but it's used for:</p>
+                <ul>
+                    <li><strong>Morse code</strong>: CW on/off keying</li>
+                    <li><strong>Carrier</strong>: The base signal for modulation</li>
+                    <li><strong>Calibration</strong>: Testing and aligning equipment</li>
+                    <li><strong>Beacons</strong>: Continuous transmission for tracking</li>
+                </ul>
+
+                <div class="info-box tip">
+                    <h4>Try It!</h4>
+                    <p>In the LoRa Explorer app, the chirp visualization shows CW that sweeps in frequency. A chirp is just CW where the frequency changes over time!</p>
+                </div>
+
+                <div class="quiz">
+                    <h4>Knowledge Check</h4>
+                    <div class="quiz-question" data-correct="0">
+                        <p>1. How does a CW signal appear on a constellation diagram?</p>
+                        <div class="quiz-options">
+                            <label class="quiz-option">
+                                <input type="radio" name="q5" value="0"> A circle (rotating point)
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q5" value="1"> A single fixed point
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q5" value="2"> A line
+                            </label>
+                            <label class="quiz-option">
+                                <input type="radio" name="q5" value="3"> Random scatter
+                            </label>
+                        </div>
+                    </div>
+                    <button class="quiz-submit" onclick="checkQuiz(this)">Check Answers</button>
+                    <div class="quiz-result"></div>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('frequency')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('ook')">
+                        Next: OOK (Adding Data) →
+                    </button>
+                </div>
+            </article>
+
+            <!-- OOK Module -->
+            <article class="module" id="module-ook">
+                <h1>OOK: On-Off Keying</h1>
+                <p>Our first digital modulation! OOK is the simplest way to encode bits: carrier ON = 1, carrier OFF = 0.</p>
+
+                <h2>How OOK Works</h2>
+                <div class="ascii-diagram">
+Data bits:    1   0   1   1   0   1   0   0
+
+OOK signal:
+           ╱╲╱╲     ╱╲╱╲╱╲╱╲     ╱╲╱╲
+          ╱    ╲   ╱        ╲   ╱    ╲
+         ╱      ╲ ╱          ╲ ╱      ╲
+        ╱        ╲            ╲        ╲
+       ───────────────────────────────────→ time
+         ON OFF  ON   ON  OFF ON OFF OFF
+                </div>
+
+                <h2>Implementation</h2>
+                <div class="code-block">fn generate_ook(
+    data: &[u8],              // Bits to transmit
+    carrier_freq: f64,        // Carrier frequency
+    sample_rate: f64,
+    symbol_duration: f64,     // Seconds per bit
+) -> Vec&lt;Complex64&gt; {
+    let samples_per_symbol = (sample_rate * symbol_duration) as usize;
+    let mut output = Vec::new();
+
+    for &bit in data {
+        for n in 0..samples_per_symbol {
+            let t = n as f64 / sample_rate;
+            let sample = if bit == 1 {
+                // Carrier ON
+                let phase = 2.0 * PI * carrier_freq * t;
+                Complex64::new(phase.cos(), phase.sin())
+            } else {
+                // Carrier OFF
+                Complex64::new(0.0, 0.0)
+            };
+            output.push(sample);
+        }
+    }
+    output
+}</div>
+
+                <h2>Demodulating OOK</h2>
+                <p>Demodulation is simple: measure the signal power (envelope detection):</p>
+
+                <div class="code-block">fn demodulate_ook(
+    samples: &[Complex64],
+    samples_per_symbol: usize,
+    threshold: f64,
+) -> Vec&lt;u8&gt; {
+    samples
+        .chunks(samples_per_symbol)
+        .map(|chunk| {
+            // Calculate average power in this symbol period
+            let power: f64 = chunk.iter()
+                .map(|s| s.norm_sqr())
+                .sum::&lt;f64&gt;() / chunk.len() as f64;
+
+            if power > threshold { 1 } else { 0 }
+        })
+        .collect()
+}</div>
+
+                <h2>OOK Characteristics</h2>
+                <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 10px;"><strong>Pros</strong></td>
+                        <td style="padding: 10px;"><strong>Cons</strong></td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px;">
+                            <ul>
+                                <li>Extremely simple</li>
+                                <li>Easy to implement</li>
+                                <li>Low cost hardware</li>
+                            </ul>
+                        </td>
+                        <td style="padding: 10px;">
+                            <ul>
+                                <li>Poor noise immunity</li>
+                                <li>Susceptible to fading</li>
+                                <li>Not bandwidth efficient</li>
+                            </ul>
+                        </td>
+                    </tr>
+                </table>
+
+                <div class="info-box concept">
+                    <h4>Real-World Uses</h4>
+                    <ul>
+                        <li>Car key fobs</li>
+                        <li>Garage door openers</li>
+                        <li>Simple sensor networks</li>
+                        <li>RFID tags</li>
+                    </ul>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('cw')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('fsk')">
+                        Next: FSK →
+                    </button>
+                </div>
+            </article>
+
+            <!-- FSK Module -->
+            <article class="module" id="module-fsk">
+                <h1>FSK: Frequency Shift Keying</h1>
+                <p>FSK encodes data by shifting between frequencies. It's more robust than OOK because the carrier is always on.</p>
+
+                <h2>How FSK Works</h2>
+                <div class="ascii-diagram">
+Data bits:    1   0   1   1   0   1
+
+FSK signal:
+freq
+  ↑
+  f1 ─╱╲─────╱╲╱╲─────╱╲─   ← Binary 1 (higher freq)
+     │╲╱│   │    │   │╲╱│
+  f0 ────╱╲╱╲────╱╲╱╲────   ← Binary 0 (lower freq)
+           │         │
+     └──┴──┴──┴──┴──┴──┴──→ time
+       1  0  1  1  0  1
+                </div>
+
+                <h2>Key Parameters</h2>
+                <ul>
+                    <li><strong>Deviation (Δf)</strong>: How far frequencies are from center</li>
+                    <li><strong>Modulation Index (h)</strong>: h = 2Δf / symbol_rate</li>
+                    <li><strong>Symbol Rate</strong>: Symbols per second</li>
+                </ul>
+
+                <div class="info-box math">
+                    <h4>FSK Signal</h4>
+                    <p>For binary FSK:</p>
+                    <p><code>s(t) = A · e^(j2π(fc + d[n]·Δf)t)</code></p>
+                    <p>Where d[n] = +1 for '1' and -1 for '0'</p>
+                </div>
+
+                <h2>Implementation</h2>
+                <div class="code-block">fn generate_fsk(
+    data: &[u8],
+    center_freq: f64,
+    deviation: f64,          // Frequency deviation
+    sample_rate: f64,
+    symbol_duration: f64,
+) -> Vec&lt;Complex64&gt; {
+    let samples_per_symbol = (sample_rate * symbol_duration) as usize;
+    let mut output = Vec::new();
+    let mut phase = 0.0;  // Continuous phase
+
+    for &bit in data {
+        // Frequency for this symbol
+        let freq = if bit == 1 {
+            center_freq + deviation
+        } else {
+            center_freq - deviation
+        };
+
+        for _ in 0..samples_per_symbol {
+            output.push(Complex64::new(phase.cos(), phase.sin()));
+            phase += 2.0 * PI * freq / sample_rate;
+        }
+    }
+    output
+}</div>
+
+                <h2>FSK Demodulation</h2>
+                <p>Two common approaches:</p>
+                <ol>
+                    <li><strong>Frequency discriminator</strong>: Measure instantaneous frequency</li>
+                    <li><strong>Matched filter</strong>: Correlate with reference f0 and f1 signals</li>
+                </ol>
+
+                <div class="info-box tip">
+                    <h4>Continuous Phase FSK (CPFSK)</h4>
+                    <p>Note how we maintain a continuous phase across symbol boundaries. This prevents spectral splatter and is used in protocols like Bluetooth (GFSK).</p>
+                </div>
+
+                <h2>FSK Variants</h2>
+                <ul>
+                    <li><strong>BFSK</strong>: Binary, 2 frequencies</li>
+                    <li><strong>4-FSK</strong>: 4 frequencies, 2 bits/symbol</li>
+                    <li><strong>GFSK</strong>: Gaussian-filtered FSK (Bluetooth)</li>
+                    <li><strong>MSK</strong>: Minimum Shift Keying (h=0.5, optimal)</li>
+                </ul>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('ook')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('psk')">
+                        Next: PSK →
+                    </button>
+                </div>
+            </article>
+
+            <!-- PSK Module -->
+            <article class="module" id="module-psk">
+                <h1>PSK: Phase Shift Keying</h1>
+                <p>PSK encodes data in the phase of the carrier. It's widely used because it's bandwidth-efficient and robust.</p>
+
+                <h2>BPSK: Binary Phase Shift Keying</h2>
+                <p>Two phases: 0° for '1', 180° for '0'</p>
+
+                <div class="ascii-diagram">
+Data:     1       0       1       1       0
+
+Phase:    0°     180°     0°      0°     180°
+
+Signal:
+         ╱╲╱╲   ╲╱╲╱    ╱╲╱╲    ╱╲╱╲   ╲╱╲╱
+        ╱    ╲ ╱    ╲  ╱    ╲  ╱    ╲ ╱    ╲
+             Phase flip
+              (180°)
+
+Constellation:
+        Q
+        ↑
+        │
+   ●────┼────●   ← Two points: 0° and 180°
+  '0'   │   '1'
+        │
+                </div>
+
+                <h2>QPSK: Quadrature PSK</h2>
+                <p>Four phases: 45°, 135°, 225°, 315° — encoding 2 bits per symbol!</p>
+
+                <div class="ascii-diagram">
+         Q
+         ↑
+    10   │   00
+      ●  │  ●
+         │           4 constellation points
+   ──────┼──────→ I  = 2 bits per symbol
+         │           = 2x throughput vs BPSK
+      ●  │  ●
+    11   │   01
+
+Symbol mapping (Gray coded):
+  00 → 45°    01 → 315°
+  10 → 135°   11 → 225°
+                </div>
+
+                <h2>BPSK Implementation</h2>
+                <div class="code-block">fn generate_bpsk(
+    data: &[u8],
+    carrier_freq: f64,
+    sample_rate: f64,
+    symbol_duration: f64,
+) -> Vec&lt;Complex64&gt; {
+    let samples_per_symbol = (sample_rate * symbol_duration) as usize;
+    let mut output = Vec::new();
+
+    for &bit in data {
+        let phase_offset = if bit == 1 { 0.0 } else { PI };
+
+        for n in 0..samples_per_symbol {
+            let t = n as f64 / sample_rate;
+            let phase = 2.0 * PI * carrier_freq * t + phase_offset;
+            output.push(Complex64::new(phase.cos(), phase.sin()));
+        }
+    }
+    output
+}
+
+// QPSK: Map 2 bits to one of 4 phases
+fn bits_to_qpsk_symbol(b1: u8, b0: u8) -> Complex64 {
+    let angle = match (b1, b0) {
+        (0, 0) => PI / 4.0,       //  45°
+        (0, 1) => 7.0 * PI / 4.0, // 315°
+        (1, 0) => 3.0 * PI / 4.0, // 135°
+        (1, 1) => 5.0 * PI / 4.0, // 225°
+        _ => 0.0,
+    };
+    Complex64::from_polar(1.0, angle)
+}</div>
+
+                <h2>Why Gray Coding?</h2>
+                <p>Adjacent symbols differ by only 1 bit. If noise causes a symbol error to a neighbor, only 1 bit is wrong instead of potentially 2.</p>
+
+                <div class="info-box concept">
+                    <h4>Higher-Order PSK</h4>
+                    <ul>
+                        <li><strong>8-PSK</strong>: 8 phases, 3 bits/symbol</li>
+                        <li><strong>16-PSK</strong>: 16 phases, 4 bits/symbol</li>
+                        <li>Trade-off: More bits/symbol but symbols closer together = more errors</li>
+                    </ul>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('fsk')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('qam')">
+                        Next: QAM →
+                    </button>
+                </div>
+            </article>
+
+            <!-- QAM Module -->
+            <article class="module" id="module-qam">
+                <h1>QAM: Quadrature Amplitude Modulation</h1>
+                <p>QAM combines amplitude AND phase modulation for maximum spectral efficiency. It's used in WiFi, LTE, cable modems, and more.</p>
+
+                <h2>The Concept</h2>
+                <p>Instead of just varying phase (PSK) or amplitude (ASK), we vary both:</p>
+
+                <div class="ascii-diagram">
+16-QAM Constellation (4 bits per symbol):
+
+         Q
+         ↑
+    ●  ● │ ●  ●
+         │
+    ●  ● │ ●  ●
+   ──────┼──────→ I
+    ●  ● │ ●  ●
+         │
+    ●  ● │ ●  ●
+
+   16 points = 4 bits per symbol
+   Each point has unique (I, Q) coordinates
+                </div>
+
+                <h2>QAM Variants</h2>
+                <table style="width:100%; border-collapse: collapse; margin: 20px 0;">
+                    <tr style="border-bottom: 1px solid var(--border); background: var(--bg-tertiary);">
+                        <th style="padding: 10px; text-align: left;">Type</th>
+                        <th style="padding: 10px;">Points</th>
+                        <th style="padding: 10px;">Bits/Symbol</th>
+                        <th style="padding: 10px;">Use Case</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 10px;">4-QAM (=QPSK)</td>
+                        <td style="padding: 10px; text-align: center;">4</td>
+                        <td style="padding: 10px; text-align: center;">2</td>
+                        <td style="padding: 10px;">Robust, low SNR</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 10px;">16-QAM</td>
+                        <td style="padding: 10px; text-align: center;">16</td>
+                        <td style="padding: 10px; text-align: center;">4</td>
+                        <td style="padding: 10px;">WiFi, moderate SNR</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 10px;">64-QAM</td>
+                        <td style="padding: 10px; text-align: center;">64</td>
+                        <td style="padding: 10px; text-align: center;">6</td>
+                        <td style="padding: 10px;">Cable, good SNR</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px;">256-QAM</td>
+                        <td style="padding: 10px; text-align: center;">256</td>
+                        <td style="padding: 10px; text-align: center;">8</td>
+                        <td style="padding: 10px;">Fiber, excellent SNR</td>
+                    </tr>
+                </table>
+
+                <h2>Implementation</h2>
+                <div class="code-block">// 16-QAM mapping: 4 bits → (I, Q)
+fn bits_to_16qam(bits: &[u8; 4]) -> Complex64 {
+    // Map each pair of bits to -3, -1, +1, +3
+    fn two_bits_to_level(b1: u8, b0: u8) -> f64 {
+        match (b1, b0) {
+            (0, 0) => -3.0,
+            (0, 1) => -1.0,
+            (1, 1) =>  1.0,
+            (1, 0) =>  3.0,
+            _ => 0.0,
+        }
+    }
+
+    let i = two_bits_to_level(bits[0], bits[1]);
+    let q = two_bits_to_level(bits[2], bits[3]);
+
+    // Normalize power
+    Complex64::new(i, q) / (10.0_f64).sqrt()
+}</div>
+
+                <div class="info-box warning">
+                    <h4>The SNR Trade-off</h4>
+                    <p>Higher QAM = more bits/symbol but requires higher SNR!</p>
+                    <ul>
+                        <li>QPSK: Works at ~10 dB SNR</li>
+                        <li>16-QAM: Needs ~17 dB SNR</li>
+                        <li>64-QAM: Needs ~23 dB SNR</li>
+                        <li>256-QAM: Needs ~30 dB SNR</li>
+                    </ul>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('psk')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('css')">
+                        Next: CSS / LoRa →
+                    </button>
+                </div>
+            </article>
+
+            <!-- CSS/LoRa Module -->
+            <article class="module" id="module-css">
+                <h1>CSS: Chirp Spread Spectrum (LoRa)</h1>
+                <p>Now we arrive at LoRa! CSS spreads each symbol across the entire bandwidth using chirps, achieving remarkable sensitivity.</p>
+
+                <h2>What's a Chirp?</h2>
+                <p>A chirp is a signal whose frequency continuously sweeps:</p>
+
+                <div class="ascii-diagram">
+Upchirp:                    Downchirp:
+freq                        freq
+  ↑    ╱                      ↑  ╲
+  │   ╱                       │   ╲
+  │  ╱                        │    ╲
+  │ ╱                         │     ╲
+  │╱                          │      ╲
+  └────→ time                 └────→ time
+                </div>
+
+                <h2>Symbol Encoding</h2>
+                <p>Each symbol is a cyclically-shifted chirp. For SF7, there are 2^7 = 128 possible symbols:</p>
+
+                <div class="ascii-diagram">
+Symbol 0:          Symbol 32:         Symbol 64:
+    ╱│                 ╱│                 ╱│
+   ╱ │                ╱ │                ╱ │
+  ╱  │    ──→   ╱────┘  │   ──→   ╱──────┘ │
+ ╱   │          ╲       │         ╲        │
+╱    │           ╲      │          ╲       │
+     │            ╲     │           ╲      │
+
+No shift        1/4 shift       1/2 shift
+                </div>
+
+                <h2>Why Chirps Are Special</h2>
+                <ul>
+                    <li><strong>Spread spectrum</strong>: Energy spread across bandwidth = noise immunity</li>
+                    <li><strong>Processing gain</strong>: SNR improvement = 10·log10(2^SF) dB</li>
+                    <li><strong>Doppler tolerance</strong>: Frequency shifts just move the peak</li>
+                    <li><strong>Multipath resistance</strong>: Different paths cause different delays</li>
+                </ul>
+
+                <div class="info-box math">
+                    <h4>LoRa Chirp Formula</h4>
+                    <p><code>s(t) = e^(j·2π·(f₀·t + (B/2T)·t²))</code></p>
+                    <p>Instantaneous frequency: <code>f(t) = f₀ + (B/T)·t</code> (linear sweep)</p>
+                </div>
+
+                <h2>FFT-Based Demodulation</h2>
+                <div class="code-block">// LoRa demodulation is elegant:
+fn demodulate_lora_symbol(
+    received: &[Complex64],
+    downchirp: &[Complex64],  // Reference
+) -> u16 {
+    // 1. Multiply by conjugate of downchirp
+    let mixed: Vec<_> = received.iter()
+        .zip(downchirp.iter())
+        .map(|(r, d)| r * d.conj())
+        .collect();
+
+    // 2. Result is a tone at the symbol frequency!
+    let mut fft = FftProcessor::new(mixed.len());
+    let spectrum = fft.fft(&mixed);
+
+    // 3. Find the peak = symbol value
+    let (symbol, _, _) = FftProcessor::find_peak(&spectrum);
+    symbol as u16
+}</div>
+
+                <div class="info-box tip">
+                    <h4>Explore in the App</h4>
+                    <p>The LoRa Explorer app shows this visually:</p>
+                    <ul>
+                        <li><strong>Chirp View</strong>: See upchirps and symbol chirps</li>
+                        <li><strong>Demod View</strong>: Watch FFT peak detection</li>
+                        <li><strong>Pipeline View</strong>: Full TX → Channel → RX</li>
+                    </ul>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('qam')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('channel')">
+                        Next: Channel Effects →
+                    </button>
+                </div>
+            </article>
+
+            <!-- Placeholder modules for remaining topics -->
+            <article class="module" id="module-channel">
+                <h1>Channel Effects</h1>
+                <p>Real wireless channels introduce noise, fading, and frequency offset. Understanding these is key to robust waveform design.</p>
+
+                <h2>AWGN: Additive White Gaussian Noise</h2>
+                <p>Thermal noise from electronics — present in all receivers:</p>
+
+                <div class="code-block">fn add_awgn(samples: &mut [Complex64], snr_db: f64) {
+    let signal_power: f64 = samples.iter()
+        .map(|s| s.norm_sqr()).sum::&lt;f64&gt;() / samples.len() as f64;
+
+    let noise_power = signal_power / 10_f64.powf(snr_db / 10.0);
+    let noise_std = (noise_power / 2.0).sqrt();
+
+    let mut rng = rand::thread_rng();
+    for s in samples.iter_mut() {
+        let noise = Complex64::new(
+            rng.sample(Normal::new(0.0, noise_std).unwrap()),
+            rng.sample(Normal::new(0.0, noise_std).unwrap()),
+        );
+        *s += noise;
+    }
+}</div>
+
+                <h2>More Coming Soon...</h2>
+                <p>This module will cover:</p>
+                <ul>
+                    <li>Rayleigh and Rician fading</li>
+                    <li>Carrier Frequency Offset (CFO)</li>
+                    <li>Multipath propagation</li>
+                    <li>Doppler shift</li>
+                </ul>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('css')">
+                        ← Back
+                    </button>
+                    <button class="nav-btn primary" onclick="showModule('sync')">
+                        Next: Synchronization →
+                    </button>
+                </div>
+            </article>
+
+            <article class="module" id="module-sync">
+                <h1>Synchronization</h1>
+                <p class="subtitle">How receivers lock onto signals and recover timing</p>
+
+                <div class="info-box concept">
+                    <h3>🎯 The Synchronization Problem</h3>
+                    <p>The receiver doesn't know when the transmitter started, what frequency offset exists, or exactly when symbols begin. Synchronization solves all three.</p>
+                </div>
+
+                <h2>Preamble Detection</h2>
+                <p>Most protocols start with a known pattern (preamble) that the receiver searches for:</p>
+
+                <div class="code-block">fn detect_preamble(samples: &[Complex64], preamble: &[Complex64]) -> Option&lt;usize&gt; {
+    // Cross-correlate to find the preamble
+    for offset in 0..samples.len() - preamble.len() {
+        let correlation: Complex64 = samples[offset..]
+            .iter()
+            .zip(preamble.iter())
+            .map(|(s, p)| s * p.conj())
+            .sum();
+
+        let magnitude = correlation.norm();
+        if magnitude > THRESHOLD {
+            return Some(offset);  // Found preamble start
+        }
+    }
+    None
+}</div>
+
+                <h2>Carrier Frequency Offset (CFO) Estimation</h2>
+                <p>Oscillator differences cause frequency offset between TX and RX. We estimate and correct it:</p>
+
+                <ul>
+                    <li><strong>Coarse CFO</strong>: Use preamble correlation phase rotation</li>
+                    <li><strong>Fine CFO</strong>: Track phase across known symbols</li>
+                    <li><strong>Correction</strong>: Multiply by counter-rotating phasor</li>
+                </ul>
+
+                <div class="code-block">fn correct_cfo(samples: &mut [Complex64], freq_offset_hz: f64, sample_rate: f64) {
+    let omega = 2.0 * PI * freq_offset_hz / sample_rate;
+    for (n, s) in samples.iter_mut().enumerate() {
+        // Counter-rotate to remove frequency offset
+        let correction = Complex64::from_polar(1.0, -omega * n as f64);
+        *s *= correction;
+    }
+}</div>
+
+                <h2>Symbol Timing Recovery</h2>
+                <p>Sampling at exactly the right moment within each symbol is critical:</p>
+
+                <ul>
+                    <li><strong>Early/Late Gate</strong>: Compare samples before/after optimal point</li>
+                    <li><strong>Gardner Algorithm</strong>: Decision-directed timing recovery</li>
+                    <li><strong>Mueller-Muller</strong>: Uses symbol decisions for timing error</li>
+                </ul>
+
+                <div class="info-box">
+                    <h3>💡 Why Timing Matters</h3>
+                    <p>Sampling at the wrong time causes <strong>inter-symbol interference (ISI)</strong> — energy from adjacent symbols corrupts your sample. The "eye diagram" visualizes this: a wide-open eye means good timing margin.</p>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('channel')">← Back</button>
+                    <button class="nav-btn primary" onclick="showModule('fec')">Next: Error Correction →</button>
+                </div>
+            </article>
+
+            <article class="module" id="module-fec">
+                <h1>Forward Error Correction</h1>
+                <p class="subtitle">Detecting and correcting bit errors without retransmission</p>
+
+                <div class="info-box concept">
+                    <h3>🛡️ Why FEC?</h3>
+                    <p>Wireless channels corrupt bits. FEC adds redundancy so the receiver can detect and correct errors without asking for retransmission — essential for one-way links and real-time systems.</p>
+                </div>
+
+                <h2>Hamming Codes</h2>
+                <p>The simplest FEC: adds parity bits to detect and correct single-bit errors.</p>
+
+                <div class="code-block">// Hamming(7,4): 4 data bits + 3 parity bits = 7 bits total
+fn hamming_encode(data: u8) -> u8 {
+    let d = [data &amp; 1, (data >> 1) &amp; 1, (data >> 2) &amp; 1, (data >> 3) &amp; 1];
+
+    // Parity bits: p1 covers d1,d2,d4; p2 covers d1,d3,d4; p3 covers d2,d3,d4
+    let p1 = d[0] ^ d[1] ^ d[3];
+    let p2 = d[0] ^ d[2] ^ d[3];
+    let p3 = d[1] ^ d[2] ^ d[3];
+
+    // Arrange: p1 p2 d1 p3 d2 d3 d4
+    p1 | (p2 << 1) | (d[0] << 2) | (p3 << 3) | (d[1] << 4) | (d[2] << 5) | (d[3] << 6)
+}
+
+fn hamming_decode(code: u8) -> (u8, bool) {
+    // Compute syndrome to locate error
+    let s1 = ((code >> 0) ^ (code >> 2) ^ (code >> 4) ^ (code >> 6)) &amp; 1;
+    let s2 = ((code >> 1) ^ (code >> 2) ^ (code >> 5) ^ (code >> 6)) &amp; 1;
+    let s3 = ((code >> 3) ^ (code >> 4) ^ (code >> 5) ^ (code >> 6)) &amp; 1;
+
+    let error_pos = s1 | (s2 << 1) | (s3 << 2);
+    let corrected = if error_pos > 0 { code ^ (1 << (error_pos - 1)) } else { code };
+
+    let data = ((corrected >> 2) &amp; 1) | ((corrected >> 3) &amp; 2) |
+               ((corrected >> 3) &amp; 4) | ((corrected >> 3) &amp; 8);
+    (data, error_pos > 0)
+}</div>
+
+                <h2>Interleaving</h2>
+                <p>Burst errors (consecutive bit errors) defeat most FEC codes. Interleaving spreads bits across time so burst errors become scattered single errors:</p>
+
+                <div class="code-block">fn interleave(bits: &[u8], rows: usize, cols: usize) -> Vec&lt;u8&gt; {
+    // Write row-by-row, read column-by-column
+    let mut matrix = vec![vec![0u8; cols]; rows];
+
+    // Fill matrix row-wise
+    for (i, &amp;bit) in bits.iter().enumerate() {
+        matrix[i / cols][i % cols] = bit;
+    }
+
+    // Read column-wise (spreads adjacent bits apart)
+    let mut output = Vec::with_capacity(bits.len());
+    for col in 0..cols {
+        for row in 0..rows {
+            output.push(matrix[row][col]);
+        }
+    }
+    output
+}</div>
+
+                <h2>Convolutional Codes</h2>
+                <p>More powerful than block codes. Each output depends on current input plus memory of previous inputs:</p>
+
+                <ul>
+                    <li><strong>Constraint length (K)</strong>: Number of memory stages + 1</li>
+                    <li><strong>Code rate (R)</strong>: e.g., 1/2 means 2 output bits per input bit</li>
+                    <li><strong>Viterbi decoding</strong>: Finds most likely sequence through code trellis</li>
+                </ul>
+
+                <div class="info-box">
+                    <h3>📊 FEC Trade-offs</h3>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <th style="text-align: left; padding: 8px;">Code</th>
+                            <th style="text-align: left; padding: 8px;">Rate</th>
+                            <th style="text-align: left; padding: 8px;">Correction</th>
+                            <th style="text-align: left; padding: 8px;">Use Case</th>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 8px;">Hamming(7,4)</td>
+                            <td style="padding: 8px;">4/7</td>
+                            <td style="padding: 8px;">1 bit</td>
+                            <td style="padding: 8px;">Simple, low overhead</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid var(--border);">
+                            <td style="padding: 8px;">Conv. R=1/2 K=7</td>
+                            <td style="padding: 8px;">1/2</td>
+                            <td style="padding: 8px;">~3 dB gain</td>
+                            <td style="padding: 8px;">WiFi, satellites</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px;">Turbo/LDPC</td>
+                            <td style="padding: 8px;">Variable</td>
+                            <td style="padding: 8px;">Near Shannon</td>
+                            <td style="padding: 8px;">4G/5G, deep space</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <h2>LoRa's FEC</h2>
+                <p>LoRa uses Hamming-based coding with configurable rates:</p>
+                <ul>
+                    <li><strong>CR 4/5</strong>: 4 data bits + 1 parity (20% overhead)</li>
+                    <li><strong>CR 4/6</strong>: 4 data bits + 2 parity (50% overhead)</li>
+                    <li><strong>CR 4/7</strong>: 4 data bits + 3 parity (75% overhead)</li>
+                    <li><strong>CR 4/8</strong>: 4 data bits + 4 parity (100% overhead)</li>
+                </ul>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('sync')">← Back</button>
+                    <button class="nav-btn primary" onclick="showModule('comparison')">Next: Waveform Comparison →</button>
+                </div>
+            </article>
+
+            <!-- Waveform Performance Comparison Module -->
+            <article class="module" id="module-comparison">
+                <h1>Waveform Performance Comparison</h1>
+                <p class="subtitle">Real-world benchmarks comparing digital modulation schemes</p>
+
+                <div class="info-box">
+                    <h3>📊 Benchmark Setup</h3>
+                    <p>These benchmarks were performed using distributed TX/RX testing between two Raspberry Pi devices:</p>
+                    <ul>
+                        <li><strong>TX:</strong> Raspberry Pi 500 (ARM32) - Transmitter</li>
+                        <li><strong>RX:</strong> Raspberry Pi 3 (ARM64) - Receiver with demodulation</li>
+                        <li><strong>Sample Rate:</strong> 125 kHz</li>
+                        <li><strong>Transport:</strong> UDP over Ethernet</li>
+                    </ul>
+                </div>
+
+                <h2>Clean Channel Performance (No Noise)</h2>
+                <p>Performance comparison under ideal conditions:</p>
+
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th>BPSK</th>
+                                <th>QPSK</th>
+                                <th>LoRa (SF7)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Throughput</strong></td>
+                                <td>85,771 Sps</td>
+                                <td>77,224 Sps</td>
+                                <td>83,129 Sps</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Bits/symbol</strong></td>
+                                <td>1</td>
+                                <td>2</td>
+                                <td>7</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Demod rate</strong></td>
+                                <td>168 bps</td>
+                                <td>228 bps</td>
+                                <td class="highlight">322 bps</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Avg latency</strong></td>
+                                <td class="highlight">29 μs</td>
+                                <td>38 μs</td>
+                                <td>395 μs</td>
+                            </tr>
+                            <tr>
+                                <td><strong>P99 latency</strong></td>
+                                <td class="highlight">56 μs</td>
+                                <td>61 μs</td>
+                                <td>565 μs</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Performance Under Noise</h2>
+                <p>How each waveform handles increasing noise levels (decreasing SNR):</p>
+
+                <h3>Bits Decoded (8-second test)</h3>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SNR</th>
+                                <th>BPSK</th>
+                                <th>QPSK</th>
+                                <th>LoRa (SF7)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>20 dB</td>
+                                <td>1,296</td>
+                                <td>1,861</td>
+                                <td class="highlight">2,616</td>
+                            </tr>
+                            <tr>
+                                <td>10 dB</td>
+                                <td>1,266</td>
+                                <td>1,895</td>
+                                <td class="highlight">2,620</td>
+                            </tr>
+                            <tr>
+                                <td>5 dB</td>
+                                <td>1,336</td>
+                                <td>1,904</td>
+                                <td class="highlight">2,580</td>
+                            </tr>
+                            <tr>
+                                <td>0 dB</td>
+                                <td>1,221</td>
+                                <td>1,892</td>
+                                <td class="highlight">2,428</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>Latency Comparison</h3>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SNR</th>
+                                <th>BPSK</th>
+                                <th>QPSK</th>
+                                <th>LoRa (SF7)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>20 dB</td>
+                                <td class="highlight">28 μs</td>
+                                <td>29 μs</td>
+                                <td>485 μs</td>
+                            </tr>
+                            <tr>
+                                <td>10 dB</td>
+                                <td class="highlight">28 μs</td>
+                                <td>39 μs</td>
+                                <td>362 μs</td>
+                            </tr>
+                            <tr>
+                                <td>5 dB</td>
+                                <td class="highlight">28 μs</td>
+                                <td>28 μs</td>
+                                <td>355 μs</td>
+                            </tr>
+                            <tr>
+                                <td>0 dB</td>
+                                <td class="highlight">28 μs</td>
+                                <td>28 μs</td>
+                                <td>372 μs</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Key Insights</h2>
+
+                <div class="concept-card">
+                    <h3>📈 Throughput Stability</h3>
+                    <p>All three waveforms maintain stable sample throughput (~77-86k Sps) even at 0 dB SNR. This demonstrates robust implementations that don't degrade under noise.</p>
+                </div>
+
+                <div class="concept-card">
+                    <h3>📊 Spectral Efficiency</h3>
+                    <p>LoRa decodes <strong>~2x more bits</strong> than BPSK and <strong>~35% more</strong> than QPSK despite using spread spectrum. This is due to encoding 7 bits per symbol (SF7) vs 1-2 bits for PSK.</p>
+                </div>
+
+                <div class="concept-card">
+                    <h3>⏱️ Latency Trade-off</h3>
+                    <p>LoRa's latency is <strong>~13x higher</strong> than PSK modulations because it uses FFT-based chirp correlation instead of simple phase detection. This is the cost of spread spectrum processing.</p>
+                </div>
+
+                <div class="concept-card">
+                    <h3>🎯 When to Use Each</h3>
+                    <ul>
+                        <li><strong>BPSK:</strong> Low-latency applications, simple implementations, moderate noise</li>
+                        <li><strong>QPSK:</strong> 2x BPSK data rate, good balance of complexity and performance</li>
+                        <li><strong>LoRa:</strong> Long range (10-15 km), extreme noise immunity, IoT sensors</li>
+                    </ul>
+                </div>
+
+                <div class="warning-box">
+                    <h3>⚠️ Real-World Difference</h3>
+                    <p>In actual RF conditions, LoRa's spread spectrum shows dramatic advantages at very low SNR (<strong>-20 dB</strong>) where BPSK/QPSK would fail completely. LoRa can operate <strong>below the noise floor</strong> due to its processing gain (SF7 = 7 dB, SF12 = 21 dB gain).</p>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('fec')">← Back</button>
+                    <button class="nav-btn primary" onclick="showModule('lora-sf')">Next: LoRa SF Trade-offs →</button>
+                </div>
+            </article>
+
+            <!-- LoRa Spreading Factor Trade-offs Module -->
+            <article class="module" id="module-lora-sf">
+                <h1>LoRa Spreading Factor Trade-offs</h1>
+                <p class="subtitle">Understanding SF7 vs SF12 and the range/speed compromise</p>
+
+                <div class="info-box">
+                    <h3>📡 What is Spreading Factor?</h3>
+                    <p>LoRa's Spreading Factor (SF) determines how much the signal is "spread" across time. Higher SF means longer symbol times, which provides better noise immunity but lower data rate.</p>
+                </div>
+
+                <h2>SF Comparison Table</h2>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>SF7</th>
+                                <th>SF12</th>
+                                <th>Ratio</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Chips/symbol</strong></td>
+                                <td>128</td>
+                                <td>4,096</td>
+                                <td>32x</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Symbol time @ 125kHz</strong></td>
+                                <td>1.02 ms</td>
+                                <td>32.77 ms</td>
+                                <td>32x slower</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Bits/symbol</strong></td>
+                                <td>7</td>
+                                <td>12</td>
+                                <td>1.7x more</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Data rate @ 125kHz</strong></td>
+                                <td>~5.5 kbps</td>
+                                <td>~293 bps</td>
+                                <td>19x slower</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Processing gain</strong></td>
+                                <td>7 dB</td>
+                                <td>21 dB</td>
+                                <td>+14 dB</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Sensitivity</strong></td>
+                                <td>-123 dBm</td>
+                                <td>-137 dBm</td>
+                                <td>14 dB better</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Typical range</strong></td>
+                                <td>2-5 km</td>
+                                <td>10-15 km</td>
+                                <td>~3x farther</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h2>Benchmark Results</h2>
+                <p>Testing SF7 vs SF12 under various noise conditions:</p>
+
+                <h3>SF7 Performance (Fast, Short Range)</h3>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SNR</th>
+                                <th>Throughput</th>
+                                <th>Latency</th>
+                                <th>Symbols</th>
+                                <th>Bits</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>20 dB</td>
+                                <td>83,790 Sps</td>
+                                <td>485 μs</td>
+                                <td>5,232</td>
+                                <td>2,616</td>
+                            </tr>
+                            <tr>
+                                <td>10 dB</td>
+                                <td>83,848 Sps</td>
+                                <td>362 μs</td>
+                                <td>5,240</td>
+                                <td>2,620</td>
+                            </tr>
+                            <tr>
+                                <td>5 dB</td>
+                                <td>82,641 Sps</td>
+                                <td>355 μs</td>
+                                <td>5,160</td>
+                                <td>2,580</td>
+                            </tr>
+                            <tr>
+                                <td>0 dB</td>
+                                <td>77,740 Sps</td>
+                                <td>372 μs</td>
+                                <td>4,856</td>
+                                <td>2,428</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <h3>SF12 Performance (Slow, Long Range)</h3>
+                <div class="comparison-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SNR</th>
+                                <th>Throughput</th>
+                                <th>Latency</th>
+                                <th>Symbols</th>
+                                <th>Bits</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>20 dB</td>
+                                <td>87,915 Sps</td>
+                                <td>1 μs</td>
+                                <td>0*</td>
+                                <td>0*</td>
+                            </tr>
+                            <tr>
+                                <td>10 dB</td>
+                                <td>90,881 Sps</td>
+                                <td>1 μs</td>
+                                <td>0*</td>
+                                <td>0*</td>
+                            </tr>
+                            <tr>
+                                <td>5 dB</td>
+                                <td>90,248 Sps</td>
+                                <td>1 μs</td>
+                                <td>0*</td>
+                                <td>0*</td>
+                            </tr>
+                            <tr>
+                                <td>0 dB</td>
+                                <td>89,269 Sps</td>
+                                <td>1 μs</td>
+                                <td>0*</td>
+                                <td>0*</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="info-box">
+                    <h3>* Why 0 symbols for SF12?</h3>
+                    <p>SF12's symbol time is <strong>32.77 ms</strong>. In a 10-second test, only ~305 symbols can be transmitted. The demodulator needs complete LoRa frames (preamble + header + payload) to decode data. The short test duration doesn't allow enough symbols for complete frame assembly.</p>
+                    <p>SF12 is designed for <strong>long-range IoT sensors</strong> that transmit small packets infrequently - not for throughput benchmarks!</p>
+                </div>
+
+                <h2>The Range vs Speed Trade-off</h2>
+
+                <div class="diagram">
+                    <pre>
+    Data Rate                                   Range
+    ─────────────────────────────────────────────────────
+
+    SF7  ████████████████████████░░░░░░░░░░░  5.5 kbps  │  2-5 km
+    SF8  ██████████████████░░░░░░░░░░░░░░░░░  3.1 kbps  │  3-7 km
+    SF9  ██████████████░░░░░░░░░░░░░░░░░░░░░  1.8 kbps  │  5-10 km
+    SF10 ██████████░░░░░░░░░░░░░░░░░░░░░░░░░  977 bps   │  7-12 km
+    SF11 ██████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  537 bps   │  8-14 km
+    SF12 ███░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  293 bps   │  10-15 km
+
+    ◄── Faster ──────────────────────────── Longer range ──►
+                    </pre>
+                </div>
+
+                <h2>Use Case Guidelines</h2>
+
+                <div class="concept-card">
+                    <h3>🏃 SF7 - Speed Priority</h3>
+                    <ul>
+                        <li>Urban environments with good coverage</li>
+                        <li>Real-time monitoring applications</li>
+                        <li>Larger data payloads</li>
+                        <li>Battery life less critical</li>
+                    </ul>
+                </div>
+
+                <div class="concept-card">
+                    <h3>🏔️ SF12 - Range Priority</h3>
+                    <ul>
+                        <li>Rural/remote sensor deployments</li>
+                        <li>Agricultural monitoring</li>
+                        <li>Small, infrequent data (temperature, status)</li>
+                        <li>Maximum battery life</li>
+                    </ul>
+                </div>
+
+                <div class="concept-card">
+                    <h3>⚖️ SF9-SF10 - Balanced</h3>
+                    <ul>
+                        <li>Suburban deployments</li>
+                        <li>Mixed indoor/outdoor</li>
+                        <li>Good compromise for most IoT applications</li>
+                    </ul>
+                </div>
+
+                <h2>Adaptive Data Rate (ADR)</h2>
+                <p>In practice, LoRaWAN networks use <strong>Adaptive Data Rate</strong> to automatically select the optimal SF based on link quality:</p>
+
+                <div class="diagram">
+                    <pre>
+    ┌─────────────────────────────────────────────────────────┐
+    │                    LoRaWAN ADR                          │
+    ├─────────────────────────────────────────────────────────┤
+    │                                                         │
+    │   Device ──────► Gateway ──────► Network Server         │
+    │     │              │                   │                │
+    │     │   "Link is   │   "Analyze        │                │
+    │     │    good!"    │    uplinks"       │                │
+    │     │              │         │         │                │
+    │     │◄─────────────┼─────────┴─────────┤                │
+    │     │                                  │                │
+    │     │         "Use SF7, you're         │                │
+    │     │          close enough!"          │                │
+    │     │                                  │                │
+    └─────────────────────────────────────────────────────────┘
+                    </pre>
+                </div>
+
+                <div class="nav-buttons">
+                    <button class="nav-btn" onclick="showModule('comparison')">← Back</button>
+                    <button class="nav-btn" onclick="showModule('intro')">Back to Start</button>
+                </div>
+            </article>
+
+        </main>
+    </div>
+
+    <script>
+        // Module navigation
+        const completedModules = new Set();
+
+        function showModule(moduleId) {
+            // Hide all modules
+            document.querySelectorAll('.module').forEach(m => m.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+            // Show selected module
+            const module = document.getElementById('module-' + moduleId);
+            if (module) {
+                module.classList.add('active');
+            }
+
+            // Highlight nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+                if (item.onclick && item.onclick.toString().includes(moduleId)) {
+                    item.classList.add('active');
+                }
+            });
+
+            // Mark as viewed (after a delay)
+            setTimeout(() => {
+                completedModules.add(moduleId);
+                updateProgress();
+            }, 2000);
+
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+
+        function updateProgress() {
+            const totalModules = 12;
+            const completed = completedModules.size;
+            const percentage = Math.round((completed / totalModules) * 100);
+
+            document.getElementById('progressFill').style.width = percentage + '%';
+            document.getElementById('progressText').textContent = percentage;
+        }
+
+        // Quiz handling
+        function checkQuiz(button) {
+            const quiz = button.closest('.quiz');
+            const questions = quiz.querySelectorAll('.quiz-question');
+            let correct = 0;
+            let total = questions.length;
+
+            questions.forEach(q => {
+                const correctAnswer = q.dataset.correct;
+                const selected = q.querySelector('input:checked');
+
+                q.querySelectorAll('.quiz-option').forEach(opt => {
+                    opt.classList.remove('correct', 'incorrect', 'selected');
+                });
+
+                if (selected) {
+                    const selectedOption = selected.closest('.quiz-option');
+                    if (selected.value === correctAnswer) {
+                        selectedOption.classList.add('correct');
+                        correct++;
+                    } else {
+                        selectedOption.classList.add('incorrect');
+                        // Show correct answer
+                        q.querySelectorAll('.quiz-option').forEach(opt => {
+                            if (opt.querySelector('input').value === correctAnswer) {
+                                opt.classList.add('correct');
+                            }
+                        });
+                    }
+                }
+            });
+
+            const result = quiz.querySelector('.quiz-result');
+            result.classList.add('show');
+
+            if (correct === total) {
+                result.className = 'quiz-result show pass';
+                result.innerHTML = `<strong>Perfect!</strong> ${correct}/${total} correct.`;
+            } else {
+                result.className = 'quiz-result show fail';
+                result.innerHTML = `<strong>${correct}/${total} correct.</strong> Review the material and try again!`;
+            }
+        }
+
+        // I/Q Diagram interactivity
+        function initIQDiagram() {
+            const canvas = document.getElementById('iqCanvas');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            const iSlider = document.getElementById('iValue');
+            const qSlider = document.getElementById('qValue');
+
+            function draw() {
+                const i = parseFloat(iSlider.value);
+                const q = parseFloat(qSlider.value);
+
+                // Update displays
+                document.getElementById('iDisplay').textContent = i.toFixed(2);
+                document.getElementById('qDisplay').textContent = q.toFixed(2);
+                document.getElementById('magDisplay').textContent = Math.sqrt(i*i + q*q).toFixed(2);
+                document.getElementById('phaseDisplay').textContent = (Math.atan2(q, i) * 180 / Math.PI).toFixed(1) + '°';
+
+                // Clear
+                ctx.fillStyle = '#161b22';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                const scale = 100;
+
+                // Draw axes
+                ctx.strokeStyle = '#30363d';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, cy);
+                ctx.lineTo(canvas.width, cy);
+                ctx.moveTo(cx, 0);
+                ctx.lineTo(cx, canvas.height);
+                ctx.stroke();
+
+                // Labels
+                ctx.fillStyle = '#8b949e';
+                ctx.font = '14px sans-serif';
+                ctx.fillText('I', canvas.width - 20, cy - 10);
+                ctx.fillText('Q', cx + 10, 20);
+
+                // Unit circle
+                ctx.strokeStyle = '#30363d';
+                ctx.beginPath();
+                ctx.arc(cx, cy, scale, 0, 2 * Math.PI);
+                ctx.stroke();
+
+                // Draw vector
+                const px = cx + i * scale;
+                const py = cy - q * scale;  // Flip Y
+
+                ctx.strokeStyle = '#58a6ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(px, py);
+                ctx.stroke();
+
+                // Draw point
+                ctx.fillStyle = '#58a6ff';
+                ctx.beginPath();
+                ctx.arc(px, py, 8, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Draw projections
+                ctx.strokeStyle = '#3fb950';
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+                ctx.moveTo(px, py);
+                ctx.lineTo(px, cy);
+                ctx.moveTo(px, py);
+                ctx.lineTo(cx, py);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            iSlider.addEventListener('input', draw);
+            qSlider.addEventListener('input', draw);
+            draw();
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            initIQDiagram();
+            showModule('intro');
+        });
+    </script>
+</body>
+</html>

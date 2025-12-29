@@ -1,0 +1,63 @@
+# N210 USRP Configuration
+# trace:FR-0092 | ai:claude
+
+device:
+  driver: uhd
+  type: n210
+  address: "192.168.10.2"
+  # Serial number (optional, for multi-device setups)
+  # serial: "ABC123"
+
+rf:
+  # Center frequency in Hz
+  frequency: 915000000  # 915 MHz (US ISM band)
+
+  # Sample rate in Hz
+  # N210 max: 50 MS/s per channel, 25 MS/s with MIMO
+  sample_rate: 1000000  # 1 MS/s (good for LoRa SF7-SF12)
+
+  # Analog bandwidth in Hz
+  bandwidth: 1000000
+
+  # Gain settings in dB
+  rx_gain: 30.0
+  tx_gain: 30.0
+
+  # Antenna ports
+  rx_antenna: "RX2"
+  tx_antenna: "TX/RX"
+
+# Daughterboard specific settings
+# Adjust based on your installed daughterboard
+daughterboard:
+  # Common daughterboards: WBX, SBX, UBX, CBX, TVRX2
+  # Frequency ranges vary by daughterboard
+  type: auto  # Auto-detect
+
+clock:
+  # Clock source: internal, external, gpsdo, mimo
+  source: internal
+
+  # Time source: none, external, gpsdo
+  time_source: none
+
+  # External reference frequency (if using external)
+  # ref_freq: 10000000  # 10 MHz
+
+streaming:
+  # Buffer size in samples
+  buffer_size: 8192
+
+  # Number of buffers
+  num_buffers: 8
+
+  # Sample format
+  format: cf32  # Complex float32 (native)
+
+network:
+  # For N210/N200/N300 series over Ethernet
+  mtu: 8000  # Jumbo frames recommended
+
+  # Transport hints for performance
+  recv_frame_size: 8000
+  send_frame_size: 8000

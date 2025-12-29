@@ -1,0 +1,27 @@
+[package]
+name = "r4w-web"
+description = "R4W Explorer (WebAssembly version)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+r4w-gui = { path = "../r4w-gui", default-features = false, features = ["web"] }
+eframe = { version = "0.29", default-features = false, features = ["glow"] }
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = [
+    "Window",
+    "Document",
+    "HtmlCanvasElement",
+    "Element",
+] }
+console_log = "1"
+console_error_panic_hook = "0.1"
+log = "0.4"
+
+# Enable JS backend for random number generation in WASM
+getrandom = { version = "0.2", features = ["js"] }

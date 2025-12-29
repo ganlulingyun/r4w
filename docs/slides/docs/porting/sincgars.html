@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Porting: sincgars - R4W Documentation</title>
+    <link rel="stylesheet" href="../docs/style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../../index.html">Presentations</a>
+        <a href="../index.html">Documentation</a>
+    </div>
+    <h1 id="sincgars-porting-guide">SINCGARS Porting Guide</h1>
+    <p>Single Channel Ground and Airborne Radio System (SINCGARS) - VHF
+    Frequency Hopping tactical radio.</p>
+    <h2 id="overview">Overview</h2>
+    <p>This guide describes how to port the SINCGARS waveform to the R4W
+    framework. SINCGARS uses Frequency Hopping Spread Spectrum (FHSS)
+    with certain classified elements that must be provided by authorized
+    implementers.</p>
+    <p>The implementation separates <strong>unclassified framework
+    code</strong> from <strong>classified algorithms</strong> using Rust
+    traits.</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Property</th>
+    <th>Value</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Frequency Range</td>
+    <td>30-88 MHz (VHF)</td>
+    </tr>
+    <tr class="even">
+    <td>Channel Spacing</td>
+    <td>25 kHz</td>
+    </tr>
+    <tr class="odd">
+    <td>Number of Channels</td>
+    <td>2,320</td>
+    </tr>
+    <tr class="even">
+    <td>Hop Rate</td>
+    <td>100+ hops/second</td>
+    </tr>
+    <tr class="odd">
+    <td>Modulation</td>
+    <td>FM (voice), FSK (data)</td>
+    </tr>
+    <tr class="even">
+    <td>Voice Codec</td>
+    <td>CVSD (16/32 kbps)</td>
+    </tr>
+    <tr class="odd">
+    <td>Data Rates</td>
+    <td>75-16,000 bps</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="implementation-status">Implementation Status</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│ SINCGARS Implementation Status                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ [████████████████████████████░░░░░░░░░░░░░░░░░░░░] 59%          │
+├─────────────────────────────────────────────────────────────────┤
+│ ✅ FM Modulation/Demodulation    (15% effort) - Complete        │
+│ ✅ CVSD Voice Codec              (12% effort) - Complete        │
+│ ✅ FSK Data Modem                (10% effort) - Complete        │
+│ ✅ Message Framing               (8% effort)  - Complete        │
+│ ✅ Framework                     (5% effort)  - Complete        │
+│ ⚠️  HoppingAlgorithm             (20% effort) - Simulator        │
+│ ⚠️  TransecProvider              (12% effort) - Simulator        │
+│ ⚠️  TimeSyncProtocol             (8% effort)  - Simulator        │
+│ ⚠️  NetIdMapper                  (5% effort)  - Simulator        │
+│ ⚠️  CryptoProvider               (5% effort)  - Simulator        │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="architecture">Architecture</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     SINCGARS Waveform                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐       │
+│  │    Voice     │    │    Data      │    │   Control    │       │
+│  │   (CVSD)     │    │   (FSK)      │    │  Messages    │       │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬───────┘       │
+│         │                   │                   │               │
+│         └───────────────────┴───────────────────┘               │
+│                             │                                   │
+│                    ┌────────▼────────┐                          │
+│                    │  Frame Builder   │                         │
+│                    │  (Unclassified)  │                         │
+│                    └────────┬─────────┘                         │
+│                             │                                   │
+│         ┌───────────────────┼───────────────────┐               │
+│         ▼                   ▼                   ▼               │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
+│  │   TRANSEC   │    │   Hopping   │    │    Time     │          │
+│  │   Crypto    │    │  Algorithm  │    │    Sync     │          │
+│  │ (CLASSIFIED)│    │ (CLASSIFIED)│    │ (CLASSIFIED)│          │
+│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘          │
+│         │                  │                   │                │
+│         └──────────────────┴───────────────────┘                │
+│                            │                                    │
+│                   ┌────────▼────────┐                           │
+│                   │  FM Modulator   │                           │
+│                   │  (Unclassified) │                           │
+│                   └────────┬────────┘                           │
+│                            │                                    │
+│                            ▼                                    │
+│                      RF Output                                  │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="traits-to-implement">Traits to Implement</h2>
+    <h3 id="hoppingalgorithm-20-of-total-effort">1. HoppingAlgorithm
+    (20% of total effort)</h3>
+    <p>The core TRANSEC hopping algorithm. This is the most complex
+    classified component.</p>
+    <div class="sourceCode" id="cb3"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Location: crates/r4w-core/src/waveform/sincgars/traits.rs</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> HoppingAlgorithm<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Initialize with TRANSEC key and network parameters</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>TransecKey<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> time<span class="op">:</span> SincgarsTime)<span class="op">;</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current channel (0-2319)</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_channel(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> ChannelNumber<span class="op">;</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Advance to next hop</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> advance_hop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Synchronize to a specific time</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sync_to_time(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> time<span class="op">:</span> SincgarsTime)<span class="op">;</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Convert absolute time to hop number</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> time_to_hop_number(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> time<span class="op">:</span> SincgarsTime) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if hopper is initialized and valid</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_valid(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Reset to initial state</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current hop count</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_hop_number(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Look ahead at upcoming channels (for transmit scheduling)</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> peek_channels(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> count<span class="op">:</span> <span class="dt">usize</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>ChannelNumber<span class="op">&gt;;</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p><strong>Implementation Notes:</strong> - The hopping algorithm
+    uses the TRANSEC key as a seed for a pseudo-random sequence -
+    Channel selection must match exactly with other radios on the
+    network - Time synchronization is critical - all radios must be
+    within ±1ms - Hop dwell time varies by mode (typically 5-10ms)</p>
+    <p><strong>Test Vectors:</strong> Your implementation should be
+    validated against known test vectors from classified
+    documentation.</p>
+    <h3 id="transecprovider-12-of-total-effort">2. TransecProvider (12%
+    of total effort)</h3>
+    <p>Manages TRANSEC key material.</p>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TransecProvider<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Load a key from key ID</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_key(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key_id<span class="op">:</span> KeyId) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>TransecKey<span class="op">,</span> TransecError<span class="op">&gt;;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Securely zeroize all key material</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if a valid key is loaded</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> has_valid_key(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get metadata about current key (key ID, expiration, etc.)</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_key_metadata(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>KeyMetadata<span class="op">&gt;;</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Derive session key for crypto operations</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> derive_session_key(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> context<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>SessionKey<span class="op">,</span> TransecError<span class="op">&gt;;</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get reference to current key (for hopping algorithm)</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_key(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;&amp;</span>TransecKey<span class="op">&gt;;</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p><strong>Implementation Notes:</strong> - Keys are typically
+    loaded from a fill device (KYK-13, AN/CYZ-10) - Must support key
+    rollover (multiple keys with activation times) - Zeroization must be
+    cryptographically complete - Consider hardware security module
+    integration for key storage</p>
+    <h3 id="cryptoprovider-5-of-total-effort">3. CryptoProvider (5% of
+    total effort)</h3>
+    <p>Encrypts/decrypts data frames.</p>
+    <div class="sourceCode" id="cb5"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> CryptoProvider<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Encrypt plaintext</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> plaintext<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> context<span class="op">:</span> <span class="op">&amp;</span>CryptoContext) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> CryptoError<span class="op">&gt;;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Decrypt ciphertext</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> ciphertext<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> context<span class="op">:</span> <span class="op">&amp;</span>CryptoContext) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> CryptoError<span class="op">&gt;;</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Generate sync vector for transmission</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> generate_sync_vector(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> SyncVector<span class="op">;</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Process received sync vector</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> process_sync_vector(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> sync<span class="op">:</span> <span class="op">&amp;</span>SyncVector) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> CryptoError<span class="op">&gt;;</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Securely zeroize crypto state</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if crypto is ready for operation</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_ready(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Initialize with session key</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>SessionKey) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> CryptoError<span class="op">&gt;;</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current frame counter (for replay protection)</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_frame_counter(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="timesyncprotocol-8-of-total-effort">4. TimeSyncProtocol (8%
+    of total effort)</h3>
+    <p>Network time synchronization for coordinated hopping.</p>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TimeSyncProtocol<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current network time</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_network_time(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> SincgarsTime<span class="op">;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Process received time sync message</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> process_sync_message(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> msg<span class="op">:</span> <span class="op">&amp;</span>TimeSyncMessage) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> SyncError<span class="op">&gt;;</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Generate time sync message for transmission</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> generate_sync_message(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> TimeSyncMessage<span class="op">;</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if synchronized to network</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_synchronized(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get synchronization quality (offset, jitter)</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sync_quality(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> SyncQuality<span class="op">;</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Force resynchronization</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> resync(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p><strong>Implementation Notes:</strong> - SINCGARS uses GPS time
+    when available - Without GPS, uses network time synchronization
+    protocol - Synchronization must be maintained within ±1ms for
+    reliable hopping</p>
+    <h3 id="netidmapper-5-of-total-effort">5. NetIdMapper (5% of total
+    effort)</h3>
+    <p>Maps network IDs to configurations.</p>
+    <div class="sourceCode" id="cb7"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> NetIdMapper<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get configuration for a network ID</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_net_config(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>NetConfig<span class="op">&gt;;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if authorized for a network</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_authorized(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get list of authorized networks</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> authorized_networks(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>NetId<span class="op">&gt;;</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Load network configuration</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_config(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> config<span class="op">:</span> NetConfig) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> NetError<span class="op">&gt;;</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="unclassified-framework-components">Unclassified Framework
+    Components</h2>
+    <p>The following components are provided by R4W and are
+    unclassified:</p>
+    <h3 id="rf-parameters-public-knowledge">RF Parameters (Public
+    Knowledge)</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Parameter</th>
+    <th>Value</th>
+    <th>Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Frequency Range</td>
+    <td>30-87.975 MHz</td>
+    <td>VHF band</td>
+    </tr>
+    <tr class="even">
+    <td>Channel Spacing</td>
+    <td>25 kHz</td>
+    <td>Standard channelization</td>
+    </tr>
+    <tr class="odd">
+    <td>Number of Channels</td>
+    <td>2320</td>
+    <td>Across the band</td>
+    </tr>
+    <tr class="even">
+    <td>Hop Rate</td>
+    <td>100 hops/sec</td>
+    <td>Standard mode</td>
+    </tr>
+    <tr class="odd">
+    <td>Modulation</td>
+    <td>FM</td>
+    <td>±6 kHz deviation</td>
+    </tr>
+    <tr class="even">
+    <td>Data Rates</td>
+    <td>16 kbps (voice), up to 16 kbps (data)</td>
+    <td></td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="voice-codec">Voice Codec</h3>
+    <p>SINCGARS uses CVSD (Continuously Variable Slope Delta modulation)
+    for voice: - 16 kbps digitized voice - Frame-based processing -
+    Provided in <code>sincgars/audio.rs</code></p>
+    <h3 id="data-modes">Data Modes</h3>
+    <p>Multiple data modes are supported: - Low-speed data (75-2400 bps)
+    - Medium-speed data (4800 bps) - High-speed data (16 kbps)</p>
+    <p>Framing and error correction provided in
+    <code>sincgars/data.rs</code>.</p>
+    <h2 id="testing-with-simulator">Testing with Simulator</h2>
+    <p>For development and testing, dummy implementations are
+    provided:</p>
+    <div class="sourceCode" id="cb8"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::sincgars::simulator::</span><span class="op">{</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    SimulatorHopper<span class="op">,</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    SimulatorTransec<span class="op">,</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    SimulatorNetMapper<span class="op">,</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    SimulatorTimeSync<span class="op">,</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    SimulatorCrypto<span class="op">,</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Creates a fully functional SINCGARS for testing</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Uses deterministic, non-secure algorithms</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> test_sincgars <span class="op">=</span> <span class="pp">SincgarsBuilder::</span>simulator()<span class="op">.</span>build()<span class="op">.</span>unwrap()<span class="op">;</span></span></code></pre></div>
+    <p>The simulator implementations: - Use deterministic LFSR-based
+    hopping (not secure, but functional) - Accept any “key” for testing
+    - Provide consistent behavior for unit tests - Generate
+    realistic-looking but non-classified sequences</p>
+    <h2 id="step-by-step-porting-procedure">Step-by-Step Porting
+    Procedure</h2>
+    <h3 id="phase-1-environment-setup">Phase 1: Environment Setup</h3>
+    <div class="sourceCode" id="cb9"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Clone R4W repository (on classified network or air-gapped)</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone /path/to/r4w.git</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> r4w</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Vendor dependencies (if not already done)</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> vendor</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Create classified implementation crate</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> crates/sincgars-classified</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> crates/sincgars-classified</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> init <span class="at">--lib</span></span></code></pre></div>
+    <h3 id="phase-2-create-classified-crate-structure">Phase 2: Create
+    Classified Crate Structure</h3>
+    <pre><code>crates/sincgars-classified/
+├── Cargo.toml
+├── src/
+│   ├── lib.rs
+│   ├── hopper.rs          # HoppingAlgorithm implementation
+│   ├── transec.rs         # TransecProvider implementation
+│   ├── crypto.rs          # CryptoProvider implementation
+│   ├── time_sync.rs       # TimeSyncProtocol implementation
+│   ├── net_mapper.rs      # NetIdMapper implementation
+│   └── tests/
+│       └── test_vectors.rs  # Classified test vectors
+└── test_vectors/
+    └── hopping_sequences.bin  # Binary test data</code></pre>
+    <h3 id="phase-3-implement-traits">Phase 3: Implement Traits</h3>
+    <div class="sourceCode" id="cb11"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/sincgars-classified/src/lib.rs</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::sincgars::traits::</span><span class="op">*;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> hopper<span class="op">;</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> transec<span class="op">;</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> crypto<span class="op">;</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> time_sync<span class="op">;</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> net_mapper<span class="op">;</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">hopper::</span>ClassifiedHopper<span class="op">;</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">transec::</span>ClassifiedTransec<span class="op">;</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">crypto::</span>ClassifiedCrypto<span class="op">;</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">time_sync::</span>ClassifiedTimeSync<span class="op">;</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">net_mapper::</span>ClassifiedNetMapper<span class="op">;</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="co">/// Create a fully-configured SINCGARS with classified components</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">fn</span> create_operational_sincgars(sample_rate<span class="op">:</span> <span class="dt">f64</span>) <span class="op">-&gt;</span> <span class="pp">r4w_core::waveform::sincgars::</span>Sincgars <span class="op">{</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    <span class="pp">r4w_core::waveform::sincgars::SincgarsBuilder::</span>new()</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>sample_rate(sample_rate)</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>hopper(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedHopper::</span>new()))</span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>transec(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedTransec::</span>new()))</span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>crypto(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedCrypto::</span>new()))</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>time_sync(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedTimeSync::</span>new()))</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>net_mapper(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedNetMapper::</span>new()))</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>build()</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>expect(<span class="st">&quot;Failed to build SINCGARS&quot;</span>)</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-4-hopper-implementation-example">Phase 4: Hopper
+    Implementation Example</h3>
+    <div class="sourceCode" id="cb12"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/sincgars-classified/src/hopper.rs</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::sincgars::traits::</span><span class="op">*;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    key<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>TransecKey<span class="op">&gt;,</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    net_id<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>NetId<span class="op">&gt;,</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    current_hop<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    state<span class="op">:</span> HopperState<span class="op">,</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> HopperState <span class="op">{</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Classified algorithm state</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>            key<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>            net_id<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a>            current_hop<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a>            state<span class="op">:</span> <span class="pp">HopperState::</span><span class="kw">default</span>()<span class="op">,</span></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Core hopping algorithm (CLASSIFIED)</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> compute_channel(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> hop_number<span class="op">:</span> <span class="dt">u64</span>) <span class="op">-&gt;</span> ChannelNumber <span class="op">{</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>        <span class="co">// This is where the classified algorithm goes</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>        <span class="co">// The actual implementation uses the TRANSEC key and</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>        <span class="co">// a cryptographic function to generate a pseudo-random</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>        <span class="co">// channel sequence that is synchronized across all radios</span></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>        <span class="co">// on the same net with the same key.</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>        <span class="co">// PLACEHOLDER - Replace with actual algorithm</span></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> key_bytes <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>key<span class="op">.</span>as_ref()<span class="op">.</span>unwrap()<span class="op">.</span>as_bytes()<span class="op">;</span></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> net <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>net_id<span class="op">.</span>unwrap()<span class="op">.</span><span class="dv">0</span> <span class="kw">as</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Example structure (NOT the real algorithm):</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>        <span class="co">// channel = f(key, net_id, hop_number) mod 2320</span></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> seed <span class="op">=</span> key_bytes[<span class="dv">0</span>] <span class="kw">as</span> <span class="dt">u64</span> <span class="op">^</span> (hop_number <span class="op">&lt;&lt;</span> <span class="dv">8</span>) <span class="op">^</span> (net <span class="op">&lt;&lt;</span> <span class="dv">16</span>)<span class="op">;</span></span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>        ChannelNumber((seed <span class="op">%</span> <span class="dv">2320</span>) <span class="kw">as</span> <span class="dt">u16</span>)</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> HoppingAlgorithm <span class="cf">for</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>TransecKey<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> time<span class="op">:</span> SincgarsTime) <span class="op">{</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>key <span class="op">=</span> <span class="cn">Some</span>(key<span class="op">.</span>clone())<span class="op">;</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>net_id <span class="op">=</span> <span class="cn">Some</span>(net_id)<span class="op">;</span></span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>time_to_hop_number(time)<span class="op">;</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>state <span class="op">=</span> <span class="pp">HopperState::</span>initialize(key<span class="op">,</span> net_id)<span class="op">;</span></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_channel(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> ChannelNumber <span class="op">{</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>compute_channel(<span class="kw">self</span><span class="op">.</span>current_hop)</span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> advance_hop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop <span class="op">+=</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sync_to_time(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> time<span class="op">:</span> SincgarsTime) <span class="op">{</span></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>time_to_hop_number(time)<span class="op">;</span></span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-65"><a href="#cb12-65" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> time_to_hop_number(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> time<span class="op">:</span> SincgarsTime) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span></span>
+<span id="cb12-66"><a href="#cb12-66" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Convert time to hop number based on hop rate</span></span>
+<span id="cb12-67"><a href="#cb12-67" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Assuming 100 hops/second</span></span>
+<span id="cb12-68"><a href="#cb12-68" aria-hidden="true" tabindex="-1"></a>        (time<span class="op">.</span>as_millis() <span class="op">/</span> <span class="dv">10</span>) <span class="kw">as</span> <span class="dt">u64</span></span>
+<span id="cb12-69"><a href="#cb12-69" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-70"><a href="#cb12-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-71"><a href="#cb12-71" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_valid(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span> <span class="op">{</span></span>
+<span id="cb12-72"><a href="#cb12-72" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>key<span class="op">.</span>is_some() <span class="op">&amp;&amp;</span> <span class="kw">self</span><span class="op">.</span>net_id<span class="op">.</span>is_some()</span>
+<span id="cb12-73"><a href="#cb12-73" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-74"><a href="#cb12-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-75"><a href="#cb12-75" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb12-76"><a href="#cb12-76" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>key <span class="op">=</span> <span class="cn">None</span><span class="op">;</span></span>
+<span id="cb12-77"><a href="#cb12-77" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>net_id <span class="op">=</span> <span class="cn">None</span><span class="op">;</span></span>
+<span id="cb12-78"><a href="#cb12-78" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb12-79"><a href="#cb12-79" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>state<span class="op">.</span>zeroize()<span class="op">;</span></span>
+<span id="cb12-80"><a href="#cb12-80" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-81"><a href="#cb12-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-82"><a href="#cb12-82" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_hop_number(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span></span>
+<span id="cb12-83"><a href="#cb12-83" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop</span>
+<span id="cb12-84"><a href="#cb12-84" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-85"><a href="#cb12-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-86"><a href="#cb12-86" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> peek_channels(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> count<span class="op">:</span> <span class="dt">usize</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>ChannelNumber<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb12-87"><a href="#cb12-87" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">0</span><span class="op">..</span>count)</span>
+<span id="cb12-88"><a href="#cb12-88" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>i<span class="op">|</span> <span class="kw">self</span><span class="op">.</span>compute_channel(<span class="kw">self</span><span class="op">.</span>current_hop <span class="op">+</span> i <span class="kw">as</span> <span class="dt">u64</span>))</span>
+<span id="cb12-89"><a href="#cb12-89" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb12-90"><a href="#cb12-90" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-91"><a href="#cb12-91" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-92"><a href="#cb12-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-93"><a href="#cb12-93" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> <span class="bu">Drop</span> <span class="cf">for</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb12-94"><a href="#cb12-94" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> drop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb12-95"><a href="#cb12-95" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Secure zeroization</span></span>
+<span id="cb12-96"><a href="#cb12-96" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>reset()<span class="op">;</span></span>
+<span id="cb12-97"><a href="#cb12-97" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-98"><a href="#cb12-98" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-5-build-configuration">Phase 5: Build
+    Configuration</h3>
+    <div class="sourceCode" id="cb13"><pre
+    class="sourceCode toml"><code class="sourceCode toml"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># crates/sincgars-classified/Cargo.toml</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">[package]</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="dt">name</span> <span class="op">=</span> <span class="st">&quot;sincgars-classified&quot;</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="dt">version</span> <span class="op">=</span> <span class="st">&quot;0.1.0&quot;</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="dt">edition</span> <span class="op">=</span> <span class="st">&quot;2021&quot;</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="kw">[lib]</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a><span class="dt">crate-type</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;rlib&quot;</span><span class="op">,</span> <span class="st">&quot;staticlib&quot;</span><span class="op">]</span>  <span class="co"># Both for Rust and C linking</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="kw">[dependencies]</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="dt">r4w-core</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">path</span><span class="op"> =</span> <span class="st">&quot;../r4w-core&quot;</span><span class="op"> }</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a><span class="dt">zeroize</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">version</span><span class="op"> =</span> <span class="st">&quot;1.7&quot;</span><span class="op">, </span><span class="dt">features</span><span class="op"> =</span> <span class="op">[</span><span class="st">&quot;derive&quot;</span><span class="op">] }</span>  <span class="co"># Secure memory clearing</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a><span class="kw">[dev-dependencies]</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="co"># Test dependencies</span></span></code></pre></div>
+    <h3 id="phase-6-integration">Phase 6: Integration</h3>
+    <div class="sourceCode" id="cb14"><pre
+    class="sourceCode toml"><code class="sourceCode toml"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Your application&#39;s Cargo.toml</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="kw">[dependencies]</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="dt">r4w-core</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">path</span><span class="op"> =</span> <span class="st">&quot;crates/r4w-core&quot;</span><span class="op"> }</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="dt">sincgars-classified</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">path</span><span class="op"> =</span> <span class="st">&quot;crates/sincgars-classified&quot;</span><span class="op"> }</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="kw">[features]</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="dt">default</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;classified&quot;</span><span class="op">]</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="dt">classified</span> <span class="op">=</span> <span class="op">[]</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="dt">simulator</span> <span class="op">=</span> <span class="op">[]</span>  <span class="co"># For testing with unclassified stubs</span></span></code></pre></div>
+    <div class="sourceCode" id="cb15"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">// src/main.rs</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">sincgars_classified::</span>create_operational_sincgars<span class="op">;</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> main() <span class="op">{</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> radio <span class="op">=</span> create_operational_sincgars(<span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Load TRANSEC key (from fill device)</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> key <span class="op">=</span> load_transec_key(<span class="st">&quot;/dev/fill_device&quot;</span>)<span class="op">?;</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    radio<span class="op">.</span>transec()<span class="op">.</span>load_key(key)<span class="op">?;</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Join network</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>    radio<span class="op">.</span>join_network(NetId(<span class="dv">1</span>)<span class="op">,</span> key_id)<span class="op">?;</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Transmit</span></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> audio <span class="op">=</span> record_audio()<span class="op">;</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> rf_samples <span class="op">=</span> radio<span class="op">.</span>modulate(<span class="op">&amp;</span>audio)<span class="op">;</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>    transmit(rf_samples)<span class="op">;</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-7-testing">Phase 7: Testing</h3>
+    <div class="sourceCode" id="cb16"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/sincgars-classified/src/tests/test_vectors.rs</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>cfg<span class="at">(</span>test<span class="at">)]</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> tests <span class="op">{</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">use</span> <span class="kw">super</span><span class="pp">::</span><span class="op">*;</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Load test vectors from classified documentation</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> TEST_KEY<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>] <span class="op">=</span> <span class="pp">include_bytes!</span>(<span class="st">&quot;../../test_vectors/test_key.bin&quot;</span>)<span class="op">;</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">const</span> EXPECTED_SEQUENCE<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u16</span>] <span class="op">=</span> <span class="op">&amp;</span>[</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>        <span class="co">// First 100 channels for test key/net combination</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>        <span class="dv">1423</span><span class="op">,</span> <span class="dv">892</span><span class="op">,</span> <span class="dv">2105</span><span class="op">,</span> <span class="dv">341</span><span class="op">,</span> <span class="dv">1867</span><span class="op">,</span> <span class="co">/* ... */</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">;</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> test_hopping_sequence() <span class="op">{</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> hopper <span class="op">=</span> <span class="pp">ClassifiedHopper::</span>new()<span class="op">;</span></span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> key <span class="op">=</span> <span class="pp">TransecKey::</span>from_bytes(TEST_KEY)<span class="op">;</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>        hopper<span class="op">.</span>initialize(<span class="op">&amp;</span>key<span class="op">,</span> NetId(<span class="dv">1</span>)<span class="op">,</span> <span class="pp">SincgarsTime::</span>from_secs(<span class="dv">0</span>))<span class="op">;</span></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> (i<span class="op">,</span> <span class="op">&amp;</span>expected) <span class="kw">in</span> EXPECTED_SEQUENCE<span class="op">.</span>iter()<span class="op">.</span>enumerate() <span class="op">{</span></span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> channel <span class="op">=</span> hopper<span class="op">.</span>get_current_channel()<span class="op">;</span></span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a>            <span class="pp">assert_eq!</span>(</span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>                channel<span class="op">.</span><span class="dv">0</span><span class="op">,</span> expected<span class="op">,</span></span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>                <span class="st">&quot;Hop {} mismatch: got {}, expected {}&quot;</span><span class="op">,</span></span>
+<span id="cb16-25"><a href="#cb16-25" aria-hidden="true" tabindex="-1"></a>                i<span class="op">,</span> channel<span class="op">.</span><span class="dv">0</span><span class="op">,</span> expected</span>
+<span id="cb16-26"><a href="#cb16-26" aria-hidden="true" tabindex="-1"></a>            )<span class="op">;</span></span>
+<span id="cb16-27"><a href="#cb16-27" aria-hidden="true" tabindex="-1"></a>            hopper<span class="op">.</span>advance_hop()<span class="op">;</span></span>
+<span id="cb16-28"><a href="#cb16-28" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb16-29"><a href="#cb16-29" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb16-30"><a href="#cb16-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-31"><a href="#cb16-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb16-32"><a href="#cb16-32" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> test_time_synchronization() <span class="op">{</span></span>
+<span id="cb16-33"><a href="#cb16-33" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> hopper1 <span class="op">=</span> <span class="pp">ClassifiedHopper::</span>new()<span class="op">;</span></span>
+<span id="cb16-34"><a href="#cb16-34" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> hopper2 <span class="op">=</span> <span class="pp">ClassifiedHopper::</span>new()<span class="op">;</span></span>
+<span id="cb16-35"><a href="#cb16-35" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> key <span class="op">=</span> <span class="pp">TransecKey::</span>from_bytes(TEST_KEY)<span class="op">;</span></span>
+<span id="cb16-36"><a href="#cb16-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-37"><a href="#cb16-37" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Initialize at different times</span></span>
+<span id="cb16-38"><a href="#cb16-38" aria-hidden="true" tabindex="-1"></a>        hopper1<span class="op">.</span>initialize(<span class="op">&amp;</span>key<span class="op">,</span> NetId(<span class="dv">1</span>)<span class="op">,</span> <span class="pp">SincgarsTime::</span>from_secs(<span class="dv">1000</span>))<span class="op">;</span></span>
+<span id="cb16-39"><a href="#cb16-39" aria-hidden="true" tabindex="-1"></a>        hopper2<span class="op">.</span>initialize(<span class="op">&amp;</span>key<span class="op">,</span> NetId(<span class="dv">1</span>)<span class="op">,</span> <span class="pp">SincgarsTime::</span>from_secs(<span class="dv">1000</span>))<span class="op">;</span></span>
+<span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Should produce identical sequences</span></span>
+<span id="cb16-42"><a href="#cb16-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> _ <span class="kw">in</span> <span class="dv">0</span><span class="op">..</span><span class="dv">1000</span> <span class="op">{</span></span>
+<span id="cb16-43"><a href="#cb16-43" aria-hidden="true" tabindex="-1"></a>            <span class="pp">assert_eq!</span>(</span>
+<span id="cb16-44"><a href="#cb16-44" aria-hidden="true" tabindex="-1"></a>                hopper1<span class="op">.</span>get_current_channel()<span class="op">,</span></span>
+<span id="cb16-45"><a href="#cb16-45" aria-hidden="true" tabindex="-1"></a>                hopper2<span class="op">.</span>get_current_channel()</span>
+<span id="cb16-46"><a href="#cb16-46" aria-hidden="true" tabindex="-1"></a>            )<span class="op">;</span></span>
+<span id="cb16-47"><a href="#cb16-47" aria-hidden="true" tabindex="-1"></a>            hopper1<span class="op">.</span>advance_hop()<span class="op">;</span></span>
+<span id="cb16-48"><a href="#cb16-48" aria-hidden="true" tabindex="-1"></a>            hopper2<span class="op">.</span>advance_hop()<span class="op">;</span></span>
+<span id="cb16-49"><a href="#cb16-49" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb16-50"><a href="#cb16-50" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb16-51"><a href="#cb16-51" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="bridging-existing-cc-sincgars-implementation">Bridging
+    Existing C/C++ SINCGARS Implementation</h2>
+    <p>If you have an existing C/C++ SINCGARS implementation:</p>
+    <div class="sourceCode" id="cb17"><pre
+    class="sourceCode c"><code class="sourceCode c"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">// existing_sincgars.h (your existing code)</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">typedef</span> <span class="kw">struct</span> SincgarsState SincgarsState<span class="op">;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>SincgarsState<span class="op">*</span> sincgars_create<span class="op">(</span><span class="dt">void</span><span class="op">);</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> sincgars_destroy<span class="op">(</span>SincgarsState<span class="op">*</span> state<span class="op">);</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> sincgars_init<span class="op">(</span>SincgarsState<span class="op">*</span> state<span class="op">,</span> <span class="dt">const</span> <span class="dt">uint8_t</span><span class="op">*</span> key<span class="op">,</span> <span class="dt">uint32_t</span> net_id<span class="op">,</span> <span class="dt">uint64_t</span> time<span class="op">);</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="dt">uint16_t</span> sincgars_get_channel<span class="op">(</span>SincgarsState<span class="op">*</span> state<span class="op">);</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> sincgars_advance<span class="op">(</span>SincgarsState<span class="op">*</span> state<span class="op">);</span></span></code></pre></div>
+    <p>Create Rust bridge:</p>
+    <div class="sourceCode" id="cb18"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/sincgars-classified/src/hopper_ffi.rs</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::ffi::</span><span class="dt">c_void</span><span class="op">;</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>repr<span class="at">(</span>C<span class="at">)]</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> SincgarsState <span class="op">{</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    _private<span class="op">:</span> [<span class="dt">u8</span><span class="op">;</span> <span class="dv">0</span>]<span class="op">,</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="kw">extern</span> <span class="st">&quot;C&quot;</span> <span class="op">{</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sincgars_create() <span class="op">-&gt;</span> <span class="op">*</span><span class="kw">mut</span> SincgarsState<span class="op">;</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sincgars_destroy(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> SincgarsState)<span class="op">;</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sincgars_init(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> SincgarsState<span class="op">,</span> key<span class="op">:</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">u8</span><span class="op">,</span> net_id<span class="op">:</span> <span class="dt">u32</span><span class="op">,</span> time<span class="op">:</span> <span class="dt">u64</span>)<span class="op">;</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sincgars_get_channel(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> SincgarsState) <span class="op">-&gt;</span> <span class="dt">u16</span><span class="op">;</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sincgars_advance(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> SincgarsState)<span class="op">;</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> FfiHopper <span class="op">{</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>    state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> SincgarsState<span class="op">,</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a><span class="kw">unsafe</span> <span class="kw">impl</span> <span class="bu">Send</span> <span class="cf">for</span> FfiHopper <span class="op">{}</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a><span class="kw">unsafe</span> <span class="kw">impl</span> <span class="bu">Sync</span> <span class="cf">for</span> FfiHopper <span class="op">{}</span></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> FfiHopper <span class="op">{</span></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>            state<span class="op">:</span> <span class="kw">unsafe</span> <span class="op">{</span> sincgars_create() <span class="op">},</span></span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> HoppingAlgorithm <span class="cf">for</span> FfiHopper <span class="op">{</span></span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>TransecKey<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> time<span class="op">:</span> SincgarsTime) <span class="op">{</span></span>
+<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span></span>
+<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a>            sincgars_init(<span class="kw">self</span><span class="op">.</span>state<span class="op">,</span> key<span class="op">.</span>as_ptr()<span class="op">,</span> net_id<span class="op">.</span><span class="dv">0</span><span class="op">,</span> time<span class="op">.</span>as_secs())<span class="op">;</span></span>
+<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_channel(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> ChannelNumber <span class="op">{</span></span>
+<span id="cb18-40"><a href="#cb18-40" aria-hidden="true" tabindex="-1"></a>        ChannelNumber(<span class="kw">unsafe</span> <span class="op">{</span> sincgars_get_channel(<span class="kw">self</span><span class="op">.</span>state) <span class="op">}</span>)</span>
+<span id="cb18-41"><a href="#cb18-41" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-42"><a href="#cb18-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-43"><a href="#cb18-43" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> advance_hop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb18-44"><a href="#cb18-44" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span> sincgars_advance(<span class="kw">self</span><span class="op">.</span>state) <span class="op">};</span></span>
+<span id="cb18-45"><a href="#cb18-45" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-46"><a href="#cb18-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-47"><a href="#cb18-47" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ... implement remaining methods</span></span>
+<span id="cb18-48"><a href="#cb18-48" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-49"><a href="#cb18-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-50"><a href="#cb18-50" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> <span class="bu">Drop</span> <span class="cf">for</span> FfiHopper <span class="op">{</span></span>
+<span id="cb18-51"><a href="#cb18-51" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> drop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb18-52"><a href="#cb18-52" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span> sincgars_destroy(<span class="kw">self</span><span class="op">.</span>state) <span class="op">};</span></span>
+<span id="cb18-53"><a href="#cb18-53" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-54"><a href="#cb18-54" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p>Build configuration for linking:</p>
+    <div class="sourceCode" id="cb19"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">// build.rs</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> main() <span class="op">{</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Link existing C library</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;cargo:rustc-link-lib=static=sincgars_legacy&quot;</span>)<span class="op">;</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;cargo:rustc-link-search=native=/path/to/legacy/lib&quot;</span>)<span class="op">;</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Rebuild if library changes</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;cargo:rerun-if-changed=/path/to/legacy/lib/libsincgars_legacy.a&quot;</span>)<span class="op">;</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="cross-compilation-for-target-platforms">Cross-Compilation
+    for Target Platforms</h2>
+    <h3 id="common-sincgars-platforms">Common SINCGARS Platforms</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Platform</th>
+    <th>Target Triple</th>
+    <th>Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Harris RF</td>
+    <td><code>armv7-unknown-linux-gnueabihf</code></td>
+    <td>ARM Cortex-A</td>
+    </tr>
+    <tr class="even">
+    <td>Thales</td>
+    <td><code>aarch64-unknown-linux-gnu</code></td>
+    <td>ARM64</td>
+    </tr>
+    <tr class="odd">
+    <td>L3Harris</td>
+    <td><code>powerpc-unknown-linux-gnu</code></td>
+    <td>PowerPC</td>
+    </tr>
+    <tr class="even">
+    <td>Custom DSP</td>
+    <td>Custom toolchain</td>
+    <td>May need bare metal</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="example-arm-cross-compilation">Example: ARM
+    Cross-Compilation</h3>
+    <div class="sourceCode" id="cb20"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Setup</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="ex">rustup</span> target add armv7-unknown-linux-gnueabihf</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install gcc-arm-linux-gnueabihf</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Configure</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> <span class="op">&gt;</span> .cargo/config.toml <span class="op">&lt;&lt; &#39;EOF&#39;</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="st">[target.armv7-unknown-linux-gnueabihf]</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="st">linker = &quot;arm-linux-gnueabihf-gcc&quot;</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="op">EOF</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Build</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">--target</span> armv7-unknown-linux-gnueabihf</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Output</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="fu">ls</span> target/armv7-unknown-linux-gnueabihf/release/</span></code></pre></div>
+    <h2 id="security-considerations">Security Considerations</h2>
+    <h3 id="for-framework-developers-this-repository">For Framework
+    Developers (This Repository)</h3>
+    <ul>
+    <li>Never attempt to reverse-engineer or guess classified
+    algorithms</li>
+    <li>All trait interfaces are designed to be algorithm-agnostic</li>
+    <li>Simulator implementations are clearly marked as non-secure</li>
+    <li>No classified information should ever be committed</li>
+    </ul>
+    <h3 id="for-classified-implementers">For Classified
+    Implementers</h3>
+    <ul>
+    <li>Implement traits in a separate, access-controlled
+    repository</li>
+    <li>Use proper key management and zeroization</li>
+    <li>Follow NSA/DoD guidelines for handling classified
+    algorithms</li>
+    <li>Ensure proper build isolation and supply chain security</li>
+    </ul>
+    <h3 id="security-checklist">Security Checklist</h3>
+    <ul class="task-list">
+    <li><label><input type="checkbox" />All key material uses
+    <code>zeroize</code> on drop</label></li>
+    <li><label><input type="checkbox" />No classified data in debug
+    output</label></li>
+    <li><label><input type="checkbox" />Timing-constant comparisons for
+    crypto</label></li>
+    <li><label><input type="checkbox" />No heap allocations with
+    classified data (or use secure allocator)</label></li>
+    <li><label><input type="checkbox" />Memory mapped registers cleared
+    on shutdown</label></li>
+    <li><label><input type="checkbox" />Test vectors verified against
+    reference implementation</label></li>
+    <li><label><input type="checkbox" />Code review by cleared
+    personnel</label></li>
+    <li><label><input type="checkbox" />Build reproducibility
+    verified</label></li>
+    </ul>
+    <h2 id="compliance">Compliance</h2>
+    <p>This framework is designed to facilitate compliant SINCGARS
+    implementations:</p>
+    <ul>
+    <li><strong>IATO/ATO</strong>: Framework code can be reviewed
+    independently</li>
+    <li><strong>Type 1 Crypto</strong>: Crypto trait allows NSA-approved
+    implementations</li>
+    <li><strong>TEMPEST</strong>: Framework makes no assumptions about
+    emissions</li>
+    <li><strong>COMSEC</strong>: Key material handling delegated to
+    classified module</li>
+    </ul>
+    <h2 id="see-also">See Also</h2>
+    <ul>
+    <li><a href="./BUILD_PROCEDURES.md">General Build
+    Procedures</a></li>
+    <li><a href="../PORTING_GUIDE_MILITARY.md">Main Porting
+    Guide</a></li>
+    <li><a href="../SECURITY_GUIDE.md">Security Guide</a></li>
+    <li><a href="../ISOLATION_GUIDE.md">Isolation Guide</a></li>
+    </ul>
+</body>
+</html>

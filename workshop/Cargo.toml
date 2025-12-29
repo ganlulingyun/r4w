@@ -1,0 +1,76 @@
+[package]
+name = "r4w-workshop"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "R4W Workshop Exercises for USRP and Advanced DSP"
+publish = false
+
+[dependencies]
+r4w-core = { path = "../crates/r4w-core" }
+r4w-sim = { path = "../crates/r4w-sim" }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+# USRP Exercises
+[[example]]
+name = "01_device_discovery"
+path = "usrp/exercises/01_device_discovery.rs"
+
+[[example]]
+name = "02_basic_rx"
+path = "usrp/exercises/02_basic_rx.rs"
+
+[[example]]
+name = "03_basic_tx"
+path = "usrp/exercises/03_basic_tx.rs"
+
+[[example]]
+name = "04_loopback"
+path = "usrp/exercises/04_loopback.rs"
+
+[[example]]
+name = "05_lora_tx"
+path = "usrp/exercises/05_lora_tx.rs"
+
+[[example]]
+name = "06_lora_rx"
+path = "usrp/exercises/06_lora_rx.rs"
+
+[[example]]
+name = "07_over_the_air"
+path = "usrp/exercises/07_over_the_air.rs"
+
+[[example]]
+name = "08_timing_sync"
+path = "usrp/exercises/08_timing_sync.rs"
+
+[[example]]
+name = "09_sensitivity_test"
+path = "usrp/exercises/09_sensitivity_test.rs"
+
+# Advanced DSP Exercises
+[[example]]
+name = "10_dsp_basics"
+path = "advanced/exercises/10_dsp_basics.rs"
+
+[[example]]
+name = "20_psk_modem"
+path = "advanced/exercises/20_psk_modem.rs"
+
+[[example]]
+name = "30_symbol_timing"
+path = "advanced/exercises/30_symbol_timing.rs"
+
+[[example]]
+name = "50_crc_basics"
+path = "advanced/exercises/50_crc_basics.rs"
+
+[[example]]
+name = "70_ber_testing"
+path = "advanced/exercises/70_ber_testing.rs"
+
+[[example]]
+name = "80_waveform_trait"
+path = "advanced/exercises/80_waveform_trait.rs"

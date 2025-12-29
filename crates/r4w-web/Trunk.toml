@@ -1,0 +1,14 @@
+# Trunk configuration for building the WASM application
+# Build with: trunk build --release
+# Serve with: trunk serve
+
+[build]
+target = "index.html"
+dist = "dist"
+
+[serve]
+address = "127.0.0.1"
+port = 8089
+
+[watch]
+watch = ["src", "index.html"]

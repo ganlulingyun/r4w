@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Porting: link16 - R4W Documentation</title>
+    <link rel="stylesheet" href="../docs/style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../../index.html">Presentations</a>
+        <a href="../index.html">Documentation</a>
+    </div>
+    <h1 id="link-16-porting-guide">Link-16 Porting Guide</h1>
+    <p>Link-16 (TADIL-J) - NATO tactical data link for secure,
+    jam-resistant sharing of situational awareness.</p>
+    <h2 id="overview">Overview</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Property</th>
+    <th>Value</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Frequency Range</td>
+    <td>960-1215 MHz (L-band)</td>
+    </tr>
+    <tr class="even">
+    <td>Number of Frequencies</td>
+    <td>51</td>
+    </tr>
+    <tr class="odd">
+    <td>Frequency Spacing</td>
+    <td>3 MHz</td>
+    </tr>
+    <tr class="even">
+    <td>Modulation</td>
+    <td>MSK (Minimum Shift Keying)</td>
+    </tr>
+    <tr class="odd">
+    <td>Access Method</td>
+    <td>TDMA (Time Division Multiple Access)</td>
+    </tr>
+    <tr class="even">
+    <td>Frame Duration</td>
+    <td>12.8 minutes (1536 time slots)</td>
+    </tr>
+    <tr class="odd">
+    <td>Message Format</td>
+    <td>J-series (J2.2-J28.2)</td>
+    </tr>
+    <tr class="even">
+    <td>FEC</td>
+    <td>Reed-Solomon</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="implementation-status">Implementation Status</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│ Link-16 Implementation Status                                   │
+├─────────────────────────────────────────────────────────────────┤
+│ [██████████████████████████████░░░░░░░░░░░░░░░░░░] 76%          │
+├─────────────────────────────────────────────────────────────────┤
+│ ✅ MSK Modulation                (10% effort) - Complete        │
+│ ✅ TDMA Timing                   (8% effort)  - Complete        │
+│ ✅ J-Series Message Codec        (12% effort) - Complete        │
+│ ✅ Reed-Solomon FEC              (8% effort)  - 80% (basic)     │
+│ ✅ Interleaver                   (5% effort)  - Complete        │
+│ ✅ Pulse Formatter               (6% effort)  - Complete        │
+│ ✅ Track Database                (8% effort)  - Complete        │
+│ ✅ NPG Management                (6% effort)  - Complete        │
+│ ✅ Framework                     (5% effort)  - Complete        │
+│ ⚠️  HoppingPattern               (12% effort) - Simulator        │
+│ ⚠️  TransecProvider              (10% effort) - Simulator        │
+│ ⚠️  TimeSync (NTRU)              (5% effort)  - Partial (60%)    │
+│ ⚠️  NetworkController            (5% effort)  - Partial (70%)    │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="architecture">Architecture</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                       Link-16 Terminal                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │                    J-Series Messages                     │   │
+│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐         │   │
+│  │  │  J2.2   │ │  J3.2   │ │  J7.0   │ │  J28.2  │ ...     │   │
+│  │  │ Track   │ │Position │ │  PPLI   │ │  Free   │         │   │
+│  │  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘         │   │
+│  └───────┼───────────┼───────────┼───────────┼──────────────┘   │
+│          └───────────┴───────────┴───────────┘                  │
+│                             │                                   │
+│                    ┌────────▼────────┐                          │
+│                    │  Message Codec   │                         │
+│                    │  (Unclassified)  │                         │
+│                    └────────┬─────────┘                         │
+│                             │                                   │
+│         ┌───────────────────┼───────────────────┐               │
+│         ▼                   ▼                   ▼               │
+│  ┌──────────────┐    ┌──────────────┐    ┌─────────────┐        │
+│  │ Reed-Solomon │    │ Interleaver  │    │   TRANSEC   │        │
+│  │     FEC      │    │              │    │  (COMSEC)   │        │
+│  │(Unclassified)│    │(Unclassified)│    │ (CLASSIFIED)│        │
+│  └──────┬───────┘    └──────┬───────┘    └──────┬──────┘        │
+│         │                  │                   │                │
+│         └──────────────────┴───────────────────┘                │
+│                            │                                    │
+│         ┌──────────────────┼──────────────────┐                 │
+│         ▼                  ▼                  ▼                 │
+│  ┌──────────────┐   ┌─────────────┐   ┌─────────────┐           │
+│  │    Pulse     │   │   Hopping   │   │   Network   │           │
+│  │  Formatter   │   │   Pattern   │   │  Controller │           │
+│  │(Unclassified)│   │  (COMSEC)   │   │  (Partial)  │           │
+│  └──────┬───────┘   └──────┬──────┘   └──────┬──────┘           │
+│         │                 │                  │                  │
+│         └─────────────────┴──────────────────┘                  │
+│                           │                                     │
+│                  ┌────────▼────────┐                            │
+│                  │  MSK Modulator  │                            │
+│                  │  (Unclassified) │                            │
+│                  └────────┬────────┘                            │
+│                           │                                     │
+│                           ▼                                     │
+│                    RF Output (51 frequencies)                   │
+│                    TDMA Slot Timing                             │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="traits-to-implement">Traits to Implement</h2>
+    <h3 id="hoppingpattern-12-of-total-effort">1. HoppingPattern (12% of
+    total effort)</h3>
+    <p>The frequency hopping pattern generator. This is COMSEC
+    (communications security) data.</p>
+    <div class="sourceCode" id="cb3"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Location: crates/r4w-core/src/waveform/link16/traits.rs</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> HoppingPattern<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Initialize with crypto variable and net ID</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> crypto_var<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> net_id<span class="op">:</span> <span class="dt">u16</span>)<span class="op">;</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get frequency for a given time slot</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_frequency(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> Frequency<span class="op">;</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get all frequencies for an epoch (8 slots)</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_epoch_frequencies(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> epoch<span class="op">:</span> <span class="dt">u8</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>Frequency<span class="op">&gt;;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Reset pattern generator</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if initialized</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_initialized(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get pattern ID (for debugging/verification)</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> pattern_id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u32</span><span class="op">;</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p><strong>Implementation Notes:</strong> - Link-16 uses 51
+    frequencies in the 960-1215 MHz band - The hopping pattern is
+    derived from cryptographic variables - Each net has a unique pattern
+    - Pattern must avoid known interference frequencies (TACAN,
+    etc.)</p>
+    <h3 id="transecprovider-10-of-total-effort">2. TransecProvider (10%
+    of total effort)</h3>
+    <p>TRANSEC encryption for Link-16 messages.</p>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TransecProvider<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Load cryptographic key</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_key(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> Link16Error<span class="op">&gt;;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Encrypt data for transmission</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Decrypt received data</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> Link16Error<span class="op">&gt;;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if key is loaded</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_loaded(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current crypto mode</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> mode(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> CryptoMode<span class="op">;</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Zeroize all key material</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get key status</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> key_status(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> KeyStatus<span class="op">;</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Copy</span><span class="op">,</span> <span class="bu">Debug</span><span class="op">,</span> <span class="bu">PartialEq</span><span class="at">)]</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">enum</span> CryptoMode <span class="op">{</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    Plain<span class="op">,</span>      <span class="co">// No encryption (training mode)</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    Exercise<span class="op">,</span>   <span class="co">// Exercise keys</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    Operational<span class="op">,</span> <span class="co">// Operational keys</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> KeyStatus <span class="op">{</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> loaded<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> mode<span class="op">:</span> CryptoMode<span class="op">,</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> key_id<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">u32</span><span class="op">&gt;,</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> expires<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>TimeSlot<span class="op">&gt;,</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="timesync-5-of-total-effort">3. TimeSync (5% of total
+    effort)</h3>
+    <p>Network Time Reference Unit synchronization.</p>
+    <div class="sourceCode" id="cb5"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TimeSync<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current network time</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_network_time(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> NetworkTime<span class="op">;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if synchronized to network</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_synchronized(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Process received time reference</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> process_time_reference(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> reference<span class="op">:</span> <span class="op">&amp;</span>TimeReference) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> SyncError<span class="op">&gt;;</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get synchronization quality</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sync_quality(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> SyncQuality<span class="op">;</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current time slot</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> current_slot(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> TimeSlot<span class="op">;</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get time until next slot boundary</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> time_to_slot_boundary(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> Duration<span class="op">;</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> NetworkTime <span class="op">{</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> epoch<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> frame<span class="op">:</span> <span class="dt">u16</span><span class="op">,</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> slot<span class="op">:</span> <span class="dt">u16</span><span class="op">,</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> sub_slot<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span>  <span class="co">// 0.0 - 1.0 within slot</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> NetworkTime <span class="op">{</span></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Convert to TimeSlot</span></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> time_slot(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> TimeSlot <span class="op">{</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a>        TimeSlot <span class="op">{</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>            epoch<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>epoch<span class="op">,</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>            slot<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>slot<span class="op">,</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="networkcontroller-5-of-total-effort">4. NetworkController
+    (5% of total effort)</h3>
+    <p>Network participation controller.</p>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> NetworkController<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Join a Link-16 network</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> join_network(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> <span class="dt">u16</span><span class="op">,</span> terminal_id<span class="op">:</span> <span class="dt">u8</span>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> Link16Error<span class="op">&gt;;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Leave current network</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> leave_network(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if currently in a network</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_in_network(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current network ID</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> current_net_id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">u16</span><span class="op">&gt;;</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Subscribe to a Participation Group</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> subscribe_npg(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> npg<span class="op">:</span> Npg)<span class="op">;</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Unsubscribe from a Participation Group</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> unsubscribe_npg(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> npg<span class="op">:</span> Npg)<span class="op">;</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get subscribed NPGs</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> subscribed_npgs(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>Npg<span class="op">&gt;;</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if a slot is assigned for transmission</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_tx_slot(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get assigned TX slots</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> assigned_tx_slots(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>TimeSlot<span class="op">&gt;;</span></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Set terminal mode</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> set_terminal_mode(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> mode<span class="op">:</span> TerminalMode)<span class="op">;</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current terminal mode</span></span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> terminal_mode(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> TerminalMode<span class="op">;</span></span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Copy</span><span class="op">,</span> <span class="bu">Debug</span><span class="op">,</span> <span class="bu">PartialEq</span><span class="at">)]</span></span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">enum</span> TerminalMode <span class="op">{</span></span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>    ReceiveOnly<span class="op">,</span>  <span class="co">// Only receive</span></span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>    Active<span class="op">,</span>       <span class="co">// Full participation</span></span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a>    Relay<span class="op">,</span>        <span class="co">// Relay messages</span></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="j-series-message-types">J-Series Message Types</h2>
+    <p>The J-series message codec is already implemented (unclassified).
+    Key message types:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Message</th>
+    <th>Function</th>
+    <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>J2.2</td>
+    <td>Air Track</td>
+    <td>✅ Implemented</td>
+    </tr>
+    <tr class="even">
+    <td>J3.2</td>
+    <td>Surface Track</td>
+    <td>✅ Implemented</td>
+    </tr>
+    <tr class="odd">
+    <td>J7.0</td>
+    <td>PPLI (Precise Position Location ID)</td>
+    <td>✅ Implemented</td>
+    </tr>
+    <tr class="even">
+    <td>J7.2</td>
+    <td>Mission Assignment</td>
+    <td>✅ Implemented</td>
+    </tr>
+    <tr class="odd">
+    <td>J12.0</td>
+    <td>Mission Management</td>
+    <td>✅ Implemented</td>
+    </tr>
+    <tr class="even">
+    <td>J28.2</td>
+    <td>Free Text</td>
+    <td>✅ Implemented</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="step-by-step-porting-procedure">Step-by-Step Porting
+    Procedure</h2>
+    <h3 id="phase-1-create-classified-crate">Phase 1: Create Classified
+    Crate</h3>
+    <div class="sourceCode" id="cb7"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> crates/link16-classified</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> crates/link16-classified</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> init <span class="at">--lib</span></span></code></pre></div>
+    <h3 id="phase-2-implement-hopping-pattern">Phase 2: Implement
+    Hopping Pattern</h3>
+    <div class="sourceCode" id="cb8"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/link16-classified/src/hopper.rs</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::link16::traits::</span><span class="op">*;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::link16::types::</span><span class="op">*;</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    crypto_var<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;&gt;,</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    net_id<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">u16</span><span class="op">&gt;,</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    pattern_cache<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span>Frequency<span class="op">&gt;,</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    initialized<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>            crypto_var<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>            net_id<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>            pattern_cache<span class="op">:</span> <span class="dt">Vec</span><span class="pp">::</span>new()<span class="op">,</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>            initialized<span class="op">:</span> <span class="cn">false</span><span class="op">,</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Generate hopping pattern from crypto variable</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// THIS IS COMSEC DATA</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> generate_pattern(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> crypto_var <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>crypto_var<span class="op">.</span>as_ref()<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> net_id <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>net_id<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>        <span class="co">// CLASSIFIED: Actual pattern generation algorithm</span></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>        <span class="co">// This produces a sequence of 51 frequency indices</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>        <span class="co">// that repeats in a pseudo-random order</span></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Placeholder structure:</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>pattern_cache <span class="op">=</span> (<span class="dv">0</span><span class="op">..</span><span class="dv">51</span>)</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>i<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>                <span class="co">// Real algorithm uses crypto_var to permute frequencies</span></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> idx <span class="op">=</span> (i <span class="op">^</span> (crypto_var[i <span class="op">%</span> crypto_var<span class="op">.</span>len()] <span class="kw">as</span> <span class="dt">usize</span>)) <span class="op">%</span> <span class="dv">51</span><span class="op">;</span></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>                Frequency(idx <span class="kw">as</span> <span class="dt">u8</span>)</span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()<span class="op">;</span></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>initialized <span class="op">=</span> <span class="cn">true</span><span class="op">;</span></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get frequency for a specific slot</span></span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> compute_frequency(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> Frequency <span class="op">{</span></span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a>        <span class="co">// CLASSIFIED: Map slot to pattern position</span></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Real algorithm considers epoch, slot, and crypto state</span></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> pattern_idx <span class="op">=</span> ((slot<span class="op">.</span>epoch <span class="kw">as</span> <span class="dt">usize</span> <span class="op">*</span> <span class="dv">192</span>) <span class="op">+</span> slot<span class="op">.</span>slot <span class="kw">as</span> <span class="dt">usize</span>)</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>            <span class="op">%</span> <span class="kw">self</span><span class="op">.</span>pattern_cache<span class="op">.</span>len()<span class="op">;</span></span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>pattern_cache[pattern_idx]</span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> HoppingPattern <span class="cf">for</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> crypto_var<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> net_id<span class="op">:</span> <span class="dt">u16</span>) <span class="op">{</span></span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>crypto_var <span class="op">=</span> <span class="cn">Some</span>(crypto_var<span class="op">.</span>to_vec())<span class="op">;</span></span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>net_id <span class="op">=</span> <span class="cn">Some</span>(net_id)<span class="op">;</span></span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>generate_pattern()<span class="op">;</span></span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_frequency(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> Frequency <span class="op">{</span></span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="op">!</span><span class="kw">self</span><span class="op">.</span>initialized <span class="op">{</span></span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> Frequency(<span class="dv">0</span>)<span class="op">;</span>  <span class="co">// Default frequency</span></span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>compute_frequency(slot)</span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_epoch_frequencies(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> epoch<span class="op">:</span> <span class="dt">u8</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>Frequency<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a>        (<span class="dv">0</span><span class="op">..</span><span class="dv">192</span>)  <span class="co">// 192 slots per epoch</span></span>
+<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>slot<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a>                <span class="kw">self</span><span class="op">.</span>get_frequency(TimeSlot <span class="op">{</span></span>
+<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a>                    epoch<span class="op">,</span></span>
+<span id="cb8-74"><a href="#cb8-74" aria-hidden="true" tabindex="-1"></a>                    slot<span class="op">:</span> slot <span class="kw">as</span> <span class="dt">u16</span><span class="op">,</span></span>
+<span id="cb8-75"><a href="#cb8-75" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span>)</span>
+<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Zeroize crypto material</span></span>
+<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(<span class="kw">ref</span> <span class="kw">mut</span> cv) <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>crypto_var <span class="op">{</span></span>
+<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a>            <span class="cf">for</span> b <span class="kw">in</span> cv<span class="op">.</span>iter_mut() <span class="op">{</span></span>
+<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span>b <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb8-87"><a href="#cb8-87" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>crypto_var <span class="op">=</span> <span class="cn">None</span><span class="op">;</span></span>
+<span id="cb8-88"><a href="#cb8-88" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>net_id <span class="op">=</span> <span class="cn">None</span><span class="op">;</span></span>
+<span id="cb8-89"><a href="#cb8-89" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>pattern_cache<span class="op">.</span>clear()<span class="op">;</span></span>
+<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>initialized <span class="op">=</span> <span class="cn">false</span><span class="op">;</span></span>
+<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-92"><a href="#cb8-92" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-93"><a href="#cb8-93" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_initialized(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span> <span class="op">{</span></span>
+<span id="cb8-94"><a href="#cb8-94" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>initialized</span>
+<span id="cb8-95"><a href="#cb8-95" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-96"><a href="#cb8-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-97"><a href="#cb8-97" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> pattern_id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u32</span> <span class="op">{</span></span>
+<span id="cb8-98"><a href="#cb8-98" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Hash of pattern for verification</span></span>
+<span id="cb8-99"><a href="#cb8-99" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>pattern_cache</span>
+<span id="cb8-100"><a href="#cb8-100" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>iter()</span>
+<span id="cb8-101"><a href="#cb8-101" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>enumerate()</span>
+<span id="cb8-102"><a href="#cb8-102" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>fold(<span class="dv">0u32</span><span class="op">,</span> <span class="op">|</span>acc<span class="op">,</span> (i<span class="op">,</span> f)<span class="op">|</span> acc <span class="op">^</span> ((f<span class="op">.</span><span class="dv">0</span> <span class="kw">as</span> <span class="dt">u32</span>) <span class="op">&lt;&lt;</span> (i <span class="op">%</span> <span class="dv">24</span>)))</span>
+<span id="cb8-103"><a href="#cb8-103" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-104"><a href="#cb8-104" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-3-implement-transec-provider">Phase 3: Implement
+    TRANSEC Provider</h3>
+    <div class="sourceCode" id="cb9"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/link16-classified/src/transec.rs</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::link16::traits::</span><span class="op">*;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::link16::types::</span><span class="op">*;</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">zeroize::</span>Zeroize<span class="op">;</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> ClassifiedTransec <span class="op">{</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    key<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>TransecKey<span class="op">&gt;,</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    mode<span class="op">:</span> CryptoMode<span class="op">,</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    frame_counter<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span>Zeroize<span class="at">)]</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>zeroize<span class="at">(</span>drop<span class="at">)]</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> TransecKey <span class="op">{</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    key_bytes<span class="op">:</span> [<span class="dt">u8</span><span class="op">;</span> <span class="dv">32</span>]<span class="op">,</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    key_id<span class="op">:</span> <span class="dt">u32</span><span class="op">,</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> ClassifiedTransec <span class="op">{</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>            key<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>            mode<span class="op">:</span> <span class="pp">CryptoMode::</span>Plain<span class="op">,</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>            frame_counter<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Encrypt a single block</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// CLASSIFIED ALGORITHM</span></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encrypt_block(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> key <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>key<span class="op">.</span>as_ref()<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>        <span class="co">// CLASSIFIED: Actual encryption algorithm</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Uses key, slot timing, and frame counter</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Placeholder: XOR with key-derived stream</span></span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>        data<span class="op">.</span>iter()</span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>enumerate()</span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>(i<span class="op">,</span> <span class="op">&amp;</span>b)<span class="op">|</span> b <span class="op">^</span> key<span class="op">.</span>key_bytes[i <span class="op">%</span> <span class="dv">32</span>] <span class="op">^</span> (slot<span class="op">.</span>slot <span class="kw">as</span> <span class="dt">u8</span>))</span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Decrypt a single block</span></span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decrypt_block(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> Link16Error<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>        <span class="co">// CLASSIFIED: Actual decryption algorithm</span></span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Symmetric to encrypt_block</span></span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> key <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>key<span class="op">.</span>as_ref()<span class="op">.</span>ok_or(<span class="pp">Link16Error::</span>NoKey)<span class="op">?;</span></span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(data</span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>iter()</span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>enumerate()</span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>(i<span class="op">,</span> <span class="op">&amp;</span>b)<span class="op">|</span> b <span class="op">^</span> key<span class="op">.</span>key_bytes[i <span class="op">%</span> <span class="dv">32</span>] <span class="op">^</span> (slot<span class="op">.</span>slot <span class="kw">as</span> <span class="dt">u8</span>))</span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect())</span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TransecProvider <span class="cf">for</span> ClassifiedTransec <span class="op">{</span></span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_key(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> Link16Error<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> key<span class="op">.</span>len() <span class="op">&lt;</span> <span class="dv">32</span> <span class="op">{</span></span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> <span class="cn">Err</span>(<span class="pp">Link16Error::</span>InvalidKey)<span class="op">;</span></span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> key_bytes <span class="op">=</span> [<span class="dv">0u8</span><span class="op">;</span> <span class="dv">32</span>]<span class="op">;</span></span>
+<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a>        key_bytes<span class="op">.</span>copy_from_slice(<span class="op">&amp;</span>key[<span class="op">..</span><span class="dv">32</span>])<span class="op">;</span></span>
+<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-67"><a href="#cb9-67" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>key <span class="op">=</span> <span class="cn">Some</span>(TransecKey <span class="op">{</span></span>
+<span id="cb9-68"><a href="#cb9-68" aria-hidden="true" tabindex="-1"></a>            key_bytes<span class="op">,</span></span>
+<span id="cb9-69"><a href="#cb9-69" aria-hidden="true" tabindex="-1"></a>            key_id<span class="op">:</span> <span class="dt">u32</span><span class="pp">::</span>from_le_bytes([key[<span class="dv">0</span>]<span class="op">,</span> key[<span class="dv">1</span>]<span class="op">,</span> key[<span class="dv">2</span>]<span class="op">,</span> key[<span class="dv">3</span>]])<span class="op">,</span></span>
+<span id="cb9-70"><a href="#cb9-70" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb9-71"><a href="#cb9-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-72"><a href="#cb9-72" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>mode <span class="op">=</span> <span class="pp">CryptoMode::</span>Operational<span class="op">;</span></span>
+<span id="cb9-73"><a href="#cb9-73" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(())</span>
+<span id="cb9-74"><a href="#cb9-74" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-75"><a href="#cb9-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-76"><a href="#cb9-76" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb9-77"><a href="#cb9-77" aria-hidden="true" tabindex="-1"></a>        <span class="cf">match</span> <span class="kw">self</span><span class="op">.</span>mode <span class="op">{</span></span>
+<span id="cb9-78"><a href="#cb9-78" aria-hidden="true" tabindex="-1"></a>            <span class="pp">CryptoMode::</span>Plain <span class="op">=&gt;</span> data<span class="op">.</span>to_vec()<span class="op">,</span></span>
+<span id="cb9-79"><a href="#cb9-79" aria-hidden="true" tabindex="-1"></a>            _ <span class="op">=&gt;</span> <span class="kw">self</span><span class="op">.</span>encrypt_block(data<span class="op">,</span> slot)<span class="op">,</span></span>
+<span id="cb9-80"><a href="#cb9-80" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-81"><a href="#cb9-81" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-82"><a href="#cb9-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-83"><a href="#cb9-83" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> Link16Error<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb9-84"><a href="#cb9-84" aria-hidden="true" tabindex="-1"></a>        <span class="cf">match</span> <span class="kw">self</span><span class="op">.</span>mode <span class="op">{</span></span>
+<span id="cb9-85"><a href="#cb9-85" aria-hidden="true" tabindex="-1"></a>            <span class="pp">CryptoMode::</span>Plain <span class="op">=&gt;</span> <span class="cn">Ok</span>(data<span class="op">.</span>to_vec())<span class="op">,</span></span>
+<span id="cb9-86"><a href="#cb9-86" aria-hidden="true" tabindex="-1"></a>            _ <span class="op">=&gt;</span> <span class="kw">self</span><span class="op">.</span>decrypt_block(data<span class="op">,</span> slot)<span class="op">,</span></span>
+<span id="cb9-87"><a href="#cb9-87" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-88"><a href="#cb9-88" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-89"><a href="#cb9-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-90"><a href="#cb9-90" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_loaded(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span> <span class="op">{</span></span>
+<span id="cb9-91"><a href="#cb9-91" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>key<span class="op">.</span>is_some()</span>
+<span id="cb9-92"><a href="#cb9-92" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-93"><a href="#cb9-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-94"><a href="#cb9-94" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> mode(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> CryptoMode <span class="op">{</span></span>
+<span id="cb9-95"><a href="#cb9-95" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>mode</span>
+<span id="cb9-96"><a href="#cb9-96" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-97"><a href="#cb9-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-98"><a href="#cb9-98" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb9-99"><a href="#cb9-99" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>key <span class="op">=</span> <span class="cn">None</span><span class="op">;</span>  <span class="co">// Zeroize derive handles secure clearing</span></span>
+<span id="cb9-100"><a href="#cb9-100" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>mode <span class="op">=</span> <span class="pp">CryptoMode::</span>Plain<span class="op">;</span></span>
+<span id="cb9-101"><a href="#cb9-101" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>frame_counter <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb9-102"><a href="#cb9-102" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-103"><a href="#cb9-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-104"><a href="#cb9-104" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> key_status(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> KeyStatus <span class="op">{</span></span>
+<span id="cb9-105"><a href="#cb9-105" aria-hidden="true" tabindex="-1"></a>        KeyStatus <span class="op">{</span></span>
+<span id="cb9-106"><a href="#cb9-106" aria-hidden="true" tabindex="-1"></a>            loaded<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>key<span class="op">.</span>is_some()<span class="op">,</span></span>
+<span id="cb9-107"><a href="#cb9-107" aria-hidden="true" tabindex="-1"></a>            mode<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>mode<span class="op">,</span></span>
+<span id="cb9-108"><a href="#cb9-108" aria-hidden="true" tabindex="-1"></a>            key_id<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>key<span class="op">.</span>as_ref()<span class="op">.</span>map(<span class="op">|</span>k<span class="op">|</span> k<span class="op">.</span>key_id)<span class="op">,</span></span>
+<span id="cb9-109"><a href="#cb9-109" aria-hidden="true" tabindex="-1"></a>            expires<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb9-110"><a href="#cb9-110" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-111"><a href="#cb9-111" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-112"><a href="#cb9-112" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-4-create-full-integration">Phase 4: Create Full
+    Integration</h3>
+    <div class="sourceCode" id="cb10"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/link16-classified/src/lib.rs</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> hopper<span class="op">;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> transec<span class="op">;</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> time_sync<span class="op">;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> net_controller<span class="op">;</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">hopper::</span>ClassifiedHopper<span class="op">;</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">transec::</span>ClassifiedTransec<span class="op">;</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">time_sync::</span>ClassifiedTimeSync<span class="op">;</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">net_controller::</span>ClassifiedNetController<span class="op">;</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::link16::</span><span class="op">{</span>Link16<span class="op">,</span> Link16Builder<span class="op">};</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co">/// Create operational Link-16 terminal with classified components</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">fn</span> create_mids_terminal(</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    terminal_id<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>Link16<span class="op">,</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="pp">std::error::</span><span class="bu">Error</span><span class="op">&gt;&gt;</span> <span class="op">{</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    <span class="cn">Ok</span>(<span class="pp">Link16Builder::</span>new()</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>sample_rate(sample_rate)</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>terminal_id(terminal_id)</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>hopper(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedHopper::</span>new()))</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>transec(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedTransec::</span>new()))</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>time_sync(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedTimeSync::</span>new()))</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>net_controller(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedNetController::</span>new()))</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>build()<span class="op">?</span>)</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="bridging-existing-c-mids-implementation">Bridging Existing
+    C++ MIDS Implementation</h2>
+    <p>If you have an existing C++ MIDS/JTIDS implementation:</p>
+    <div class="sourceCode" id="cb11"><pre
+    class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// mids_interface.hpp</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> MidsHopper <span class="op">{</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">public</span><span class="op">:</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">virtual</span> <span class="op">~</span>MidsHopper<span class="op">()</span> <span class="op">=</span> <span class="cf">default</span><span class="op">;</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">virtual</span> <span class="dt">void</span> initialize<span class="op">(</span><span class="at">const</span> <span class="dt">uint8_t</span><span class="op">*</span> crypto_var<span class="op">,</span> <span class="dt">size_t</span> len<span class="op">,</span> <span class="dt">uint16_t</span> net_id<span class="op">)</span> <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">virtual</span> <span class="dt">uint8_t</span> getFrequency<span class="op">(</span><span class="dt">uint8_t</span> epoch<span class="op">,</span> <span class="dt">uint16_t</span> slot<span class="op">)</span> <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">virtual</span> <span class="dt">void</span> reset<span class="op">()</span> <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Factory function</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="at">extern</span> <span class="st">&quot;C&quot;</span> MidsHopper<span class="op">*</span> create_mids_hopper<span class="op">();</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="at">extern</span> <span class="st">&quot;C&quot;</span> <span class="dt">void</span> destroy_mids_hopper<span class="op">(</span>MidsHopper<span class="op">*</span> hopper<span class="op">);</span></span></code></pre></div>
+    <p>Using CXX for C++ interop:</p>
+    <div class="sourceCode" id="cb12"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/link16-classified/src/hopper_cxx.rs</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span><span class="pp">cxx::</span>bridge<span class="at">]</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> ffi <span class="op">{</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">unsafe</span> <span class="kw">extern</span> <span class="st">&quot;C++&quot;</span> <span class="op">{</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>        <span class="pp">include!</span>(<span class="st">&quot;mids_interface.hpp&quot;</span>)<span class="op">;</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>        <span class="kw">type</span> MidsHopper<span class="op">;</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>        <span class="kw">fn</span> create_mids_hopper() <span class="op">-&gt;</span> <span class="op">*</span><span class="kw">mut</span> MidsHopper<span class="op">;</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">fn</span> destroy_mids_hopper(hopper<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> MidsHopper)<span class="op">;</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="kw">fn</span> initialize(</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">:</span> Pin<span class="op">&lt;&amp;</span><span class="kw">mut</span> MidsHopper<span class="op">&gt;,</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>            crypto_var<span class="op">:</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">u8</span><span class="op">,</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>            len<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>            net_id<span class="op">:</span> <span class="dt">u16</span><span class="op">,</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>        )<span class="op">;</span></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>        <span class="kw">fn</span> getFrequency(<span class="kw">self</span><span class="op">:</span> <span class="op">&amp;</span>MidsHopper<span class="op">,</span> epoch<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span> slot<span class="op">:</span> <span class="dt">u16</span>) <span class="op">-&gt;</span> <span class="dt">u8</span><span class="op">;</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>        <span class="kw">fn</span> reset(<span class="kw">self</span><span class="op">:</span> Pin<span class="op">&lt;&amp;</span><span class="kw">mut</span> MidsHopper<span class="op">&gt;</span>)<span class="op">;</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> CxxHopper <span class="op">{</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a>    inner<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> <span class="pp">ffi::</span>MidsHopper<span class="op">,</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a><span class="kw">unsafe</span> <span class="kw">impl</span> <span class="bu">Send</span> <span class="cf">for</span> CxxHopper <span class="op">{}</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a><span class="kw">unsafe</span> <span class="kw">impl</span> <span class="bu">Sync</span> <span class="cf">for</span> CxxHopper <span class="op">{}</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> CxxHopper <span class="op">{</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>            inner<span class="op">:</span> <span class="kw">unsafe</span> <span class="op">{</span> <span class="pp">ffi::</span>create_mids_hopper() <span class="op">},</span></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> HoppingPattern <span class="cf">for</span> CxxHopper <span class="op">{</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> crypto_var<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> net_id<span class="op">:</span> <span class="dt">u16</span>) <span class="op">{</span></span>
+<span id="cb12-40"><a href="#cb12-40" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span></span>
+<span id="cb12-41"><a href="#cb12-41" aria-hidden="true" tabindex="-1"></a>            <span class="pp">Pin::</span>new_unchecked(<span class="op">&amp;</span><span class="kw">mut</span> <span class="op">*</span><span class="kw">self</span><span class="op">.</span>inner)</span>
+<span id="cb12-42"><a href="#cb12-42" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>initialize(crypto_var<span class="op">.</span>as_ptr()<span class="op">,</span> crypto_var<span class="op">.</span>len()<span class="op">,</span> net_id)<span class="op">;</span></span>
+<span id="cb12-43"><a href="#cb12-43" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-44"><a href="#cb12-44" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-45"><a href="#cb12-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-46"><a href="#cb12-46" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_frequency(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> Frequency <span class="op">{</span></span>
+<span id="cb12-47"><a href="#cb12-47" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> idx <span class="op">=</span> <span class="kw">unsafe</span> <span class="op">{</span> (<span class="op">*</span><span class="kw">self</span><span class="op">.</span>inner)<span class="op">.</span>getFrequency(slot<span class="op">.</span>epoch<span class="op">,</span> slot<span class="op">.</span>slot) <span class="op">};</span></span>
+<span id="cb12-48"><a href="#cb12-48" aria-hidden="true" tabindex="-1"></a>        Frequency(idx)</span>
+<span id="cb12-49"><a href="#cb12-49" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-50"><a href="#cb12-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-51"><a href="#cb12-51" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb12-52"><a href="#cb12-52" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span></span>
+<span id="cb12-53"><a href="#cb12-53" aria-hidden="true" tabindex="-1"></a>            <span class="pp">Pin::</span>new_unchecked(<span class="op">&amp;</span><span class="kw">mut</span> <span class="op">*</span><span class="kw">self</span><span class="op">.</span>inner)<span class="op">.</span>reset()<span class="op">;</span></span>
+<span id="cb12-54"><a href="#cb12-54" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-55"><a href="#cb12-55" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-56"><a href="#cb12-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-57"><a href="#cb12-57" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ... implement remaining methods</span></span>
+<span id="cb12-58"><a href="#cb12-58" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-59"><a href="#cb12-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-60"><a href="#cb12-60" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> <span class="bu">Drop</span> <span class="cf">for</span> CxxHopper <span class="op">{</span></span>
+<span id="cb12-61"><a href="#cb12-61" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> drop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb12-62"><a href="#cb12-62" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span> <span class="pp">ffi::</span>destroy_mids_hopper(<span class="kw">self</span><span class="op">.</span>inner) <span class="op">};</span></span>
+<span id="cb12-63"><a href="#cb12-63" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-64"><a href="#cb12-64" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="testing-with-real-equipment">Testing with Real
+    Equipment</h2>
+    <h3 id="mids-low-volume-terminal-mids-lvt-testing">MIDS Low Volume
+    Terminal (MIDS-LVT) Testing</h3>
+    <div class="sourceCode" id="cb13"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>cfg<span class="at">(</span>test<span class="at">)]</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> integration_tests <span class="op">{</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">use</span> <span class="kw">super</span><span class="pp">::</span><span class="op">*;</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>ignore<span class="at">]</span>  <span class="co">// Requires hardware</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> test_mids_lvt_compatibility() <span class="op">{</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Load test crypto from secure source</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> crypto_var <span class="op">=</span> load_test_crypto()<span class="op">;</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> terminal <span class="op">=</span> create_mids_terminal(<span class="dv">10_000_000.0</span><span class="op">,</span> <span class="dv">1</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>        terminal<span class="op">.</span>load_crypto(<span class="op">&amp;</span>crypto_var)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>        terminal<span class="op">.</span>join_network(<span class="dv">1</span><span class="op">,</span> <span class="dv">1</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Receive from MIDS-LVT</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> rf_samples <span class="op">=</span> capture_rf_samples()<span class="op">;</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> messages <span class="op">=</span> terminal<span class="op">.</span>demodulate(<span class="op">&amp;</span>rf_samples)<span class="op">;</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Verify we can decode messages from real terminal</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>        <span class="pp">assert!</span>(<span class="op">!</span>messages<span class="op">.</span>is_empty())<span class="op">;</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="loopback-testing">Loopback Testing</h3>
+    <div class="sourceCode" id="cb14"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> test_tx_rx_loopback() <span class="op">{</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> crypto_var <span class="op">=</span> [<span class="dv">0u8</span><span class="op">;</span> <span class="dv">32</span>]<span class="op">;</span>  <span class="co">// Test key</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> tx_terminal <span class="op">=</span> create_mids_terminal(<span class="dv">10_000_000.0</span><span class="op">,</span> <span class="dv">1</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> rx_terminal <span class="op">=</span> create_mids_terminal(<span class="dv">10_000_000.0</span><span class="op">,</span> <span class="dv">2</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    tx_terminal<span class="op">.</span>load_crypto(<span class="op">&amp;</span>crypto_var)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    rx_terminal<span class="op">.</span>load_crypto(<span class="op">&amp;</span>crypto_var)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    tx_terminal<span class="op">.</span>join_network(<span class="dv">1</span><span class="op">,</span> <span class="dv">1</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    rx_terminal<span class="op">.</span>join_network(<span class="dv">1</span><span class="op">,</span> <span class="dv">2</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Create J7.0 PPLI message</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> ppli <span class="op">=</span> PpliMessage <span class="op">{</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>        latitude<span class="op">:</span> <span class="dv">38.8977</span><span class="op">,</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>        longitude<span class="op">:</span> <span class="op">-</span><span class="dv">77.0365</span><span class="op">,</span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>        altitude<span class="op">:</span> <span class="dv">10000.0</span><span class="op">,</span></span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>        <span class="co">// ...</span></span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">};</span></span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> tx_samples <span class="op">=</span> tx_terminal<span class="op">.</span>transmit_ppli(<span class="op">&amp;</span>ppli)<span class="op">;</span></span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> rx_messages <span class="op">=</span> rx_terminal<span class="op">.</span>receive(<span class="op">&amp;</span>tx_samples)<span class="op">;</span></span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>    <span class="pp">assert_eq!</span>(rx_messages<span class="op">.</span>len()<span class="op">,</span> <span class="dv">1</span>)<span class="op">;</span></span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Verify PPLI content</span></span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="cross-compilation-for-mids-platforms">Cross-Compilation for
+    MIDS Platforms</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Platform</th>
+    <th>Target</th>
+    <th>Toolchain</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>MIDS-LVT</td>
+    <td>PowerPC</td>
+    <td>Custom</td>
+    </tr>
+    <tr class="even">
+    <td>MIDS JTRS</td>
+    <td>ARM Cortex-A</td>
+    <td>GNU</td>
+    </tr>
+    <tr class="odd">
+    <td>F-16 (simulation)</td>
+    <td>x86_64-linux</td>
+    <td>Standard</td>
+    </tr>
+    <tr class="even">
+    <td>F-35 (simulation)</td>
+    <td>aarch64-linux</td>
+    <td>Standard</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="security-checklist">Security Checklist</h2>
+    <ul class="task-list">
+    <li><label><input type="checkbox" />Crypto variables zeroized after
+    use</label></li>
+    <li><label><input type="checkbox" />Pattern never logged or
+    exposed</label></li>
+    <li><label><input type="checkbox" />TRANSEC keys managed by approved
+    KMI</label></li>
+    <li><label><input type="checkbox" />Time sync hardened against
+    spoofing</label></li>
+    <li><label><input type="checkbox" />NPG access
+    controlled</label></li>
+    <li><label><input type="checkbox" />No classified data in core
+    dumps</label></li>
+    <li><label><input type="checkbox" />Stack/heap protections
+    enabled</label></li>
+    </ul>
+    <h2 id="see-also">See Also</h2>
+    <ul>
+    <li><a href="./BUILD_PROCEDURES.md">General Build
+    Procedures</a></li>
+    <li><a href="../PORTING_GUIDE_MILITARY.md">Main Porting
+    Guide</a></li>
+    </ul>
+</body>
+</html>

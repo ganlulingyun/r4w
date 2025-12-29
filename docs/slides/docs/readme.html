@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>R4W README - R4W Documentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../index.html">Presentations</a>
+        <a href="index.html">Documentation</a>
+    </div>
+    <h1 id="r4w---rust-for-waveforms">R4W - Rust for Waveforms</h1>
+    <figure>
+    <img src="images/r4w_logo_1.png" alt="R4W_Logo" />
+    <figcaption aria-hidden="true">R4W_Logo</figcaption>
+    </figure>
+    <p>Powered by <img src="images/aida_logo_1.png" alt="AIDA_Logo" /> -
+    a Joe Mooney/Claude Code Production</p>
+    <p><a href="LICENSE"><img
+    src="https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg"
+    alt="License" /></a> <a href="https://www.rust-lang.org"><img
+    src="https://img.shields.io/badge/rust-1.75%2B-orange.svg"
+    alt="Rust" /></a></p>
+    <p><strong>A platform for developing, testing, and deploying SDR
+    waveforms in Rust.</strong></p>
+    <pre><code>    ██████╗ ██╗  ██╗██╗    ██╗
+    ██╔══██╗██║  ██║██║    ██║
+    ██████╔╝███████║██║ █╗ ██║     Rust 4 Waveforms
+    ██╔══██╗╚════██║██║███╗██║     SDR Developer Studio
+    ██║  ██║     ██║╚███╔███╔╝
+    ╚═╝  ╚═╝     ╚═╝ ╚══╝╚══╝</code></pre>
+    <h2 id="features">Features</h2>
+    <ul>
+    <li><strong>38+ Waveforms</strong>: CW, OOK, ASK, FSK, PSK, QAM,
+    OFDM, LoRa, DSSS, FHSS, SINCGARS, HAVEQUICK, Link-16, P25, TETRA,
+    DMR, 3G-ALE, and more</li>
+    <li><strong>Waveform Wizard</strong>: Interactive GUI for designing
+    waveforms with AI-assisted implementation</li>
+    <li><strong>Cross-Platform</strong>: x86 Linux, ARM, macOS, Windows,
+    WebAssembly, FPGA, Xilinx Zynq, Lattice</li>
+    <li><strong>Security &amp; Isolation</strong>: 8-level waveform
+    isolation from process sandboxing to air-gapped systems</li>
+    <li><strong>Educational GUI</strong>: Interactive visualization of
+    modulation and signal processing</li>
+    <li><strong>Production CLI</strong>: Benchmarking, remote agents,
+    UDP I/Q streaming</li>
+    <li><strong>FPGA Ready</strong>: Designed for Xilinx Zynq and
+    Lattice acceleration</li>
+    </ul>
+    <h2 id="quick-start">Quick Start</h2>
+    <div class="sourceCode" id="cb2"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Clone the repository</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/joemooney/r4w</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> r4w</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the GUI explorer</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w-explorer</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co"># List available waveforms</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> waveform <span class="at">--list</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Simulate a LoRa transmission</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> simulate <span class="at">--message</span> <span class="st">&quot;Hello R4W!&quot;</span> <span class="at">--snr</span> 10.0</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Run in browser (WebAssembly)</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> crates/r4w-web <span class="kw">&amp;&amp;</span> <span class="ex">trunk</span> serve</span></code></pre></div>
+    <h2 id="crates">Crates</h2>
+    <table>
+    <colgroup>
+    <col style="width: 35%" />
+    <col style="width: 65%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Crate</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>r4w-core</strong></td>
+    <td>Core DSP algorithms, waveform trait, FFT, FEC, coding</td>
+    </tr>
+    <tr class="even">
+    <td><strong>r4w-sim</strong></td>
+    <td>Channel simulation (AWGN, Rayleigh, Rician), UDP transport</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>r4w-fpga</strong></td>
+    <td>FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>r4w-sandbox</strong></td>
+    <td>Waveform isolation (process, container, hardware
+    separation)</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>r4w-gui</strong></td>
+    <td>Educational visualization application (egui)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>r4w-cli</strong></td>
+    <td>Command-line tool: <code>r4w</code></td>
+    </tr>
+    <tr class="odd">
+    <td><strong>r4w-web</strong></td>
+    <td>WebAssembly entry point for browser deployment</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="available-waveforms">Available Waveforms</h2>
+    <pre><code>Simple:       CW, OOK, PPM, ADS-B
+Analog:       AM-Broadcast, FM-Broadcast, NBFM
+Amplitude:    ASK, 4-ASK
+Frequency:    BFSK, 4-FSK
+Phase:        BPSK, QPSK, 8-PSK
+QAM:          16-QAM, 64-QAM, 256-QAM
+Multi-carrier: OFDM
+Spread:       DSSS, DSSS-QPSK, FHSS, LoRa (SF7-SF12)
+IoT/Radar:    Zigbee (802.15.4), UWB, FMCW
+HF/Military:  STANAG 4285, ALE, 3G-ALE, MIL-STD-188-110
+              SINCGARS*, HAVEQUICK*, Link-16*, P25*
+PMR:          TETRA, DMR (Tier II/III)</code></pre>
+    <p><strong>* Framework implementations</strong> - These waveforms
+    use a trait-based architecture where classified/proprietary
+    components (frequency hopping algorithms, TRANSEC, voice codecs) are
+    represented by simulator stubs. The unclassified signal processing,
+    modulation, and framing are fully implemented. See <a
+    href="porting-military.html">docs/PORTING_GUIDE_MILITARY.md</a>
+    for details on implementing operational versions.</p>
+    <h2 id="performance-vs-gnu-radio">Performance vs GNU Radio</h2>
+    <p>R4W outperforms GNU Radio on key DSP operations while providing
+    memory safety guarantees:</p>
+    <table>
+    <colgroup>
+    <col style="width: 30%" />
+    <col style="width: 13%" />
+    <col style="width: 30%" />
+    <col style="width: 25%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Operation</th>
+    <th>R4W</th>
+    <th>GNU Radio</th>
+    <th>Speedup</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>FFT 1024-pt</strong></td>
+    <td>371 M samples/sec</td>
+    <td>50 M samples/sec</td>
+    <td><strong>7.4x faster</strong></td>
+    </tr>
+    <tr class="even">
+    <td><strong>FFT 4096-pt</strong></td>
+    <td>330 M samples/sec</td>
+    <td>12 M samples/sec</td>
+    <td><strong>27x faster</strong></td>
+    </tr>
+    <tr class="odd">
+    <td><strong>FFT 2048-pt</strong></td>
+    <td>179 M samples/sec</td>
+    <td>~25 M samples/sec</td>
+    <td><strong>7x faster</strong></td>
+    </tr>
+    </tbody>
+    </table>
+    <p><em>Benchmarks: R4W with rustfft on Linux. GNU Radio baseline:
+    i7-10700K, FFTW3+VOLK.</em></p>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Run the comparison benchmark</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> bench <span class="at">-p</span> r4w-core <span class="at">--bench</span> gnuradio_comparison</span></code></pre></div>
+    <p><strong>Why is R4W faster?</strong> - rustfft is highly optimized
+    for Rust’s memory model - Zero-copy buffer management with lock-free
+    primitives - Cache-friendly data structures with 64-byte alignment -
+    No Python/SWIG overhead in the signal processing path</p>
+    <h2 id="cc-integration-phase-4-complete">C/C++ Integration (Phase 4
+    Complete ✓)</h2>
+    <p>R4W provides complete C/C++ interoperability for teams migrating
+    from GNU Radio:</p>
+    <div class="sourceCode" id="cb5"><pre
+    class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;r4w.hpp&gt;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co">// RAII C++ wrappers - no manual memory management</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> waveform <span class="op">=</span> r4w<span class="op">::</span>Waveform<span class="op">::</span>bpsk<span class="op">(</span><span class="fl">48000.0</span><span class="op">,</span> <span class="fl">1200.0</span><span class="op">);</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate<span class="op">({</span><span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">});</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">// LoRa support</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> lora <span class="op">=</span> r4w<span class="op">::</span>Waveform<span class="op">::</span>lora<span class="op">(</span><span class="dv">7</span><span class="op">,</span> <span class="dv">125000</span><span class="op">,</span> <span class="fl">125000.0</span><span class="op">);</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co">// FFT operations</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>r4w<span class="op">::</span>FFT fft<span class="op">(</span><span class="dv">1024</span><span class="op">);</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>fft<span class="op">.</span>forward<span class="op">(</span>samples<span class="op">);</span></span></code></pre></div>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Component</th>
+    <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>C headers (cbindgen)</td>
+    <td>✓ <code>include/r4w.h</code></td>
+    </tr>
+    <tr class="even">
+    <td>C++ RAII wrappers</td>
+    <td>✓ <code>include/r4w.hpp</code></td>
+    </tr>
+    <tr class="odd">
+    <td>CMake integration</td>
+    <td>✓ <code>cmake/FindR4W.cmake</code></td>
+    </tr>
+    <tr class="even">
+    <td>Example programs</td>
+    <td>✓ <code>examples/c/</code></td>
+    </tr>
+    </tbody>
+    </table>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build the FFI library</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">-p</span> r4w-ffi <span class="at">--release</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Use from CMake</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="ex">find_package</span><span class="er">(</span><span class="ex">R4W</span> REQUIRED<span class="kw">)</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="ex">target_link_libraries</span><span class="er">(</span><span class="ex">my_app</span> R4W::r4w<span class="kw">)</span></span></code></pre></div>
+    <h2 id="why-rust-for-sdr">Why Rust for SDR?</h2>
+    <table>
+    <colgroup>
+    <col style="width: 50%" />
+    <col style="width: 50%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Feature</th>
+    <th>Benefit</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Memory Safety</strong></td>
+    <td>No buffer overflows in signal processing</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Zero-Cost Abstractions</strong></td>
+    <td>High-level APIs with C-level performance</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Fearless Concurrency</strong></td>
+    <td>Safe parallel DSP processing</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Cross-Compilation</strong></td>
+    <td>Single codebase for ARM, x86, WASM</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>SIMD Support</strong></td>
+    <td>Vectorized operations</td>
+    </tr>
+    <tr class="even">
+    <td><strong>No Runtime</strong></td>
+    <td>Predictable real-time behavior</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="security-waveform-isolation">Security &amp; Waveform
+    Isolation</h2>
+    <p>For deployments requiring separation between waveforms (e.g.,
+    classified/unclassified, encrypted/plaintext), R4W provides the
+    <strong>r4w-sandbox</strong> crate with 8 isolation levels:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Level</th>
+    <th>Isolation</th>
+    <th>Turn-Key?</th>
+    <th>Use Case</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>L1</td>
+    <td>Rust memory safety</td>
+    <td>✅ Yes</td>
+    <td>Development, testing</td>
+    </tr>
+    <tr class="even">
+    <td>L2</td>
+    <td>Linux namespaces</td>
+    <td>✅ Yes</td>
+    <td>Multi-tenant, privilege separation</td>
+    </tr>
+    <tr class="odd">
+    <td>L3</td>
+    <td>Seccomp + LSM</td>
+    <td>✅ Yes</td>
+    <td>Government, defense contractors</td>
+    </tr>
+    <tr class="even">
+    <td>L4</td>
+    <td>Containers</td>
+    <td>✅ Templates</td>
+    <td>Cloud deployments</td>
+    </tr>
+    <tr class="odd">
+    <td>L5</td>
+    <td>MicroVM (Firecracker)</td>
+    <td>📋 Config</td>
+    <td>High-assurance cloud</td>
+    </tr>
+    <tr class="even">
+    <td>L6</td>
+    <td>Full VM (KVM/QEMU)</td>
+    <td>📋 Config</td>
+    <td>Certification requirements</td>
+    </tr>
+    <tr class="odd">
+    <td>L7</td>
+    <td>Hardware isolation</td>
+    <td>🔧 Setup</td>
+    <td>FPGA partitions, CPU pinning</td>
+    </tr>
+    <tr class="even">
+    <td>L8</td>
+    <td>Air gap</td>
+    <td>🔧 Setup</td>
+    <td>Classified operations</td>
+    </tr>
+    </tbody>
+    </table>
+    <p><strong>Turn-key features</strong> (no additional
+    infrastructure): - Secure memory buffers with automatic zeroization
+    - Process isolation with namespace separation - Syscall filtering
+    with DSP-optimized seccomp profiles - Shared memory IPC for isolated
+    waveform communication - FPGA partition isolation with AXI
+    firewalls</p>
+    <div class="sourceCode" id="cb7"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sandbox::</span><span class="op">{</span>Sandbox<span class="op">,</span> IsolationLevel<span class="op">};</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Create isolated sandbox for sensitive waveform</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> sandbox <span class="op">=</span> <span class="pp">Sandbox::</span>builder()</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>isolation_level(<span class="pp">IsolationLevel::</span>L3_LSM)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>waveform(<span class="st">&quot;SINCGARS&quot;</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>memory_limit(<span class="dv">256</span> <span class="op">*</span> <span class="dv">1024</span> <span class="op">*</span> <span class="dv">1024</span>)</span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()<span class="op">?;</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>sandbox<span class="op">.</span>run(<span class="op">||</span> <span class="op">{</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Waveform runs with syscall filtering and LSM enforcement</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    process_classified_signal(<span class="op">&amp;</span>samples)<span class="op">;</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">?;</span></span></code></pre></div>
+    <p>See <a href="isolation-guide.html">docs/ISOLATION_GUIDE.md</a>
+    for comprehensive isolation architecture and <a
+    href="security-guide.html">docs/SECURITY_GUIDE.md</a> for
+    security best practices.</p>
+    <h2 id="remote-lab-distributed-testing">Remote Lab (Distributed
+    Testing)</h2>
+    <p>Deploy R4W agents to Raspberry Pis for distributed TX/RX
+    testing:</p>
+    <div class="sourceCode" id="cb8"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Cross-compile for ARM64</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-cli-arm64</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Deploy to Raspberry Pis</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> deploy-both TX_HOST=pi@192.168.1.100 RX_HOST=pi@192.168.1.101</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Start TX on one Pi, RX on another</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> remote <span class="at">-a</span> 192.168.1.100 start-tx <span class="at">-w</span> BPSK <span class="at">-t</span> 192.168.1.101:5000</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> remote <span class="at">-a</span> 192.168.1.101 start-rx <span class="at">-w</span> BPSK <span class="at">-p</span> 5000</span></code></pre></div>
+    <h2 id="waveform-wizard">Waveform Wizard</h2>
+    <p>Design new waveforms with an interactive GUI and AI-assisted
+    implementation:</p>
+    <div class="sourceCode" id="cb9"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Open the GUI and navigate to &quot;Waveform Wizard&quot;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w-explorer</span></code></pre></div>
+    <p><strong>Workflow</strong>: 1. Select a preset or configure
+    parameters (modulation, spreading, coding) 2. Preview the
+    specification YAML 3. Export with “Include R4W Implementation
+    Prompt” checked 4. Paste into a fresh Claude Code session 5. Claude
+    implements the complete waveform with tests</p>
+    <p>See <a href="waveform-spec/">waveform-spec/</a> for the schema
+    and examples.</p>
+    <h2 id="fpga-integration">FPGA Integration</h2>
+    <p>R4W is designed for FPGA acceleration:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Platform</th>
+    <th>Status</th>
+    <th>Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Xilinx Zynq</td>
+    <td>Implemented</td>
+    <td>DMA, UIO, AXI-Stream integration</td>
+    </tr>
+    <tr class="even">
+    <td>Lattice iCE40/ECP5</td>
+    <td>Implemented</td>
+    <td>Open-source toolchain support</td>
+    </tr>
+    </tbody>
+    </table>
+    <p>See <a
+    href="fpga-guide.html">docs/FPGA_DEVELOPERS_GUIDE.md</a>
+    for IP cores, register maps, and integration details.</p>
+    <h2 id="documentation">Documentation</h2>
+    <table>
+    <colgroup>
+    <col style="width: 43%" />
+    <col style="width: 56%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Document</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong><a href="overview.html">OVERVIEW.md</a></strong></td>
+    <td>Platform vision, architecture, quick start</td>
+    </tr>
+    <tr class="even">
+    <td><strong><a
+    href="waveform-guide.html">docs/WAVEFORM_DEVELOPERS_GUIDE.md</a></strong></td>
+    <td>Complete guide to building waveforms</td>
+    </tr>
+    <tr class="odd">
+    <td><strong><a
+    href="physical-layer-guide.html">docs/PHYSICAL_LAYER_GUIDE.md</a></strong></td>
+    <td>Timing, HAL, RT primitives, configuration, observability</td>
+    </tr>
+    <tr class="even">
+    <td><strong><a
+    href="tick-scheduler.html">docs/TICK_SCHEDULER_GUIDE.md</a></strong></td>
+    <td>Discrete event simulation and time control</td>
+    </tr>
+    <tr class="odd">
+    <td><strong><a
+    href="realtime-guide.html">docs/REALTIME_SCHEDULER_GUIDE.md</a></strong></td>
+    <td>TX/RX coordination, FHSS, TDMA timing</td>
+    </tr>
+    <tr class="even">
+    <td><strong><a
+    href="fpga-guide.html">docs/FPGA_DEVELOPERS_GUIDE.md</a></strong></td>
+    <td>IP cores, register maps, HW/SW integration</td>
+    </tr>
+    <tr class="odd">
+    <td><strong><a
+    href="security-guide.html">docs/SECURITY_GUIDE.md</a></strong></td>
+    <td>Memory safety, crypto, secure deployment</td>
+    </tr>
+    <tr class="even">
+    <td><strong><a
+    href="isolation-guide.html">docs/ISOLATION_GUIDE.md</a></strong></td>
+    <td>Waveform isolation (containers, VMs, hardware)</td>
+    </tr>
+    <tr class="odd">
+    <td><strong><a
+    href="porting-military.html">docs/PORTING_GUIDE_MILITARY.md</a></strong></td>
+    <td>Porting classified waveforms (SINCGARS, Link-16, etc.)</td>
+    </tr>
+    <tr class="even">
+    <td><strong><a href="docs/porting/">docs/porting/</a></strong></td>
+    <td>Individual waveform porting guides</td>
+    </tr>
+    <tr class="odd">
+    <td><strong><a href="CLAUDE.md">CLAUDE.md</a></strong></td>
+    <td>Development guidelines for Claude Code</td>
+    </tr>
+    <tr class="even">
+    <td><strong><a
+    href="MISSING_FEATURES.md">MISSING_FEATURES.md</a></strong></td>
+    <td>Production readiness assessment and roadmap</td>
+    </tr>
+    <tr class="odd">
+    <td><strong><a
+    href="https://joemooney.github.io/r4w/tutorial/">Tutorial</a></strong></td>
+    <td>Interactive HTML tutorial</td>
+    </tr>
+    <tr class="even">
+    <td><strong><a href="workshops/">Workshops</a></strong></td>
+    <td>11 hands-on workshops (~11 hours) covering I/Q, modulation,
+    spread spectrum, and more</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="development">Development</h2>
+    <div class="sourceCode" id="cb10"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Run tests</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> test</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Run benchmarks</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> bench</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run clippy</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> clippy <span class="at">--all-targets</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Format code</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> fmt</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Build for ARM</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-arm64</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-arm32</span></code></pre></div>
+    <h2 id="license">License</h2>
+    <p>Licensed under either of:</p>
+    <ul>
+    <li>Apache License, Version 2.0 (<a
+    href="LICENSE-APACHE">LICENSE-APACHE</a> or
+    http://www.apache.org/licenses/LICENSE-2.0)</li>
+    <li>MIT license (<a href="LICENSE-MIT">LICENSE-MIT</a> or
+    http://opensource.org/licenses/MIT)</li>
+    </ul>
+    <p>at your option.</p>
+    <h2 id="contributing">Contributing</h2>
+    <p>Contributions are welcome! Please see the development guidelines
+    in <a href="CLAUDE.md">CLAUDE.md</a>.</p>
+</body>
+</html>

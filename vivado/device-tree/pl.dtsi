@@ -1,0 +1,74 @@
+/*
+ * R4W PL Device Tree Include
+ * Alternative format for PetaLinux integration
+ */
+
+/ {
+    amba_pl: amba_pl {
+        #address-cells = <1>;
+        #size-cells = <1>;
+        compatible = "simple-bus";
+        ranges;
+
+        /* R4W FFT Core */
+        r4w_fft_0: r4w_fft@40000000 {
+            compatible = "anthropic,r4w-fft-1.0";
+            reg = <0x40000000 0x10000>;
+            xlnx,ip-name = "r4w_fft_axi";
+            xlnx,max-fft-size = <1024>;
+        };
+
+        /* R4W FIR Filter */
+        r4w_fir_0: r4w_fir@40010000 {
+            compatible = "anthropic,r4w-fir-1.0";
+            reg = <0x40010000 0x10000>;
+            xlnx,ip-name = "r4w_fir_axi";
+            xlnx,max-taps = <256>;
+        };
+
+        /* R4W Chirp Generator */
+        r4w_chirp_gen_0: r4w_chirp_gen@40020000 {
+            compatible = "anthropic,r4w-chirp-gen-1.0";
+            reg = <0x40020000 0x10000>;
+            xlnx,ip-name = "r4w_chirp_gen_axi";
+            xlnx,max-sf = <12>;
+        };
+
+        /* R4W Chirp Correlator */
+        r4w_chirp_corr_0: r4w_chirp_corr@40030000 {
+            compatible = "anthropic,r4w-chirp-corr-1.0";
+            reg = <0x40030000 0x10000>;
+            xlnx,ip-name = "r4w_chirp_corr_axi";
+            xlnx,max-sf = <12>;
+        };
+
+        /* R4W NCO */
+        r4w_nco_0: r4w_nco@40040000 {
+            compatible = "anthropic,r4w-nco-1.0";
+            reg = <0x40040000 0x10000>;
+            xlnx,ip-name = "r4w_nco_axi";
+            xlnx,phase-width = <32>;
+            xlnx,output-width = <16>;
+        };
+
+        /* AXI DMA */
+        axi_dma_0: dma@40400000 {
+            #dma-cells = <1>;
+            compatible = "xlnx,axi-dma-1.00.a";
+            reg = <0x40400000 0x10000>;
+            xlnx,addrwidth = <32>;
+
+            dma-mm2s-channel {
+                compatible = "xlnx,axi-dma-mm2s-channel";
+                interrupts = <0 29 4>;
+                xlnx,datawidth = <32>;
+            };
+
+            dma-s2mm-channel {
+                compatible = "xlnx,axi-dma-s2mm-channel";
+                interrupts = <0 30 4>;
+                xlnx,datawidth = <32>;
+            };
+        };
+    };
+};

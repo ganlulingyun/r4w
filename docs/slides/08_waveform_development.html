@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="R4W Development Team (Aida, Joe Mooney, Claude Code)">
+  <title> Waveform Development</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@5.1.0/dist/reset.css">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@5.1.0/dist/reveal.css">
+  <style>
+    .reveal .sourceCode {  /* see #7635 */
+      overflow: visible;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@5.1.0/dist/theme/night.css" id="theme">
+  <style>
+    .reveal pre {
+      margin: 0 auto;
+      width: fit-content;
+    }
+    .reveal pre code {
+      text-align: left;
+    }
+    .reveal section img {
+      max-height: 60vh;
+    }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide">
+  <h1 class="title"><img src="images/r4w_logo_1.png" height="150px" style="margin-bottom: 20px;"><br>Waveform
+Development</h1>
+  <p class="subtitle">Building SDR Waveforms in Rust</p>
+  <p class="author">R4W Development Team<br>(Aida, Joe Mooney, Claude
+Code)</p>
+  <p class="date">December 2025</p>
+</section>
+
+<section id="what-youll-learn" class="slide level2">
+<h2>What You’ll Learn</h2>
+<p>Complete waveform development lifecycle:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Topic</th>
+<th>Coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Architecture</strong></td>
+<td>Waveform trait system</td>
+</tr>
+<tr class="even">
+<td><strong>Implementation</strong></td>
+<td>Modulation/demodulation</td>
+</tr>
+<tr class="odd">
+<td><strong>Testing</strong></td>
+<td>Unit tests, BER validation</td>
+</tr>
+<tr class="even">
+<td><strong>Benchmarking</strong></td>
+<td>Performance profiling</td>
+</tr>
+<tr class="odd">
+<td><strong>Deployment</strong></td>
+<td>Cross-compilation, targets</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="project-structure" class="slide level2">
+<h2>Project Structure</h2>
+<pre><code>crates/
+├── r4w-core/           # DSP and waveforms
+│   ├── src/
+│   │   ├── dsp/        # FFT, filters, chirp
+│   │   └── waveform/   # All waveform implementations
+│   │       ├── trait.rs
+│   │       ├── factory.rs
+│   │       ├── lora.rs
+│   │       ├── psk.rs
+│   │       └── fsk.rs
+│   └── benches/        # Criterion benchmarks
+├── r4w-sim/            # Channel simulation
+├── r4w-fpga/           # FPGA acceleration
+├── r4w-cli/            # Command-line interface
+└── r4w-gui/            # GUI application</code></pre>
+</section>
+<section id="the-waveform-trait" class="slide level2">
+<h2>The Waveform Trait</h2>
+<p>Every waveform implements:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> Waveform<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> info(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> WaveformInfo<span class="op">;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample])</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>        <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> constellation_points(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Educational methods</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_modulation_stages(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>])</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>        <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>ModulationStage<span class="op">&gt;;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="iqsample-type" class="slide level2">
+<h2>IQSample Type</h2>
+<p>Complex I/Q sample representation:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Copy</span><span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> IQSample <span class="op">{</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> i<span class="op">:</span> <span class="dt">f32</span><span class="op">,</span>  <span class="co">// In-phase (real)</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> q<span class="op">:</span> <span class="dt">f32</span><span class="op">,</span>  <span class="co">// Quadrature (imaginary)</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> IQSample <span class="op">{</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> magnitude(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">f32</span> <span class="op">{</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>        (<span class="kw">self</span><span class="op">.</span>i <span class="op">*</span> <span class="kw">self</span><span class="op">.</span>i <span class="op">+</span> <span class="kw">self</span><span class="op">.</span>q <span class="op">*</span> <span class="kw">self</span><span class="op">.</span>q)<span class="op">.</span>sqrt()</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> phase(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">f32</span> <span class="op">{</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>q<span class="op">.</span>atan2(<span class="kw">self</span><span class="op">.</span>i)</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="waveform-lifecycle" class="slide level2">
+<h2>Waveform Lifecycle</h2>
+<pre><code>Transmit Path:
+┌──────────┐   ┌──────────────┐   ┌───────────────┐
+│  Data    │──►│  Modulator   │──►│  RF/Transport │
+│  (bits)  │   │  (waveform)  │   │  (hardware)   │
+└──────────┘   └──────────────┘   └───────────────┘
+
+Receive Path:
+┌───────────────┐   ┌──────────────┐   ┌──────────┐
+│  RF/Transport │──►│ Demodulator  │──►│  Data    │
+│  (hardware)   │   │  (waveform)  │   │  (bits)  │
+└───────────────┘   └──────────────┘   └──────────┘</code></pre>
+</section>
+<section id="implementing-bpsk" class="slide level2">
+<h2>Implementing BPSK</h2>
+<p>Basic phase shift keying:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> BpskWaveform <span class="op">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    symbol_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    samples_per_symbol<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> Waveform <span class="cf">for</span> BpskWaveform <span class="op">{</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>        bits<span class="op">.</span>iter()</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>flat_map(<span class="op">|&amp;</span>bit<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> phase <span class="op">=</span> <span class="cf">if</span> bit <span class="op">{</span> <span class="dv">0.0</span> <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span> PI <span class="op">};</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>                <span class="kw">self</span><span class="op">.</span>generate_symbol(phase)</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="bpsk-demodulation" class="slide level2">
+<h2>BPSK Demodulation</h2>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    samples</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>chunks(<span class="kw">self</span><span class="op">.</span>samples_per_symbol)</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>map(<span class="op">|</span>chunk<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Integrate over symbol period</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> sum<span class="op">:</span> <span class="dt">f32</span> <span class="op">=</span> chunk<span class="op">.</span>iter()</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>map(<span class="op">|</span>s<span class="op">|</span> s<span class="op">.</span>i)  <span class="co">// Real component</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>                <span class="op">.</span>sum()<span class="op">;</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>            sum <span class="op">&gt;</span> <span class="dv">0.0</span>  <span class="co">// Decision threshold</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span>)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>collect()</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="constellation-points" class="slide level2">
+<h2>Constellation Points</h2>
+<p>Define ideal symbol positions:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> constellation_points(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>    <span class="pp">vec!</span>[</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>        <span class="pp">IQSample::</span>new(<span class="op">-</span><span class="dv">1.0</span><span class="op">,</span> <span class="dv">0.0</span>)<span class="op">,</span>  <span class="co">// Bit 0</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>        <span class="pp">IQSample::</span>new(<span class="dv">1.0</span><span class="op">,</span> <span class="dv">0.0</span>)<span class="op">,</span>   <span class="co">// Bit 1</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Used by GUI for visualization.</p>
+</section>
+<section id="waveforms-implemented" class="slide level2">
+<h2>38+ Waveforms Implemented</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Category</th>
+<th>Waveforms</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Phase Shift</strong></td>
+<td>BPSK, QPSK, 8PSK</td>
+</tr>
+<tr class="even">
+<td><strong>Amplitude</strong></td>
+<td>AM, ASK, OOK</td>
+</tr>
+<tr class="odd">
+<td><strong>Frequency</strong></td>
+<td>FSK, GFSK, MSK</td>
+</tr>
+<tr class="even">
+<td><strong>Quadrature</strong></td>
+<td>16-QAM, 64-QAM, 256-QAM</td>
+</tr>
+<tr class="odd">
+<td><strong>Spread Spectrum</strong></td>
+<td>DSSS, FHSS, LoRa (CSS)</td>
+</tr>
+<tr class="even">
+<td><strong>Multi-carrier</strong></td>
+<td>OFDM</td>
+</tr>
+<tr class="odd">
+<td><strong>Military</strong></td>
+<td>SINCGARS, HAVEQUICK</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="lora-css-implementation" class="slide level2">
+<h2>LoRa CSS Implementation</h2>
+<p>Chirp Spread Spectrum:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> LoraWaveform <span class="op">{</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    sf<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span>          <span class="co">// Spreading factor 5-12</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    bw<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span>         <span class="co">// Bandwidth (125/250/500 kHz)</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    chips_per_symbol<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> modulate_symbol(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> symbol<span class="op">:</span> <span class="dt">u16</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Generate chirp with cyclic shift</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> shift <span class="op">=</span> symbol <span class="kw">as</span> <span class="dt">f64</span> <span class="op">/</span> <span class="kw">self</span><span class="op">.</span>chips_per_symbol <span class="kw">as</span> <span class="dt">f64</span><span class="op">;</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">self</span><span class="op">.</span>generate_chirp(shift)</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="lora-demodulation" class="slide level2">
+<h2>LoRa Demodulation</h2>
+<p>FFT-based chirp detection:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> downchirp <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>generate_downchirp()<span class="op">;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    samples<span class="op">.</span>chunks(<span class="kw">self</span><span class="op">.</span>chips_per_symbol)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>flat_map(<span class="op">|</span>chunk<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Multiply by downchirp</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> product <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>multiply(chunk<span class="op">,</span> <span class="op">&amp;</span>downchirp)<span class="op">;</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>            <span class="co">// FFT to find peak</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> spectrum <span class="op">=</span> fft(<span class="op">&amp;</span>product)<span class="op">;</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> peak_bin <span class="op">=</span> find_peak(<span class="op">&amp;</span>spectrum)<span class="op">;</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Convert bin to symbol to bits</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>            symbol_to_bits(peak_bin<span class="op">,</span> <span class="kw">self</span><span class="op">.</span>sf)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span>)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>collect()</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="waveforminfo-metadata" class="slide level2">
+<h2>WaveformInfo Metadata</h2>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> WaveformInfo <span class="op">{</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> name<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> description<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> modulation_type<span class="op">:</span> ModulationType<span class="op">,</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> bits_per_symbol<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> sample_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> symbol_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> bandwidth<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Returned by <code>info()</code> method.</p>
+</section>
+<section id="educational-stages" class="slide level2">
+<h2>Educational Stages</h2>
+<p>Show modulation pipeline:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> get_modulation_stages(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>])</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>    <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>ModulationStage<span class="op">&gt;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="op">{</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="pp">vec!</span>[</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>        ModulationStage <span class="op">{</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>            name<span class="op">:</span> <span class="st">&quot;Input Bits&quot;</span><span class="op">,</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>            data<span class="op">:</span> <span class="pp">StageData::</span>Bits(bits<span class="op">.</span>to_vec())<span class="op">,</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        <span class="op">},</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>        ModulationStage <span class="op">{</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>            name<span class="op">:</span> <span class="st">&quot;Symbol Mapping&quot;</span><span class="op">,</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>            data<span class="op">:</span> <span class="pp">StageData::</span>Symbols(<span class="kw">self</span><span class="op">.</span>map_symbols(bits))<span class="op">,</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>        <span class="op">},</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>        ModulationStage <span class="op">{</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>            name<span class="op">:</span> <span class="st">&quot;Pulse Shaping&quot;</span><span class="op">,</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>            data<span class="op">:</span> <span class="pp">StageData::</span>Samples(<span class="kw">self</span><span class="op">.</span>modulate(bits))<span class="op">,</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>        <span class="op">},</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    ]</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="waveform-factory" class="slide level2">
+<h2>Waveform Factory</h2>
+<p>Dynamic waveform creation:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::</span>WaveformFactory<span class="op">;</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> waveform <span class="op">=</span> <span class="pp">WaveformFactory::</span>create(</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;lora&quot;</span><span class="op">,</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    WaveformConfig <span class="op">{</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>        sample_rate<span class="op">:</span> <span class="dv">1e6</span><span class="op">,</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>        spreading_factor<span class="op">:</span> <span class="cn">Some</span>(<span class="dv">7</span>)<span class="op">,</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>        bandwidth<span class="op">:</span> <span class="cn">Some</span>(<span class="dv">125e3</span>)<span class="op">,</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>        <span class="op">..</span><span class="bu">Default</span><span class="pp">::</span><span class="kw">default</span>()</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>)<span class="op">?;</span></span></code></pre></div>
+</section>
+<section id="unit-testing" class="slide level2">
+<h2>Unit Testing</h2>
+<p>Test modulate/demodulate roundtrip:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> test_bpsk_roundtrip() <span class="op">{</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> waveform <span class="op">=</span> <span class="pp">BpskWaveform::</span>new(<span class="dv">1e6</span><span class="op">,</span> <span class="dv">100e3</span>)<span class="op">;</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> bits <span class="op">=</span> <span class="pp">vec!</span>[<span class="cn">true</span><span class="op">,</span> <span class="cn">false</span><span class="op">,</span> <span class="cn">true</span><span class="op">,</span> <span class="cn">true</span><span class="op">,</span> <span class="cn">false</span>]<span class="op">;</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate(<span class="op">&amp;</span>bits)<span class="op">;</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> recovered <span class="op">=</span> waveform<span class="op">.</span>demodulate(<span class="op">&amp;</span>samples)<span class="op">;</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="pp">assert_eq!</span>(bits<span class="op">,</span> recovered)<span class="op">;</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="ber-testing" class="slide level2">
+<h2>BER Testing</h2>
+<p>Bit Error Rate with channel:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> test_bpsk_ber_at_10db() <span class="op">{</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> waveform <span class="op">=</span> <span class="pp">BpskWaveform::</span>new(<span class="dv">1e6</span><span class="op">,</span> <span class="dv">100e3</span>)<span class="op">;</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> channel <span class="op">=</span> <span class="pp">AwgnChannel::</span>new(<span class="dv">10.0</span>)<span class="op">;</span>  <span class="co">// 10 dB SNR</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> bits<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;</span> <span class="op">=</span> (<span class="dv">0</span><span class="op">..</span><span class="dv">10000</span>)</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>map(<span class="op">|</span>_<span class="op">|</span> <span class="pp">rand::</span>random())</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>collect()<span class="op">;</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate(<span class="op">&amp;</span>bits)<span class="op">;</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> noisy <span class="op">=</span> channel<span class="op">.</span>apply(<span class="op">&amp;</span>samples)<span class="op">;</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> recovered <span class="op">=</span> waveform<span class="op">.</span>demodulate(<span class="op">&amp;</span>noisy)<span class="op">;</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> ber <span class="op">=</span> count_errors(<span class="op">&amp;</span>bits<span class="op">,</span> <span class="op">&amp;</span>recovered) <span class="kw">as</span> <span class="dt">f64</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>        <span class="op">/</span> bits<span class="op">.</span>len() <span class="kw">as</span> <span class="dt">f64</span><span class="op">;</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    <span class="pp">assert!</span>(ber <span class="op">&lt;</span> <span class="dv">0.01</span>)<span class="op">;</span>  <span class="co">// BER &lt; 1%</span></span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="benchmarking" class="slide level2">
+<h2>Benchmarking</h2>
+<p>Criterion benchmarks:</p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">// benches/waveform_bench.rs</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">criterion::</span><span class="op">{</span>criterion_group<span class="op">,</span> Criterion<span class="op">};</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> bench_lora_modulate(c<span class="op">:</span> <span class="op">&amp;</span><span class="kw">mut</span> Criterion) <span class="op">{</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> waveform <span class="op">=</span> <span class="pp">LoraWaveform::</span>new(<span class="dv">7</span><span class="op">,</span> <span class="dv">125e3</span>)<span class="op">;</span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> bits <span class="op">=</span> <span class="pp">vec!</span>[<span class="cn">true</span><span class="op">;</span> <span class="dv">1024</span>]<span class="op">;</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    c<span class="op">.</span>bench_function(<span class="st">&quot;lora_sf7_modulate&quot;</span><span class="op">,</span> <span class="op">|</span>b<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>        b<span class="op">.</span>iter(<span class="op">||</span> waveform<span class="op">.</span>modulate(<span class="op">&amp;</span>bits))</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p>Run: <code>cargo bench</code></p>
+</section>
+<section id="performance-results" class="slide level2">
+<h2>Performance Results</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Waveform</th>
+<th>Throughput</th>
+<th>Latency p99</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>BPSK</td>
+<td>25.4 K/s</td>
+<td>20 us</td>
+</tr>
+<tr class="even">
+<td>QPSK</td>
+<td>22.1 K/s</td>
+<td>25 us</td>
+</tr>
+<tr class="odd">
+<td>LoRa SF7</td>
+<td>45.6 K/s</td>
+<td>18 us</td>
+</tr>
+<tr class="even">
+<td>16-QAM</td>
+<td>18.3 K/s</td>
+<td>35 us</td>
+</tr>
+<tr class="odd">
+<td>OFDM</td>
+<td>12.7 K/s</td>
+<td>80 us</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="cross-compilation" class="slide level2">
+<h2>Cross-Compilation</h2>
+<p>Build for embedded targets:</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co"># ARM64 (Raspberry Pi 4)</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="ex">rustup</span> target add aarch64-unknown-linux-gnu</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--target</span> aarch64-unknown-linux-gnu</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co"># ARM32 (older Pi)</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="ex">rustup</span> target add armv7-unknown-linux-gnueabihf</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--target</span> armv7-unknown-linux-gnueabihf</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Static binary</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--target</span> x86_64-unknown-linux-musl</span></code></pre></div>
+</section>
+<section id="deployment" class="slide level2">
+<h2>Deployment</h2>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build CLI</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> build-cli-arm64</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Deploy to target</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">make</span> deploy-arm64 REMOTE_HOST=user@pi</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run on target</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="fu">ssh</span> user@pi <span class="st">&quot;./r4w info --waveform lora&quot;</span></span></code></pre></div>
+</section>
+<section id="adding-a-new-waveform" class="slide level2">
+<h2>Adding a New Waveform</h2>
+<ol type="1">
+<li>Create
+<code>crates/r4w-core/src/waveform/&lt;name&gt;.rs</code></li>
+<li>Implement <code>Waveform</code> trait</li>
+<li>Add to <code>mod.rs</code> and factory</li>
+<li>Write unit tests</li>
+<li>Add benchmarks</li>
+<li>Document in guide</li>
+</ol>
+</section>
+<section id="example-custom-fsk" class="slide level2">
+<h2>Example: Custom FSK</h2>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> CustomFskWaveform <span class="op">{</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    deviation<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    symbol_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> Waveform <span class="cf">for</span> CustomFskWaveform <span class="op">{</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> bits<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">bool</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> phase <span class="op">=</span> <span class="dv">0.0</span><span class="op">;</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>        bits<span class="op">.</span>iter()</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>flat_map(<span class="op">|&amp;</span>bit<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> freq <span class="op">=</span> <span class="cf">if</span> bit <span class="op">{</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>                    <span class="kw">self</span><span class="op">.</span>deviation</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>                    <span class="op">-</span><span class="kw">self</span><span class="op">.</span>deviation</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>                <span class="op">};</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>                <span class="kw">self</span><span class="op">.</span>generate_tone(freq<span class="op">,</span> <span class="op">&amp;</span><span class="kw">mut</span> phase)</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+</section>
+<section id="ide-setup-vs-code" class="slide level2">
+<h2>IDE Setup (VS Code)</h2>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode json"><code class="sourceCode json"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="er">//</span> <span class="er">.vscode/settings.json</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="fu">{</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;rust-analyzer.cargo.features&quot;</span><span class="fu">:</span> <span class="ot">[</span><span class="st">&quot;all&quot;</span><span class="ot">]</span><span class="fu">,</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;rust-analyzer.checkOnSave.command&quot;</span><span class="fu">:</span> <span class="st">&quot;clippy&quot;</span><span class="fu">,</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;rust-analyzer.lens.enable&quot;</span><span class="fu">:</span> <span class="kw">true</span><span class="fu">,</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">&quot;editor.formatOnSave&quot;</span><span class="fu">:</span> <span class="kw">true</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="fu">}</span></span></code></pre></div>
+<p>Extensions: rust-analyzer, CodeLLDB, Error Lens</p>
+</section>
+<section id="debugging-tips" class="slide level2">
+<h2>Debugging Tips</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>cargo test -- --nocapture</code></td>
+<td>See println output</td>
+</tr>
+<tr class="even">
+<td><code>RUST_BACKTRACE=1</code></td>
+<td>Full stack traces</td>
+</tr>
+<tr class="odd">
+<td>CodeLLDB</td>
+<td>Step debugging</td>
+</tr>
+<tr class="even">
+<td><code>cargo flamegraph</code></td>
+<td>CPU profiling</td>
+</tr>
+<tr class="odd">
+<td><code>cargo bloat</code></td>
+<td>Binary size analysis</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="summary" class="slide level2">
+<h2>Summary</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Step</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Implement <code>Waveform</code> trait</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Add modulate/demodulate</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Define constellation</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Write unit tests</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Add to factory</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Benchmark performance</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>Cross-compile if needed</td>
+</tr>
+</tbody>
+</table>
+<p><strong>38+ waveforms. Your next one.</strong></p>
+</section>
+<section id="questions" class="slide level2">
+<h2>Questions?</h2>
+<p><strong>R4W - Waveform Development</strong></p>
+<p>github.com/joemooney/r4w</p>
+<p>Docs: <code>docs/WAVEFORM_DEVELOPERS_GUIDE.md</code></p>
+</section>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/reveal.js@5.1.0/dist/reveal.js"></script>
+
+  <!-- reveal.js plugins -->
+  <script src="https://unpkg.com/reveal.js@5.1.0/plugin/notes/notes.js"></script>
+  <script src="https://unpkg.com/reveal.js@5.1.0/plugin/search/search.js"></script>
+  <script src="https://unpkg.com/reveal.js@5.1.0/plugin/zoom/zoom.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+        // Display controls in the bottom right corner
+        controls: true,
+
+        // Help the user learn the controls by providing hints, for example by
+        // bouncing the down arrow when they first encounter a vertical slide
+        controlsTutorial: true,
+
+        // Determines where controls appear, "edges" or "bottom-right"
+        controlsLayout: 'bottom-right',
+
+        // Visibility rule for backwards navigation arrows; "faded", "hidden"
+        // or "visible"
+        controlsBackArrows: 'faded',
+
+        // Display a presentation progress bar
+        progress: true,
+
+        // Display the page number of the current slide
+        slideNumber: true,
+
+        // 'all', 'print', or 'speaker'
+        showSlideNumber: 'all',
+
+        // Add the current slide number to the URL hash so that reloading the
+        // page/copying the URL will return you to the same slide
+        hash: true,
+
+        // Start with 1 for the hash rather than 0
+        hashOneBasedIndex: false,
+
+        // Flags if we should monitor the hash and change slides accordingly
+        respondToHashChanges: true,
+
+        // Push each slide change to the browser history
+        history: false,
+
+        // Enable keyboard shortcuts for navigation
+        keyboard: true,
+
+        // Enable the slide overview mode
+        overview: true,
+
+        // Disables the default reveal.js slide layout (scaling and centering)
+        // so that you can use custom CSS layout
+        disableLayout: false,
+
+        // Vertical centering of slides
+        center: true,
+
+        // Enables touch navigation on devices with touch input
+        touch: true,
+
+        // Loop the presentation
+        loop: false,
+
+        // Change the presentation direction to be RTL
+        rtl: false,
+
+        // see https://revealjs.com/vertical-slides/#navigation-mode
+        navigationMode: 'default',
+
+        // Randomizes the order of slides each time the presentation loads
+        shuffle: false,
+
+        // Turns fragments on and off globally
+        fragments: true,
+
+        // Flags whether to include the current fragment in the URL,
+        // so that reloading brings you to the same fragment position
+        fragmentInURL: true,
+
+        // Flags if the presentation is running in an embedded mode,
+        // i.e. contained within a limited portion of the screen
+        embedded: false,
+
+        // Flags if we should show a help overlay when the questionmark
+        // key is pressed
+        help: true,
+
+        // Flags if it should be possible to pause the presentation (blackout)
+        pause: true,
+
+        // Flags if speaker notes should be visible to all viewers
+        showNotes: false,
+
+        // Global override for autoplaying embedded media (null/true/false)
+        autoPlayMedia: null,
+
+        // Global override for preloading lazy-loaded iframes (null/true/false)
+        preloadIframes: null,
+
+        // Number of milliseconds between automatically proceeding to the
+        // next slide, disabled when set to 0, this value can be overwritten
+        // by using a data-autoslide attribute on your slides
+        autoSlide: 0,
+
+        // Stop auto-sliding after user input
+        autoSlideStoppable: true,
+
+        // Use this method for navigation when auto-sliding
+        autoSlideMethod: null,
+
+        // Specify the average time in seconds that you think you will spend
+        // presenting each slide. This is used to show a pacing timer in the
+        // speaker view
+        defaultTiming: null,
+
+        // Enable slide navigation via mouse wheel
+        mouseWheel: false,
+
+        // The display mode that will be used to show slides
+        display: 'block',
+
+        // Hide cursor if inactive
+        hideInactiveCursor: true,
+
+        // Time before the cursor is hidden (in ms)
+        hideCursorTime: 5000,
+
+        // Opens links in an iframe preview overlay
+        previewLinks: false,
+
+        // Transition style (none/fade/slide/convex/concave/zoom)
+        transition: 'slide',
+
+        // Transition speed (default/fast/slow)
+        transitionSpeed: 'default',
+
+        // Transition style for full page slide backgrounds
+        // (none/fade/slide/convex/concave/zoom)
+        backgroundTransition: 'fade',
+
+        // Number of slides away from the current that are visible
+        viewDistance: 3,
+
+        // Number of slides away from the current that are visible on mobile
+        // devices. It is advisable to set this to a lower number than
+        // viewDistance in order to save resources.
+        mobileViewDistance: 2,
+
+        // The "normal" size of the presentation, aspect ratio will be preserved
+        // when the presentation is scaled to fit different resolutions. Can be
+        // specified using percentage units.
+        width: 1920,
+
+        height: 1080,
+
+        // reveal.js plugins
+        plugins: [
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    </body>
+</html>

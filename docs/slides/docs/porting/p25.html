@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Porting: p25 - R4W Documentation</title>
+    <link rel="stylesheet" href="../docs/style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../../index.html">Presentations</a>
+        <a href="../index.html">Documentation</a>
+    </div>
+    <h1 id="p25-porting-guide">P25 Porting Guide</h1>
+    <p>APCO P25 (Project 25) - Public safety digital radio standard used
+    by police, fire, and EMS.</p>
+    <h2 id="overview">Overview</h2>
+    <table>
+    <colgroup>
+    <col style="width: 58%" />
+    <col style="width: 41%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Property</th>
+    <th>Value</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Frequency Bands</td>
+    <td>VHF, UHF, 700/800 MHz</td>
+    </tr>
+    <tr class="even">
+    <td>Phase 1 Modulation</td>
+    <td>C4FM (Continuous 4-level FM) / CQPSK (LSM)</td>
+    </tr>
+    <tr class="odd">
+    <td>Phase 2 Modulation</td>
+    <td>H-DQPSK TDMA</td>
+    </tr>
+    <tr class="even">
+    <td>Symbol Rate</td>
+    <td>4800 baud (Phase 1), 6000 baud (Phase 2)</td>
+    </tr>
+    <tr class="odd">
+    <td>Voice Codec</td>
+    <td>IMBE (Phase 1), AMBE+2 (Phase 2)</td>
+    </tr>
+    <tr class="even">
+    <td>Channel Bandwidth</td>
+    <td>12.5 kHz (Phase 1), 6.25 kHz equivalent (Phase 2)</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="implementation-status">Implementation Status</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│ P25 Implementation Status                                       │
+├─────────────────────────────────────────────────────────────────┤
+│ [██████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 47%          │
+├─────────────────────────────────────────────────────────────────┤
+│ ✅ C4FM Modulation               (12% effort) - Complete        │
+│ ✅ CQPSK Modulation              (10% effort) - Complete        │
+│ ✅ H-DQPSK (Phase 2)             (12% effort) - Complete        │
+│ ✅ Frame Sync                    (8% effort)  - Complete        │
+│ ✅ NID/NAC Encoding              (5% effort)  - Complete        │
+│ ❌ IMBE Voice Codec              (18% effort) - Not implemented │
+│ ❌ AMBE+2 Voice Codec            (15% effort) - Not implemented │
+│ ❌ Trunking Protocol             (12% effort) - Not implemented │
+│ ❌ AES Encryption                (8% effort)  - Not implemented │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="architecture">Architecture</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                        P25 Radio                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐              ┌──────────────┐                 │
+│  │    Voice     │              │    Data      │                 │
+│  └──────┬───────┘              └──────┬───────┘                 │
+│         │                             │                         │
+│  ┌──────▼───────┐              ┌──────▼───────┐                 │
+│  │ Voice Codec  │              │    TSBK/PDU  │                 │
+│  │ IMBE/AMBE+2  │              │   Formatting │                 │
+│  │ (PROPRIETARY)│              │(Unclassified)│                 │
+│  └──────┬───────┘              └──────┬───────┘                 │
+│         │                             │                         │
+│         └─────────────┬───────────────┘                         │
+│                       │                                         │
+│         ┌─────────────▼─────────────┐                           │
+│         │      Optional AES         │                           │
+│         │      Encryption           │                           │
+│         │    (Unclassified)         │                           │
+│         └─────────────┬─────────────┘                           │
+│                       │                                         │
+│         ┌─────────────▼─────────────┐                           │
+│         │    Frame Assembly         │                           │
+│         │  NID, NAC, DUID, FEC      │                           │
+│         │    (Unclassified)         │                           │
+│         └─────────────┬─────────────┘                           │
+│                       │                                         │
+│         ┌─────────────▼─────────────┐                           │
+│         │     Modulator             │                           │
+│         │  C4FM / CQPSK / H-DQPSK   │                           │
+│         │    (Unclassified)         │                           │
+│         └─────────────┬─────────────┘                           │
+│                       │                                         │
+│                       ▼                                         │
+│                  RF Output                                      │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="components-to-implement">Components to Implement</h2>
+    <p>Unlike classified military waveforms, P25’s missing components
+    are <strong>proprietary</strong> (voice codecs) or
+    <strong>unclassified</strong> (trunking, encryption). These can be
+    implemented directly in the open-source project.</p>
+    <h3 id="voice-codec-options-33-of-total-effort">1. Voice Codec
+    Options (33% of total effort)</h3>
+    <p>The IMBE and AMBE+2 codecs are owned by DVSI (Digital Voice
+    Systems, Inc.).</p>
+    <h4 id="option-a-dvsi-license-full-compatibility">Option A: DVSI
+    License (Full Compatibility)</h4>
+    <p>Purchase a license from DVSI for legal codec implementation.</p>
+    <div class="sourceCode" id="cb3"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// With DVSI license, implement codec directly</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> ImbeCodec <span class="op">{</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Licensed implementation</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> VoiceCodec <span class="cf">for</span> ImbeCodec <span class="op">{</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encode(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> pcm<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">i16</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>        <span class="co">// IMBE encoding (licensed)</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decode(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> imbe_frame<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">i16</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>        <span class="co">// IMBE decoding (licensed)</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p><strong>Contact:</strong> Digital Voice Systems, Inc. -
+    https://www.dvsinc.com/</p>
+    <h4 id="option-b-hardware-vocoder-dv3000">Option B: Hardware Vocoder
+    (DV3000)</h4>
+    <p>Use DVSI’s DV3000 USB dongle for codec operations.</p>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/p25/dv3000.rs</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">serialport::</span>SerialPort<span class="op">;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> Dv3000Codec <span class="op">{</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    port<span class="op">:</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> SerialPort<span class="op">&gt;,</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> Dv3000Codec <span class="op">{</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new(device<span class="op">:</span> <span class="op">&amp;</span><span class="dt">str</span>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Self</span><span class="op">,</span> <span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> port <span class="op">=</span> <span class="pp">serialport::</span>new(device<span class="op">,</span> <span class="dv">460800</span>)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>timeout(<span class="pp">Duration::</span>from_millis(<span class="dv">100</span>))</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>open()<span class="op">?;</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(<span class="dt">Self</span> <span class="op">{</span> port <span class="op">}</span>)</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Send PCM audio, receive AMBE frames</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> encode_frame(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> pcm<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">i16</span><span class="op">;</span> <span class="dv">160</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>[<span class="dt">u8</span><span class="op">;</span> <span class="dv">9</span>]<span class="op">,</span> <span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Send PCM to DV3000</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> cmd <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>build_encode_command(pcm)<span class="op">;</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>port<span class="op">.</span>write_all(<span class="op">&amp;</span>cmd)<span class="op">?;</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Read AMBE response</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> response <span class="op">=</span> [<span class="dv">0u8</span><span class="op">;</span> <span class="dv">9</span>]<span class="op">;</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>port<span class="op">.</span>read_exact(<span class="op">&amp;</span><span class="kw">mut</span> response)<span class="op">?;</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(response)</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Send AMBE frames, receive PCM audio</span></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> decode_frame(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> ambe<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span><span class="op">;</span> <span class="dv">9</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>[<span class="dt">i16</span><span class="op">;</span> <span class="dv">160</span>]<span class="op">,</span> <span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Send AMBE to DV3000</span></span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> cmd <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>build_decode_command(ambe)<span class="op">;</span></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>port<span class="op">.</span>write_all(<span class="op">&amp;</span>cmd)<span class="op">?;</span></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Read PCM response</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> response <span class="op">=</span> [<span class="dv">0u8</span><span class="op">;</span> <span class="dv">320</span>]<span class="op">;</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>port<span class="op">.</span>read_exact(<span class="op">&amp;</span><span class="kw">mut</span> response)<span class="op">?;</span></span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Convert bytes to i16</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> pcm<span class="op">:</span> [<span class="dt">i16</span><span class="op">;</span> <span class="dv">160</span>] <span class="op">=</span> <span class="co">// ...</span></span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(pcm)</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> VoiceCodec <span class="cf">for</span> Dv3000Codec <span class="op">{</span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encode(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> pcm<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">i16</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Process in 160-sample (20ms) frames</span></span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>        pcm<span class="op">.</span>chunks(<span class="dv">160</span>)</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>chunk<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> <span class="kw">mut</span> frame <span class="op">=</span> [<span class="dv">0i16</span><span class="op">;</span> <span class="dv">160</span>]<span class="op">;</span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>                frame[<span class="op">..</span>chunk<span class="op">.</span>len()]<span class="op">.</span>copy_from_slice(chunk)<span class="op">;</span></span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>                <span class="kw">self</span><span class="op">.</span>encode_frame(<span class="op">&amp;</span>frame)<span class="op">.</span>unwrap()</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>flatten()</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decode(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> encoded<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">i16</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Process in 9-byte AMBE frames</span></span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>        encoded<span class="op">.</span>chunks(<span class="dv">9</span>)</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>chunk<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> <span class="kw">mut</span> frame <span class="op">=</span> [<span class="dv">0u8</span><span class="op">;</span> <span class="dv">9</span>]<span class="op">;</span></span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>                frame[<span class="op">..</span>chunk<span class="op">.</span>len()]<span class="op">.</span>copy_from_slice(chunk)<span class="op">;</span></span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>                <span class="kw">self</span><span class="op">.</span>decode_frame(<span class="op">&amp;</span>frame)<span class="op">.</span>unwrap()</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>flatten()</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>collect()</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h4 id="option-c-mbelib-receive-only---legal-gray-area">Option C:
+    mbelib (Receive Only - Legal Gray Area)</h4>
+    <p>The open-source <code>mbelib</code> can decode (not encode)
+    IMBE/AMBE. Legal status is uncertain.</p>
+    <div class="sourceCode" id="cb5"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// FFI to mbelib - USE AT YOUR OWN RISK</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>link<span class="at">(</span>name <span class="op">=</span> <span class="st">&quot;mbe&quot;</span><span class="at">)]</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">extern</span> <span class="st">&quot;C&quot;</span> <span class="op">{</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> mbe_initMbeParms(</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>        cur_mp<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> mbe_parms<span class="op">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        prev_mp<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> mbe_parms<span class="op">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        prev_mp_enhanced<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> mbe_parms<span class="op">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> mbe_processImbe4400Dataf(</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        audio_out<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> <span class="dt">f32</span><span class="op">,</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        errors<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> <span class="dt">i32</span><span class="op">,</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        errors2<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> <span class="dt">i32</span><span class="op">,</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        err_str<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> <span class="dt">c_char</span><span class="op">,</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>        imbe_d<span class="op">:</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">c_char</span><span class="op">,</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        cur_mp<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> mbe_parms<span class="op">,</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>        prev_mp<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> mbe_parms<span class="op">,</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        prev_mp_enhanced<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> mbe_parms<span class="op">,</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        uvquality<span class="op">:</span> <span class="dt">i32</span><span class="op">,</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    ) <span class="op">-&gt;</span> <span class="dt">i32</span><span class="op">;</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h4 id="option-d-codec2-open-source---not-compatible">Option D:
+    Codec2 (Open Source - Not Compatible)</h4>
+    <p>Use Codec2 for voice, but it won’t interoperate with real P25
+    radios.</p>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">// For training/simulation only</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">codec2::</span>Codec2<span class="op">;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> Codec2Voice <span class="op">{</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    codec<span class="op">:</span> Codec2<span class="op">,</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> Codec2Voice <span class="op">{</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>            codec<span class="op">:</span> <span class="pp">Codec2::</span>new(<span class="pp">Codec2Mode::</span>Mode3200)<span class="op">,</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Note: This will NOT work with actual P25 radios</span></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="co">// Only for simulation/training purposes</span></span></code></pre></div>
+    <h3 id="trunking-protocol-12-of-total-effort">2. Trunking Protocol
+    (12% of total effort)</h3>
+    <p>P25 trunking is fully unclassified and documented in TIA
+    standards.</p>
+    <div class="sourceCode" id="cb7"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/p25/trunking.rs</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> TrunkingController <span class="op">{</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    control_channel<span class="op">:</span> Frequency<span class="op">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    talkgroups<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span>Talkgroup<span class="op">&gt;,</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    current_voice_channel<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>Frequency<span class="op">&gt;,</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    state<span class="op">:</span> TrunkingState<span class="op">,</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> Talkgroup <span class="op">{</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> id<span class="op">:</span> <span class="dt">u16</span><span class="op">,</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> name<span class="op">:</span> <span class="dt">String</span><span class="op">,</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> priority<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> encrypted<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Copy</span><span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">enum</span> TrunkingState <span class="op">{</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    Idle<span class="op">,</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    Scanning<span class="op">,</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    MonitoringControl<span class="op">,</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    OnVoiceChannel(Frequency)<span class="op">,</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>    Transmitting<span class="op">,</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TrunkingController <span class="op">{</span></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Process Trunking Signaling Block (TSBK)</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> process_tsbk(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> tsbk<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>TrunkingEvent<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> opcode <span class="op">=</span> tsbk[<span class="dv">0</span>]<span class="op">;</span></span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>        <span class="cf">match</span> opcode <span class="op">{</span></span>
+<span id="cb7-33"><a href="#cb7-33" aria-hidden="true" tabindex="-1"></a>            <span class="dv">0x00</span> <span class="op">=&gt;</span> <span class="kw">self</span><span class="op">.</span>process_grp_v_ch_grant(tsbk)<span class="op">,</span>      <span class="co">// Group Voice Channel Grant</span></span>
+<span id="cb7-34"><a href="#cb7-34" aria-hidden="true" tabindex="-1"></a>            <span class="dv">0x02</span> <span class="op">=&gt;</span> <span class="kw">self</span><span class="op">.</span>process_grp_v_ch_grant_updt(tsbk)<span class="op">,</span> <span class="co">// Grant Update</span></span>
+<span id="cb7-35"><a href="#cb7-35" aria-hidden="true" tabindex="-1"></a>            <span class="dv">0x20</span> <span class="op">=&gt;</span> <span class="kw">self</span><span class="op">.</span>process_iden_up(tsbk)<span class="op">,</span>              <span class="co">// Identifier Update</span></span>
+<span id="cb7-36"><a href="#cb7-36" aria-hidden="true" tabindex="-1"></a>            <span class="dv">0x34</span> <span class="op">=&gt;</span> <span class="kw">self</span><span class="op">.</span>process_net_stat_bcast(tsbk)<span class="op">,</span>       <span class="co">// Network Status</span></span>
+<span id="cb7-37"><a href="#cb7-37" aria-hidden="true" tabindex="-1"></a>            <span class="dv">0x3D</span> <span class="op">=&gt;</span> <span class="kw">self</span><span class="op">.</span>process_adj_st_bcast(tsbk)<span class="op">,</span>         <span class="co">// Adjacent Status</span></span>
+<span id="cb7-38"><a href="#cb7-38" aria-hidden="true" tabindex="-1"></a>            _ <span class="op">=&gt;</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb7-39"><a href="#cb7-39" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb7-40"><a href="#cb7-40" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb7-41"><a href="#cb7-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-42"><a href="#cb7-42" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Request voice channel for talkgroup</span></span>
+<span id="cb7-43"><a href="#cb7-43" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> request_channel(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> talkgroup<span class="op">:</span> <span class="dt">u16</span>) <span class="op">-&gt;</span> TrunkingRequest <span class="op">{</span></span>
+<span id="cb7-44"><a href="#cb7-44" aria-hidden="true" tabindex="-1"></a>        <span class="pp">TrunkingRequest::</span>GroupVoiceRequest <span class="op">{</span> talkgroup <span class="op">}</span></span>
+<span id="cb7-45"><a href="#cb7-45" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb7-46"><a href="#cb7-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-47"><a href="#cb7-47" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Follow channel grant</span></span>
+<span id="cb7-48"><a href="#cb7-48" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> follow_grant(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> channel<span class="op">:</span> Frequency) <span class="op">{</span></span>
+<span id="cb7-49"><a href="#cb7-49" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_voice_channel <span class="op">=</span> <span class="cn">Some</span>(channel)<span class="op">;</span></span>
+<span id="cb7-50"><a href="#cb7-50" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>state <span class="op">=</span> <span class="pp">TrunkingState::</span>OnVoiceChannel(channel)<span class="op">;</span></span>
+<span id="cb7-51"><a href="#cb7-51" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb7-52"><a href="#cb7-52" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="aes-encryption-8-of-total-effort">3. AES Encryption (8% of
+    total effort)</h3>
+    <p>P25 uses standard AES-256, which is unclassified.</p>
+    <div class="sourceCode" id="cb8"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/p25/encryption.rs</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">aes::</span>Aes256<span class="op">;</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">cipher::</span><span class="op">{</span>KeyIvInit<span class="op">,</span> StreamCipher<span class="op">};</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">ofb::</span>Ofb<span class="op">;</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="kw">type</span> Aes256Ofb <span class="op">=</span> Ofb<span class="op">&lt;</span>Aes256<span class="op">&gt;;</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> P25Encryption <span class="op">{</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    key<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>[<span class="dt">u8</span><span class="op">;</span> <span class="dv">32</span>]<span class="op">&gt;,</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    key_id<span class="op">:</span> <span class="dt">u16</span><span class="op">,</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    algorithm_id<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span>  <span class="co">// 0x80 = unencrypted, 0x81 = AES-256</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> P25Encryption <span class="op">{</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>            key<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a>            key_id<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a>            algorithm_id<span class="op">:</span> <span class="dv">0x80</span><span class="op">,</span>  <span class="co">// Unencrypted by default</span></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> load_key(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key_id<span class="op">:</span> <span class="dt">u16</span><span class="op">,</span> key<span class="op">:</span> [<span class="dt">u8</span><span class="op">;</span> <span class="dv">32</span>]) <span class="op">{</span></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>key_id <span class="op">=</span> key_id<span class="op">;</span></span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>key <span class="op">=</span> <span class="cn">Some</span>(key)<span class="op">;</span></span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>algorithm_id <span class="op">=</span> <span class="dv">0x81</span><span class="op">;</span>  <span class="co">// AES-256</span></span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> encrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> plaintext<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> mi<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span><span class="op">;</span> <span class="dv">9</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">self</span><span class="op">.</span>algorithm_id <span class="op">==</span> <span class="dv">0x80</span> <span class="op">{</span></span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> plaintext<span class="op">.</span>to_vec()<span class="op">;</span></span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> key <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>key<span class="op">.</span>as_ref()<span class="op">.</span>expect(<span class="st">&quot;No key loaded&quot;</span>)<span class="op">;</span></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Build IV from Message Indicator</span></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> iv <span class="op">=</span> [<span class="dv">0u8</span><span class="op">;</span> <span class="dv">16</span>]<span class="op">;</span></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a>        iv[<span class="op">..</span><span class="dv">9</span>]<span class="op">.</span>copy_from_slice(mi)<span class="op">;</span></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> cipher <span class="op">=</span> <span class="pp">Aes256Ofb::</span>new(key<span class="op">.</span>into()<span class="op">,</span> <span class="op">&amp;</span>iv<span class="op">.</span>into())<span class="op">;</span></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> ciphertext <span class="op">=</span> plaintext<span class="op">.</span>to_vec()<span class="op">;</span></span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>        cipher<span class="op">.</span>apply_keystream(<span class="op">&amp;</span><span class="kw">mut</span> ciphertext)<span class="op">;</span></span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>        ciphertext</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> decrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> ciphertext<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> mi<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span><span class="op">;</span> <span class="dv">9</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> P25Error<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a>        <span class="co">// AES OFB is symmetric</span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(<span class="kw">self</span><span class="op">.</span>encrypt(ciphertext<span class="op">,</span> mi))</span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Build Link Control Word with encryption info</span></span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> build_lcw(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> LinkControlWord <span class="op">{</span></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a>        LinkControlWord <span class="op">{</span></span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a>            algorithm_id<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>algorithm_id<span class="op">,</span></span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>            key_id<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>key_id<span class="op">,</span></span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a>            <span class="co">// ...</span></span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="step-by-step-implementation">Step-by-Step
+    Implementation</h2>
+    <h3 id="phase-1-voice-codec-integration">Phase 1: Voice Codec
+    Integration</h3>
+    <p>Choose a codec option and implement:</p>
+    <div class="sourceCode" id="cb9"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/p25/codec.rs</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co">/// Trait for P25 voice codecs</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> VoiceCodec<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Encode PCM audio to codec frames</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encode(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> pcm<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">i16</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;;</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Decode codec frames to PCM audio</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decode(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> frames<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">i16</span><span class="op">&gt;;</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get codec name</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> name(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="op">&amp;</span><span class="dt">str</span><span class="op">;</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Samples per frame (typically 160 for 20ms at 8kHz)</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> samples_per_frame(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">usize</span> <span class="op">{</span> <span class="dv">160</span> <span class="op">}</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Bytes per encoded frame</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> bytes_per_frame(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">usize</span><span class="op">;</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="co">/// Factory for codec selection</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">fn</span> create_codec(codec_type<span class="op">:</span> CodecType) <span class="op">-&gt;</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> VoiceCodec<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">match</span> codec_type <span class="op">{</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>        <span class="pp">CodecType::</span>Dv3000(device) <span class="op">=&gt;</span> <span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">Dv3000Codec::</span>new(<span class="op">&amp;</span>device)<span class="op">.</span>unwrap())<span class="op">,</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>        <span class="pp">CodecType::</span>Codec2 <span class="op">=&gt;</span> <span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">Codec2Voice::</span>new())<span class="op">,</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>        <span class="pp">CodecType::</span>Null <span class="op">=&gt;</span> <span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">NullCodec::</span>new())<span class="op">,</span></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-2-trunking-implementation">Phase 2: Trunking
+    Implementation</h3>
+    <div class="sourceCode" id="cb10"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Main trunking integration</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> P25Trunked <span class="op">{</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    p25<span class="op">:</span> P25<span class="op">,</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    trunking<span class="op">:</span> TrunkingController<span class="op">,</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    scanner<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>Scanner<span class="op">&gt;,</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> P25Trunked <span class="op">{</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Scan for active talkgroups</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> scan(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>ActiveCall<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> control_data <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>p25<span class="op">.</span>demodulate_control()<span class="op">;</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> tsbk <span class="kw">in</span> control_data<span class="op">.</span>tsbks() <span class="op">{</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(event) <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>trunking<span class="op">.</span>process_tsbk(tsbk) <span class="op">{</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>                <span class="cf">match</span> event <span class="op">{</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">TrunkingEvent::</span>VoiceGrant <span class="op">{</span> channel<span class="op">,</span> talkgroup <span class="op">}</span> <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>                        <span class="kw">self</span><span class="op">.</span>trunking<span class="op">.</span>follow_grant(channel)<span class="op">;</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>                        <span class="co">// Tune to voice channel and decode</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>                    <span class="co">// ... handle other events</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>trunking<span class="op">.</span>get_active_calls()</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-3-full-integration">Phase 3: Full Integration</h3>
+    <div class="sourceCode" id="cb11"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/p25/mod.rs</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> P25Builder <span class="op">{</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    codec<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> VoiceCodec<span class="op">&gt;&gt;,</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    encryption<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>P25Encryption<span class="op">&gt;,</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    trunking<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>TrunkingController<span class="op">&gt;,</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    phase<span class="op">:</span> Phase<span class="op">,</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> P25Builder <span class="op">{</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>            sample_rate<span class="op">:</span> <span class="dv">48000.0</span><span class="op">,</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>            codec<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>            encryption<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>            trunking<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>            phase<span class="op">:</span> <span class="pp">Phase::</span>Phase1<span class="op">,</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> with_dv3000(<span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> device<span class="op">:</span> <span class="op">&amp;</span><span class="dt">str</span>) <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>codec <span class="op">=</span> <span class="cn">Some</span>(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">Dv3000Codec::</span>new(device)<span class="op">.</span>unwrap()))<span class="op">;</span></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> with_encryption(<span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key_id<span class="op">:</span> <span class="dt">u16</span><span class="op">,</span> key<span class="op">:</span> [<span class="dt">u8</span><span class="op">;</span> <span class="dv">32</span>]) <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> enc <span class="op">=</span> <span class="pp">P25Encryption::</span>new()<span class="op">;</span></span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>        enc<span class="op">.</span>load_key(key_id<span class="op">,</span> key)<span class="op">;</span></span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>encryption <span class="op">=</span> <span class="cn">Some</span>(enc)<span class="op">;</span></span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> with_trunking(<span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> control_freq<span class="op">:</span> Frequency) <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>trunking <span class="op">=</span> <span class="cn">Some</span>(<span class="pp">TrunkingController::</span>new(control_freq))<span class="op">;</span></span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span></span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> build(<span class="kw">self</span>) <span class="op">-&gt;</span> P25 <span class="op">{</span></span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a>        P25 <span class="op">{</span></span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>            sample_rate<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>sample_rate<span class="op">,</span></span>
+<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a>            codec<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>codec<span class="op">.</span>unwrap_or_else(<span class="op">||</span> <span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">NullCodec::</span>new()))<span class="op">,</span></span>
+<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a>            encryption<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>encryption<span class="op">.</span>unwrap_or_else(<span class="pp">P25Encryption::</span>new)<span class="op">,</span></span>
+<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a>            trunking<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>trunking<span class="op">,</span></span>
+<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>            phase<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>phase<span class="op">,</span></span>
+<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a>            <span class="co">// ...</span></span>
+<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="building-and-testing">Building and Testing</h2>
+    <div class="sourceCode" id="cb12"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build with DV3000 support</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">--features</span> <span class="st">&quot;p25-dv3000&quot;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Build with Codec2 (simulation only)</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">--features</span> <span class="st">&quot;p25-codec2&quot;</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run tests</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> test <span class="at">-p</span> r4w-core waveform::p25</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Test with SDR</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> receive <span class="at">--waveform</span> P25 <span class="dt">\</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">--frequency</span> 851.0125 <span class="at">--device</span> rtlsdr</span></code></pre></div>
+    <h2 id="testing-with-real-p25-systems">Testing with Real P25
+    Systems</h2>
+    <h3 id="sdr-reception-test">SDR Reception Test</h3>
+    <div class="sourceCode" id="cb13"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>ignore<span class="at">]</span>  <span class="co">// Requires SDR hardware</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> test_receive_local_p25() <span class="op">{</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> p25 <span class="op">=</span> <span class="pp">P25Builder::</span>new()</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>phase(<span class="pp">Phase::</span>Phase1)</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>with_trunking(<span class="pp">Frequency::</span>from_mhz(<span class="dv">851.0125</span>))</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>build()<span class="op">;</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Receive from RTL-SDR</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> sdr <span class="op">=</span> <span class="pp">RtlSdr::</span>open(<span class="dv">0</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    sdr<span class="op">.</span>set_center_freq(<span class="dv">851_012_500</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    sdr<span class="op">.</span>set_sample_rate(<span class="dv">2_400_000</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples <span class="op">=</span> sdr<span class="op">.</span>read_samples(<span class="dv">2_400_000</span>)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> baseband <span class="op">=</span> downconvert(<span class="op">&amp;</span>samples<span class="op">,</span> <span class="dv">0.0</span><span class="op">,</span> <span class="dv">2_400_000.0</span>)<span class="op">;</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> resampled <span class="op">=</span> resample(<span class="op">&amp;</span>baseband<span class="op">,</span> <span class="dv">2_400_000.0</span><span class="op">,</span> <span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(frame) <span class="op">=</span> p25<span class="op">.</span>demodulate(<span class="op">&amp;</span>resampled) <span class="op">{</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>            <span class="pp">println!</span>(<span class="st">&quot;Received: {:?}&quot;</span><span class="op">,</span> frame)<span class="op">;</span></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="interoperability-with-commercial-radios">Interoperability
+    with Commercial Radios</h3>
+    <p>Test against Motorola, Harris, or other P25 radios:</p>
+    <div class="sourceCode" id="cb14"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> test_interop_motorola() <span class="op">{</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Load reference capture from Motorola APX</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> reference <span class="op">=</span> load_wav(<span class="st">&quot;test_data/motorola_apx_p25.wav&quot;</span>)<span class="op">;</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> p25 <span class="op">=</span> <span class="pp">P25Builder::</span>new()</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>phase(<span class="pp">Phase::</span>Phase1)</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>build()<span class="op">;</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> frames <span class="op">=</span> p25<span class="op">.</span>demodulate(<span class="op">&amp;</span>reference)<span class="op">;</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Verify we can decode Motorola transmission</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    <span class="pp">assert!</span>(<span class="op">!</span>frames<span class="op">.</span>is_empty())<span class="op">;</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="pp">assert!</span>(frames<span class="op">.</span>iter()<span class="op">.</span>any(<span class="op">|</span>f<span class="op">|</span> f<span class="op">.</span>frame_type <span class="op">==</span> <span class="pp">FrameType::</span>Voice))<span class="op">;</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="cross-compilation">Cross-Compilation</h2>
+    <p>P25 is often deployed on embedded systems:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Platform</th>
+    <th>Target</th>
+    <th>Use Case</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Raspberry Pi</td>
+    <td><code>aarch64-unknown-linux-gnu</code></td>
+    <td>Scanner, gateway</td>
+    </tr>
+    <tr class="even">
+    <td>BeagleBone</td>
+    <td><code>armv7-unknown-linux-gnueabihf</code></td>
+    <td>Embedded radio</td>
+    </tr>
+    <tr class="odd">
+    <td>Jetson Nano</td>
+    <td><code>aarch64-unknown-linux-gnu</code></td>
+    <td>AI-assisted scanning</td>
+    </tr>
+    </tbody>
+    </table>
+    <div class="sourceCode" id="cb15"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Cross-compile for Raspberry Pi</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cross</span> build <span class="at">--release</span> <span class="at">--target</span> aarch64-unknown-linux-gnu</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Include DV3000 support</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="ex">cross</span> build <span class="at">--release</span> <span class="at">--target</span> aarch64-unknown-linux-gnu <span class="at">--features</span> <span class="st">&quot;p25-dv3000&quot;</span></span></code></pre></div>
+    <h2 id="legal-considerations">Legal Considerations</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Component</th>
+    <th>Legal Status</th>
+    <th>Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>RF Layer (C4FM, etc.)</td>
+    <td>✅ Open</td>
+    <td>Fully documented in TIA standards</td>
+    </tr>
+    <tr class="even">
+    <td>Frame Structure</td>
+    <td>✅ Open</td>
+    <td>TIA-102 series</td>
+    </tr>
+    <tr class="odd">
+    <td>Trunking</td>
+    <td>✅ Open</td>
+    <td>TIA-102.AABC</td>
+    </tr>
+    <tr class="even">
+    <td>AES Encryption</td>
+    <td>✅ Open</td>
+    <td>Standard AES-256</td>
+    </tr>
+    <tr class="odd">
+    <td>IMBE Codec</td>
+    <td>⚠️ Licensed</td>
+    <td>DVSI patent, need license</td>
+    </tr>
+    <tr class="even">
+    <td>AMBE+2 Codec</td>
+    <td>⚠️ Licensed</td>
+    <td>DVSI patent, need license</td>
+    </tr>
+    <tr class="odd">
+    <td>mbelib</td>
+    <td>⚠️ Gray Area</td>
+    <td>May violate patents</td>
+    </tr>
+    </tbody>
+    </table>
+    <p><strong>Recommendation:</strong> For production use, either: 1.
+    License codecs from DVSI 2. Use DV3000 hardware vocoder 3. Use for
+    receive-only with mbelib (at your own risk) 4. Use Codec2 for
+    simulation/training only</p>
+    <h2 id="contributing">Contributing</h2>
+    <p>Since P25 is primarily unclassified/proprietary:</p>
+    <ol type="1">
+    <li>RF layer improvements - Submit PR directly</li>
+    <li>Trunking implementation - Submit PR directly</li>
+    <li>Encryption - Submit PR directly (uses standard AES)</li>
+    <li>Voice codecs - Requires DVSI license coordination</li>
+    </ol>
+    <div class="sourceCode" id="cb16"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">-b</span> feature/p25-trunking</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Implement trunking protocol</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> test</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">&quot;feat(p25): implement Phase 1 trunking controller&quot;</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push origin feature/p25-trunking</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Create PR</span></span></code></pre></div>
+    <h2 id="see-also">See Also</h2>
+    <ul>
+    <li><a href="./BUILD_PROCEDURES.md">General Build
+    Procedures</a></li>
+    <li><a href="../PORTING_GUIDE_MILITARY.md">Main Porting
+    Guide</a></li>
+    <li><a href="https://www.tiaonline.org/standards/">TIA-102
+    Standards</a></li>
+    <li><a href="https://www.dvsinc.com/">DVSI Codec
+    Information</a></li>
+    </ul>
+</body>
+</html>

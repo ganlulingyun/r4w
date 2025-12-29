@@ -1,0 +1,2454 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FPGA Developer's Guide - R4W Documentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../index.html">Presentations</a>
+        <a href="index.html">Documentation</a>
+    </div>
+    <h1 id="fpga-developers-guide">FPGA Developer’s Guide</h1>
+    <p><strong>R4W - Rust for Waveforms</strong> <em>Comprehensive Guide
+    for FPGA Engineers</em></p>
+    <hr />
+    <h2 id="table-of-contents">Table of Contents</h2>
+    <ol type="1">
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#architecture-overview">Architecture Overview</a></li>
+    <li><a href="#supported-platforms">Supported Platforms</a></li>
+    <li><a href="#ip-core-library">IP Core Library</a></li>
+    <li><a href="#register-maps">Register Maps</a></li>
+    <li><a href="#axi-interface-specifications">AXI Interface
+    Specifications</a></li>
+    <li><a href="#xilinx-zynq-integration">Xilinx Zynq
+    Integration</a></li>
+    <li><a href="#lattice-fpga-integration">Lattice FPGA
+    Integration</a></li>
+    <li><a href="#building-and-synthesis">Building and
+    Synthesis</a></li>
+    <li><a href="#verification-and-testing">Verification and
+    Testing</a></li>
+    <li><a href="#software-driver-interface">Software Driver
+    Interface</a></li>
+    <li><a href="#performance-optimization">Performance
+    Optimization</a></li>
+    <li><a href="#adding-new-ip-cores">Adding New IP Cores</a></li>
+    <li><a href="#debugging-and-troubleshooting">Debugging and
+    Troubleshooting</a></li>
+    <li><a href="#resource-utilization">Resource Utilization</a></li>
+    <li><a href="#collaboration-with-software-developers">Collaboration
+    with Software Developers</a></li>
+    </ol>
+    <hr />
+    <h2 id="introduction">Introduction</h2>
+    <h3 id="purpose">Purpose</h3>
+    <p>This guide is designed for FPGA engineers integrating R4W (Rust
+    for Waveforms) hardware acceleration into SDR systems. It provides
+    detailed technical specifications, register maps, interface
+    protocols, and integration procedures for implementing DSP
+    accelerators on Xilinx Zynq and Lattice FPGA platforms.</p>
+    <h3 id="prerequisites">Prerequisites</h3>
+    <ul>
+    <li>Proficiency in Verilog/SystemVerilog</li>
+    <li>Understanding of AXI4-Lite and AXI4-Stream protocols</li>
+    <li>Experience with FPGA synthesis (Vivado or Yosys/nextpnr)</li>
+    <li>Familiarity with DSP concepts (FFT, FIR, NCO, modulation)</li>
+    </ul>
+    <h3 id="what-r4w-provides">What R4W Provides</h3>
+    <p>R4W provides a complete FPGA acceleration layer:</p>
+    <table>
+    <colgroup>
+    <col style="width: 45%" />
+    <col style="width: 54%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Component</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>IP Cores</strong></td>
+    <td>Pre-built DSP blocks (FFT, FIR, NCO, chirp, correlator,
+    DMA)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>AXI Wrappers</strong></td>
+    <td>Standard AXI4-Lite control interfaces</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Streaming</strong></td>
+    <td>AXI4-Stream data paths for high-throughput</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Rust Drivers</strong></td>
+    <td>Memory-mapped I/O drivers for Linux</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Simulation</strong></td>
+    <td>Software FPGA simulator for development without hardware</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Testbenches</strong></td>
+    <td>Verilog testbenches for verification</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="your-responsibilities">Your Responsibilities</h3>
+    <p>As an FPGA developer, you are responsible for:</p>
+    <ol type="1">
+    <li><strong>Platform Integration</strong> - Instantiating IP cores
+    in your block design</li>
+    <li><strong>Address Mapping</strong> - Assigning base addresses to
+    IP cores</li>
+    <li><strong>Clock Domain Crossing</strong> - Managing clock domains
+    if different from system</li>
+    <li><strong>Resource Optimization</strong> - Meeting timing and
+    resource constraints</li>
+    <li><strong>Custom IP</strong> - Developing waveform-specific
+    acceleration blocks</li>
+    <li><strong>Bitstream Generation</strong> - Producing deployable
+    bitstreams</li>
+    <li><strong>Verification</strong> - Ensuring hardware matches
+    software expectations</li>
+    </ol>
+    <hr />
+    <h2 id="architecture-overview">Architecture Overview</h2>
+    <h3 id="system-block-diagram">System Block Diagram</h3>
+    <pre><code>┌───────────────────────────────────────────────────────────────────────────┐
+│                         R4W FPGA Acceleration Layer                       │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │                      ZYNQ PS (ARM Cortex-A9/A53)                    │  │
+│  │                                                                     │  │
+│  │   ┌────────────────┐    ┌────────────────┐    ┌────────────────┐    │  │
+│  │   │   R4W Rust     │    │  Linux Kernel  │    │   /dev/mem     │    │  │
+│  │   │   Application  │───►│   (UIO/devmem) │───►│   /dev/uio*    │    │  │
+│  │   └────────────────┘    └────────────────┘    └───────┬────────┘    │  │
+│  │                                                       │             │  │
+│  └───────────────────────────────────────────────────────┼─────────────┘  │
+│                                                          │                │
+│                          AXI Interconnect                │                │
+│  ┌───────────────────────────────────────────────────────┼─────────────┐  │
+│  │                                                       │             │  │
+│  │    AXI-Lite (Control/Status)    AXI-Stream (Data)     │             │  │
+│  │           │                           │               │             │  │
+│  └───────────┼───────────────────────────┼───────────────┼─────────────┘  │
+│              │                           │               │                │
+│  ┌───────────┴───────────────────────────┴───────────────┴─────────────┐  │
+│  │                        FPGA Fabric (PL)                             │  │
+│  │                                                                     │  │
+│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │  │
+│  │   │  r4w_   │  │  r4w_   │  │  r4w_   │  │  r4w_   │  │  r4w_   │   │  │
+│  │   │  fft    │  │  fir    │  │  nco    │  │ chirp   │  │  dma    │   │  │
+│  │   │         │  │         │  │         │  │  gen    │  │         │   │  │
+│  │   └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘  └────┬────┘   │  │
+│  │        │            │            │            │            │        │  │
+│  │   ┌────┴────────────┴────────────┴────────────┴────────────┴────┐   │  │
+│  │   │                    AXI-Stream Router                        │   │  │
+│  │   └─────────────────────────────────────────────────────────────┘   │  │
+│  │                                                                     │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘</code></pre>
+    <h3 id="data-flow">Data Flow</h3>
+    <ol type="1">
+    <li><strong>Software → Hardware</strong>: Rust application writes
+    samples to DMA buffer or directly to IP core registers</li>
+    <li><strong>Processing</strong>: FPGA fabric performs DSP operations
+    (FFT, filtering, modulation)</li>
+    <li><strong>Hardware → Software</strong>: Results read back via DMA
+    or register polling</li>
+    </ol>
+    <h3 id="interface-types">Interface Types</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Interface</th>
+    <th>Use Case</th>
+    <th>Bandwidth</th>
+    <th>Latency</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>AXI-Lite</td>
+    <td>Control registers, status, configuration</td>
+    <td>Low</td>
+    <td>Low</td>
+    </tr>
+    <tr class="even">
+    <td>AXI-Stream</td>
+    <td>Sample data, continuous streaming</td>
+    <td>High</td>
+    <td>Low</td>
+    </tr>
+    <tr class="odd">
+    <td>DMA</td>
+    <td>Bulk transfers, buffer management</td>
+    <td>High</td>
+    <td>Medium</td>
+    </tr>
+    <tr class="even">
+    <td>Register</td>
+    <td>Single sample, debugging</td>
+    <td>Very Low</td>
+    <td>Very Low</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h2 id="supported-platforms">Supported Platforms</h2>
+    <h3 id="xilinx-zynq-7000-series">Xilinx Zynq-7000 Series</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Feature</th>
+    <th>Specification</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Target Devices</strong></td>
+    <td>xc7z010, xc7z020, xc7z030, xc7z045</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Toolchain</strong></td>
+    <td>Vivado 2022.2+</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>AXI Interface</strong></td>
+    <td>AXI4-Lite (32-bit), AXI4-Stream</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Memory Access</strong></td>
+    <td><code>/dev/mem</code>, <code>/dev/uio*</code></td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Typical Clock</strong></td>
+    <td>100 MHz fabric, 667 MHz PS</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="xilinx-zynq-ultrascale-mpsoc">Xilinx Zynq UltraScale+
+    MPSoC</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Feature</th>
+    <th>Specification</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Target Devices</strong></td>
+    <td>xczu3eg, xczu7ev, xczu9eg</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Toolchain</strong></td>
+    <td>Vivado 2022.2+</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>AXI Interface</strong></td>
+    <td>AXI4-Lite (32/64-bit), AXI4-Stream</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Memory Access</strong></td>
+    <td><code>/dev/mem</code>, <code>/dev/uio*</code>, CMA</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Typical Clock</strong></td>
+    <td>300 MHz fabric, 1.2 GHz PS</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="lattice-ice40">Lattice iCE40</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Feature</th>
+    <th>Specification</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Target Devices</strong></td>
+    <td>iCE40-HX8K, iCE40-LP8K</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Toolchain</strong></td>
+    <td>Yosys + nextpnr-ice40 + IceStorm</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Interface</strong></td>
+    <td>SPI slave (custom protocol)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Memory Access</strong></td>
+    <td>FTDI SPI or GPIO bit-bang</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Typical Clock</strong></td>
+    <td>12-48 MHz</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="lattice-ecp5">Lattice ECP5</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Feature</th>
+    <th>Specification</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>Target Devices</strong></td>
+    <td>LFE5U-25F, LFE5U-45F, LFE5U-85F</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Toolchain</strong></td>
+    <td>Yosys + nextpnr-ecp5 + Trellis</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Interface</strong></td>
+    <td>SPI slave (custom protocol)</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Memory Access</strong></td>
+    <td>FTDI SPI or board-specific</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Typical Clock</strong></td>
+    <td>25-100 MHz (PLL multiplied)</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h2 id="ip-core-library">IP Core Library</h2>
+    <h3 id="available-ip-cores">Available IP Cores</h3>
+    <table>
+    <colgroup>
+    <col style="width: 27%" />
+    <col style="width: 18%" />
+    <col style="width: 15%" />
+    <col style="width: 39%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>IP Core</th>
+    <th>File</th>
+    <th>ID</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><code>r4w_fft</code></td>
+    <td><code>vivado/ip/r4w_fft/</code></td>
+    <td>0x52345746 (“R4WF”)</td>
+    <td>FFT/IFFT up to 4096 points</td>
+    </tr>
+    <tr class="even">
+    <td><code>r4w_fir</code></td>
+    <td><code>vivado/ip/r4w_fir/</code></td>
+    <td>0x52344649 (“R4FI”)</td>
+    <td>FIR filter up to 256 taps</td>
+    </tr>
+    <tr class="odd">
+    <td><code>r4w_nco</code></td>
+    <td><code>vivado/ip/r4w_nco/</code></td>
+    <td>0x5234494F (“R4IO”)</td>
+    <td>NCO with CORDIC or LUT</td>
+    </tr>
+    <tr class="even">
+    <td><code>r4w_chirp_gen</code></td>
+    <td><code>vivado/ip/r4w_chirp_gen/</code></td>
+    <td>0x52344347 (“R4CG”)</td>
+    <td>LoRa chirp generator</td>
+    </tr>
+    <tr class="odd">
+    <td><code>r4w_chirp_corr</code></td>
+    <td><code>vivado/ip/r4w_chirp_corr/</code></td>
+    <td>0x52344343 (“R4CC”)</td>
+    <td>Chirp correlator/demodulator</td>
+    </tr>
+    <tr class="even">
+    <td><code>r4w_dma</code></td>
+    <td><code>vivado/ip/r4w_dma/</code></td>
+    <td>0x52344D41 (“R4MA”)</td>
+    <td>DMA controller</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="ip-core-parameters">IP Core Parameters</h3>
+    <p>All IP cores share common parameters:</p>
+    <div class="sourceCode" id="cb2"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">parameter</span> C_S_AXI_DATA_WIDTH <span class="op">=</span> <span class="dv">32</span>    <span class="co">// AXI data width (always 32)</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">parameter</span> C_S_AXI_ADDR_WIDTH <span class="op">=</span> <span class="dv">8</span>     <span class="co">// Register space size (2^N bytes)</span></span></code></pre></div>
+    <p>Core-specific parameters:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Core</th>
+    <th>Parameter</th>
+    <th>Default</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>r4w_fft</td>
+    <td><code>MAX_FFT_SIZE</code></td>
+    <td>1024</td>
+    <td>Maximum FFT size (power of 2)</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_fft</td>
+    <td><code>DATA_WIDTH</code></td>
+    <td>16</td>
+    <td>I/Q sample width</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w_fir</td>
+    <td><code>MAX_TAPS</code></td>
+    <td>256</td>
+    <td>Maximum filter taps</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_fir</td>
+    <td><code>COEF_WIDTH</code></td>
+    <td>16</td>
+    <td>Coefficient bit width</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w_nco</td>
+    <td><code>PHASE_WIDTH</code></td>
+    <td>32</td>
+    <td>Phase accumulator width</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_nco</td>
+    <td><code>OUTPUT_WIDTH</code></td>
+    <td>16</td>
+    <td>Output sample width</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w_nco</td>
+    <td><code>CORDIC_STAGES</code></td>
+    <td>16</td>
+    <td>CORDIC pipeline stages</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_chirp_gen</td>
+    <td><code>MAX_SF</code></td>
+    <td>12</td>
+    <td>Maximum spreading factor</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h2 id="register-maps">Register Maps</h2>
+    <h3 id="common-register-layout">Common Register Layout</h3>
+    <p>All IP cores follow a consistent register layout:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Offset</th>
+    <th>Name</th>
+    <th>Access</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>0x00</td>
+    <td>CTRL</td>
+    <td>R/W</td>
+    <td>Control register</td>
+    </tr>
+    <tr class="even">
+    <td>0x04</td>
+    <td>CONFIG</td>
+    <td>R/W</td>
+    <td>Configuration (core-specific)</td>
+    </tr>
+    <tr class="odd">
+    <td>0x08</td>
+    <td>STATUS</td>
+    <td>R/O</td>
+    <td>Status register</td>
+    </tr>
+    <tr class="even">
+    <td>0x1C</td>
+    <td>VERSION</td>
+    <td>R/O</td>
+    <td>IP core version</td>
+    </tr>
+    <tr class="odd">
+    <td>0x20</td>
+    <td>ID</td>
+    <td>R/O</td>
+    <td>IP core identifier</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="r4w_fft-register-map">r4w_fft Register Map</h3>
+    <p>Base address: Configurable (default 0x43C0_0000 on Zynq)</p>
+    <table>
+    <colgroup>
+    <col style="width: 19%" />
+    <col style="width: 14%" />
+    <col style="width: 14%" />
+    <col style="width: 19%" />
+    <col style="width: 31%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Offset</th>
+    <th>Name</th>
+    <th>Bits</th>
+    <th>Access</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>0x00</td>
+    <td>CTRL</td>
+    <td>[0]</td>
+    <td>R/W</td>
+    <td>START - Begin FFT/IFFT</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/W</td>
+    <td>INVERSE - 1=IFFT, 0=FFT</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[31]</td>
+    <td>R/W</td>
+    <td>RESET - Soft reset (auto-clear)</td>
+    </tr>
+    <tr class="even">
+    <td>0x04</td>
+    <td>SIZE</td>
+    <td>[3:0]</td>
+    <td>R/W</td>
+    <td>log2(N): 6=64, 7=128, 8=256, 9=512, 10=1024</td>
+    </tr>
+    <tr class="odd">
+    <td>0x08</td>
+    <td>STATUS</td>
+    <td>[0]</td>
+    <td>R/O</td>
+    <td>DONE - Operation complete</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/O</td>
+    <td>BUSY - Operation in progress</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[2]</td>
+    <td>R/O</td>
+    <td>ERROR - Error occurred</td>
+    </tr>
+    <tr class="even">
+    <td>0x10</td>
+    <td>DATA_IN</td>
+    <td>[31:16]</td>
+    <td>W/O</td>
+    <td>I sample (signed 16-bit)</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[15:0]</td>
+    <td>W/O</td>
+    <td>Q sample (signed 16-bit)</td>
+    </tr>
+    <tr class="even">
+    <td>0x14</td>
+    <td>DATA_OUT</td>
+    <td>[31:16]</td>
+    <td>R/O</td>
+    <td>I result (signed 16-bit)</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[15:0]</td>
+    <td>R/O</td>
+    <td>Q result (signed 16-bit)</td>
+    </tr>
+    <tr class="even">
+    <td>0x1C</td>
+    <td>VERSION</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>Version (major.minor.patch)</td>
+    </tr>
+    <tr class="odd">
+    <td>0x20</td>
+    <td>ID</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>0x52345746 (“R4WF”)</td>
+    </tr>
+    </tbody>
+    </table>
+    <p><strong>Usage Example (C/Rust pseudo-code):</strong></p>
+    <div class="sourceCode" id="cb3"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Configure FFT size (256 points)</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>write_reg(base <span class="op">+</span> <span class="dv">0x04</span><span class="op">,</span> <span class="dv">8</span>)<span class="op">;</span>  <span class="co">// log2(256) = 8</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Write input samples</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> sample <span class="kw">in</span> input_samples <span class="op">{</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> packed <span class="op">=</span> ((sample<span class="op">.</span>i <span class="kw">as</span> <span class="dt">u32</span>) <span class="op">&lt;&lt;</span> <span class="dv">16</span>) <span class="op">|</span> (sample<span class="op">.</span>q <span class="kw">as</span> <span class="dt">u16</span> <span class="kw">as</span> <span class="dt">u32</span>)<span class="op">;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    write_reg(base <span class="op">+</span> <span class="dv">0x10</span><span class="op">,</span> packed)<span class="op">;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Start FFT</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>write_reg(base <span class="op">+</span> <span class="dv">0x00</span><span class="op">,</span> <span class="dv">0x01</span>)<span class="op">;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Wait for completion</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> (read_reg(base <span class="op">+</span> <span class="dv">0x08</span>) <span class="op">&amp;</span> <span class="dv">0x01</span>) <span class="op">==</span> <span class="dv">0</span> <span class="op">{}</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Read output samples</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="dv">0</span><span class="op">..</span><span class="dv">256</span> <span class="op">{</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> packed <span class="op">=</span> read_reg(base <span class="op">+</span> <span class="dv">0x14</span>)<span class="op">;</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    output[i]<span class="op">.</span>i <span class="op">=</span> (packed <span class="op">&gt;&gt;</span> <span class="dv">16</span>) <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    output[i]<span class="op">.</span>q <span class="op">=</span> packed <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="r4w_fir-register-map">r4w_fir Register Map</h3>
+    <table>
+    <colgroup>
+    <col style="width: 19%" />
+    <col style="width: 14%" />
+    <col style="width: 14%" />
+    <col style="width: 19%" />
+    <col style="width: 31%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Offset</th>
+    <th>Name</th>
+    <th>Bits</th>
+    <th>Access</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>0x00</td>
+    <td>CTRL</td>
+    <td>[0]</td>
+    <td>R/W</td>
+    <td>START - Begin filtering</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/W</td>
+    <td>RELOAD_TAPS - Load new coefficients</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[31]</td>
+    <td>R/W</td>
+    <td>RESET - Soft reset</td>
+    </tr>
+    <tr class="even">
+    <td>0x04</td>
+    <td>NUM_TAPS</td>
+    <td>[8:0]</td>
+    <td>R/W</td>
+    <td>Number of filter taps (1-256)</td>
+    </tr>
+    <tr class="odd">
+    <td>0x08</td>
+    <td>STATUS</td>
+    <td>[0]</td>
+    <td>R/O</td>
+    <td>DONE</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/O</td>
+    <td>BUSY</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[2]</td>
+    <td>R/O</td>
+    <td>ERROR</td>
+    </tr>
+    <tr class="even">
+    <td>0x10</td>
+    <td>DATA_IN</td>
+    <td>[31:0]</td>
+    <td>W/O</td>
+    <td>Packed I/Q input</td>
+    </tr>
+    <tr class="odd">
+    <td>0x14</td>
+    <td>DATA_OUT</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>Packed I/Q output</td>
+    </tr>
+    <tr class="even">
+    <td>0x1C</td>
+    <td>VERSION</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>Version</td>
+    </tr>
+    <tr class="odd">
+    <td>0x20</td>
+    <td>ID</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>0x52344649 (“R4FI”)</td>
+    </tr>
+    <tr class="even">
+    <td>0x100-0x4FF</td>
+    <td>TAPS[0-255]</td>
+    <td>[15:0]</td>
+    <td>R/W</td>
+    <td>Filter coefficients (signed 16-bit)</td>
+    </tr>
+    </tbody>
+    </table>
+    <p><strong>Coefficient Loading:</strong></p>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Write coefficients</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i<span class="op">,</span> tap) <span class="kw">in</span> coefficients<span class="op">.</span>iter()<span class="op">.</span>enumerate() <span class="op">{</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> tap_fixed <span class="op">=</span> (<span class="op">*</span>tap <span class="op">*</span> <span class="dv">32767.0</span>) <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    write_reg(base <span class="op">+</span> <span class="dv">0x100</span> <span class="op">+</span> i <span class="op">*</span> <span class="dv">4</span><span class="op">,</span> tap_fixed <span class="kw">as</span> <span class="dt">u32</span>)<span class="op">;</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Set tap count and trigger reload</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>write_reg(base <span class="op">+</span> <span class="dv">0x04</span><span class="op">,</span> coefficients<span class="op">.</span>len() <span class="kw">as</span> <span class="dt">u32</span>)<span class="op">;</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>write_reg(base <span class="op">+</span> <span class="dv">0x00</span><span class="op">,</span> <span class="dv">0x02</span>)<span class="op">;</span>  <span class="co">// RELOAD_TAPS bit</span></span></code></pre></div>
+    <h3 id="r4w_nco-register-map">r4w_nco Register Map</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Offset</th>
+    <th>Name</th>
+    <th>Bits</th>
+    <th>Access</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>0x00</td>
+    <td>CTRL</td>
+    <td>[0]</td>
+    <td>R/W</td>
+    <td>ENABLE - Start NCO output</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/W</td>
+    <td>RESET_PHASE - Reset phase accumulator</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[31]</td>
+    <td>R/W</td>
+    <td>RESET - Soft reset</td>
+    </tr>
+    <tr class="even">
+    <td>0x04</td>
+    <td>FREQ</td>
+    <td>[31:0]</td>
+    <td>R/W</td>
+    <td>Frequency word (phase increment)</td>
+    </tr>
+    <tr class="odd">
+    <td>0x08</td>
+    <td>PHASE</td>
+    <td>[31:0]</td>
+    <td>R/W</td>
+    <td>Phase offset</td>
+    </tr>
+    <tr class="even">
+    <td>0x0C</td>
+    <td>AMPLITUDE</td>
+    <td>[15:0]</td>
+    <td>R/W</td>
+    <td>Output amplitude (0-32767)</td>
+    </tr>
+    <tr class="odd">
+    <td>0x10</td>
+    <td>STATUS</td>
+    <td>[0]</td>
+    <td>R/O</td>
+    <td>VALID - Output valid</td>
+    </tr>
+    <tr class="even">
+    <td>0x14</td>
+    <td>I_OUT</td>
+    <td>[15:0]</td>
+    <td>R/O</td>
+    <td>Cosine output (signed)</td>
+    </tr>
+    <tr class="odd">
+    <td>0x18</td>
+    <td>Q_OUT</td>
+    <td>[15:0]</td>
+    <td>R/O</td>
+    <td>Sine output (signed)</td>
+    </tr>
+    <tr class="even">
+    <td>0x1C</td>
+    <td>VERSION</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>Version</td>
+    </tr>
+    <tr class="odd">
+    <td>0x20</td>
+    <td>ID</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>0x5234494F (“R4IO”)</td>
+    </tr>
+    </tbody>
+    </table>
+    <p><strong>Frequency Calculation:</strong></p>
+    <pre><code>Frequency Word = (Desired_Frequency / Sample_Rate) * 2^PHASE_WIDTH
+
+Example: 1 kHz at 100 MHz sample rate with 32-bit phase:
+  freq_word = (1000 / 100_000_000) * 2^32 = 42949</code></pre>
+    <h3 id="r4w_chirp_gen-register-map">r4w_chirp_gen Register Map</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Offset</th>
+    <th>Name</th>
+    <th>Bits</th>
+    <th>Access</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>0x00</td>
+    <td>CTRL</td>
+    <td>[0]</td>
+    <td>R/W</td>
+    <td>START - Generate chirp</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/W</td>
+    <td>UPCHIRP - 1=upchirp, 0=downchirp</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[2]</td>
+    <td>R/W</td>
+    <td>CONTINUOUS - Repeat indefinitely</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[31]</td>
+    <td>R/W</td>
+    <td>RESET - Soft reset</td>
+    </tr>
+    <tr class="odd">
+    <td>0x04</td>
+    <td>SF</td>
+    <td>[3:0]</td>
+    <td>R/W</td>
+    <td>Spreading factor (5-12)</td>
+    </tr>
+    <tr class="even">
+    <td>0x08</td>
+    <td>STATUS</td>
+    <td>[0]</td>
+    <td>R/O</td>
+    <td>DONE</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/O</td>
+    <td>BUSY</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[2]</td>
+    <td>R/O</td>
+    <td>OVERFLOW</td>
+    </tr>
+    <tr class="odd">
+    <td>0x0C</td>
+    <td>SYMBOL</td>
+    <td>[11:0]</td>
+    <td>R/W</td>
+    <td>Symbol value (0 to 2^SF-1)</td>
+    </tr>
+    <tr class="even">
+    <td>0x10</td>
+    <td>DATA_OUT</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>Packed I/Q output</td>
+    </tr>
+    <tr class="odd">
+    <td>0x14</td>
+    <td>BANDWIDTH</td>
+    <td>[1:0]</td>
+    <td>R/W</td>
+    <td>0=125k, 1=250k, 2=500k</td>
+    </tr>
+    <tr class="even">
+    <td>0x1C</td>
+    <td>VERSION</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>Version</td>
+    </tr>
+    <tr class="odd">
+    <td>0x20</td>
+    <td>ID</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>0x52344347 (“R4CG”)</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="r4w_chirp_corr-register-map">r4w_chirp_corr Register
+    Map</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Offset</th>
+    <th>Name</th>
+    <th>Bits</th>
+    <th>Access</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>0x00</td>
+    <td>CTRL</td>
+    <td>[0]</td>
+    <td>R/W</td>
+    <td>START - Begin correlation</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[31]</td>
+    <td>R/W</td>
+    <td>RESET - Soft reset</td>
+    </tr>
+    <tr class="odd">
+    <td>0x04</td>
+    <td>SF</td>
+    <td>[3:0]</td>
+    <td>R/W</td>
+    <td>Spreading factor (5-12)</td>
+    </tr>
+    <tr class="even">
+    <td>0x08</td>
+    <td>STATUS</td>
+    <td>[0]</td>
+    <td>R/O</td>
+    <td>DONE</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/O</td>
+    <td>BUSY</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[2]</td>
+    <td>R/O</td>
+    <td>DETECTED - Symbol detected</td>
+    </tr>
+    <tr class="odd">
+    <td>0x10</td>
+    <td>DATA_IN</td>
+    <td>[31:0]</td>
+    <td>W/O</td>
+    <td>Packed I/Q input</td>
+    </tr>
+    <tr class="even">
+    <td>0x1C</td>
+    <td>VERSION</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>Version</td>
+    </tr>
+    <tr class="odd">
+    <td>0x20</td>
+    <td>SYMBOL</td>
+    <td>[11:0]</td>
+    <td>R/O</td>
+    <td>Detected symbol value</td>
+    </tr>
+    <tr class="even">
+    <td>0x24</td>
+    <td>MAGNITUDE</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>Correlation magnitude</td>
+    </tr>
+    <tr class="odd">
+    <td>0x28</td>
+    <td>THRESHOLD</td>
+    <td>[31:0]</td>
+    <td>R/W</td>
+    <td>Detection threshold</td>
+    </tr>
+    <tr class="even">
+    <td>0x30</td>
+    <td>ID</td>
+    <td>[31:0]</td>
+    <td>R/O</td>
+    <td>0x52344343 (“R4CC”)</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="r4w_dma-register-map">r4w_dma Register Map</h3>
+    <table>
+    <colgroup>
+    <col style="width: 19%" />
+    <col style="width: 14%" />
+    <col style="width: 14%" />
+    <col style="width: 19%" />
+    <col style="width: 31%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Offset</th>
+    <th>Name</th>
+    <th>Bits</th>
+    <th>Access</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>0x00</td>
+    <td>CTRL</td>
+    <td>[0]</td>
+    <td>R/W</td>
+    <td>START_TX - Start transmit</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/W</td>
+    <td>START_RX - Start receive</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[2]</td>
+    <td>R/W</td>
+    <td>ABORT - Abort transfer</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[3]</td>
+    <td>R/W</td>
+    <td>CONTINUOUS - Continuous mode</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[31]</td>
+    <td>R/W</td>
+    <td>RESET - Soft reset</td>
+    </tr>
+    <tr class="even">
+    <td>0x04</td>
+    <td>TX_LEN</td>
+    <td>[15:0]</td>
+    <td>R/W</td>
+    <td>TX transfer length (samples)</td>
+    </tr>
+    <tr class="odd">
+    <td>0x08</td>
+    <td>RX_LEN</td>
+    <td>[15:0]</td>
+    <td>R/W</td>
+    <td>RX transfer length (samples)</td>
+    </tr>
+    <tr class="even">
+    <td>0x0C</td>
+    <td>STATUS</td>
+    <td>[0]</td>
+    <td>R/O</td>
+    <td>TX_BUSY</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[1]</td>
+    <td>R/O</td>
+    <td>RX_BUSY</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[2]</td>
+    <td>R/O</td>
+    <td>TX_DONE</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[3]</td>
+    <td>R/O</td>
+    <td>RX_DONE</td>
+    </tr>
+    <tr class="even">
+    <td></td>
+    <td></td>
+    <td>[4]</td>
+    <td>R/O</td>
+    <td>TX_ERROR</td>
+    </tr>
+    <tr class="odd">
+    <td></td>
+    <td></td>
+    <td>[5]</td>
+    <td>R/O</td>
+    <td>RX_ERROR</td>
+    </tr>
+    <tr class="even">
+    <td>0x10</td>
+    <td>TX_ADDR</td>
+    <td>[31:0]</td>
+    <td>R/W</td>
+    <td>TX buffer address</td>
+    </tr>
+    <tr class="odd">
+    <td>0x14</td>
+    <td>RX_ADDR</td>
+    <td>[31:0]</td>
+    <td>R/W</td>
+    <td>RX buffer address</td>
+    </tr>
+    <tr class="even">
+    <td>0x18</td>
+    <td>IRQ_EN</td>
+    <td>[2:0]</td>
+    <td>R/W</td>
+    <td>Interrupt enables</td>
+    </tr>
+    <tr class="odd">
+    <td>0x1C</td>
+    <td>IRQ_STATUS</td>
+    <td>[2:0]</td>
+    <td>R/W1C</td>
+    <td>Interrupt status (write 1 to clear)</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h2 id="axi-interface-specifications">AXI Interface
+    Specifications</h2>
+    <h3 id="axi4-lite-interface">AXI4-Lite Interface</h3>
+    <p>All IP cores implement the standard AXI4-Lite slave
+    interface:</p>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Clock and Reset</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_ACLK<span class="op">,</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_ARESETN<span class="op">,</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Write Address Channel</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span>C_S_AXI_ADDR_WIDTH<span class="dv">-1</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>   S_AXI_AWADDR<span class="op">,</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span><span class="dv">2</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>                      S_AXI_AWPROT<span class="op">,</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_AWVALID<span class="op">,</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span>                            S_AXI_AWREADY<span class="op">,</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Write Data Channel</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span>C_S_AXI_DATA_WIDTH<span class="dv">-1</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>   S_AXI_WDATA<span class="op">,</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span>C_S_AXI_DATA_WIDTH<span class="op">/</span><span class="dv">8-1</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span> S_AXI_WSTRB<span class="op">,</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_WVALID<span class="op">,</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span>                            S_AXI_WREADY<span class="op">,</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="co">// Write Response Channel</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span> <span class="op">[</span><span class="dv">1</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>                      S_AXI_BRESP<span class="op">,</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span>                            S_AXI_BVALID<span class="op">,</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_BREADY<span class="op">,</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="co">// Read Address Channel</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span>C_S_AXI_ADDR_WIDTH<span class="dv">-1</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>   S_AXI_ARADDR<span class="op">,</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span><span class="dv">2</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>                      S_AXI_ARPROT<span class="op">,</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_ARVALID<span class="op">,</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span>                            S_AXI_ARREADY<span class="op">,</span></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a><span class="co">// Read Data Channel</span></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span> <span class="op">[</span>C_S_AXI_DATA_WIDTH<span class="dv">-1</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>   S_AXI_RDATA<span class="op">,</span></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span> <span class="op">[</span><span class="dv">1</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>                      S_AXI_RRESP<span class="op">,</span></span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span>                            S_AXI_RVALID<span class="op">,</span></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_RREADY</span></code></pre></div>
+    <h3 id="axi4-stream-interface">AXI4-Stream Interface</h3>
+    <p>For high-throughput data paths:</p>
+    <div class="sourceCode" id="cb7"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Input Stream (Slave)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>  S_AXIS_TDATA<span class="op">,</span>   <span class="co">// Packed I/Q: [31:16]=I, [15:0]=Q</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>         S_AXIS_TVALID<span class="op">,</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span>         S_AXIS_TREADY<span class="op">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>         S_AXIS_TLAST<span class="op">,</span>   <span class="co">// Optional end-of-frame</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Output Stream (Master)</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>  M_AXIS_TDATA<span class="op">,</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span>         M_AXIS_TVALID<span class="op">,</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="dt">input</span>  <span class="dt">wire</span>         M_AXIS_TREADY<span class="op">,</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="dt">output</span> <span class="dt">wire</span>         M_AXIS_TLAST</span></code></pre></div>
+    <h3 id="data-format">Data Format</h3>
+    <p>I/Q samples are packed as 32-bit words:</p>
+    <pre><code>Bit 31                16 15                 0
+┌─────────────────────┬─────────────────────┐
+│   I (signed 16-bit) │   Q (signed 16-bit) │
+└─────────────────────┴─────────────────────┘</code></pre>
+    <p><strong>Conversion:</strong></p>
+    <div class="sourceCode" id="cb9"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Rust: float to fixed-point</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> pack_iq(i<span class="op">:</span> <span class="dt">f32</span><span class="op">,</span> q<span class="op">:</span> <span class="dt">f32</span>) <span class="op">-&gt;</span> <span class="dt">u32</span> <span class="op">{</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> i_fixed <span class="op">=</span> (i <span class="op">*</span> <span class="dv">32767.0</span>) <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> q_fixed <span class="op">=</span> (q <span class="op">*</span> <span class="dv">32767.0</span>) <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    ((i_fixed <span class="kw">as</span> <span class="dt">u32</span>) <span class="op">&lt;&lt;</span> <span class="dv">16</span>) <span class="op">|</span> (q_fixed <span class="kw">as</span> <span class="dt">u16</span> <span class="kw">as</span> <span class="dt">u32</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Rust: fixed-point to float</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> unpack_iq(packed<span class="op">:</span> <span class="dt">u32</span>) <span class="op">-&gt;</span> (<span class="dt">f32</span><span class="op">,</span> <span class="dt">f32</span>) <span class="op">{</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> i_fixed <span class="op">=</span> (packed <span class="op">&gt;&gt;</span> <span class="dv">16</span>) <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> q_fixed <span class="op">=</span> packed <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    (i_fixed <span class="kw">as</span> <span class="dt">f32</span> <span class="op">/</span> <span class="dv">32767.0</span><span class="op">,</span> q_fixed <span class="kw">as</span> <span class="dt">f32</span> <span class="op">/</span> <span class="dv">32767.0</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <hr />
+    <h2 id="xilinx-zynq-integration">Xilinx Zynq Integration</h2>
+    <h3 id="block-design-setup">Block Design Setup</h3>
+    <ol type="1">
+    <li><strong>Create Block Design in Vivado:</strong></li>
+    </ol>
+    <div class="sourceCode" id="cb10"><pre
+    class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create block design</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>create_bd_design <span class="st">&quot;r4w_system&quot;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Add Zynq PS</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>create_bd_cell<span class="ot"> -type</span> ip<span class="ot"> -vlnv</span> xilinx.com:ip:processing_system7:<span class="fl">5.5</span> zynq_ps</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply board preset</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>apply_bd_automation<span class="ot"> -rule</span> xilinx.com:bd_rule:processing_system7 \</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>  -config <span class="kw">{</span>make_external <span class="st">&quot;FIXED_IO, DDR&quot;</span> Master <span class="st">&quot;Disable&quot;</span> Slave <span class="st">&quot;Disable&quot;</span><span class="kw">}</span> \</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">[</span>get_bd_cells zynq_ps<span class="kw">]</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable GP0 master</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>set_property<span class="ot"> -dict</span> <span class="kw">[list</span> \</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>  CONFIG.PCW_USE_M_AXI_GP0 <span class="kw">{</span><span class="dv">1</span><span class="kw">}</span> \</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="kw">]</span> <span class="kw">[</span>get_bd_cells zynq_ps<span class="kw">]</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co"># Add R4W IP cores</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>add_files<span class="ot"> -norecurse</span> <span class="kw">{</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>  vivado/ip/common/axi_lite_slave.v</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>  vivado/ip/common/iq_pack.v</span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_fft/r4w_fft.v</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_fft/r4w_fft_axi.v</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_fir/r4w_fir.v</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_fir/r4w_fir_axi.v</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_nco/r4w_nco.v</span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_nco/r4w_nco_axi.v</span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_chirp_gen/r4w_chirp_gen.v</span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_chirp_gen/r4w_chirp_gen_axi.v</span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_chirp_corr/r4w_chirp_corr.v</span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_chirp_corr/r4w_chirp_corr_axi.v</span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_dma/r4w_dma.v</span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>  vivado/ip/r4w_dma/r4w_dma_axi.v</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a><span class="kw">}</span></span></code></pre></div>
+    <ol start="2" type="1">
+    <li><strong>Add AXI Interconnect:</strong></li>
+    </ol>
+    <div class="sourceCode" id="cb11"><pre
+    class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add interconnect</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>create_bd_cell<span class="ot"> -type</span> ip<span class="ot"> -vlnv</span> xilinx.com:ip:axi_interconnect:<span class="fl">2.1</span> axi_interconnect_0</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>set_property<span class="ot"> -dict</span> <span class="kw">[list</span> CONFIG.NUM_MI <span class="kw">{</span><span class="dv">6</span><span class="kw">}]</span> <span class="kw">[</span>get_bd_cells axi_interconnect_0<span class="kw">]</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Connect PS to interconnect</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>connect_bd_intf_net <span class="kw">[</span>get_bd_intf_pins zynq_ps/M_AXI_GP0<span class="kw">]</span> \</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>  <span class="kw">[</span>get_bd_intf_pins axi_interconnect_0/S00_AXI<span class="kw">]</span></span></code></pre></div>
+    <ol start="3" type="1">
+    <li><strong>Assign Addresses:</strong></li>
+    </ol>
+    <p>Recommended address map for Zynq-7000:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>IP Core</th>
+    <th>Base Address</th>
+    <th>Size</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>r4w_fft</td>
+    <td>0x43C0_0000</td>
+    <td>4 KB</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_fir</td>
+    <td>0x43C1_0000</td>
+    <td>4 KB</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w_nco</td>
+    <td>0x43C2_0000</td>
+    <td>256 B</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_chirp_gen</td>
+    <td>0x43C3_0000</td>
+    <td>256 B</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w_chirp_corr</td>
+    <td>0x43C4_0000</td>
+    <td>256 B</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_dma</td>
+    <td>0x43C5_0000</td>
+    <td>4 KB</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="dma-configuration">DMA Configuration</h3>
+    <p>For high-throughput operations, configure AXI DMA:</p>
+    <div class="sourceCode" id="cb12"><pre
+    class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Add AXI DMA</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>create_bd_cell<span class="ot"> -type</span> ip<span class="ot"> -vlnv</span> xilinx.com:ip:axi_dma:<span class="fl">7.1</span> axi_dma_0</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>set_property<span class="ot"> -dict</span> <span class="kw">[list</span> \</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  CONFIG.c_include_sg <span class="kw">{</span><span class="dv">0</span><span class="kw">}</span> \</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>  CONFIG.c_sg_include_stscntrl_strm <span class="kw">{</span><span class="dv">0</span><span class="kw">}</span> \</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  CONFIG.c_include_mm2s <span class="kw">{</span><span class="dv">1</span><span class="kw">}</span> \</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  CONFIG.c_include_s2mm <span class="kw">{</span><span class="dv">1</span><span class="kw">}</span> \</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  CONFIG.c_m_axis_mm2s_tdata_width <span class="kw">{</span><span class="dv">32</span><span class="kw">}</span> \</span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  CONFIG.c_s_axis_s2mm_tdata_width <span class="kw">{</span><span class="dv">32</span><span class="kw">}</span> \</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="kw">]</span> <span class="kw">[</span>get_bd_cells axi_dma_0<span class="kw">]</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Enable HP port for DMA</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a>set_property<span class="ot"> -dict</span> <span class="kw">[list</span> CONFIG.PCW_USE_S_AXI_HP0 <span class="kw">{</span><span class="dv">1</span><span class="kw">}]</span> <span class="kw">[</span>get_bd_cells zynq_ps<span class="kw">]</span></span></code></pre></div>
+    <h3 id="memory-mapping-in-rust">Memory Mapping in Rust</h3>
+    <p>The Rust driver accesses hardware via memory-mapped I/O:</p>
+    <div class="sourceCode" id="cb13"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_fpga::</span>ZynqFpga<span class="op">;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Auto-detect Zynq platform</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> fpga <span class="op">=</span> <span class="pp">ZynqFpga::</span>auto_detect()<span class="op">?;</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Or with explicit configuration</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> ZynqConfig <span class="op">{</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    register_regions<span class="op">:</span> <span class="pp">vec!</span>[</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>        (<span class="st">&quot;fft&quot;</span><span class="op">.</span>to_string()<span class="op">,</span> <span class="dv">0x43C0_0000</span><span class="op">,</span> <span class="dv">0x1000</span>)<span class="op">,</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>        (<span class="st">&quot;fir&quot;</span><span class="op">.</span>to_string()<span class="op">,</span> <span class="dv">0x43C1_0000</span><span class="op">,</span> <span class="dv">0x1000</span>)<span class="op">,</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>        (<span class="st">&quot;nco&quot;</span><span class="op">.</span>to_string()<span class="op">,</span> <span class="dv">0x43C2_0000</span><span class="op">,</span> <span class="dv">0x100</span>)<span class="op">,</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>        (<span class="st">&quot;chirp_gen&quot;</span><span class="op">.</span>to_string()<span class="op">,</span> <span class="dv">0x43C3_0000</span><span class="op">,</span> <span class="dv">0x100</span>)<span class="op">,</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>        (<span class="st">&quot;chirp_corr&quot;</span><span class="op">.</span>to_string()<span class="op">,</span> <span class="dv">0x43C4_0000</span><span class="op">,</span> <span class="dv">0x100</span>)<span class="op">,</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>        (<span class="st">&quot;dma&quot;</span><span class="op">.</span>to_string()<span class="op">,</span> <span class="dv">0x43C5_0000</span><span class="op">,</span> <span class="dv">0x1000</span>)<span class="op">,</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>    enable_dma<span class="op">:</span> <span class="cn">true</span><span class="op">,</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    dma_buffer_size<span class="op">:</span> <span class="dv">65536</span><span class="op">,</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    <span class="op">..</span><span class="bu">Default</span><span class="pp">::</span><span class="kw">default</span>()</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> fpga <span class="op">=</span> <span class="pp">ZynqFpga::</span>new(config)<span class="op">?;</span></span></code></pre></div>
+    <h3 id="device-tree-overlay">Device Tree Overlay</h3>
+    <p>For UIO-based access (recommended over
+    <code>/dev/mem</code>):</p>
+    <pre class="dts"><code>/dts-v1/;
+/plugin/;
+
+/ {
+    fragment@0 {
+        target = &lt;&amp;amba&gt;;
+        __overlay__ {
+            r4w_fft@43C00000 {
+                compatible = &quot;r4w,fft&quot;;
+                reg = &lt;0x43C00000 0x1000&gt;;
+                interrupt-parent = &lt;&amp;intc&gt;;
+                interrupts = &lt;0 29 4&gt;;
+            };
+
+            r4w_fir@43C10000 {
+                compatible = &quot;r4w,fir&quot;;
+                reg = &lt;0x43C10000 0x1000&gt;;
+            };
+
+            r4w_dma@43C50000 {
+                compatible = &quot;r4w,dma&quot;;
+                reg = &lt;0x43C50000 0x1000&gt;;
+                interrupt-parent = &lt;&amp;intc&gt;;
+                interrupts = &lt;0 30 4&gt;;
+            };
+        };
+    };
+};</code></pre>
+    <hr />
+    <h2 id="lattice-fpga-integration">Lattice FPGA Integration</h2>
+    <h3 id="ice40-architecture">iCE40 Architecture</h3>
+    <p>The iCE40 design uses a simpler SPI-based interface:</p>
+    <pre><code>┌─────────────────────────────────────────────────────────────┐
+│                       iCE40 FPGA                            │
+│                                                             │
+│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
+│   │  SPI Slave   │───►│  Register    │───►│  Chirp Gen   │  │
+│   │  Interface   │    │  Decoder     │    │  + NCO       │  │
+│   └──────────────┘    └──────────────┘    └──────────────┘  │
+│         ▲                                        │          │
+│         │                                        ▼          │
+│   ┌─────┴─────┐                          ┌──────────────┐   │
+│   │   FTDI    │                          │   DAC I/Q    │   │
+│   │   SPI     │                          │   Output     │   │
+│   └───────────┘                          └──────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+    <h3 id="spi-protocol">SPI Protocol</h3>
+    <p><strong>Transaction Format:</strong></p>
+    <pre><code>Command Byte: [R/W][ADDR_HI]
+Address Byte: [ADDR_LO]
+Data Bytes:   [DATA_3][DATA_2][DATA_1][DATA_0]
+
+R/W: 0=Read, 1=Write
+ADDR: 16-bit register address
+DATA: 32-bit data (MSB first)</code></pre>
+    <p><strong>Timing:</strong></p>
+    <pre><code>CS_N:  ──┐                                    ┌──
+         └────────────────────────────────────┘
+
+CLK:   ____/¯¯\__/¯¯\__/¯¯\__/¯¯\__ ... __/¯¯\__
+
+MOSI:  ----&lt;CMD&gt;&lt;ADDR_H&gt;&lt;ADDR_L&gt;&lt;D3&gt;&lt;D2&gt;&lt;D1&gt;&lt;D0&gt;
+
+MISO:  --------------------------------&lt;D3&gt;&lt;D2&gt;&lt;D1&gt;&lt;D0&gt; (read)</code></pre>
+    <h3 id="ice40-register-map">iCE40 Register Map</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Address</th>
+    <th>Name</th>
+    <th>Description</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>0x0000</td>
+    <td>CTRL</td>
+    <td>Control register</td>
+    </tr>
+    <tr class="even">
+    <td>0x0004</td>
+    <td>SF</td>
+    <td>Spreading factor</td>
+    </tr>
+    <tr class="odd">
+    <td>0x0008</td>
+    <td>STATUS</td>
+    <td>Status register</td>
+    </tr>
+    <tr class="even">
+    <td>0x000C</td>
+    <td>SYMBOL</td>
+    <td>Symbol value</td>
+    </tr>
+    <tr class="odd">
+    <td>0x0010</td>
+    <td>NCO_FREQ</td>
+    <td>NCO frequency word</td>
+    </tr>
+    <tr class="even">
+    <td>0x0014</td>
+    <td>NCO_PHASE</td>
+    <td>NCO phase offset</td>
+    </tr>
+    <tr class="odd">
+    <td>0x0018</td>
+    <td>DATA_I</td>
+    <td>I output (read-only)</td>
+    </tr>
+    <tr class="even">
+    <td>0x001C</td>
+    <td>DATA_Q</td>
+    <td>Q output (read-only)</td>
+    </tr>
+    <tr class="odd">
+    <td>0x0020</td>
+    <td>ID</td>
+    <td>0x52344C49 (“R4LI”)</td>
+    </tr>
+    <tr class="even">
+    <td>0x0024</td>
+    <td>VERSION</td>
+    <td>Version number</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="ecp5-enhancements">ECP5 Enhancements</h3>
+    <p>The ECP5 version adds:</p>
+    <ul>
+    <li>Internal PLL (25 MHz → 100 MHz)</li>
+    <li>SDRAM interface (future buffer support)</li>
+    <li>CORDIC-based NCO (no BRAM usage)</li>
+    <li>More DSP blocks for larger operations</li>
+    </ul>
+    <h3 id="building-for-lattice">Building for Lattice</h3>
+    <p>Using the open-source toolchain:</p>
+    <div class="sourceCode" id="cb18"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co"># iCE40</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> lattice</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="ex">yosys</span> <span class="at">-p</span> <span class="st">&quot;synth_ice40 -top r4w_top_ice40 -json r4w_ice40.json&quot;</span> <span class="dt">\</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    design/r4w_top_ice40.v ip/r4w_spi_slave/<span class="pp">*</span>.v ip/r4w_nco/<span class="pp">*</span>.v ip/r4w_chirp_gen/<span class="pp">*</span>.v</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="ex">nextpnr-ice40</span> <span class="at">--hx8k</span> <span class="at">--package</span> ct256 <span class="at">--json</span> r4w_ice40.json <span class="dt">\</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">--asc</span> r4w_ice40.asc <span class="at">--pcf</span> constraints/ice40_hx8k.pcf</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a><span class="ex">icepack</span> r4w_ice40.asc r4w_ice40.bin</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="co"># ECP5</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a><span class="ex">yosys</span> <span class="at">-p</span> <span class="st">&quot;synth_ecp5 -top r4w_top_ecp5 -json r4w_ecp5.json&quot;</span> <span class="dt">\</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>    design/r4w_top_ecp5.v ip/r4w_spi_slave/<span class="pp">*</span>.v ip/r4w_nco/<span class="pp">*</span>.v ip/r4w_chirp_gen/<span class="pp">*</span>.v</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="ex">nextpnr-ecp5</span> <span class="at">--25k</span> <span class="at">--package</span> CABGA381 <span class="at">--json</span> r4w_ecp5.json <span class="dt">\</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    <span class="at">--lpf</span> constraints/ulx3s_v3.lpf <span class="at">--textcfg</span> r4w_ecp5.config</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="ex">ecppack</span> r4w_ecp5.config r4w_ecp5.bit</span></code></pre></div>
+    <hr />
+    <h2 id="building-and-synthesis">Building and Synthesis</h2>
+    <h3 id="vivado-project-setup">Vivado Project Setup</h3>
+    <div class="sourceCode" id="cb19"><pre
+    class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create project</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>create_project r4w_zynq ./r4w_zynq<span class="ot"> -part</span> xc7z020clg400<span class="dv">-1</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Add source files</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>add_files<span class="ot"> -norecurse</span> <span class="kw">[glob</span> vivado/ip/*/*.v<span class="kw">]</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>add_files<span class="ot"> -norecurse</span> <span class="kw">[glob</span> vivado/ip/common/*.v<span class="kw">]</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Add constraints</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>add_files<span class="ot"> -fileset</span> constrs_1<span class="ot"> -norecurse</span> vivado/constraints/zynq_z020.xdc</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Create block design</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="kw">source</span> vivado/scripts/create_bd.tcl</span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate wrapper</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>make_wrapper<span class="ot"> -files</span> <span class="kw">[</span>get_files r4w_system.bd<span class="kw">]</span><span class="ot"> -top</span></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>add_files<span class="ot"> -norecurse</span> r4w_zynq.srcs/sources_1/bd/r4w_system/hdl/r4w_system_wrapper.v</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Synthesize</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>launch_runs synth_1<span class="ot"> -jobs</span> <span class="dv">8</span></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>wait_on_run synth_1</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Implement</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>launch_runs impl_1<span class="ot"> -to_step</span> write_bitstream<span class="ot"> -jobs</span> <span class="dv">8</span></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>wait_on_run impl_1</span></code></pre></div>
+    <h3 id="timing-constraints">Timing Constraints</h3>
+    <div class="sourceCode" id="cb20"><pre
+    class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># vivado/constraints/zynq_z020.xdc</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># System clock (from PS)</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>create_clock<span class="ot"> -period</span> <span class="fl">10.000</span><span class="ot"> -name</span> clk_100 <span class="kw">[</span>get_ports FCLK_CLK0<span class="kw">]</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Clock domain crossings (if any)</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>set_clock_groups<span class="ot"> -asynchronous</span> \</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  -<span class="ot">group</span> <span class="kw">[</span>get_clocks clk_100<span class="kw">]</span> \</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>  -<span class="ot">group</span> <span class="kw">[</span>get_clocks spi_clk<span class="kw">]</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a><span class="co"># False paths for configuration registers</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>set_false_path<span class="ot"> -from</span> <span class="kw">[</span>get_cells<span class="ot"> -hierarchical -filter</span> <span class="kw">{</span>NAME =~ */ctrl_reg*<span class="kw">}]</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>set_false_path<span class="ot"> -to</span> <span class="kw">[</span>get_cells<span class="ot"> -hierarchical -filter</span> <span class="kw">{</span>NAME =~ */status_*<span class="kw">}]</span></span></code></pre></div>
+    <h3 id="resource-utilization-targets">Resource Utilization
+    Targets</h3>
+    <p>For Zynq xc7z020:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>IP Core</th>
+    <th>LUTs</th>
+    <th>FFs</th>
+    <th>DSP</th>
+    <th>BRAM</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>r4w_fft (1024pt)</td>
+    <td>2,500</td>
+    <td>3,000</td>
+    <td>4</td>
+    <td>4</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_fir (64 tap)</td>
+    <td>800</td>
+    <td>1,200</td>
+    <td>2</td>
+    <td>0.5</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w_nco (CORDIC)</td>
+    <td>400</td>
+    <td>600</td>
+    <td>0</td>
+    <td>0</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_chirp_gen</td>
+    <td>600</td>
+    <td>800</td>
+    <td>0</td>
+    <td>0.5</td>
+    </tr>
+    <tr class="odd">
+    <td>r4w_chirp_corr</td>
+    <td>3,000</td>
+    <td>3,500</td>
+    <td>4</td>
+    <td>4</td>
+    </tr>
+    <tr class="even">
+    <td>r4w_dma</td>
+    <td>500</td>
+    <td>700</td>
+    <td>0</td>
+    <td>2</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Total</strong></td>
+    <td>~7,800</td>
+    <td>~9,800</td>
+    <td>10</td>
+    <td>11</td>
+    </tr>
+    <tr class="even">
+    <td><strong>Available (z020)</strong></td>
+    <td>53,200</td>
+    <td>106,400</td>
+    <td>220</td>
+    <td>140</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Utilization</strong></td>
+    <td>15%</td>
+    <td>9%</td>
+    <td>5%</td>
+    <td>8%</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h2 id="verification-and-testing">Verification and Testing</h2>
+    <h3 id="testbench-structure">Testbench Structure</h3>
+    <p>Each IP core has an associated testbench:</p>
+    <pre><code>vivado/sim/
+├── tb_r4w_fft.v
+├── tb_r4w_fir.v
+├── tb_r4w_nco.v
+├── tb_r4w_chirp_gen.v
+├── tb_r4w_chirp_corr.v
+└── tb_r4w_dma.v
+
+lattice/sim/
+├── tb_r4w_top_ice40.v
+└── tb_r4w_top_ecp5.v</code></pre>
+    <h3 id="running-simulations">Running Simulations</h3>
+    <p><strong>Vivado:</strong></p>
+    <div class="sourceCode" id="cb22"><pre
+    class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create simulation fileset</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>add_files<span class="ot"> -fileset</span> sim_1<span class="ot"> -norecurse</span> <span class="kw">[glob</span> vivado/sim/*.v<span class="kw">]</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Set top-level</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>set_property top tb_r4w_fft <span class="kw">[</span>get_filesets sim_1<span class="kw">]</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Run simulation</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>launch_simulation</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>run <span class="dv">100</span> us</span></code></pre></div>
+    <p><strong>Icarus Verilog (Lattice):</strong></p>
+    <div class="sourceCode" id="cb23"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> lattice</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Compile</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="ex">iverilog</span> <span class="at">-o</span> sim/tb_r4w_top_ice40.vvp <span class="dt">\</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    sim/tb_r4w_top_ice40.v <span class="dt">\</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    design/r4w_top_ice40.v <span class="dt">\</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>    ip/r4w_spi_slave/r4w_spi_slave.v <span class="dt">\</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>    ip/r4w_nco/r4w_nco.v <span class="dt">\</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>    ip/r4w_chirp_gen/r4w_chirp_gen.v</span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Run</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="ex">vvp</span> sim/tb_r4w_top_ice40.vvp</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a><span class="co"># View waveforms</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a><span class="ex">gtkwave</span> tb_r4w_top_ice40.vcd</span></code></pre></div>
+    <h3 id="test-vector-generation">Test Vector Generation</h3>
+    <p>The Rust codebase can generate test vectors for verification:</p>
+    <div class="sourceCode" id="cb24"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::dsp::chirp::</span>generate_chirp<span class="op">;</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Generate reference chirp</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> reference <span class="op">=</span> generate_chirp(<span class="dv">7</span><span class="op">,</span> <span class="cn">true</span><span class="op">,</span> <span class="dv">125000.0</span><span class="op">,</span> <span class="dv">500000.0</span>)<span class="op">;</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Write to file for Verilog testbench</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> file <span class="op">=</span> <span class="pp">File::</span>create(<span class="st">&quot;test_vectors/chirp_sf7_up.mem&quot;</span>)<span class="op">?;</span></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> sample <span class="kw">in</span> reference <span class="op">{</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> i_fixed <span class="op">=</span> (sample<span class="op">.</span>i <span class="op">*</span> <span class="dv">32767.0</span>) <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> q_fixed <span class="op">=</span> (sample<span class="op">.</span>q <span class="op">*</span> <span class="dv">32767.0</span>) <span class="kw">as</span> <span class="dt">i16</span><span class="op">;</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>    <span class="pp">writeln!</span>(file<span class="op">,</span> <span class="st">&quot;{:04X}{:04X}&quot;</span><span class="op">,</span> i_fixed <span class="kw">as</span> <span class="dt">u16</span><span class="op">,</span> q_fixed <span class="kw">as</span> <span class="dt">u16</span>)<span class="op">?;</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="verification-checklist">Verification Checklist</h3>
+    <ul class="task-list">
+    <li><label><input type="checkbox" />Register read/write
+    functionality</label></li>
+    <li><label><input type="checkbox" />IP core ID
+    verification</label></li>
+    <li><label><input type="checkbox" />Start/done
+    handshaking</label></li>
+    <li><label><input type="checkbox" />Reset behavior</label></li>
+    <li><label><input type="checkbox" />Data path correctness (compare
+    to software model)</label></li>
+    <li><label><input type="checkbox" />AXI protocol
+    compliance</label></li>
+    <li><label><input type="checkbox" />Clock domain
+    crossings</label></li>
+    <li><label><input type="checkbox" />Resource utilization within
+    targets</label></li>
+    <li><label><input type="checkbox" />Timing closure</label></li>
+    </ul>
+    <hr />
+    <h2 id="software-driver-interface">Software Driver Interface</h2>
+    <h3 id="fpgaaccelerator-trait">FpgaAccelerator Trait</h3>
+    <p>Software developers use the <code>FpgaAccelerator</code> trait.
+    Your FPGA implementation must support:</p>
+    <div class="sourceCode" id="cb25"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> FpgaAccelerator<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Device info</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> info(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> FpgaInfo<span class="op">;</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_available(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> capabilities(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> FpgaCapabilities<span class="op">;</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Core DSP</span></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> fft(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]<span class="op">,</span> inverse<span class="op">:</span> <span class="dt">bool</span>) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;&gt;;</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> fir_filter(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]<span class="op">,</span> taps<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">f32</span>]) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;&gt;;</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> complex_multiply(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> a<span class="op">:</span> <span class="op">&amp;</span>[IQSample]<span class="op">,</span> b<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;&gt;;</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Waveform-specific</span></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> generate_chirp(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> sf<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span> upchirp<span class="op">:</span> <span class="dt">bool</span>) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;&gt;;</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> chirp_correlate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]<span class="op">,</span> sf<span class="op">:</span> <span class="dt">u8</span>) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span>(<span class="dt">u32</span><span class="op">,</span> <span class="dt">f32</span>)<span class="op">&gt;;</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Streaming</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> start_stream(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> config<span class="op">:</span> StreamConfig) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span>StreamHandle<span class="op">&gt;;</span></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> stop_stream(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> handle<span class="op">:</span> StreamHandle) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span>()<span class="op">&gt;;</span></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> write_stream(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> handle<span class="op">:</span> StreamHandle<span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span><span class="dt">usize</span><span class="op">&gt;;</span></span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> read_stream(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> handle<span class="op">:</span> StreamHandle<span class="op">,</span> buffer<span class="op">:</span> <span class="op">&amp;</span><span class="kw">mut</span> [IQSample]) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span><span class="dt">usize</span><span class="op">&gt;;</span></span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Low-level</span></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> read_register(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> address<span class="op">:</span> <span class="dt">usize</span>) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span><span class="dt">u32</span><span class="op">&gt;;</span></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> write_register(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> address<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> value<span class="op">:</span> <span class="dt">u32</span>) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span>()<span class="op">&gt;;</span></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">-&gt;</span> FpgaResult<span class="op">&lt;</span>()<span class="op">&gt;;</span></span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="capability-discovery">Capability Discovery</h3>
+    <p>Software will query capabilities at startup:</p>
+    <div class="sourceCode" id="cb26"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> caps <span class="op">=</span> fpga<span class="op">.</span>capabilities()<span class="op">;</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Max FFT: {} points&quot;</span><span class="op">,</span> caps<span class="op">.</span>max_fft_size)<span class="op">;</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Max FIR: {} taps&quot;</span><span class="op">,</span> caps<span class="op">.</span>max_fir_taps)<span class="op">;</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;DMA: {}&quot;</span><span class="op">,</span> <span class="cf">if</span> caps<span class="op">.</span>supports_streaming <span class="op">{</span> <span class="st">&quot;yes&quot;</span> <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span> <span class="st">&quot;no&quot;</span> <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> core <span class="kw">in</span> <span class="op">&amp;</span>caps<span class="op">.</span>ip_cores <span class="op">{</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;IP Core: {} v{} at 0x{:08X}&quot;</span><span class="op">,</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        core<span class="op">.</span>name<span class="op">,</span> core<span class="op">.</span>version<span class="op">,</span> core<span class="op">.</span>base_address)<span class="op">;</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="error-handling">Error Handling</h3>
+    <p>Hardware errors should map to these Rust error types:</p>
+    <div class="sourceCode" id="cb27"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">enum</span> FpgaError <span class="op">{</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>    DeviceNotFound(<span class="dt">String</span>)<span class="op">,</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>    PlatformNotSupported<span class="op">,</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>    MmapFailed <span class="op">{</span> address<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> reason<span class="op">:</span> <span class="dt">String</span> <span class="op">},</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>    Timeout <span class="op">{</span> address<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> timeout_ms<span class="op">:</span> <span class="dt">u32</span> <span class="op">},</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    DmaError(<span class="dt">String</span>)<span class="op">,</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    StreamError(<span class="dt">String</span>)<span class="op">,</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    IpCoreNotAvailable(<span class="dt">String</span>)<span class="op">,</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    ConfigError(<span class="dt">String</span>)<span class="op">,</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    BufferSizeMismatch <span class="op">{</span> expected<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> actual<span class="op">:</span> <span class="dt">usize</span> <span class="op">},</span></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>    InvalidAddress(<span class="dt">usize</span>)<span class="op">,</span></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>    NotSupported(<span class="dt">String</span>)<span class="op">,</span></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <hr />
+    <h2 id="performance-optimization">Performance Optimization</h2>
+    <h3 id="throughput-considerations">Throughput Considerations</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Metric</th>
+    <th>Target</th>
+    <th>Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>FFT (1024pt)</td>
+    <td>&lt; 10 μs</td>
+    <td>At 100 MHz fabric clock</td>
+    </tr>
+    <tr class="even">
+    <td>FIR (per sample)</td>
+    <td>&lt; 100 ns</td>
+    <td>Pipelined, 64 taps</td>
+    </tr>
+    <tr class="odd">
+    <td>Chirp generation</td>
+    <td>&lt; 1 ms</td>
+    <td>For SF12 (4096 samples)</td>
+    </tr>
+    <tr class="even">
+    <td>DMA transfer</td>
+    <td>&gt; 100 MS/s</td>
+    <td>Using HP ports</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="pipelining">Pipelining</h3>
+    <p>For maximum throughput, implement pipelining:</p>
+    <div class="sourceCode" id="cb28"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Pipeline stages for FIR filter</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a><span class="kw">always</span> <span class="op">@(</span><span class="kw">posedge</span> clk<span class="op">)</span> <span class="kw">begin</span></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Stage 1: Input register</span></span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>    sample_d1 <span class="op">&lt;=</span> s_axis_tdata<span class="op">;</span></span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>    valid_d1 <span class="op">&lt;=</span> s_axis_tvalid<span class="op">;</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Stage 2: Multiply</span></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">for</span> <span class="op">(</span>i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> NUM_TAPS<span class="op">;</span> i <span class="op">=</span> i <span class="op">+</span> <span class="dv">1</span><span class="op">)</span> <span class="kw">begin</span></span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>        mult_result<span class="op">[</span>i<span class="op">]</span> <span class="op">&lt;=</span> <span class="dt">$signed</span><span class="op">(</span>sample_d1<span class="op">[</span>i<span class="op">])</span> * <span class="dt">$signed</span><span class="op">(</span>coef<span class="op">[</span>i<span class="op">]);</span></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">end</span></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>    valid_d2 <span class="op">&lt;=</span> valid_d1<span class="op">;</span></span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Stage 3: Accumulate (tree structure)</span></span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a>    sum_l1<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">&lt;=</span> mult_result<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">+</span> mult_result<span class="op">[</span><span class="dv">1</span><span class="op">];</span></span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>    sum_l1<span class="op">[</span><span class="dv">1</span><span class="op">]</span> <span class="op">&lt;=</span> mult_result<span class="op">[</span><span class="dv">2</span><span class="op">]</span> <span class="op">+</span> mult_result<span class="op">[</span><span class="dv">3</span><span class="op">];</span></span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a>    valid_d3 <span class="op">&lt;=</span> valid_d2<span class="op">;</span></span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Stage 4: Final sum</span></span>
+<span id="cb28-20"><a href="#cb28-20" aria-hidden="true" tabindex="-1"></a>    <span class="dt">output</span> <span class="op">&lt;=</span> sum_l2<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">+</span> sum_l2<span class="op">[</span><span class="dv">1</span><span class="op">];</span></span>
+<span id="cb28-21"><a href="#cb28-21" aria-hidden="true" tabindex="-1"></a>    output_valid <span class="op">&lt;=</span> valid_d3<span class="op">;</span></span>
+<span id="cb28-22"><a href="#cb28-22" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+    <h3 id="dma-best-practices">DMA Best Practices</h3>
+    <ol type="1">
+    <li><strong>Buffer Size</strong>: Use at least 4 KB buffers to
+    amortize DMA overhead</li>
+    <li><strong>Alignment</strong>: Align buffers to page boundaries (4
+    KB)</li>
+    <li><strong>Continuous Mode</strong>: For streaming, use circular
+    buffers</li>
+    <li><strong>Interrupts</strong>: Use interrupts instead of polling
+    for efficiency</li>
+    </ol>
+    <h3 id="resource-sharing">Resource Sharing</h3>
+    <p>For area-constrained designs, consider time-multiplexing:</p>
+    <div class="sourceCode" id="cb29"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Shared multiplier for NCO and FIR</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a><span class="kw">always</span> <span class="op">@(</span><span class="kw">posedge</span> clk<span class="op">)</span> <span class="kw">begin</span></span>
+<span id="cb29-3"><a href="#cb29-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">case</span> <span class="op">(</span>state<span class="op">)</span></span>
+<span id="cb29-4"><a href="#cb29-4" aria-hidden="true" tabindex="-1"></a>        <span class="dv">STATE_NCO:</span> <span class="kw">begin</span></span>
+<span id="cb29-5"><a href="#cb29-5" aria-hidden="true" tabindex="-1"></a>            mult_a <span class="op">&lt;=</span> phase_sin<span class="op">;</span></span>
+<span id="cb29-6"><a href="#cb29-6" aria-hidden="true" tabindex="-1"></a>            mult_b <span class="op">&lt;=</span> amplitude<span class="op">;</span></span>
+<span id="cb29-7"><a href="#cb29-7" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb29-8"><a href="#cb29-8" aria-hidden="true" tabindex="-1"></a>        <span class="dv">STATE_FIR:</span> <span class="kw">begin</span></span>
+<span id="cb29-9"><a href="#cb29-9" aria-hidden="true" tabindex="-1"></a>            mult_a <span class="op">&lt;=</span> sample_in<span class="op">;</span></span>
+<span id="cb29-10"><a href="#cb29-10" aria-hidden="true" tabindex="-1"></a>            mult_b <span class="op">&lt;=</span> current_tap<span class="op">;</span></span>
+<span id="cb29-11"><a href="#cb29-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">end</span></span>
+<span id="cb29-12"><a href="#cb29-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">endcase</span></span>
+<span id="cb29-13"><a href="#cb29-13" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span>
+<span id="cb29-14"><a href="#cb29-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb29-15"><a href="#cb29-15" aria-hidden="true" tabindex="-1"></a><span class="kw">assign</span> mult_result <span class="op">=</span> mult_a * mult_b<span class="op">;</span></span></code></pre></div>
+    <hr />
+    <h2 id="adding-new-ip-cores">Adding New IP Cores</h2>
+    <h3 id="ip-core-template">IP Core Template</h3>
+    <div class="sourceCode" id="cb30"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co">//-----------------------------------------------------------------------------</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a><span class="co">// R4W New IP Core with AXI-Lite Interface</span></span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a><span class="co">//-----------------------------------------------------------------------------</span></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a><span class="kw">module</span> r4w_newcore_axi #<span class="op">(</span></span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>    <span class="dt">parameter</span> C_S_AXI_DATA_WIDTH <span class="op">=</span> <span class="dv">32</span><span class="op">,</span></span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>    <span class="dt">parameter</span> C_S_AXI_ADDR_WIDTH <span class="op">=</span> <span class="dv">8</span></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a><span class="op">)(</span></span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">// AXI4-Lite Interface</span></span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_ACLK<span class="op">,</span></span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span>                            S_AXI_ARESETN<span class="op">,</span></span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ... (standard AXI-Lite ports)</span></span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Optional AXI-Stream ports</span></span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>                     S_AXIS_TDATA<span class="op">,</span></span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span>                            S_AXIS_TVALID<span class="op">,</span></span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>    <span class="dt">output</span> <span class="dt">wire</span>                            S_AXIS_TREADY<span class="op">,</span></span>
+<span id="cb30-18"><a href="#cb30-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-19"><a href="#cb30-19" aria-hidden="true" tabindex="-1"></a>    <span class="dt">output</span> <span class="dt">wire</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span>                     M_AXIS_TDATA<span class="op">,</span></span>
+<span id="cb30-20"><a href="#cb30-20" aria-hidden="true" tabindex="-1"></a>    <span class="dt">output</span> <span class="dt">wire</span>                            M_AXIS_TVALID<span class="op">,</span></span>
+<span id="cb30-21"><a href="#cb30-21" aria-hidden="true" tabindex="-1"></a>    <span class="dt">input</span>  <span class="dt">wire</span>                            M_AXIS_TREADY</span>
+<span id="cb30-22"><a href="#cb30-22" aria-hidden="true" tabindex="-1"></a><span class="op">);</span></span>
+<span id="cb30-23"><a href="#cb30-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-24"><a href="#cb30-24" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Standard constants</span></span>
+<span id="cb30-25"><a href="#cb30-25" aria-hidden="true" tabindex="-1"></a>    <span class="dt">localparam</span> IP_ID <span class="op">=</span> <span class="bn">32&#39;h5234xxxx</span><span class="op">;</span>       <span class="co">// &quot;R4xx&quot; pattern</span></span>
+<span id="cb30-26"><a href="#cb30-26" aria-hidden="true" tabindex="-1"></a>    <span class="dt">localparam</span> IP_VERSION <span class="op">=</span> <span class="bn">32&#39;h00010000</span><span class="op">;</span>  <span class="co">// 1.0.0</span></span>
+<span id="cb30-27"><a href="#cb30-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-28"><a href="#cb30-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Register addresses</span></span>
+<span id="cb30-29"><a href="#cb30-29" aria-hidden="true" tabindex="-1"></a>    <span class="dt">localparam</span> ADDR_CTRL    <span class="op">=</span> <span class="bn">8&#39;h00</span><span class="op">;</span></span>
+<span id="cb30-30"><a href="#cb30-30" aria-hidden="true" tabindex="-1"></a>    <span class="dt">localparam</span> ADDR_CONFIG  <span class="op">=</span> <span class="bn">8&#39;h04</span><span class="op">;</span></span>
+<span id="cb30-31"><a href="#cb30-31" aria-hidden="true" tabindex="-1"></a>    <span class="dt">localparam</span> ADDR_STATUS  <span class="op">=</span> <span class="bn">8&#39;h08</span><span class="op">;</span></span>
+<span id="cb30-32"><a href="#cb30-32" aria-hidden="true" tabindex="-1"></a>    <span class="dt">localparam</span> ADDR_VERSION <span class="op">=</span> <span class="bn">8&#39;h1C</span><span class="op">;</span></span>
+<span id="cb30-33"><a href="#cb30-33" aria-hidden="true" tabindex="-1"></a>    <span class="dt">localparam</span> ADDR_ID      <span class="op">=</span> <span class="bn">8&#39;h20</span><span class="op">;</span></span>
+<span id="cb30-34"><a href="#cb30-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-35"><a href="#cb30-35" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Control registers</span></span>
+<span id="cb30-36"><a href="#cb30-36" aria-hidden="true" tabindex="-1"></a>    <span class="dt">reg</span> <span class="op">[</span><span class="dv">31</span><span class="op">:</span><span class="dv">0</span><span class="op">]</span> ctrl_reg<span class="op">;</span></span>
+<span id="cb30-37"><a href="#cb30-37" aria-hidden="true" tabindex="-1"></a>    <span class="dt">wire</span> start <span class="op">=</span> ctrl_reg<span class="op">[</span><span class="dv">0</span><span class="op">];</span></span>
+<span id="cb30-38"><a href="#cb30-38" aria-hidden="true" tabindex="-1"></a>    <span class="dt">wire</span> soft_reset <span class="op">=</span> ctrl_reg<span class="op">[</span><span class="dv">31</span><span class="op">];</span></span>
+<span id="cb30-39"><a href="#cb30-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-40"><a href="#cb30-40" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Instantiate common AXI slave</span></span>
+<span id="cb30-41"><a href="#cb30-41" aria-hidden="true" tabindex="-1"></a>    axi_lite_slave #<span class="op">(</span></span>
+<span id="cb30-42"><a href="#cb30-42" aria-hidden="true" tabindex="-1"></a>        .C_S_AXI_DATA_WIDTH<span class="op">(</span>C_S_AXI_DATA_WIDTH<span class="op">),</span></span>
+<span id="cb30-43"><a href="#cb30-43" aria-hidden="true" tabindex="-1"></a>        .C_S_AXI_ADDR_WIDTH<span class="op">(</span>C_S_AXI_ADDR_WIDTH<span class="op">)</span></span>
+<span id="cb30-44"><a href="#cb30-44" aria-hidden="true" tabindex="-1"></a>    <span class="op">)</span> axi_slave <span class="op">(</span> <span class="co">/* ... */</span> <span class="op">);</span></span>
+<span id="cb30-45"><a href="#cb30-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-46"><a href="#cb30-46" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Your processing logic here</span></span>
+<span id="cb30-47"><a href="#cb30-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-48"><a href="#cb30-48" aria-hidden="true" tabindex="-1"></a><span class="kw">endmodule</span></span></code></pre></div>
+    <h3 id="registration-in-software">Registration in Software</h3>
+    <p>To expose your new IP core to software:</p>
+    <ol type="1">
+    <li>Add IP core type in
+    <code>crates/r4w-fpga/src/types.rs</code>:</li>
+    </ol>
+    <div class="sourceCode" id="cb31"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">enum</span> IpCoreType <span class="op">{</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>    Fft <span class="op">{</span> size<span class="op">:</span> <span class="dt">usize</span> <span class="op">},</span></span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>    Fir <span class="op">{</span> max_taps<span class="op">:</span> <span class="dt">usize</span> <span class="op">},</span></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>    Nco<span class="op">,</span></span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>    ChirpGenerator<span class="op">,</span></span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>    ChirpCorrelator<span class="op">,</span></span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>    Dma<span class="op">,</span></span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a>    NewCore <span class="op">{</span> <span class="co">/* your params */</span> <span class="op">},</span>  <span class="co">// Add here</span></span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <ol start="2" type="1">
+    <li>Add probe function in platform-specific code:</li>
+    </ol>
+    <div class="sourceCode" id="cb32"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> probe_newcore(regions<span class="op">:</span> <span class="op">&amp;</span>[MemoryRegion]<span class="op">,</span> config<span class="op">:</span> <span class="op">&amp;</span>Config) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>IpCore<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> base <span class="op">=</span> config<span class="op">.</span>newcore_base_addr<span class="op">?;</span></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> region <span class="kw">in</span> regions <span class="op">{</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> region<span class="op">.</span>contains(base) <span class="op">{</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Ok</span>(id) <span class="op">=</span> region<span class="op">.</span>read32(base <span class="op">+</span> <span class="dv">0x20</span>) <span class="op">{</span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> id <span class="op">==</span> <span class="dv">0</span>x5234xxxx <span class="op">{</span>  <span class="co">// Your IP ID</span></span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>                    <span class="cf">return</span> <span class="cn">Some</span>(IpCore <span class="op">{</span></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>                        name<span class="op">:</span> <span class="st">&quot;r4w_newcore&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>                        core_type<span class="op">:</span> <span class="pp">IpCoreType::</span>NewCore <span class="op">{</span> <span class="co">/* params */</span> <span class="op">},</span></span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>                        base_address<span class="op">:</span> base<span class="op">,</span></span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>                        <span class="co">// ...</span></span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>                    <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a>    <span class="cn">None</span></span>
+<span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <hr />
+    <h2 id="debugging-and-troubleshooting">Debugging and
+    Troubleshooting</h2>
+    <h3 id="common-issues">Common Issues</h3>
+    <table>
+    <colgroup>
+    <col style="width: 26%" />
+    <col style="width: 34%" />
+    <col style="width: 38%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Issue</th>
+    <th>Symptom</th>
+    <th>Solution</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>No response from IP</td>
+    <td>Read returns 0xFFFFFFFF</td>
+    <td>Check address mapping, clock, reset</td>
+    </tr>
+    <tr class="even">
+    <td>Wrong data</td>
+    <td>Incorrect results</td>
+    <td>Verify data format, endianness</td>
+    </tr>
+    <tr class="odd">
+    <td>Timeout</td>
+    <td>DONE never asserts</td>
+    <td>Check state machine, enable signals</td>
+    </tr>
+    <tr class="even">
+    <td>DMA failure</td>
+    <td>Transfer incomplete</td>
+    <td>Verify buffer alignment, length</td>
+    </tr>
+    <tr class="odd">
+    <td>Timing failure</td>
+    <td>Unpredictable behavior</td>
+    <td>Add pipeline stages, reduce clock</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="ila-debug">ILA Debug</h3>
+    <p>Insert Integrated Logic Analyzer for runtime debugging:</p>
+    <div class="sourceCode" id="cb33"><pre
+    class="sourceCode tcl"><code class="sourceCode tcl"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create ILA core</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>create_debug_core u_ila_0 ila</span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Connect probes</span></span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>set_property port_width <span class="dv">32</span> <span class="kw">[</span>get_debug_ports u_ila_0/probe0<span class="kw">]</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>connect_debug_port u_ila_0/probe0 <span class="kw">[</span>get_nets <span class="kw">[list</span> <span class="kw">{</span>r4w_fft/ctrl_reg<span class="kw">[</span>*<span class="kw">]}]]</span></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>set_property port_width <span class="dv">32</span> <span class="kw">[</span>get_debug_ports u_ila_0/probe1<span class="kw">]</span></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>connect_debug_port u_ila_0/probe1 <span class="kw">[</span>get_nets <span class="kw">[list</span> <span class="kw">{</span>r4w_fft/status_reg<span class="kw">[</span>*<span class="kw">]}]]</span></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a><span class="co"># Add trigger</span></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>set_property port_width <span class="dv">1</span> <span class="kw">[</span>get_debug_ports u_ila_0/probe2<span class="kw">]</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>connect_debug_port u_ila_0/probe2 <span class="kw">[</span>get_nets <span class="kw">[list</span> r4w_fft/start<span class="kw">]]</span></span></code></pre></div>
+    <h3 id="register-dump">Register Dump</h3>
+    <p>Software can dump all registers for debugging:</p>
+    <div class="sourceCode" id="cb34"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> dump_registers(fpga<span class="op">:</span> <span class="op">&amp;</span><span class="kw">dyn</span> FpgaAccelerator<span class="op">,</span> base<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> count<span class="op">:</span> <span class="dt">usize</span>) <span class="op">{</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;Register dump at 0x{:08X}:&quot;</span><span class="op">,</span> base)<span class="op">;</span></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="dv">0</span><span class="op">..</span>count <span class="op">{</span></span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> addr <span class="op">=</span> base <span class="op">+</span> i <span class="op">*</span> <span class="dv">4</span><span class="op">;</span></span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">match</span> fpga<span class="op">.</span>read_register(addr) <span class="op">{</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>            <span class="cn">Ok</span>(val) <span class="op">=&gt;</span> <span class="pp">println!</span>(<span class="st">&quot;  0x{:03X}: 0x{:08X}&quot;</span><span class="op">,</span> i <span class="op">*</span> <span class="dv">4</span><span class="op">,</span> val)<span class="op">,</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>            <span class="cn">Err</span>(e) <span class="op">=&gt;</span> <span class="pp">println!</span>(<span class="st">&quot;  0x{:03X}: ERROR - {:?}&quot;</span><span class="op">,</span> i <span class="op">*</span> <span class="dv">4</span><span class="op">,</span> e)<span class="op">,</span></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="status-led-mapping">Status LED Mapping</h3>
+    <p>Use LEDs for quick status indication:</p>
+    <div class="sourceCode" id="cb35"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="co">// iCE40/ECP5 status LEDs</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a><span class="kw">assign</span> led<span class="op">[</span><span class="dv">0</span><span class="op">]</span> <span class="op">=</span> pll_locked<span class="op">;</span>      <span class="co">// Green = clock OK</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a><span class="kw">assign</span> led<span class="op">[</span><span class="dv">1</span><span class="op">]</span> <span class="op">=</span> chirp_busy<span class="op">;</span>      <span class="co">// Activity indicator</span></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a><span class="kw">assign</span> led<span class="op">[</span><span class="dv">2</span><span class="op">]</span> <span class="op">=</span> chirp_done<span class="op">;</span>      <span class="co">// Completion indicator</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a><span class="kw">assign</span> led<span class="op">[</span><span class="dv">3</span><span class="op">]</span> <span class="op">=</span> <span class="op">!</span>spi_cs_n<span class="op">;</span>       <span class="co">// SPI activity</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a><span class="kw">assign</span> led<span class="op">[</span><span class="dv">7</span><span class="op">:</span><span class="dv">4</span><span class="op">]</span> <span class="op">=</span> sf<span class="op">[</span><span class="dv">3</span><span class="op">:</span><span class="dv">0</span><span class="op">];</span>       <span class="co">// Current SF</span></span></code></pre></div>
+    <hr />
+    <h2 id="resource-utilization">Resource Utilization</h2>
+    <h3 id="zynq-7020-budget">Zynq-7020 Budget</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Resource</th>
+    <th>Available</th>
+    <th>Used (Typical)</th>
+    <th>Remaining</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>LUTs</td>
+    <td>53,200</td>
+    <td>~8,000 (15%)</td>
+    <td>45,200</td>
+    </tr>
+    <tr class="even">
+    <td>FFs</td>
+    <td>106,400</td>
+    <td>~10,000 (9%)</td>
+    <td>96,400</td>
+    </tr>
+    <tr class="odd">
+    <td>DSP48E1</td>
+    <td>220</td>
+    <td>10 (5%)</td>
+    <td>210</td>
+    </tr>
+    <tr class="even">
+    <td>BRAM</td>
+    <td>140 (36Kb)</td>
+    <td>11 (8%)</td>
+    <td>129</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="ice40-hx8k-budget">iCE40-HX8K Budget</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Resource</th>
+    <th>Available</th>
+    <th>Used (Typical)</th>
+    <th>Remaining</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>LCs</td>
+    <td>7,680</td>
+    <td>~3,500 (46%)</td>
+    <td>4,180</td>
+    </tr>
+    <tr class="even">
+    <td>FFs</td>
+    <td>7,680</td>
+    <td>~2,000 (26%)</td>
+    <td>5,680</td>
+    </tr>
+    <tr class="odd">
+    <td>BRAM</td>
+    <td>32 (4Kb)</td>
+    <td>4 (13%)</td>
+    <td>28</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="scaling-guidance">Scaling Guidance</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Configuration</th>
+    <th>LUTs</th>
+    <th>DSP</th>
+    <th>Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Minimal (NCO + chirp only)</td>
+    <td>1,000</td>
+    <td>0</td>
+    <td>Good for iCE40</td>
+    </tr>
+    <tr class="even">
+    <td>Standard (FFT + FIR + chirp)</td>
+    <td>5,000</td>
+    <td>6</td>
+    <td>Typical deployment</td>
+    </tr>
+    <tr class="odd">
+    <td>Full (all cores + DMA)</td>
+    <td>8,000</td>
+    <td>10</td>
+    <td>Full acceleration</td>
+    </tr>
+    <tr class="even">
+    <td>Extended (multi-FFT)</td>
+    <td>15,000</td>
+    <td>16</td>
+    <td>High throughput</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <h2 id="collaboration-with-software-developers">Collaboration with
+    Software Developers</h2>
+    <h3 id="communication-channels">Communication Channels</h3>
+    <ol type="1">
+    <li><strong>Register Specification Document</strong>: Maintain
+    accurate register maps</li>
+    <li><strong>Test Vectors</strong>: Provide bit-accurate test vectors
+    for verification</li>
+    <li><strong>Timing Diagrams</strong>: Document operation timing for
+    driver development</li>
+    <li><strong>Performance Metrics</strong>: Share measured latencies
+    and throughputs</li>
+    </ol>
+    <h3 id="development-workflow">Development Workflow</h3>
+    <pre><code>┌─────────────────────────────────────────────────────────────────────────┐
+│                        Development Workflow                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   1. Software Developer                 FPGA Developer                  │
+│      ┌─────────────────┐               ┌─────────────────┐              │
+│      │ Define          │               │ Review          │              │
+│      │ Requirements    │──────────────►│ Feasibility     │              │
+│      └─────────────────┘               └─────────────────┘              │
+│                                                │                        │
+│                                                ▼                        │
+│                                         ┌─────────────────┐             │
+│                                         │ Design &amp;        │             │
+│                                         │ Implement       │             │
+│                                         └─────────────────┘             │
+│                                                │                        │
+│      ┌─────────────────┐                ┌──────┴──────────┐             │
+│      │ Write Driver    │◄───────────────│ Provide         │             │
+│      │ Code            │                │ Register Map    │             │
+│      └─────────────────┘                └─────────────────┘             │
+│             │                                  │                        │
+│             ▼                                  ▼                        │
+│      ┌─────────────────┐               ┌─────────────────┐              │
+│      │ Generate        │──────────────►│ Verify with     │              │
+│      │ Test Vectors    │               │ Test Vectors    │              │
+│      └─────────────────┘               └─────────────────┘              │
+│             │                                  │                        │
+│             └──────────────┬───────────────────┘                        │
+│                            ▼                                            │
+│                     ┌─────────────────┐                                 │
+│                     │ Integration     │                                 │
+│                     │ Testing         │                                 │
+│                     └─────────────────┘                                 │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘</code></pre>
+    <h3 id="test-vector-format">Test Vector Format</h3>
+    <p>Standard format for exchanging test data:</p>
+    <pre><code># test_vectors/fft_1024_input.csv
+# Format: I,Q (floating point -1.0 to 1.0)
+0.5,0.0
+0.353553,0.353553
+0.0,0.5
+-0.353553,0.353553
+...</code></pre>
+    <div class="sourceCode" id="cb38"><pre
+    class="sourceCode verilog"><code class="sourceCode verilog"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Load in testbench</span></span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a><span class="kw">initial</span> <span class="kw">begin</span></span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>    <span class="dt">$readmemh</span><span class="op">(</span><span class="st">&quot;fft_1024_input.mem&quot;</span><span class="op">,</span> input_memory<span class="op">);</span></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a><span class="kw">end</span></span></code></pre></div>
+    <h3 id="simulation-mode">Simulation Mode</h3>
+    <p>For development without hardware, software uses the
+    <code>SimulatedFpga</code>:</p>
+    <div class="sourceCode" id="cb39"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>cfg<span class="at">(</span>feature <span class="op">=</span> <span class="st">&quot;sim&quot;</span><span class="at">)]</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> fpga<span class="op">:</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> FpgaAccelerator<span class="op">&gt;</span> <span class="op">=</span> <span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">SimulatedFpga::</span>new())<span class="op">;</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>cfg<span class="at">(</span>not<span class="at">(</span>feature <span class="op">=</span> <span class="st">&quot;sim&quot;</span><span class="at">))]</span></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> fpga<span class="op">:</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> FpgaAccelerator<span class="op">&gt;</span> <span class="op">=</span> <span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ZynqFpga::</span>auto_detect()<span class="op">?</span>)<span class="op">;</span></span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Same API works for both</span></span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> result <span class="op">=</span> fpga<span class="op">.</span>fft(<span class="op">&amp;</span>samples<span class="op">,</span> <span class="cn">false</span>)<span class="op">?;</span></span></code></pre></div>
+    <p>This allows software developers to work without FPGA hardware
+    while you develop the bitstream.</p>
+    <hr />
+    <h2 id="appendix-a-file-structure">Appendix A: File Structure</h2>
+    <pre><code>vivado/
+├── ip/
+│   ├── common/
+│   │   ├── axi_lite_slave.v      # Reusable AXI-Lite slave
+│   │   └── iq_pack.v             # I/Q packing/unpacking
+│   ├── r4w_fft/
+│   │   ├── r4w_fft.v             # FFT core logic
+│   │   └── r4w_fft_axi.v         # AXI wrapper
+│   ├── r4w_fir/
+│   ├── r4w_nco/
+│   ├── r4w_chirp_gen/
+│   ├── r4w_chirp_corr/
+│   └── r4w_dma/
+├── sim/
+│   ├── tb_r4w_fft.v
+│   └── ...
+├── scripts/
+│   └── create_bd.tcl
+└── constraints/
+    ├── zynq_z020.xdc
+    └── zynq_ultra.xdc
+
+lattice/
+├── ip/
+│   ├── r4w_spi_slave/
+│   ├── r4w_nco/
+│   └── r4w_chirp_gen/
+├── design/
+│   ├── r4w_top_ice40.v
+│   └── r4w_top_ecp5.v
+├── sim/
+│   └── tb_r4w_top_ice40.v
+└── constraints/
+    ├── ice40_hx8k.pcf
+    └── ulx3s_v3.lpf
+
+crates/r4w-fpga/
+├── src/
+│   ├── lib.rs
+│   ├── traits.rs                 # FpgaAccelerator trait
+│   ├── types.rs                  # FpgaInfo, IpCore, etc.
+│   ├── error.rs                  # FpgaError enum
+│   ├── zynq/
+│   │   ├── mod.rs                # ZynqFpga implementation
+│   │   ├── config.rs
+│   │   ├── dma.rs
+│   │   ├── mmap.rs
+│   │   └── registers.rs
+│   ├── lattice/
+│   │   ├── mod.rs                # LatticeFpga implementation
+│   │   ├── spi.rs
+│   │   └── ftdi.rs
+│   └── sim/
+│       └── mod.rs                # SimulatedFpga
+└── Cargo.toml</code></pre>
+    <hr />
+    <h2 id="appendix-b-quick-reference">Appendix B: Quick Reference</h2>
+    <h3 id="ip-core-ids">IP Core IDs</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Core</th>
+    <th>ID (Hex)</th>
+    <th>ID (ASCII)</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>FFT</td>
+    <td>0x52345746</td>
+    <td>“R4WF”</td>
+    </tr>
+    <tr class="even">
+    <td>FIR</td>
+    <td>0x52344649</td>
+    <td>“R4FI”</td>
+    </tr>
+    <tr class="odd">
+    <td>NCO</td>
+    <td>0x5234494F</td>
+    <td>“R4IO”</td>
+    </tr>
+    <tr class="even">
+    <td>Chirp Gen</td>
+    <td>0x52344347</td>
+    <td>“R4CG”</td>
+    </tr>
+    <tr class="odd">
+    <td>Chirp Corr</td>
+    <td>0x52344343</td>
+    <td>“R4CC”</td>
+    </tr>
+    <tr class="even">
+    <td>DMA</td>
+    <td>0x52344D41</td>
+    <td>“R4MA”</td>
+    </tr>
+    <tr class="odd">
+    <td>Lattice iCE40</td>
+    <td>0x52344C49</td>
+    <td>“R4LI”</td>
+    </tr>
+    <tr class="even">
+    <td>Lattice ECP5</td>
+    <td>0x52344C45</td>
+    <td>“R4LE”</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="common-register-bits">Common Register Bits</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Register</th>
+    <th>Bit</th>
+    <th>Meaning</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>CTRL</td>
+    <td>0</td>
+    <td>START</td>
+    </tr>
+    <tr class="even">
+    <td>CTRL</td>
+    <td>31</td>
+    <td>SOFT_RESET</td>
+    </tr>
+    <tr class="odd">
+    <td>STATUS</td>
+    <td>0</td>
+    <td>DONE</td>
+    </tr>
+    <tr class="even">
+    <td>STATUS</td>
+    <td>1</td>
+    <td>BUSY</td>
+    </tr>
+    <tr class="odd">
+    <td>STATUS</td>
+    <td>2</td>
+    <td>ERROR</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="useful-commands">Useful Commands</h3>
+    <div class="sourceCode" id="cb41"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Check Zynq platform</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> /sys/firmware/devicetree/base/compatible</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Read register (devmem)</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="ex">devmem2</span> 0x43C00020 w  <span class="co"># Read FFT ID</span></span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Program iCE40</span></span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a><span class="ex">iceprog</span> r4w_ice40.bin</span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Program ECP5</span></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a><span class="ex">ecpprog</span> r4w_ecp5.bit</span></code></pre></div>
+    <hr />
+    <h2 id="document-history">Document History</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Version</th>
+    <th>Date</th>
+    <th>Changes</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>1.0</td>
+    <td>2025-01-01</td>
+    <td>Initial release</td>
+    </tr>
+    </tbody>
+    </table>
+    <hr />
+    <p><em>For questions or contributions, please open an issue on the
+    R4W GitHub repository.</em></p>
+</body>
+</html>

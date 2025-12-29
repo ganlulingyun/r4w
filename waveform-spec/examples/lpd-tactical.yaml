@@ -1,0 +1,173 @@
+# LPD Tactical Communications Waveform
+#
+# A Low Probability of Detection waveform designed for covert tactical
+# communications. Uses DSSS with Gold codes for spreading, operating
+# below the noise floor.
+#
+# Key LPD features:
+#   - 21 dB processing gain (127 chips/symbol)
+#   - Signal designed to be 10+ dB below thermal noise floor
+#   - Gold codes for good cross-correlation (multi-user capable)
+#   - QPSK modulation for 2 bits/symbol efficiency
+#   - Convolutional coding for additional coding gain
+
+---
+waveform:
+  name: "LPD-TAC-1"
+  full_name: "LPD Tactical Communications Waveform v1"
+  version: "1.0"
+  description: |
+    Covert tactical waveform using Direct Sequence Spread Spectrum (DSSS)
+    with Gold code spreading. Designed to operate below the noise floor
+    for low probability of detection and intercept.
+
+  classification:
+    type: "digital"
+    category: "spread_spectrum"
+    applications:
+      - "tactical communications"
+      - "covert signaling"
+      - "anti-jam communications"
+
+  lpd_lpi:
+    enabled: true
+    target_processing_gain_db: 21   # 10*log10(127) ≈ 21 dB
+    below_noise_floor: true
+
+modulation:
+  domain: "phase"
+  order: 4
+  scheme: "QPSK"
+
+  constellation:
+    type: "gray"
+    rotation_deg: 0
+
+  differential:
+    enabled: true                   # Avoid phase ambiguity without pilots
+    reference: "previous"
+
+spread_spectrum:
+  enabled: true
+  technique: "dsss"
+
+  dsss:
+    enabled: true
+    chip_rate: 1270000              # 1.27 Mchips/s
+    chips_per_symbol: 127           # Processing gain = 21 dB
+
+    pn_sequence:
+      type: "gold"
+      length: 127                   # 2^7 - 1
+      poly_a: "0x83"                # x^7 + x + 1
+      poly_b: "0x89"                # x^7 + x^3 + 1
+      initial_state: "0x01"
+
+    cross_correlation_bound: -17
+
+pulse_shaping:
+  enabled: true
+  filter:
+    type: "root_raised_cosine"
+    rolloff: 0.35
+    span_symbols: 8
+
+timing:
+  symbol_rate: 10000                # 10 ksym/s
+  sample_rate: 2540000              # 2.54 MHz (2x chip rate)
+  samples_per_symbol: 254
+
+synchronization:
+  preamble:
+    enabled: true
+    type: "gold"                    # Use same Gold code for preamble
+    length_symbols: 32
+    spread_preamble: true
+
+  sync_word:
+    enabled: true
+    value: "0x7E"
+    length_bits: 8
+
+  cfo_tolerance_hz: 500
+
+channel_coding:
+  enabled: true
+
+  fec:
+    type: "convolutional"
+    rate: "1/2"
+    constraint_length: 7
+    generator_polys:
+      - "0x6D"                      # 1101101
+      - "0x4F"                      # 1001111
+
+  interleaving:
+    enabled: true
+    type: "block"
+    rows: 8
+    cols: 32
+
+  scrambling:
+    enabled: true
+    polynomial: "0x108"
+    initial_state: "0xFF"
+
+framing:
+  header:
+    enabled: true
+    length_bits: 16
+    fields:
+      - { name: "length", bits: 8 }
+      - { name: "msg_type", bits: 4 }
+      - { name: "priority", bits: 2 }
+      - { name: "reserved", bits: 2 }
+
+  payload:
+    min_bits: 8
+    max_bits: 1024
+    default_bits: 256
+
+  error_detection:
+    type: "crc16"
+    polynomial: "0x1021"
+
+spectral:
+  bandwidth:
+    null_to_null_hz: 2540000        # ≈ chip rate with RRC
+    occupied_99_hz: 1800000
+
+  psd:
+    target_dbm_hz: -140             # Well below noise floor
+
+  sidelobe_suppression_db: 35
+
+channel:
+  target_ber: 1.0e-5
+  required_snr_db: 8                # For QPSK with rate-1/2 convolutional
+
+  multipath:
+    tolerant: true
+    max_delay_spread_us: 5
+
+  doppler:
+    max_shift_hz: 200
+
+  jamming:
+    resistance: true
+    jam_margin_db: 21               # Processing gain provides jam resistance
+
+implementation:
+  complexity: 4
+  max_latency_ms: 20
+
+  targets:
+    - "simulation"
+    - "usrp"
+
+metrics:
+  processing_gain_db: 21.0
+  spectral_efficiency_bps_hz: 0.016 # Very low due to spreading
+  data_rate_bps: 10000              # After FEC: 10 kbps raw, 5 kbps info
+  chip_rate: 1270000
+  lpi_margin_db: 25                 # Estimated margin below noise floor

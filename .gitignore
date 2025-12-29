@@ -1,0 +1,38 @@
+# Build artifacts
+/target/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Database
+*.db
+
+# Generated I/Q sample files
+*.iq
+
+# Environment
+.env
+.env.local
+*.pdf
+crates/sdr-gui-web/dist/
+PROMPT_HISTORY.md
+XXX
+NOTES
+
+# FPGA build artifacts
+lattice/scripts/build/
+vivado/build/
+*.vcd
+*.bit
+*.bin
+*.svf
+*.jed
+PROMPT_HISTORY.md

@@ -1,0 +1,5 @@
+/home/joe/ai/ai-sdr-lora/examples/c/build/CMakeFiles/fft_demo.dir
+/home/joe/ai/ai-sdr-lora/examples/c/build/CMakeFiles/build_r4w.dir
+/home/joe/ai/ai-sdr-lora/examples/c/build/CMakeFiles/test.dir
+/home/joe/ai/ai-sdr-lora/examples/c/build/CMakeFiles/edit_cache.dir
+/home/joe/ai/ai-sdr-lora/examples/c/build/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Porting: milstd188110 - R4W Documentation</title>
+    <link rel="stylesheet" href="../docs/style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../../index.html">Presentations</a>
+        <a href="../index.html">Documentation</a>
+    </div>
+    <h1 id="mil-std-188-110-porting-guide">MIL-STD-188-110 Porting
+    Guide</h1>
+    <p>MIL-STD-188-110 - US military HF serial tone modem standard.</p>
+    <h2 id="overview">Overview</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Property</th>
+    <th>Value</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Frequency Range</td>
+    <td>2-30 MHz (HF band)</td>
+    </tr>
+    <tr class="even">
+    <td>Modulation</td>
+    <td>PSK (BPSK, QPSK, 8-PSK)</td>
+    </tr>
+    <tr class="odd">
+    <td>Data Rates</td>
+    <td>75, 150, 300, 600, 1200, 2400, 4800 bps</td>
+    </tr>
+    <tr class="even">
+    <td>FEC</td>
+    <td>Convolutional (K=7, rate 1/2)</td>
+    </tr>
+    <tr class="odd">
+    <td>Interleaving</td>
+    <td>Block (short: 0.6s, long: 4.8s)</td>
+    </tr>
+    <tr class="even">
+    <td>Bandwidth</td>
+    <td>3 kHz (voice channel compatible)</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="implementation-status">Implementation Status</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│ MIL-STD-188-110 Implementation Status                           │
+├─────────────────────────────────────────────────────────────────┤
+│ [█████████████████████████████████████░░░░░░░░░░░] 94%          │
+├─────────────────────────────────────────────────────────────────┤
+│ ✅ PSK Modulation (all modes)     (25% effort) - Complete       │
+│ ✅ Convolutional FEC              (20% effort) - Complete       │
+│ ✅ Block Interleaver              (15% effort) - Complete       │
+│ ✅ Preamble Generation            (15% effort) - Complete       │
+│ ✅ Data Rate Modes                (10% effort) - Complete       │
+│ ⚠️  Viterbi Decoder               (15% effort) - Basic (60%)     │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <p><strong>This waveform is fully unclassified.</strong> No
+    classified components need porting.</p>
+    <h2 id="architecture">Architecture</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                    MIL-STD-188-110 Modem                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    Input Data                           │    │
+│  └────────────────────────┬────────────────────────────────┘    │
+│                           │                                     │
+│                  ┌────────▼────────┐                            │
+│                  │  FEC Encoder    │                            │
+│                  │ (K=7, Rate 1/2) │                            │
+│                  └────────┬────────┘                            │
+│                           │                                     │
+│                  ┌────────▼────────┐                            │
+│                  │   Interleaver   │                            │
+│                  │ (Short or Long) │                            │
+│                  └────────┬────────┘                            │
+│                           │                                     │
+│                  ┌────────▼────────┐                            │
+│                  │   Symbol Mapper │                            │
+│                  │ (BPSK/QPSK/8PSK)│                            │
+│                  └────────┬────────┘                            │
+│                           │                                     │
+│                  ┌────────▼────────┐                            │
+│                  │ Preamble Insert │                            │
+│                  │  (Sync/Probe)   │                            │
+│                  └────────┬────────┘                            │
+│                           │                                     │
+│                  ┌────────▼────────┐                            │
+│                  │  PSK Modulator  │                            │
+│                  │  (1800 Hz tone) │                            │
+│                  └────────┬────────┘                            │
+│                           │                                     │
+│                           ▼                                     │
+│                    Audio Output                                 │
+│                   (300-3000 Hz)                                 │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="enhancement-opportunities">Enhancement Opportunities</h2>
+    <p>Since this waveform is fully unclassified, improvements can be
+    contributed directly to R4W.</p>
+    <h3 id="viterbi-decoder-optimization-primary-enhancement">1. Viterbi
+    Decoder Optimization (Primary Enhancement)</h3>
+    <p>The current Viterbi decoder is functional but could be
+    optimized:</p>
+    <div class="sourceCode" id="cb3"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Current implementation in r4w-core</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> ViterbiDecoder <span class="op">{</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    constraint_length<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span>  <span class="co">// K=7</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    polynomials<span class="op">:</span> (<span class="dt">u8</span><span class="op">,</span> <span class="dt">u8</span>)<span class="op">,</span>     <span class="co">// G1=0o171, G2=0o133</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ...</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Enhancement opportunities:</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">// 1. SIMD acceleration for path metric calculations</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="co">// 2. Traceback optimization with circular buffer</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="co">// 3. Soft-decision input support</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="co">// 4. Punctured code support for higher rates</span></span></code></pre></div>
+    <p><strong>Suggested improvements:</strong></p>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Enhanced Viterbi with SIMD</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>cfg<span class="at">(</span>target_arch <span class="op">=</span> <span class="st">&quot;x86_64&quot;</span><span class="at">)]</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::arch::x86_64::</span><span class="op">*;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> ViterbiDecoder <span class="op">{</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// SIMD-accelerated butterfly computation</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">#[</span>target_feature<span class="at">(</span>enable <span class="op">=</span> <span class="st">&quot;avx2&quot;</span><span class="at">)]</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">unsafe</span> <span class="kw">fn</span> butterfly_avx2(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> symbols<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">f32</span>]) <span class="op">{</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Use AVX2 for parallel path metric updates</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Each butterfly updates 2 states, process 8 at once</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>        <span class="co">// ...</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Soft-decision decoding with log-likelihood ratios</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> decode_soft(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> llr<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">f32</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Process soft symbols for better BER performance</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 2-3 dB improvement over hard decision</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>        <span class="co">// ...</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="additional-data-rate-support">2. Additional Data Rate
+    Support</h3>
+    <p>The standard defines additional modes:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Rate</th>
+    <th>Modulation</th>
+    <th>Current</th>
+    <th>Enhancement</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>75 bps</td>
+    <td>BPSK</td>
+    <td>✅</td>
+    <td>-</td>
+    </tr>
+    <tr class="even">
+    <td>150 bps</td>
+    <td>BPSK</td>
+    <td>✅</td>
+    <td>-</td>
+    </tr>
+    <tr class="odd">
+    <td>300 bps</td>
+    <td>BPSK</td>
+    <td>✅</td>
+    <td>-</td>
+    </tr>
+    <tr class="even">
+    <td>600 bps</td>
+    <td>QPSK</td>
+    <td>✅</td>
+    <td>-</td>
+    </tr>
+    <tr class="odd">
+    <td>1200 bps</td>
+    <td>QPSK</td>
+    <td>✅</td>
+    <td>-</td>
+    </tr>
+    <tr class="even">
+    <td>2400 bps</td>
+    <td>QPSK</td>
+    <td>✅</td>
+    <td>-</td>
+    </tr>
+    <tr class="odd">
+    <td>4800 bps</td>
+    <td>8-PSK</td>
+    <td>✅</td>
+    <td>-</td>
+    </tr>
+    <tr class="even">
+    <td>9600 bps</td>
+    <td>8-PSK</td>
+    <td>❌</td>
+    <td>Appendix C</td>
+    </tr>
+    <tr class="odd">
+    <td>19200 bps</td>
+    <td>8-PSK</td>
+    <td>❌</td>
+    <td>Appendix D</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="automatic-link-establishment-ale-integration">3. Automatic
+    Link Establishment (ALE) Integration</h3>
+    <p>MIL-STD-188-110 is often used with ALE:</p>
+    <div class="sourceCode" id="cb5"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Integration with existing ALE implementation</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::ale::</span>Ale<span class="op">;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::milstd188110::</span>MilStd188110<span class="op">;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> AleDataModem <span class="op">{</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    ale<span class="op">:</span> Ale<span class="op">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    data_modem<span class="op">:</span> MilStd188110<span class="op">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> AleDataModem <span class="op">{</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Establish link and send data</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">async</span> <span class="kw">fn</span> send_data(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> address<span class="op">:</span> <span class="op">&amp;</span><span class="dt">str</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> <span class="bu">Error</span><span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 1. ALE call</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>ale<span class="op">.</span>call(address)<span class="op">.</span><span class="kw">await</span><span class="op">?;</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 2. Switch to data mode</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> modulated <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>data_modem<span class="op">.</span>modulate(data)<span class="op">;</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 3. Transmit</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>transmit(<span class="op">&amp;</span>modulated)<span class="op">.</span><span class="kw">await</span><span class="op">?;</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>        <span class="co">// 4. ALE terminate</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>ale<span class="op">.</span>terminate()<span class="op">.</span><span class="kw">await</span><span class="op">?;</span></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(())</span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="building-and-testing">Building and Testing</h2>
+    <p>Since no classified components are involved, standard development
+    workflow applies:</p>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Build</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Run tests</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> test <span class="at">-p</span> r4w-core waveform::milstd188110</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Benchmark Viterbi decoder</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> bench <span class="at">--bench</span> viterbi</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Test with known waveform samples</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w <span class="at">--</span> decode <span class="at">--waveform</span> MIL-STD-188-110 <span class="dt">\</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">--input</span> test_signal.wav <span class="at">--rate</span> 2400</span></code></pre></div>
+    <h2 id="interoperability-testing">Interoperability Testing</h2>
+    <p>Test against other implementations:</p>
+    <div class="sourceCode" id="cb7"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> test_interop_with_reference() <span class="op">{</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Load reference signal generated by Harris radio</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> reference <span class="op">=</span> load_wav(<span class="st">&quot;test_data/milstd_2400bps_reference.wav&quot;</span>)<span class="op">;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> modem <span class="op">=</span> <span class="pp">MilStd188110::</span>new(<span class="pp">DataRate::</span>Bps2400)<span class="op">;</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> decoded <span class="op">=</span> modem<span class="op">.</span>demodulate(<span class="op">&amp;</span>reference)<span class="op">;</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="pp">assert_eq!</span>(decoded<span class="op">,</span> <span class="st">b&quot;THE QUICK BROWN FOX&quot;</span>)<span class="op">;</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> test_loopback_all_rates() <span class="op">{</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> rate <span class="kw">in</span> [<span class="dv">75</span><span class="op">,</span> <span class="dv">150</span><span class="op">,</span> <span class="dv">300</span><span class="op">,</span> <span class="dv">600</span><span class="op">,</span> <span class="dv">1200</span><span class="op">,</span> <span class="dv">2400</span><span class="op">,</span> <span class="dv">4800</span>] <span class="op">{</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> modem <span class="op">=</span> <span class="pp">MilStd188110::</span>new(<span class="pp">DataRate::</span>from_bps(rate))<span class="op">;</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> test_data <span class="op">=</span> <span class="st">b&quot;TEST MESSAGE&quot;</span><span class="op">;</span></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> modulated <span class="op">=</span> modem<span class="op">.</span>modulate(test_data)<span class="op">;</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Add realistic channel effects</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> noisy <span class="op">=</span> add_awgn(<span class="op">&amp;</span>modulated<span class="op">,</span> <span class="dv">10.0</span>)<span class="op">;</span>  <span class="co">// 10 dB SNR</span></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> decoded <span class="op">=</span> modem<span class="op">.</span>demodulate(<span class="op">&amp;</span>noisy)<span class="op">;</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>        <span class="pp">assert_eq!</span>(decoded<span class="op">,</span> test_data<span class="op">,</span> <span class="st">&quot;Failed at {} bps&quot;</span><span class="op">,</span> rate)<span class="op">;</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="cross-compilation">Cross-Compilation</h2>
+    <p>MIL-STD-188-110 modems are commonly deployed on:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Platform</th>
+    <th>Target</th>
+    <th>Use Case</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Raspberry Pi</td>
+    <td><code>aarch64-unknown-linux-gnu</code></td>
+    <td>Field testing</td>
+    </tr>
+    <tr class="even">
+    <td>BeagleBone</td>
+    <td><code>armv7-unknown-linux-gnueabihf</code></td>
+    <td>Embedded HF modem</td>
+    </tr>
+    <tr class="odd">
+    <td>Desktop</td>
+    <td><code>x86_64-unknown-linux-gnu</code></td>
+    <td>Development/simulation</td>
+    </tr>
+    <tr class="even">
+    <td>WebAssembly</td>
+    <td><code>wasm32-unknown-unknown</code></td>
+    <td>Browser simulation</td>
+    </tr>
+    </tbody>
+    </table>
+    <div class="sourceCode" id="cb8"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Cross-compile for ARM</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="ex">cross</span> build <span class="at">--release</span> <span class="at">--target</span> aarch64-unknown-linux-gnu</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Build for WASM (training/simulation)</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> build <span class="at">--release</span> <span class="at">--target</span> wasm32-unknown-unknown</span></code></pre></div>
+    <h2 id="performance-optimization">Performance Optimization</h2>
+    <h3 id="simd-acceleration">SIMD Acceleration</h3>
+    <div class="sourceCode" id="cb9"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Enable SIMD features</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>cfg<span class="at">(</span>target_arch <span class="op">=</span> <span class="st">&quot;x86_64&quot;</span><span class="at">)]</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="pp">compile_error!</span>(<span class="st">&quot;Enable AVX2 for best performance: RUSTFLAGS=&#39;-C target-cpu=native&#39;&quot;</span>)<span class="op">;</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Build with:</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>RUSTFLAGS<span class="op">=</span><span class="st">&quot;-C target-cpu=native&quot;</span> cargo build <span class="op">--</span>release</span></code></pre></div>
+    <h3 id="real-time-processing">Real-Time Processing</h3>
+    <p>For real-time HF operation:</p>
+    <div class="sourceCode" id="cb10"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Use ring buffer for continuous processing</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">ringbuf::</span><span class="op">{</span>HeapRb<span class="op">,</span> Rb<span class="op">};</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> RealtimeModem <span class="op">{</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    modem<span class="op">:</span> MilStd188110<span class="op">,</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    sample_buffer<span class="op">:</span> HeapRb<span class="op">&lt;</span><span class="dt">f32</span><span class="op">&gt;,</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    symbol_buffer<span class="op">:</span> HeapRb<span class="op">&lt;</span>Complex32<span class="op">&gt;,</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> RealtimeModem <span class="op">{</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Process samples in real-time</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> process_chunk(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">f32</span>]) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;&gt;</span> <span class="op">{</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>sample_buffer<span class="op">.</span>push_slice(samples)<span class="op">;</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Process when we have enough samples</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">self</span><span class="op">.</span>sample_buffer<span class="op">.</span>len() <span class="op">&gt;=</span> <span class="kw">self</span><span class="op">.</span>modem<span class="op">.</span>samples_per_symbol() <span class="op">*</span> <span class="dv">100</span> <span class="op">{</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> chunk<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">f32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>sample_buffer<span class="op">.</span>pop_iter()<span class="op">.</span>take(<span class="dv">1000</span>)<span class="op">.</span>collect()<span class="op">;</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>            <span class="cn">Some</span>(<span class="kw">self</span><span class="op">.</span>modem<span class="op">.</span>demodulate_chunk(<span class="op">&amp;</span>chunk))</span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>            <span class="cn">None</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="contributing-enhancements">Contributing Enhancements</h2>
+    <p>Since this is fully unclassified:</p>
+    <ol type="1">
+    <li>Fork the R4W repository</li>
+    <li>Create a feature branch</li>
+    <li>Implement enhancement (with tests)</li>
+    <li>Submit pull request</li>
+    </ol>
+    <div class="sourceCode" id="cb11"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> checkout <span class="at">-b</span> feature/viterbi-simd</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="co"># ... implement ...</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> test</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> commit <span class="at">-m</span> <span class="st">&quot;perf(milstd188110): add AVX2 Viterbi acceleration&quot;</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> push origin feature/viterbi-simd</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co"># Create PR on GitHub</span></span></code></pre></div>
+    <h2 id="see-also">See Also</h2>
+    <ul>
+    <li><a href="./BUILD_PROCEDURES.md">General Build
+    Procedures</a></li>
+    <li><a href="../PORTING_GUIDE_MILITARY.md">Main Porting
+    Guide</a></li>
+    <li><a href="../../crates/r4w-core/src/waveform/ale.rs">ALE
+    Waveform</a></li>
+    </ul>
+</body>
+</html>

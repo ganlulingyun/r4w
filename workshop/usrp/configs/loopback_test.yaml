@@ -1,0 +1,94 @@
+# Loopback Test Configuration with Digital Attenuator
+# trace:FR-0092 | ai:claude
+#
+# Test setup:
+#   USRP TX ──► Digital Attenuator ──► USRP RX
+#
+# Can use single USRP in loopback mode or two separate USRPs.
+
+test:
+  name: "LoRa Sensitivity Sweep"
+  description: "Sweep attenuation to find receiver sensitivity"
+
+# TX configuration
+tx:
+  device: "uhd://type=b200"
+  # Or for N210: "uhd://addr=192.168.10.2"
+
+  frequency: 915000000
+  sample_rate: 1000000
+  bandwidth: 500000  # LoRa 500 kHz
+  tx_gain: 30.0
+  antenna: "TX/RX"
+
+# RX configuration (can be same device for loopback)
+rx:
+  device: "uhd://type=b200"
+  # For separate RX: "uhd://type=b200,serial=XYZ"
+
+  frequency: 915000000
+  sample_rate: 1000000
+  bandwidth: 500000
+  rx_gain: 40.0
+  antenna: "RX2"
+
+# Attenuator configuration
+attenuator:
+  # Simulated for development:
+  uri: "simulated://max=90"
+
+  # Mini-Circuits RCDAT via USB:
+  # uri: "minicircuits://RCDAT-8000-90"
+
+  # PE43711 via SPI:
+  # uri: "pe43711://spi:0:0"
+
+  # Settling time after attenuation change (ms)
+  settle_time_ms: 10
+
+# Waveform under test
+waveform:
+  type: lora
+  spreading_factor: 7
+  bandwidth: 500000
+  coding_rate: "4/5"
+  # Number of symbols for sync detection
+  preamble_length: 8
+
+# Test parameters
+sweep:
+  # Attenuation range to sweep
+  start_db: 0.0
+  end_db: 80.0
+  step_db: 1.0
+
+  # Test criteria
+  packets_per_point: 100
+  packet_size_bytes: 32
+
+  # Success criteria
+  # Test stops when PER exceeds this threshold
+  per_threshold: 0.10  # 10% packet error rate
+
+# SNR estimation
+snr:
+  # TX power at attenuator input (estimate)
+  tx_power_dbm: 0.0
+
+  # Receiver noise floor (measure or estimate)
+  noise_floor_dbm: -100.0
+
+  # Cable/connector losses (estimate)
+  fixed_loss_db: 3.0
+
+# Output
+output:
+  # Save results to file
+  results_file: "sensitivity_results.json"
+
+  # Plot results
+  plot: true
+  plot_file: "sensitivity_plot.png"
+
+  # Verbose output
+  verbose: true

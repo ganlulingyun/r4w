@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Porting: havequick - R4W Documentation</title>
+    <link rel="stylesheet" href="../docs/style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../../index.html">Presentations</a>
+        <a href="../index.html">Documentation</a>
+    </div>
+    <h1 id="havequick-porting-guide">HAVEQUICK Porting Guide</h1>
+    <p>HAVEQUICK (HQ/HQ-II) - UHF Anti-Jam frequency hopping system for
+    military aviation.</p>
+    <h2 id="overview">Overview</h2>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Property</th>
+    <th>Value</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>Frequency Range</td>
+    <td>225-400 MHz (UHF Military)</td>
+    </tr>
+    <tr class="even">
+    <td>Number of Frequencies</td>
+    <td>3,584 (28 MHz spacing / 7,168 with extended)</td>
+    </tr>
+    <tr class="odd">
+    <td>Hop Rate</td>
+    <td>Varies by mode (tens to hundreds/sec)</td>
+    </tr>
+    <tr class="even">
+    <td>Modulation</td>
+    <td>AM (voice), ASK (data)</td>
+    </tr>
+    <tr class="odd">
+    <td>Time Source</td>
+    <td>GPS or TOD (Time of Day)</td>
+    </tr>
+    <tr class="even">
+    <td>Key Management</td>
+    <td>Word of Day (WOD)</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="implementation-status">Implementation Status</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│ HAVEQUICK Implementation Status                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ [██████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░] 58%          │
+├─────────────────────────────────────────────────────────────────┤
+│ ✅ AM Voice Modulation           (12% effort) - Complete        │
+│ ✅ ASK Data Modulation           (10% effort) - Complete        │
+│ ✅ Channel Frequency Math        (8% effort)  - Complete        │
+│ ✅ WOD Parsing (structure)       (10% effort) - Complete        │
+│ ✅ Framework                     (5% effort)  - Complete        │
+│ ⚠️  HoppingAlgorithm             (22% effort) - Simulator        │
+│ ⚠️  TimeSyncProtocol             (12% effort) - Partial          │
+│ ⚠️  NetController                (10% effort) - Simulator        │
+│ ⚠️  TransecProvider (KY-58)      (11% effort) - Simulator        │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="architecture">Architecture</h2>
+    <pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                     HAVEQUICK Waveform                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌──────────────┐              ┌──────────────┐                 │
+│  │    Voice     │              │    Data      │                 │
+│  │    (AM)      │              │   (ASK)      │                 │
+│  └──────┬───────┘              └──────┬───────┘                 │
+│         │                             │                         │
+│         └─────────────┬───────────────┘                         │
+│                       │                                         │
+│              ┌────────▼────────┐                                │
+│              │  Optional KY-58 │                                │
+│              │    Encryption   │                                │
+│              │   (CLASSIFIED)  │                                │
+│              └────────┬────────┘                                │
+│                       │                                         │
+│         ┌─────────────┼─────────────┐                           │
+│         ▼             ▼             ▼                           │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐                │
+│  │   Hopping   │ │     Net     │ │    Time     │                │
+│  │  Algorithm  │ │ Controller  │ │    Sync     │                │
+│  │ (CLASSIFIED)│ │ (CLASSIFIED)│ │ (CLASSIFIED)│                │
+│  └──────┬──────┘ └──────┬──────┘ └──────┬──────┘                │
+│         │               │               │                       │
+│         └───────────────┴───────────────┘                       │
+│                         │                                       │
+│                ┌────────▼────────┐                              │
+│                │  AM Modulator   │                              │
+│                │  (Unclassified) │                              │
+│                └────────┬────────┘                              │
+│                         │                                       │
+│                         ▼                                       │
+│                    RF Output                                    │
+│              (Frequency-Hopping)                                │
+└─────────────────────────────────────────────────────────────────┘</code></pre>
+    <h2 id="traits-to-implement">Traits to Implement</h2>
+    <h3 id="hoppingalgorithm-22-of-total-effort">1. HoppingAlgorithm
+    (22% of total effort)</h3>
+    <p>The HAVEQUICK hopping algorithm based on Word of Day.</p>
+    <div class="sourceCode" id="cb3"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Location: crates/r4w-core/src/waveform/havequick/traits.rs</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> HoppingAlgorithm<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Initialize with Word of Day and network parameters</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> wod<span class="op">:</span> <span class="op">&amp;</span>WordOfDay<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> tod<span class="op">:</span> TimeOfDay)<span class="op">;</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current channel frequency</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_channel(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> ChannelNumber<span class="op">;</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Convert channel number to frequency in Hz</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> channel_to_frequency(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> channel<span class="op">:</span> ChannelNumber) <span class="op">-&gt;</span> <span class="dt">f64</span><span class="op">;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Advance to next hop</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> advance_hop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Synchronize to time of day</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sync_to_time(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> tod<span class="op">:</span> TimeOfDay)<span class="op">;</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current hop number within day</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> current_hop_number(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Predict channel for future hop</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> predict_channel(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> hop_number<span class="op">:</span> <span class="dt">u64</span>) <span class="op">-&gt;</span> ChannelNumber<span class="op">;</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if hopper is valid</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_valid(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Reset hopper state</span></span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p><strong>Implementation Notes:</strong> - HAVEQUICK uses the Word
+    of Day as a key to generate the hopping sequence - The algorithm
+    produces a pseudo-random channel sequence - Time synchronization is
+    critical - typically uses GPS - Different nets can use different
+    segments of the WOD</p>
+    <h3 id="netcontroller-10-of-total-effort">2. NetController (10% of
+    total effort)</h3>
+    <p>Manages network membership and WOD distribution.</p>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> NetController<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Load Word of Day for a network</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_wod(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> wod<span class="op">:</span> WordOfDay) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> HavequickError<span class="op">&gt;;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get WOD for a network (if authorized)</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_wod(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;&amp;</span>WordOfDay<span class="op">&gt;;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check authorization for a network</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_authorized(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get list of authorized networks</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_authorized_nets(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>NetId<span class="op">&gt;;</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Remove all WODs (zeroization)</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get net status</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_net_status(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>NetStatus<span class="op">&gt;;</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Set active network</span></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> set_active_net(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> HavequickError<span class="op">&gt;;</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> NetStatus <span class="op">{</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> net_id<span class="op">:</span> NetId<span class="op">,</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> wod_loaded<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> synchronized<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> last_activity<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>TimeOfDay<span class="op">&gt;,</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="timesyncprotocol-12-of-total-effort">3. TimeSyncProtocol
+    (12% of total effort)</h3>
+    <p>Time synchronization for coordinated hopping.</p>
+    <div class="sourceCode" id="cb5"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TimeSyncProtocol<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get current Time of Day</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_tod(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> TimeOfDay<span class="op">;</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if GPS lock is available</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> has_gps_lock(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get GPS-derived time (if available)</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_gps_time(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>TimeOfDay<span class="op">&gt;;</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Set manual time (for GPS-denied operation)</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> set_manual_time(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> tod<span class="op">:</span> TimeOfDay)<span class="op">;</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Process incoming sync pulse</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> process_sync_pulse(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> pulse<span class="op">:</span> <span class="op">&amp;</span>SyncPulse) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> SyncError<span class="op">&gt;;</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Get time quality indicator</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> time_quality(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> TimeQuality<span class="op">;</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if synchronized</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_synchronized(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Debug</span><span class="at">)]</span></span>
+<span id="cb5-25"><a href="#cb5-25" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> TimeQuality <span class="op">{</span></span>
+<span id="cb5-26"><a href="#cb5-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> source<span class="op">:</span> TimeSource<span class="op">,</span></span>
+<span id="cb5-27"><a href="#cb5-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> accuracy_ns<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb5-28"><a href="#cb5-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> last_update<span class="op">:</span> TimeOfDay<span class="op">,</span></span>
+<span id="cb5-29"><a href="#cb5-29" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-30"><a href="#cb5-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-31"><a href="#cb5-31" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Copy</span><span class="op">,</span> <span class="bu">Debug</span><span class="op">,</span> <span class="bu">PartialEq</span><span class="at">)]</span></span>
+<span id="cb5-32"><a href="#cb5-32" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">enum</span> TimeSource <span class="op">{</span></span>
+<span id="cb5-33"><a href="#cb5-33" aria-hidden="true" tabindex="-1"></a>    Gps<span class="op">,</span></span>
+<span id="cb5-34"><a href="#cb5-34" aria-hidden="true" tabindex="-1"></a>    Network<span class="op">,</span></span>
+<span id="cb5-35"><a href="#cb5-35" aria-hidden="true" tabindex="-1"></a>    Manual<span class="op">,</span></span>
+<span id="cb5-36"><a href="#cb5-36" aria-hidden="true" tabindex="-1"></a>    Unknown<span class="op">,</span></span>
+<span id="cb5-37"><a href="#cb5-37" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="transecprovider-11-of-total-effort">4. TransecProvider (11%
+    of total effort)</h3>
+    <p>For systems using KY-58 or similar voice encryption.</p>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TransecProvider<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Load encryption key</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_key(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>TransecKey) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> TransecError<span class="op">&gt;;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Encrypt audio frame</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encrypt_audio(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> audio<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">i16</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> TransecError<span class="op">&gt;;</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Decrypt audio frame</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decrypt_audio(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> encrypted<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">i16</span><span class="op">&gt;,</span> TransecError<span class="op">&gt;;</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Check if encryption is active</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_active(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Set encryption mode</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> set_mode(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> mode<span class="op">:</span> TransecMode) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> TransecError<span class="op">&gt;;</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Zeroize all key material</span></span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="op">,</span> <span class="bu">Copy</span><span class="op">,</span> <span class="bu">Debug</span><span class="op">,</span> <span class="bu">PartialEq</span><span class="at">)]</span></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">enum</span> TransecMode <span class="op">{</span></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    Plain<span class="op">,</span>       <span class="co">// No encryption</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    Cipher<span class="op">,</span>      <span class="co">// Encrypted</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    CipherText<span class="op">,</span>  <span class="co">// Text-only encryption</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p><strong>Note:</strong> KY-58 is a legacy system. Modern
+    implementations may use different COMSEC equipment.</p>
+    <h2 id="word-of-day-structure">Word of Day Structure</h2>
+    <p>The WOD is the key material for HAVEQUICK. The framework handles
+    the structure, but the algorithm that uses it is classified.</p>
+    <div class="sourceCode" id="cb7"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Already implemented in r4w-core (unclassified)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="at">)]</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> WordOfDay <span class="op">{</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// WOD identifier (Julian date typically)</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> id<span class="op">:</span> WodId<span class="op">,</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Net segments within the WOD</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> segments<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span>WodSegment<span class="op">&gt;,</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Validity period</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> valid_from<span class="op">:</span> TimeOfDay<span class="op">,</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> valid_until<span class="op">:</span> TimeOfDay<span class="op">,</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>derive<span class="at">(</span><span class="bu">Clone</span><span class="at">)]</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> WodSegment <span class="op">{</span></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> segment_id<span class="op">:</span> <span class="dt">u8</span><span class="op">,</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> data<span class="op">:</span> [<span class="dt">u8</span><span class="op">;</span> <span class="dv">32</span>]<span class="op">,</span>  <span class="co">// Segment data</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="step-by-step-porting-procedure">Step-by-Step Porting
+    Procedure</h2>
+    <h3 id="phase-1-environment-setup">Phase 1: Environment Setup</h3>
+    <div class="sourceCode" id="cb8"><pre
+    class="sourceCode bash"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Create classified implementation crate</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">mkdir</span> <span class="at">-p</span> crates/havequick-classified</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> crates/havequick-classified</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> init <span class="at">--lib</span></span></code></pre></div>
+    <h3 id="phase-2-implement-hopping-algorithm">Phase 2: Implement
+    Hopping Algorithm</h3>
+    <div class="sourceCode" id="cb9"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/havequick-classified/src/hopper.rs</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::havequick::traits::</span><span class="op">*;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    wod<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>WordOfDay<span class="op">&gt;,</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    net_id<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>NetId<span class="op">&gt;,</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    current_hop<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    day_start<span class="op">:</span> TimeOfDay<span class="op">,</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>            wod<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>            net_id<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>            current_hop<span class="op">:</span> <span class="dv">0</span><span class="op">,</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>            day_start<span class="op">:</span> <span class="pp">TimeOfDay::</span>midnight()<span class="op">,</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// Compute channel from WOD and hop number</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">/// THIS IS THE CLASSIFIED ALGORITHM</span></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> compute_channel(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> hop_number<span class="op">:</span> <span class="dt">u64</span>) <span class="op">-&gt;</span> ChannelNumber <span class="op">{</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> wod <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>wod<span class="op">.</span>as_ref()<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> net_id <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>net_id<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Get the segment for this net</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> segment <span class="op">=</span> <span class="op">&amp;</span>wod<span class="op">.</span>segments[net_id<span class="op">.</span><span class="dv">0</span> <span class="kw">as</span> <span class="dt">usize</span> <span class="op">%</span> wod<span class="op">.</span>segments<span class="op">.</span>len()]<span class="op">;</span></span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>        <span class="co">// CLASSIFIED: The actual algorithm that converts</span></span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>        <span class="co">// (segment_data, hop_number) -&gt; channel</span></span>
+<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>        <span class="co">//</span></span>
+<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Placeholder structure:</span></span>
+<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> seed <span class="op">=</span> segment<span class="op">.</span>data[<span class="dv">0</span>] <span class="kw">as</span> <span class="dt">u64</span> <span class="op">^</span> (hop_number <span class="op">&lt;&lt;</span> <span class="dv">8</span>)<span class="op">;</span></span>
+<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>        ChannelNumber((seed <span class="op">%</span> <span class="dv">3584</span>) <span class="kw">as</span> <span class="dt">u16</span>)</span>
+<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> HoppingAlgorithm <span class="cf">for</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> wod<span class="op">:</span> <span class="op">&amp;</span>WordOfDay<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> tod<span class="op">:</span> TimeOfDay) <span class="op">{</span></span>
+<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>wod <span class="op">=</span> <span class="cn">Some</span>(wod<span class="op">.</span>clone())<span class="op">;</span></span>
+<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>net_id <span class="op">=</span> <span class="cn">Some</span>(net_id)<span class="op">;</span></span>
+<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>day_start <span class="op">=</span> tod<span class="op">.</span>day_start()<span class="op">;</span></span>
+<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>tod_to_hop(tod)<span class="op">;</span></span>
+<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-47"><a href="#cb9-47" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_channel(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> ChannelNumber <span class="op">{</span></span>
+<span id="cb9-48"><a href="#cb9-48" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>compute_channel(<span class="kw">self</span><span class="op">.</span>current_hop)</span>
+<span id="cb9-49"><a href="#cb9-49" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-50"><a href="#cb9-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-51"><a href="#cb9-51" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> channel_to_frequency(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> channel<span class="op">:</span> ChannelNumber) <span class="op">-&gt;</span> <span class="dt">f64</span> <span class="op">{</span></span>
+<span id="cb9-52"><a href="#cb9-52" aria-hidden="true" tabindex="-1"></a>        <span class="co">// HAVEQUICK frequency calculation (unclassified)</span></span>
+<span id="cb9-53"><a href="#cb9-53" aria-hidden="true" tabindex="-1"></a>        <span class="dv">225_000_000.0</span> <span class="op">+</span> (channel<span class="op">.</span><span class="dv">0</span> <span class="kw">as</span> <span class="dt">f64</span> <span class="op">*</span> <span class="dv">25_000.0</span>)</span>
+<span id="cb9-54"><a href="#cb9-54" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-55"><a href="#cb9-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-56"><a href="#cb9-56" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> advance_hop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb9-57"><a href="#cb9-57" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop <span class="op">+=</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb9-58"><a href="#cb9-58" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-59"><a href="#cb9-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-60"><a href="#cb9-60" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sync_to_time(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> tod<span class="op">:</span> TimeOfDay) <span class="op">{</span></span>
+<span id="cb9-61"><a href="#cb9-61" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>tod_to_hop(tod)<span class="op">;</span></span>
+<span id="cb9-62"><a href="#cb9-62" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-63"><a href="#cb9-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-64"><a href="#cb9-64" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> current_hop_number(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span></span>
+<span id="cb9-65"><a href="#cb9-65" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop</span>
+<span id="cb9-66"><a href="#cb9-66" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-67"><a href="#cb9-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-68"><a href="#cb9-68" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> predict_channel(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> hop_number<span class="op">:</span> <span class="dt">u64</span>) <span class="op">-&gt;</span> ChannelNumber <span class="op">{</span></span>
+<span id="cb9-69"><a href="#cb9-69" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>compute_channel(hop_number)</span>
+<span id="cb9-70"><a href="#cb9-70" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-71"><a href="#cb9-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-72"><a href="#cb9-72" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_valid(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span> <span class="op">{</span></span>
+<span id="cb9-73"><a href="#cb9-73" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>wod<span class="op">.</span>is_some() <span class="op">&amp;&amp;</span> <span class="kw">self</span><span class="op">.</span>net_id<span class="op">.</span>is_some()</span>
+<span id="cb9-74"><a href="#cb9-74" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-75"><a href="#cb9-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-76"><a href="#cb9-76" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb9-77"><a href="#cb9-77" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>wod <span class="op">=</span> <span class="cn">None</span><span class="op">;</span></span>
+<span id="cb9-78"><a href="#cb9-78" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>net_id <span class="op">=</span> <span class="cn">None</span><span class="op">;</span></span>
+<span id="cb9-79"><a href="#cb9-79" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>current_hop <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb9-80"><a href="#cb9-80" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-81"><a href="#cb9-81" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb9-82"><a href="#cb9-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-83"><a href="#cb9-83" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb9-84"><a href="#cb9-84" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> tod_to_hop(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> tod<span class="op">:</span> TimeOfDay) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span></span>
+<span id="cb9-85"><a href="#cb9-85" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Convert time of day to hop number</span></span>
+<span id="cb9-86"><a href="#cb9-86" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Based on hop rate (varies by mode)</span></span>
+<span id="cb9-87"><a href="#cb9-87" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> secs_since_midnight <span class="op">=</span> tod<span class="op">.</span>secs_since(<span class="kw">self</span><span class="op">.</span>day_start)<span class="op">;</span></span>
+<span id="cb9-88"><a href="#cb9-88" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Assuming 100 hops/second for this example</span></span>
+<span id="cb9-89"><a href="#cb9-89" aria-hidden="true" tabindex="-1"></a>        (secs_since_midnight <span class="op">*</span> <span class="dv">100.0</span>) <span class="kw">as</span> <span class="dt">u64</span></span>
+<span id="cb9-90"><a href="#cb9-90" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-91"><a href="#cb9-91" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-3-gps-time-integration">Phase 3: GPS Time
+    Integration</h3>
+    <div class="sourceCode" id="cb10"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/havequick-classified/src/time_sync.rs</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::havequick::traits::</span><span class="op">*;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> GpsTimeSync <span class="op">{</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    gps_receiver<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>GpsReceiver<span class="op">&gt;,</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    manual_offset<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>Duration<span class="op">&gt;,</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    last_gps_update<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>Instant<span class="op">&gt;,</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> GpsTimeSync <span class="op">{</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>            gps_receiver<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>            manual_offset<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>            last_gps_update<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> connect_gps(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> device<span class="op">:</span> <span class="op">&amp;</span><span class="dt">str</span>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> GpsError<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>gps_receiver <span class="op">=</span> <span class="cn">Some</span>(<span class="pp">GpsReceiver::</span>connect(device)<span class="op">?</span>)<span class="op">;</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(())</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TimeSyncProtocol <span class="cf">for</span> GpsTimeSync <span class="op">{</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_tod(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> TimeOfDay <span class="op">{</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(gps) <span class="op">=</span> <span class="op">&amp;</span><span class="kw">self</span><span class="op">.</span>gps_receiver <span class="op">{</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(time) <span class="op">=</span> gps<span class="op">.</span>get_time() <span class="op">{</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>                <span class="cf">return</span> time<span class="op">;</span></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Fallback to system time + manual offset</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> system_time <span class="op">=</span> <span class="pp">SystemTime::</span>now()<span class="op">;</span></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(offset) <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>manual_offset <span class="op">{</span></span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>            <span class="pp">TimeOfDay::</span>from_system(system_time) <span class="op">+</span> offset</span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>            <span class="pp">TimeOfDay::</span>from_system(system_time)</span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> has_gps_lock(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span> <span class="op">{</span></span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>gps_receiver</span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>as_ref()</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>map(<span class="op">|</span>gps<span class="op">|</span> gps<span class="op">.</span>has_lock())</span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>unwrap_or(<span class="cn">false</span>)</span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_gps_time(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>TimeOfDay<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>gps_receiver<span class="op">.</span>as_ref()<span class="op">?.</span>get_time()</span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> set_manual_time(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> tod<span class="op">:</span> TimeOfDay) <span class="op">{</span></span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> system_tod <span class="op">=</span> <span class="pp">TimeOfDay::</span>from_system(<span class="pp">SystemTime::</span>now())<span class="op">;</span></span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>manual_offset <span class="op">=</span> <span class="cn">Some</span>(tod <span class="op">-</span> system_tod)<span class="op">;</span></span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> process_sync_pulse(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> pulse<span class="op">:</span> <span class="op">&amp;</span>SyncPulse) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> SyncError<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Process network timing pulse</span></span>
+<span id="cb10-60"><a href="#cb10-60" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Used for GPS-denied synchronization</span></span>
+<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(())</span>
+<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> time_quality(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> TimeQuality <span class="op">{</span></span>
+<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">self</span><span class="op">.</span>has_gps_lock() <span class="op">{</span></span>
+<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a>            TimeQuality <span class="op">{</span></span>
+<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a>                source<span class="op">:</span> <span class="pp">TimeSource::</span>Gps<span class="op">,</span></span>
+<span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a>                accuracy_ns<span class="op">:</span> <span class="dv">100</span><span class="op">,</span>  <span class="co">// GPS typically ~100ns</span></span>
+<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a>                last_update<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>get_tod()<span class="op">,</span></span>
+<span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb10-72"><a href="#cb10-72" aria-hidden="true" tabindex="-1"></a>            TimeQuality <span class="op">{</span></span>
+<span id="cb10-73"><a href="#cb10-73" aria-hidden="true" tabindex="-1"></a>                source<span class="op">:</span> <span class="pp">TimeSource::</span>Manual<span class="op">,</span></span>
+<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a>                accuracy_ns<span class="op">:</span> <span class="dv">1_000_000</span><span class="op">,</span>  <span class="co">// 1ms without GPS</span></span>
+<span id="cb10-75"><a href="#cb10-75" aria-hidden="true" tabindex="-1"></a>                last_update<span class="op">:</span> <span class="kw">self</span><span class="op">.</span>get_tod()<span class="op">,</span></span>
+<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-79"><a href="#cb10-79" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-80"><a href="#cb10-80" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_synchronized(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span> <span class="op">{</span></span>
+<span id="cb10-81"><a href="#cb10-81" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>has_gps_lock() <span class="op">||</span> <span class="kw">self</span><span class="op">.</span>manual_offset<span class="op">.</span>is_some()</span>
+<span id="cb10-82"><a href="#cb10-82" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-83"><a href="#cb10-83" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="phase-4-integration-with-r4w">Phase 4: Integration with
+    R4W</h3>
+    <div class="sourceCode" id="cb11"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/havequick-classified/src/lib.rs</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> hopper<span class="op">;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> time_sync<span class="op">;</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> net_controller<span class="op">;</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="kw">mod</span> transec<span class="op">;</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">hopper::</span>ClassifiedHopper<span class="op">;</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">time_sync::</span>GpsTimeSync<span class="op">;</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">net_controller::</span>ClassifiedNetController<span class="op">;</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">use</span> <span class="pp">transec::</span>Ky58Transec<span class="op">;</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::havequick::</span>HavequickBuilder<span class="op">;</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="co">/// Create operational HAVEQUICK with classified components</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">fn</span> create_operational_havequick(</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    gps_device<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;&amp;</span><span class="dt">str</span><span class="op">&gt;,</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="pp">r4w_core::waveform::havequick::</span>Havequick<span class="op">,</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="pp">std::error::</span><span class="bu">Error</span><span class="op">&gt;&gt;</span> <span class="op">{</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> time_sync <span class="op">=</span> <span class="pp">GpsTimeSync::</span>new()<span class="op">;</span></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(device) <span class="op">=</span> gps_device <span class="op">{</span></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>        time_sync<span class="op">.</span>connect_gps(device)<span class="op">?;</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>    <span class="cn">Ok</span>(<span class="pp">HavequickBuilder::</span>new()</span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>sample_rate(sample_rate)</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>hopper(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedHopper::</span>new()))</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>time_sync(<span class="dt">Box</span><span class="pp">::</span>new(time_sync))</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>net_controller(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">ClassifiedNetController::</span>new()))</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>transec(<span class="dt">Box</span><span class="pp">::</span>new(<span class="pp">Ky58Transec::</span>new()))</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>build()<span class="op">?</span>)</span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="bridging-existing-c-havequick-implementation">Bridging
+    Existing C HAVEQUICK Implementation</h2>
+    <div class="sourceCode" id="cb12"><pre
+    class="sourceCode c"><code class="sourceCode c"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">// existing_havequick.h</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">typedef</span> <span class="kw">struct</span> HQState HQState<span class="op">;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>HQState<span class="op">*</span> hq_create<span class="op">(</span><span class="dt">void</span><span class="op">);</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> hq_destroy<span class="op">(</span>HQState<span class="op">*</span> state<span class="op">);</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> hq_load_wod<span class="op">(</span>HQState<span class="op">*</span> state<span class="op">,</span> <span class="dt">const</span> <span class="dt">uint8_t</span><span class="op">*</span> wod<span class="op">,</span> <span class="dt">size_t</span> wod_len<span class="op">);</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> hq_set_net<span class="op">(</span>HQState<span class="op">*</span> state<span class="op">,</span> <span class="dt">uint8_t</span> net_id<span class="op">);</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> hq_set_tod<span class="op">(</span>HQState<span class="op">*</span> state<span class="op">,</span> <span class="dt">uint32_t</span> secs<span class="op">,</span> <span class="dt">uint32_t</span> usecs<span class="op">);</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="dt">uint16_t</span> hq_get_channel<span class="op">(</span>HQState<span class="op">*</span> state<span class="op">);</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="dt">void</span> hq_advance<span class="op">(</span>HQState<span class="op">*</span> state<span class="op">);</span></span></code></pre></div>
+    <p>Rust FFI wrapper:</p>
+    <div class="sourceCode" id="cb13"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/havequick-classified/src/hopper_ffi.rs</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::ffi::</span><span class="dt">c_void</span><span class="op">;</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>repr<span class="at">(</span>C<span class="at">)]</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> HQState <span class="op">{</span> _private<span class="op">:</span> [<span class="dt">u8</span><span class="op">;</span> <span class="dv">0</span>] <span class="op">}</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="kw">extern</span> <span class="st">&quot;C&quot;</span> <span class="op">{</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> hq_create() <span class="op">-&gt;</span> <span class="op">*</span><span class="kw">mut</span> HQState<span class="op">;</span></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> hq_destroy(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> HQState)<span class="op">;</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> hq_load_wod(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> HQState<span class="op">,</span> wod<span class="op">:</span> <span class="op">*</span><span class="kw">const</span> <span class="dt">u8</span><span class="op">,</span> wod_len<span class="op">:</span> <span class="dt">usize</span>)<span class="op">;</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> hq_set_net(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> HQState<span class="op">,</span> net_id<span class="op">:</span> <span class="dt">u8</span>)<span class="op">;</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> hq_set_tod(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> HQState<span class="op">,</span> secs<span class="op">:</span> <span class="dt">u32</span><span class="op">,</span> usecs<span class="op">:</span> <span class="dt">u32</span>)<span class="op">;</span></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> hq_get_channel(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> HQState) <span class="op">-&gt;</span> <span class="dt">u16</span><span class="op">;</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> hq_advance(state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> HQState)<span class="op">;</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> FfiHopper <span class="op">{</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    state<span class="op">:</span> <span class="op">*</span><span class="kw">mut</span> HQState<span class="op">,</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a><span class="co">// Safety: C implementation must be thread-safe</span></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a><span class="kw">unsafe</span> <span class="kw">impl</span> <span class="bu">Send</span> <span class="cf">for</span> FfiHopper <span class="op">{}</span></span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a><span class="kw">unsafe</span> <span class="kw">impl</span> <span class="bu">Sync</span> <span class="cf">for</span> FfiHopper <span class="op">{}</span></span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> FfiHopper <span class="op">{</span></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> <span class="kw">fn</span> new() <span class="op">-&gt;</span> <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>        <span class="dt">Self</span> <span class="op">{</span></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>            state<span class="op">:</span> <span class="kw">unsafe</span> <span class="op">{</span> hq_create() <span class="op">}</span></span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> HoppingAlgorithm <span class="cf">for</span> FfiHopper <span class="op">{</span></span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> wod<span class="op">:</span> <span class="op">&amp;</span>WordOfDay<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> tod<span class="op">:</span> TimeOfDay) <span class="op">{</span></span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> wod_bytes <span class="op">=</span> wod<span class="op">.</span>to_bytes()<span class="op">;</span></span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span></span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a>            hq_load_wod(<span class="kw">self</span><span class="op">.</span>state<span class="op">,</span> wod_bytes<span class="op">.</span>as_ptr()<span class="op">,</span> wod_bytes<span class="op">.</span>len())<span class="op">;</span></span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a>            hq_set_net(<span class="kw">self</span><span class="op">.</span>state<span class="op">,</span> net_id<span class="op">.</span><span class="dv">0</span>)<span class="op">;</span></span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a>            hq_set_tod(<span class="kw">self</span><span class="op">.</span>state<span class="op">,</span> tod<span class="op">.</span>secs()<span class="op">,</span> tod<span class="op">.</span>usecs())<span class="op">;</span></span>
+<span id="cb13-40"><a href="#cb13-40" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb13-41"><a href="#cb13-41" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-42"><a href="#cb13-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-43"><a href="#cb13-43" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_channel(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> ChannelNumber <span class="op">{</span></span>
+<span id="cb13-44"><a href="#cb13-44" aria-hidden="true" tabindex="-1"></a>        ChannelNumber(<span class="kw">unsafe</span> <span class="op">{</span> hq_get_channel(<span class="kw">self</span><span class="op">.</span>state) <span class="op">}</span>)</span>
+<span id="cb13-45"><a href="#cb13-45" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-46"><a href="#cb13-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-47"><a href="#cb13-47" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> advance_hop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb13-48"><a href="#cb13-48" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span> hq_advance(<span class="kw">self</span><span class="op">.</span>state) <span class="op">};</span></span>
+<span id="cb13-49"><a href="#cb13-49" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-50"><a href="#cb13-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-51"><a href="#cb13-51" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ... remaining trait methods</span></span>
+<span id="cb13-52"><a href="#cb13-52" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb13-53"><a href="#cb13-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-54"><a href="#cb13-54" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> <span class="bu">Drop</span> <span class="cf">for</span> FfiHopper <span class="op">{</span></span>
+<span id="cb13-55"><a href="#cb13-55" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> drop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{</span></span>
+<span id="cb13-56"><a href="#cb13-56" aria-hidden="true" tabindex="-1"></a>        <span class="kw">unsafe</span> <span class="op">{</span> hq_destroy(<span class="kw">self</span><span class="op">.</span>state) <span class="op">};</span></span>
+<span id="cb13-57"><a href="#cb13-57" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-58"><a href="#cb13-58" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="cross-compilation-for-avionics-platforms">Cross-Compilation
+    for Avionics Platforms</h2>
+    <p>HAVEQUICK is primarily used in aviation, so target platforms
+    include:</p>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Platform</th>
+    <th>Target</th>
+    <th>Notes</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>VxWorks (common)</td>
+    <td>Custom</td>
+    <td>Requires VxWorks SDK</td>
+    </tr>
+    <tr class="even">
+    <td>Integrity RTOS</td>
+    <td>Custom</td>
+    <td>Green Hills toolchain</td>
+    </tr>
+    <tr class="odd">
+    <td>LynxOS</td>
+    <td><code>x86_64-unknown-lynxos</code></td>
+    <td>POSIX-like</td>
+    </tr>
+    <tr class="even">
+    <td>Linux (simulation)</td>
+    <td><code>x86_64-unknown-linux-gnu</code></td>
+    <td>Development</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="vxworks-build-example">VxWorks Build Example</h3>
+    <div class="sourceCode" id="cb14"><pre
+    class="sourceCode makefile"><code class="sourceCode makefile"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Makefile for VxWorks cross-compilation</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="dt">WIND_BASE</span> <span class="ch">?=</span><span class="st"> /opt/WindRiver/vxworks-7</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="dt">RUSTC_TARGET</span> <span class="ch">=</span><span class="st"> armv7-wrs-vxworks-eabihf</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="ot">.PHONY:</span><span class="dt"> all</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="dv">all:</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="er">    </span><span class="dt">CARGO_BUILD_TARGET</span><span class="ch">=$(</span><span class="dt">RUSTC_TARGET</span><span class="ch">)</span><span class="st"> </span><span class="ch">\</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a><span class="st">    CC=</span><span class="ch">$(</span><span class="dt">WIND_BASE</span><span class="ch">)</span><span class="st">/compilers/arm/bin/arm-wrs-vxworks-gcc </span><span class="ch">\</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="st">    cargo build --release --target </span><span class="ch">$(</span><span class="dt">RUSTC_TARGET</span><span class="ch">)</span></span></code></pre></div>
+    <h2 id="security-checklist">Security Checklist</h2>
+    <ul class="task-list">
+    <li><label><input type="checkbox" />WOD storage uses secure
+    memory</label></li>
+    <li><label><input type="checkbox" />WOD automatically zeroized at
+    expiration</label></li>
+    <li><label><input type="checkbox" />GPS spoofing detection
+    implemented</label></li>
+    <li><label><input type="checkbox" />No classified data in
+    logs</label></li>
+    <li><label><input type="checkbox" />Time sync validated against
+    multiple sources</label></li>
+    <li><label><input type="checkbox" />Net authorization
+    enforced</label></li>
+    <li><label><input type="checkbox" />KY-58 keys properly managed (if
+    applicable)</label></li>
+    </ul>
+    <h2 id="see-also">See Also</h2>
+    <ul>
+    <li><a href="./BUILD_PROCEDURES.md">General Build
+    Procedures</a></li>
+    <li><a href="../PORTING_GUIDE_MILITARY.md">Main Porting
+    Guide</a></li>
+    </ul>
+</body>
+</html>

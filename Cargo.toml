@@ -1,0 +1,85 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/r4w-core",
+    "crates/r4w-sim",
+    "crates/r4w-gui",
+    "crates/r4w-web",
+    "crates/r4w-cli",
+    "crates/r4w-fpga",
+    "crates/r4w-ffi",
+    "crates/r4w-sandbox",
+    "workshop",
+    "plugins/example-waveform",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["R4W - Rust for Waveforms Project"]
+license = "MIT"
+repository = "https://github.com/joemooney/r4w"
+
+[workspace.dependencies]
+# Core DSP
+rustfft = "6.2"
+num-complex = { version = "0.4", features = ["serde"] }
+ndarray = "0.16"
+realfft = "3.4"
+
+# Math utilities
+num-traits = "0.2"
+approx = "0.5"
+
+# SDR interfaces
+# soapysdr = "0.4"  # Uncomment when ready for hardware
+
+# Async runtime
+tokio = { version = "1.42", features = ["full"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+
+# Time and system info
+chrono = { version = "0.4", features = ["serde"] }
+hostname = "0.4"
+
+# System utilities
+directories = "5.0"
+libc = "0.2"
+
+# GUI
+eframe = "0.29"
+egui = "0.29"
+egui_plot = "0.29"
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
+
+# Error handling
+thiserror = "2.0"
+anyhow = "1.0"
+
+# Random for simulation
+rand = "0.8"
+rand_distr = "0.4"
+
+# Parallelization
+rayon = "1.10"
+
+# Testing
+criterion = "0.5"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+
+[profile.dev]
+opt-level = 1

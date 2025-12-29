@@ -1,0 +1,14 @@
+# Build outputs
+scripts/build/
+*.bin
+*.json
+*.asc
+*.vvp
+
+# Simulation waveforms
+*.vcd
+*.fst
+
+# Editor/IDE
+*.swp
+*~

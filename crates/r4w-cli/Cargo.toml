@@ -1,0 +1,34 @@
+[package]
+name = "r4w-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "R4W - Rust for Waveforms CLI"
+
+[[bin]]
+name = "r4w"
+path = "src/main.rs"
+
+[dependencies]
+r4w-core = { path = "../r4w-core" }
+r4w-sim = { path = "../r4w-sim" }
+
+clap.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# File I/O for samples
+byteorder = "1.5"
+
+# Signal handling
+ctrlc = "3.4"
+
+[features]
+default = []
+# Enable when hardware SDR support is ready
+# hardware = ["sdr-sim/soapysdr"]

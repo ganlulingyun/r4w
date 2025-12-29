@@ -1,0 +1,34 @@
+[package]
+name = "r4w-sim"
+description = "R4W simulation and channel models"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["simulator"]
+simulator = []
+# Real hardware support
+rtlsdr = ["dep:libloading"]
+uhd = []  # UHD support (stub implementation until libuhd bindings added)
+# soapysdr = ["dep:soapysdr"]
+
+[dependencies]
+r4w-core = { path = "../r4w-core" }
+num-complex = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = "0.4"
+rand = { workspace = true }
+rand_distr = { workspace = true }
+
+# Hardware support (optional)
+libloading = { version = "0.8", optional = true }
+# soapysdr = { version = "0.4", optional = true }
+# uhd = { version = "0.2", optional = true }
+
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3.10"

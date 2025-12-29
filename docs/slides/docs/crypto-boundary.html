@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cryptographic Boundary - R4W Documentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="nav">
+        <a href="../index.html">Presentations</a>
+        <a href="index.html">Documentation</a>
+    </div>
+    <h1 id="crypto-boundary-integration-design">Crypto Boundary
+    Integration Design</h1>
+    <h2 id="overview">Overview</h2>
+    <p>This document describes how R4W supports integration with a
+    Crypto Service Interface (CSI) to enable commercial secure SDR
+    applications. The architecture separates trusted (RED) plaintext
+    processing from untrusted (BLACK) RF/PHY processing.</p>
+    <h2 id="terminology">Terminology</h2>
+    <table>
+    <colgroup>
+    <col style="width: 33%" />
+    <col style="width: 66%" />
+    </colgroup>
+    <thead>
+    <tr class="header">
+    <th>Term</th>
+    <th>Definition</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><strong>RED</strong></td>
+    <td>Trusted domain: plaintext voice/data, mission logic, key
+    management</td>
+    </tr>
+    <tr class="even">
+    <td><strong>BLACK</strong></td>
+    <td>Untrusted domain: ciphertext, waveform/PHY, RF processing,
+    over-the-air</td>
+    </tr>
+    <tr class="odd">
+    <td><strong>Crypto Boundary</strong></td>
+    <td>Policy-enforced interface between RED and BLACK domains</td>
+    </tr>
+    <tr class="even">
+    <td><strong>CSI</strong></td>
+    <td>Crypto Service Interface - the API that enforces the
+    boundary</td>
+    </tr>
+    </tbody>
+    </table>
+    <h2 id="architecture">Architecture</h2>
+    <h3 id="current-r4w-stack-no-crypto-boundary">Current R4W Stack (No
+    Crypto Boundary)</h3>
+    <pre><code>┌─────────────────────────────────────────┐
+│ Application (CLI, GUI, Mission Logic)   │
+│                                         │
+│   message.as_bytes() ──────────────────►│
+├─────────────────────────────────────────┤
+│ Waveform Trait                          │
+│   modulate(&amp;[u8]) -&gt; Vec&lt;IQSample&gt;      │
+│   demodulate(&amp;[IQSample]) -&gt; DemodResult│
+├─────────────────────────────────────────┤
+│ HAL (StreamHandle, TunerControl)        │
+├─────────────────────────────────────────┤
+│ RF Hardware / Simulator                 │
+└─────────────────────────────────────────┘</code></pre>
+    <h3 id="with-csi-integration-commercial-secure">With CSI Integration
+    (Commercial Secure)</h3>
+    <pre><code>┌─────────────────────────────────────────┐
+│ Application (Voice Codec, Data Stack)   │  RED
+│                                         │
+│   PlaintextIn { payload, policy_id }    │
+├═════════════════════════════════════════┤
+│ Crypto Service Interface (CSI)          │  ← CRYPTO BOUNDARY
+│   - Flow management                     │
+│   - AEAD encryption/decryption          │
+│   - Replay protection                   │
+│   - Key reference (no raw keys)         │
+│   - Zeroization                         │
+│                                         │
+│   CiphertextOut { ciphertext }          │
+├═════════════════════════════════════════┤
+│ Waveform Trait (sees only ciphertext)   │  BLACK
+│   modulate(&amp;[u8]) -&gt; Vec&lt;IQSample&gt;      │
+├─────────────────────────────────────────┤
+│ HAL (StreamHandle, TunerControl)        │  BLACK
+├─────────────────────────────────────────┤
+│ RF Hardware                             │  BLACK
+└─────────────────────────────────────────┘</code></pre>
+    <h2 id="why-r4w-is-already-compatible">Why R4W is Already
+    Compatible</h2>
+    <h3 id="waveform-trait-takes-opaque-bytes">1. Waveform Trait Takes
+    Opaque Bytes</h3>
+    <div class="sourceCode" id="cb3"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> Waveform <span class="op">{</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> modulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> demodulate(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> samples<span class="op">:</span> <span class="op">&amp;</span>[IQSample]) <span class="op">-&gt;</span> DemodResult<span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <p>The waveform layer treats input as opaque bytes. It doesn’t know
+    or care whether the bytes are plaintext or ciphertext. This is
+    exactly what a crypto boundary requires.</p>
+    <h3 id="hal-is-already-untrusted">2. HAL is Already “Untrusted”</h3>
+    <p>The HAL layer (<code>StreamHandle</code>,
+    <code>TunerControl</code>, <code>ClockControl</code>) only deals
+    with: - IQ samples - Frequencies and gains - Timing and
+    synchronization</p>
+    <p>No plaintext ever needs to touch this layer.</p>
+    <h3 id="real-time-infrastructure-aligns">3. Real-Time Infrastructure
+    Aligns</h3>
+    <p>The physical layer plan includes: - Lock-free ring buffers
+    (<code>RingBuffer&lt;T&gt;</code>) - Pre-allocated buffer pools -
+    <code>no_std</code> compatibility - Deterministic timing</p>
+    <p>These are exactly what CSI requires for embedded deployment.</p>
+    <h2 id="csi-integration-points">CSI Integration Points</h2>
+    <h3 id="tx-path">TX Path</h3>
+    <div class="sourceCode" id="cb4"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Application submits plaintext</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>csi<span class="op">.</span>submit_plaintext(PlaintextIn <span class="op">{</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    flow_id<span class="op">:</span> <span class="dv">100</span><span class="op">,</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    service<span class="op">:</span> <span class="pp">ServiceType::</span>Voice<span class="op">,</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    policy_id<span class="op">:</span> <span class="dv">1</span><span class="op">,</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    seq<span class="op">:</span> next_seq()<span class="op">,</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    aad<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    payload<span class="op">:</span> voice_frame<span class="op">,</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">?;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co">// CSI produces ciphertext</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(ct) <span class="op">=</span> csi<span class="op">.</span>poll_ciphertext() <span class="op">{</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Waveform modulates ciphertext (opaque bytes)</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> samples <span class="op">=</span> waveform<span class="op">.</span>modulate(<span class="op">&amp;</span>ct<span class="op">.</span>ciphertext)<span class="op">;</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>    stream<span class="op">.</span>write(<span class="op">&amp;</span>samples<span class="op">,</span> <span class="cn">None</span><span class="op">,</span> timeout)<span class="op">?;</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h3 id="rx-path">RX Path</h3>
+    <div class="sourceCode" id="cb5"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// HAL receives samples</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> (count<span class="op">,</span> ts) <span class="op">=</span> stream<span class="op">.</span>read(<span class="op">&amp;</span><span class="kw">mut</span> buffer<span class="op">,</span> timeout)<span class="op">?;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Waveform demodulates to ciphertext</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> result <span class="op">=</span> waveform<span class="op">.</span>demodulate(<span class="op">&amp;</span>buffer[<span class="op">..</span>count])<span class="op">;</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co">// CSI decrypts and verifies</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>csi<span class="op">.</span>submit_ciphertext(CiphertextIn <span class="op">{</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    flow_id<span class="op">:</span> <span class="dv">100</span><span class="op">,</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    seq<span class="op">:</span> <span class="cn">Some</span>(result<span class="op">.</span>seq)<span class="op">,</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    ciphertext<span class="op">:</span> result<span class="op">.</span>bits<span class="op">.</span>into()<span class="op">,</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    rx_meta<span class="op">:</span> <span class="cn">None</span><span class="op">,</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">?;</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a><span class="co">// Application receives verified plaintext</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(pt) <span class="op">=</span> csi<span class="op">.</span>poll_plaintext() <span class="op">{</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="cf">match</span> pt<span class="op">.</span>result <span class="op">{</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>        <span class="pp">CryptoResult::</span><span class="cn">Ok</span> <span class="op">=&gt;</span> process_voice(pt<span class="op">.</span>payload)<span class="op">,</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>        <span class="pp">CryptoResult::</span>AuthFail <span class="op">=&gt;</span> log_security_event()<span class="op">,</span></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>        <span class="pp">CryptoResult::</span>Replay <span class="op">=&gt;</span> drop_duplicate()<span class="op">,</span></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>        _ <span class="op">=&gt;</span> handle_error(pt<span class="op">.</span>result)<span class="op">,</span></span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="csi-specification-summary">CSI Specification Summary</h2>
+    <h3 id="message-classes">Message Classes</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Direction</th>
+    <th>Message</th>
+    <th>Purpose</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td>RED → CSI</td>
+    <td><code>PlaintextIn</code></td>
+    <td>Submit framed payload for encryption</td>
+    </tr>
+    <tr class="even">
+    <td>CSI → BLACK</td>
+    <td><code>CiphertextOut</code></td>
+    <td>Authenticated ciphertext for PHY</td>
+    </tr>
+    <tr class="odd">
+    <td>BLACK → CSI</td>
+    <td><code>CiphertextIn</code></td>
+    <td>Received ciphertext for verification</td>
+    </tr>
+    <tr class="even">
+    <td>CSI → RED</td>
+    <td><code>PlaintextOut</code></td>
+    <td>Verified plaintext (empty on auth fail)</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="control-plane">Control Plane</h3>
+    <table>
+    <thead>
+    <tr class="header">
+    <th>Command</th>
+    <th>Purpose</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="odd">
+    <td><code>CreateFlow</code></td>
+    <td>Establish secure channel with policy binding</td>
+    </tr>
+    <tr class="even">
+    <td><code>DestroyFlow</code></td>
+    <td>Tear down channel</td>
+    </tr>
+    <tr class="odd">
+    <td><code>BindKey</code></td>
+    <td>Associate key reference with flow</td>
+    </tr>
+    <tr class="even">
+    <td><code>Rekey</code></td>
+    <td>Rotate key, increment epoch</td>
+    </tr>
+    <tr class="odd">
+    <td><code>Zeroize</code></td>
+    <td>Securely erase keys/state</td>
+    </tr>
+    <tr class="even">
+    <td><code>StatusQuery</code></td>
+    <td>Health, counters, error state</td>
+    </tr>
+    </tbody>
+    </table>
+    <h3 id="security-properties">Security Properties</h3>
+    <ol type="1">
+    <li><strong>Directionality</strong>: Plaintext only enters CSI;
+    ciphertext only exits</li>
+    <li><strong>No RF metadata with plaintext</strong>: Frequency,
+    modulation, etc. never cross boundary</li>
+    <li><strong>Bounded metadata</strong>: AAD is small and fixed max
+    size (64 bytes)</li>
+    <li><strong>Replay protection</strong>: Per-flow sliding window
+    (64-128 packets)</li>
+    <li><strong>Explicit policy</strong>: Crypto algorithms chosen by
+    policy_id, not waveform code</li>
+    <li><strong>Zeroization</strong>: Explicit command with observable
+    state transition</li>
+    <li><strong>Deterministic failures</strong>: Auth fail returns empty
+    payload, never partial plaintext</li>
+    </ol>
+    <h3 id="rust-trait">Rust Trait</h3>
+    <div class="sourceCode" id="cb6"><pre
+    class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> CryptoService <span class="op">{</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Control plane</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> control(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> cmd<span class="op">:</span> ControlMsg) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>ControlReply<span class="op">,</span> CryptoResult<span class="op">&gt;;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> status(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> StatusReply<span class="op">;</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">// TX path</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> submit_plaintext(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> msg<span class="op">:</span> PlaintextIn) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> CryptoResult<span class="op">&gt;;</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> poll_ciphertext(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>CiphertextOut<span class="op">&gt;;</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">// RX path</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> submit_ciphertext(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> msg<span class="op">:</span> CiphertextIn) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> CryptoResult<span class="op">&gt;;</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> poll_plaintext(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>PlaintextOut<span class="op">&gt;;</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+    <h2 id="implementation-strategy">Implementation Strategy</h2>
+    <h3 id="phase-1-stub-integration-current">Phase 1: Stub Integration
+    (Current)</h3>
+    <ul>
+    <li>Document architecture compatibility</li>
+    <li>Define integration points</li>
+    <li>No code changes to r4w-core</li>
+    </ul>
+    <h3 id="phase-2-csi-core-separate-crate">Phase 2: CSI Core (Separate
+    Crate)</h3>
+    <pre><code>csi/
+├── csi-core/          # no_std: types, flow table, replay window
+├── csi-queues/        # no_std: bbqueue-based SPSC channels
+├── csi-backend-soft/  # no_std: ChaCha20-Poly1305 AEAD
+└── csi-backend-hw/    # no_std: hardware crypto acceleration</code></pre>
+    <h3 id="phase-3-r4w-integration">Phase 3: R4W Integration</h3>
+    <pre><code>crates/r4w-secure/
+├── src/
+│   ├── lib.rs         # Integration layer
+│   ├── pipeline.rs    # CSI + Waveform pipeline
+│   └── voice.rs       # Voice codec integration
+└── Cargo.toml         # feature-gated dependency on csi-core</code></pre>
+    <h3 id="phase-4-embedded-deployment">Phase 4: Embedded
+    Deployment</h3>
+    <ul>
+    <li>STM32H7 target (Cortex-M7)</li>
+    <li>Zynq target (ARM + FPGA for PHY acceleration)</li>
+    <li>Hardware crypto backend (secure element or HW AES)</li>
+    </ul>
+    <h2 id="feature-gating">Feature Gating</h2>
+    <div class="sourceCode" id="cb9"><pre
+    class="sourceCode toml"><code class="sourceCode toml"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># crates/r4w-core/Cargo.toml</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">[features]</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="dt">default</span> <span class="op">=</span> <span class="op">[]</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="dt">secure</span> <span class="op">=</span> <span class="op">[]</span>  <span class="co"># Marker feature indicating crypto-boundary awareness</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># crates/r4w-secure/Cargo.toml (future)</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="kw">[dependencies]</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="dt">r4w-core</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">path</span><span class="op"> =</span> <span class="st">&quot;../r4w-core&quot;</span><span class="op">, </span><span class="dt">features</span><span class="op"> =</span> <span class="op">[</span><span class="st">&quot;secure&quot;</span><span class="op">] }</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="dt">csi-core</span> <span class="op">=</span> <span class="op">{ </span><span class="dt">path</span><span class="op"> =</span> <span class="st">&quot;../../csi/csi-core&quot;</span><span class="op"> }</span></span></code></pre></div>
+    <h2 id="compliance-considerations">Compliance Considerations</h2>
+    <p>For commercial secure SDR posture, implementations MUST:</p>
+    <ol type="1">
+    <li><strong>Enforce size bounds</strong> - Use <code>heapless</code>
+    types with compile-time limits</li>
+    <li><strong>Keep plaintext out of PHY</strong> - Waveform only sees
+    ciphertext</li>
+    <li><strong>Use key references</strong> - Never raw key material in
+    waveform code</li>
+    <li><strong>Enforce replay protection</strong> - Per-flow sliding
+    window</li>
+    <li><strong>Provide zeroization</strong> - Observable state
+    transition</li>
+    <li><strong>Separate control/data planes</strong> - Different
+    message types and queues</li>
+    </ol>
+    <h2 id="references">References</h2>
+    <ul>
+    <li>Common Criteria Protection Profiles for secure
+    communications</li>
+    <li>HAIPE behavioral model (abstracted, not protocol-specific)</li>
+    <li>RustCrypto AEAD implementations (ChaCha20-Poly1305,
+    AES-GCM)</li>
+    </ul>
+</body>
+</html>

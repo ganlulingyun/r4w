@@ -1,0 +1,114 @@
+/dts-v1/;
+/plugin/;
+
+/*
+ * R4W FPGA Device Tree Overlay for PYNQ-Z2
+ *
+ * This overlay defines the R4W IP cores for Linux driver integration.
+ * Load with: fpgautil -b r4w_design.bit -o r4w-overlay.dtbo
+ *
+ * Address Map (matches Rust driver config.rs):
+ *   0x4000_0000 - 0x4000_FFFF : r4w_fft
+ *   0x4001_0000 - 0x4001_FFFF : r4w_fir
+ *   0x4002_0000 - 0x4002_FFFF : r4w_chirp_gen
+ *   0x4003_0000 - 0x4003_FFFF : r4w_chirp_corr
+ *   0x4004_0000 - 0x4004_FFFF : r4w_nco
+ *   0x4040_0000 - 0x4040_FFFF : AXI DMA
+ */
+
+/ {
+    fragment@0 {
+        target-path = "/";
+        __overlay__ {
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            /* R4W FFT/IFFT Processor */
+            r4w_fft@40000000 {
+                compatible = "anthropic,r4w-fft-1.0";
+                reg = <0x40000000 0x10000>;
+                status = "okay";
+            };
+
+            /* R4W FIR Filter */
+            r4w_fir@40010000 {
+                compatible = "anthropic,r4w-fir-1.0";
+                reg = <0x40010000 0x10000>;
+                status = "okay";
+            };
+
+            /* R4W LoRa Chirp Generator */
+            r4w_chirp_gen@40020000 {
+                compatible = "anthropic,r4w-chirp-gen-1.0";
+                reg = <0x40020000 0x10000>;
+                status = "okay";
+            };
+
+            /* R4W LoRa Chirp Correlator */
+            r4w_chirp_corr@40030000 {
+                compatible = "anthropic,r4w-chirp-corr-1.0";
+                reg = <0x40030000 0x10000>;
+                status = "okay";
+            };
+
+            /* R4W NCO (Numerically Controlled Oscillator) */
+            r4w_nco@40040000 {
+                compatible = "anthropic,r4w-nco-1.0";
+                reg = <0x40040000 0x10000>;
+                status = "okay";
+            };
+        };
+    };
+
+    /* AXI DMA fragment - connects to PS for high-bandwidth transfers */
+    fragment@1 {
+        target-path = "/amba";
+        __overlay__ {
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            /* AXI DMA Controller */
+            r4w_dma@40400000 {
+                compatible = "xlnx,axi-dma-1.00.a";
+                reg = <0x40400000 0x10000>;
+                xlnx,addrwidth = <32>;
+                #dma-cells = <1>;
+
+                dma-channel@40400000 {
+                    compatible = "xlnx,axi-dma-mm2s-channel";
+                    dma-channels = <1>;
+                    interrupts = <0 29 4>;  /* IRQ 61 (29 + 32) */
+                    xlnx,datawidth = <32>;
+                    xlnx,device-id = <0>;
+                };
+
+                dma-channel@40400030 {
+                    compatible = "xlnx,axi-dma-s2mm-channel";
+                    dma-channels = <1>;
+                    interrupts = <0 30 4>;  /* IRQ 62 (30 + 32) */
+                    xlnx,datawidth = <32>;
+                    xlnx,device-id = <0>;
+                };
+            };
+        };
+    };
+
+    /* Reserved memory for DMA buffers */
+    fragment@2 {
+        target-path = "/";
+        __overlay__ {
+            reserved-memory {
+                #address-cells = <1>;
+                #size-cells = <1>;
+                ranges;
+
+                /* 16MB contiguous buffer for R4W DMA */
+                r4w_dma_mem: r4w_dma@1f000000 {
+                    compatible = "shared-dma-pool";
+                    reg = <0x1f000000 0x01000000>;
+                    no-map;
+                };
+            };
+        };
+    };
+};

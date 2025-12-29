@@ -1,0 +1,65 @@
+[package]
+name = "r4w-sandbox"
+description = "R4W waveform isolation and sandboxing - process, container, and hardware isolation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = ["process"]
+
+# Process-level isolation (namespaces, capabilities, seccomp)
+process = ["dep:nix", "dep:libc", "dep:caps"]
+
+# Container-level isolation (Docker/Podman templates)
+containers = ["dep:bollard"]
+
+# MicroVM isolation (Firecracker)
+microvm = []
+
+# Full VM isolation (requires external QEMU/KVM)
+vm = []
+
+# FPGA partition isolation
+fpga = ["r4w-fpga"]
+
+# Hardware isolation (CPU pinning, NUMA, Intel CAT)
+hardware = ["dep:libc"]
+
+# Memory protection features
+memory = ["dep:zeroize", "dep:aes-gcm", "dep:rand"]
+
+# All features
+full = ["process", "containers", "microvm", "vm", "fpga", "hardware", "memory"]
+
+[dependencies]
+# Error handling
+thiserror = "2.0"
+
+# Logging
+tracing = { workspace = true }
+
+# Serialization (for configs)
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Linux system calls
+nix = { version = "0.29", optional = true, features = ["sched", "user", "signal", "process", "mount", "mman", "fs"] }
+libc = { version = "0.2", optional = true }
+
+# Linux capabilities
+caps = { version = "0.5", optional = true }
+
+# Docker/Podman API
+bollard = { version = "0.18", optional = true }
+
+# Memory protection
+zeroize = { version = "1.8", optional = true, features = ["derive"] }
+aes-gcm = { version = "0.10", optional = true }
+rand = { workspace = true, optional = true }
+
+# FPGA integration
+r4w-fpga = { path = "../r4w-fpga", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

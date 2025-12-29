@@ -1,0 +1,12 @@
+[package]
+name = "r4w-example-plugin"
+version = "0.1.0"
+edition = "2021"
+description = "Example R4W waveform plugin demonstrating the plugin API"
+license = "MIT OR Apache-2.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+r4w-core = { path = "../../crates/r4w-core" }

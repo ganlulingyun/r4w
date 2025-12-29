@@ -1,0 +1,243 @@
+# DMR Waveform Specification
+# Digital Mobile Radio (ETSI TS 102 361)
+#
+# DMR is a commercial digital radio standard widely adopted by
+# government, utilities, and public safety organizations.
+# This example demonstrates Tier II (licensed conventional) configuration.
+
+---
+waveform:
+  name: "DMR"
+  full_name: "Digital Mobile Radio"
+  version: "1.0"
+  description: |
+    DMR is an ETSI open standard for digital mobile radio that provides
+    efficient spectrum use through 2-slot TDMA in 12.5 kHz channels.
+
+    DMR Tiers:
+    - Tier I: Unlicensed (dPMR446) - 0.5W, 8 channels
+    - Tier II: Licensed conventional - repeater/direct
+    - Tier III: Licensed trunked - full infrastructure
+
+    Features:
+    - 4FSK modulation at 4800 symbols/sec
+    - AMBE+2 voice codec (3.6 kbps + 2.4 kbps FEC)
+    - 2-slot TDMA (two voice/data channels per 12.5 kHz)
+    - Optional ARC4 or AES-256 encryption
+
+  classification:
+    type: "digital"
+    category: "narrowband"
+    applications:
+      - "commercial two-way radio"
+      - "utilities"
+      - "public safety"
+      - "government"
+      - "transportation"
+
+  lpd_lpi:
+    enabled: false
+    target_processing_gain_db: 0
+    below_noise_floor: false
+
+  standards_profile:
+    enabled: true
+    standard: "dmr"
+    dmr:
+      tier: 2                       # Tier II licensed conventional
+      mode: "repeater"              # Repeater mode
+
+modulation:
+  domain: "frequency"
+  order: 4                          # 4FSK (4 symbols)
+  scheme: "4FSK"
+
+  # 4FSK frequency deviations
+  # Symbol 00: -1944 Hz
+  # Symbol 01: -648 Hz
+  # Symbol 11: +648 Hz
+  # Symbol 10: +1944 Hz
+
+  constellation:
+    type: "gray"                    # Gray coding for 4FSK
+    rotation_deg: 0
+
+  differential:
+    enabled: false
+
+pulse_shaping:
+  enabled: true
+
+  filter:
+    type: "root_raised_cosine"
+    rolloff: 0.2                    # DMR uses α=0.2
+    span_symbols: 8
+
+timing:
+  symbol_rate: 4800                 # 4800 symbols/sec
+  sample_rate: 48000                # 10 samples per symbol
+  samples_per_symbol: 10
+
+  burst:
+    enabled: false                  # TDMA handles bursting
+
+# DMR TDMA structure - 2-slot TDMA
+access_method:
+  type: "tdma"
+
+  tdma:
+    enabled: true
+    frame_duration_ms: 60           # 60 ms per frame (2 slots of 30ms each)
+    slots_per_frame: 2              # 2 TDMA slots per frame
+    slot_duration_ms: 30            # 30 ms per slot
+    guard_time_ms: 2.5              # 2.5 ms guard (CACH + guard)
+
+    assignment:
+      type: "fixed"                 # User selects timeslot
+      my_slot: 0                    # Slot 1 or Slot 2
+
+    frame_structure:
+      - { type: "traffic", slots: 2, purpose: "voice/data" }
+
+    # DMR superframe structure
+    multiframe:
+      enabled: true
+      frames_per_multiframe: 6      # 6 frames = 1 superframe (360 ms)
+
+      hyperframe:
+        enabled: false
+
+  fdma:
+    enabled: true
+    channel_spacing_hz: 12500       # 12.5 kHz channel spacing
+    num_channels: 1
+
+synchronization:
+  preamble:
+    enabled: true
+    type: "custom"                  # DMR preamble pattern
+    length_symbols: 72              # 72 bits = 36 symbols
+    spread_preamble: false
+
+  sync_word:
+    enabled: true
+    value: "0x755FD7DF75F7"         # DMR sync pattern (Base Station Voice)
+    length_bits: 48                 # 48-bit sync patterns
+
+  pilot_symbols:
+    enabled: false                  # No pilot symbols in DMR
+
+  cfo_tolerance_hz: 300             # Tight frequency tolerance
+
+channel_coding:
+  enabled: true
+
+  fec:
+    type: "hamming"                 # Various Hamming codes + BPTC
+    rate: "3/4"                     # Varies by data type
+
+  interleaving:
+    enabled: true
+    type: "block"                   # BPTC (Block Product Turbo Code)
+    rows: 13
+    cols: 9
+
+  scrambling:
+    enabled: false                  # Encryption is optional
+
+framing:
+  header:
+    enabled: true
+    length_bits: 48
+    fields:
+      - { name: "sync_pattern", bits: 48 }
+
+  payload:
+    min_bits: 96
+    max_bits: 264                   # Maximum payload per burst
+    default_bits: 216               # Voice frame payload
+
+  error_detection:
+    type: "crc16"
+    polynomial: "0x1021"
+
+spectral:
+  bandwidth:
+    null_to_null_hz: 12500          # 12.5 kHz channel
+    occupied_99_hz: 10000
+
+  psd:
+    target_dbm_hz: -70
+
+  sidelobe_suppression_db: 60       # Tight spectral mask
+
+channel:
+  target_ber: 1.0e-3                # 0.1% BER
+  required_snr_db: 8                # Required for 4FSK
+
+  multipath:
+    tolerant: true
+    max_delay_spread_us: 5
+
+  doppler:
+    max_shift_hz: 100               # Typical mobile
+
+  jamming:
+    resistance: false
+
+security:
+  encryption:
+    enabled: true
+    algorithm: "AES-256"            # AES-256 or ARC4 (Basic Privacy)
+
+  key_management:
+    type: "pre_shared"              # Key loaded at radio
+
+# DMR uses proprietary AMBE+2 codec
+classified_components:
+  enabled: false                    # DMR is commercial standard
+
+  voice_codec:
+    classified: false
+    classification_level: null
+    description: |
+      DMR uses DVSI AMBE+2 voice codec which is proprietary but
+      commercially available. The codec provides 3.6 kbps voice
+      with 2.4 kbps FEC for total 6 kbps per voice slot.
+    trait_name: "AmbeVoiceCodec"
+    simulator_provided: true        # Provide sine wave simulator
+    codec_type: "ambe"
+
+  wizard_guidance:
+    generate_traits: true
+    generate_simulators: true
+    generate_ffi_bindings: true     # May want to link AMBE library
+    generate_build_cfg: true
+    document_interfaces: true
+
+    build_config:
+      default_feature: "simulator"
+      classified_features:
+        - "ambe_codec"              # Feature for real AMBE codec
+      link_external: false
+      external_lib_name: null
+
+implementation:
+  complexity: 3                     # Medium complexity
+  max_latency_ms: 60                # TDMA frame latency
+
+  targets:
+    - "simulation"
+    - "usrp"
+    - "embedded"
+
+  test_vectors:
+    enabled: true
+    include_ber_curves: true
+
+metrics:
+  processing_gain_db: 0             # No spreading
+  spectral_efficiency_bps_hz: 0.77  # 9.6 kbps in 12.5 kHz
+  data_rate_bps: 9600               # 9.6 kbps gross (4.8 ksym/s × 2 bits)
+  chip_rate: null
+  lpi_margin_db: 0
