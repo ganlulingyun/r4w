@@ -1169,6 +1169,22 @@ requirements:
     priority: high
     parent: EPIC-016
 
+  - id: FR-146
+    type: Functional
+    title: DSP Host Functions Library
+    description: Native DSP host functions exposed to WASM modules via r4w_dsp import namespace including fft, ifft, complex_multiply, complex_conjugate_multiply, compute_magnitudes, compute_power, frequency_shift, correlate, find_peak, hann_window, hamming_window, scale, and total_power. Uses rustfft with f32 directly for optimal performance.
+    status: completed
+    priority: high
+    parent: EPIC-016
+
+  - id: FR-147
+    type: Functional
+    title: WASM Host Functions Benchmarking
+    description: Benchmark suite comparing host function DSP vs pure WASM implementations for FFT, complex multiply, and demodulation pipelines. Results documented in ISOLATION_GUIDE.md showing host functions competitive at 8k+ samples.
+    status: completed
+    priority: medium
+    parent: EPIC-016
+
   # ==========================================================================
   # EPIC: Military Waveforms
   # ==========================================================================
@@ -1438,10 +1454,10 @@ id_config:
     description: Organizational folders
 features: []
 next_feature_number: 1
-next_spec_number: 146
+next_spec_number: 148
 prefix_counters:
   EPIC: 21
-  FR: 145
+  FR: 147
   NFR: 4
 relationship_definitions:
 - name: parent
