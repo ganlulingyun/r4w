@@ -10,8 +10,8 @@ default = ["simulator"]
 simulator = []
 # Real hardware support
 rtlsdr = ["dep:libloading"]
+soapysdr = ["dep:libloading"]
 uhd = []  # UHD support (stub implementation until libuhd bindings added)
-# soapysdr = ["dep:soapysdr"]
 
 [dependencies]
 r4w-core = { path = "../r4w-core" }

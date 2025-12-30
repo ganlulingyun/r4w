@@ -49,6 +49,8 @@ pub mod rtlsdr;
 pub mod rtlsdr_ffi;
 pub mod sigmf;
 pub mod soapysdr;
+#[cfg(feature = "soapysdr")]
+pub mod soapysdr_ffi;
 pub mod uhd;
 
 pub use crate::device::{DeviceCapabilities, DeviceInfo, SdrConfig, SdrError, SdrResult};
