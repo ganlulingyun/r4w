@@ -30,6 +30,7 @@ use super::packet::{MeshPacket, NodeId, PacketType};
 use super::routing::{FloodRouter, NextHopRouter, Route};
 use super::telemetry::{DeviceMetrics, EnvironmentMetrics, Telemetry, TelemetryConfig, TelemetryVariant};
 use super::traits::{MeshError, MeshNetwork, MeshResult, MeshStats};
+use super::wire::{WireHeader, WIRE_HEADER_SIZE};
 use std::time::{Duration, Instant};
 
 /// Meshtastic modem presets
@@ -479,43 +480,144 @@ impl MeshtasticNode {
         self.mac.tx_complete(duration);
     }
 
-    /// Queue a packet for transmission with optional encryption
+    /// Queue a packet for transmission using Meshtastic wire format
+    ///
+    /// Wire format: WireHeader (16 bytes) + payload + optional MIC (4 bytes)
     fn queue_packet(&mut self, packet: &MeshPacket) -> MeshResult<()> {
+        // Get channel hash for wire header
+        let channel_hash = self.config.primary_channel.channel_hash();
+
+        // Convert internal header to wire format
+        let wire_header = WireHeader::from_packet_header(&packet.header, channel_hash);
+        let header_bytes = wire_header.to_bytes();
+
+        // Build the wire packet
+        let mut bytes = Vec::with_capacity(WIRE_HEADER_SIZE + packet.payload.len() + 4);
+
+        // Add wire header (16 bytes, little-endian)
+        bytes.extend_from_slice(&header_bytes);
+
+        // Add payload (encrypted if crypto enabled)
         #[cfg(feature = "crypto")]
-        let bytes = if let Some(ref crypto) = self.crypto {
-            // Encrypt the packet
-            match packet.encrypt(crypto) {
-                Ok(encrypted) => encrypted,
-                Err(_) => packet.to_bytes(), // Fall back to unencrypted on error
+        if let Some(ref crypto) = self.crypto {
+            // Encrypt payload and append MIC (MIC is computed over header + ciphertext)
+            match crypto.encrypt(
+                &packet.payload,
+                packet.header.source,
+                packet.header.packet_id as u32,
+                &header_bytes,
+            ) {
+                Ok((ciphertext, mic)) => {
+                    bytes.extend_from_slice(&ciphertext);
+                    bytes.extend_from_slice(&mic);
+                }
+                Err(_) => {
+                    // Fall back to unencrypted on error
+                    bytes.extend_from_slice(&packet.payload);
+                }
             }
         } else {
-            packet.to_bytes()
-        };
+            bytes.extend_from_slice(&packet.payload);
+        }
 
         #[cfg(not(feature = "crypto"))]
-        let bytes = packet.to_bytes();
+        bytes.extend_from_slice(&packet.payload);
 
         self.mac.queue_tx(bytes).map_err(|_| MeshError::QueueFull)
     }
 
-    /// Decrypt a received packet if encryption is enabled
+    /// Process raw bytes received from radio using Meshtastic wire format
+    ///
+    /// Wire format: WireHeader (16 bytes) + payload + optional MIC (4 bytes)
+    ///
+    /// Returns parsed packets ready for application layer, or empty if packet
+    /// was invalid, duplicate, or not for us.
+    pub fn receive_bytes(&mut self, data: &[u8], rssi: f32, snr: f32) -> Vec<MeshPacket> {
+        // Need at least header + 1 byte payload
+        if data.len() < WIRE_HEADER_SIZE + 1 {
+            return Vec::new();
+        }
+
+        // Parse wire header
+        let wire_header = match WireHeader::from_bytes(&data[..WIRE_HEADER_SIZE]) {
+            Some(h) => h,
+            None => return Vec::new(),
+        };
+
+        // Validate channel hash (quick rejection for wrong channel)
+        let expected_hash = self.config.primary_channel.channel_hash();
+        if wire_header.channel_hash != expected_hash {
+            // Check secondary channels
+            let matches_secondary = self.config.secondary_channels.iter()
+                .any(|ch| ch.channel_hash() == wire_header.channel_hash);
+            if !matches_secondary {
+                // Packet is for a different channel
+                return Vec::new();
+            }
+        }
+
+        // Extract payload (and MIC if encrypted)
+        let header_bytes = &data[..WIRE_HEADER_SIZE];
+        let payload_and_mic = &data[WIRE_HEADER_SIZE..];
+
+        // Try to decrypt/parse payload
+        let payload = self.extract_payload(
+            payload_and_mic,
+            wire_header.source_node_id(),
+            wire_header.id,
+            header_bytes,
+        );
+
+        let payload = match payload {
+            Some(p) => p,
+            None => return Vec::new(),
+        };
+
+        // Convert wire header to internal format and create packet
+        let header = wire_header.to_packet_header();
+        let packet = MeshPacket::from_parts(header, payload);
+
+        // Process through normal receive path
+        self.on_receive(packet, rssi, snr)
+    }
+
+    /// Extract and optionally decrypt payload from wire format
     #[cfg(feature = "crypto")]
-    #[allow(dead_code)] // Will be used when processing raw encrypted bytes
-    fn decrypt_packet(&self, data: &[u8]) -> Option<MeshPacket> {
+    fn extract_payload(
+        &self,
+        payload_and_mic: &[u8],
+        source: NodeId,
+        packet_id: u32,
+        header_bytes: &[u8],
+    ) -> Option<Vec<u8>> {
         if let Some(ref crypto) = self.crypto {
-            // Try to decrypt
-            MeshPacket::decrypt(data, crypto).ok()
+            // Encrypted: payload + 4-byte MIC
+            if payload_and_mic.len() < 5 {
+                return None; // Need at least 1 byte payload + 4 byte MIC
+            }
+
+            let mic_start = payload_and_mic.len() - 4;
+            let ciphertext = &payload_and_mic[..mic_start];
+            let mic: [u8; 4] = payload_and_mic[mic_start..].try_into().ok()?;
+
+            // Decrypt
+            crypto.decrypt(ciphertext, source, packet_id, header_bytes, &mic).ok()
         } else {
-            // No encryption, parse directly
-            MeshPacket::from_bytes(data)
+            // Unencrypted: just return payload as-is
+            Some(payload_and_mic.to_vec())
         }
     }
 
-    /// Parse a received packet (no crypto support)
+    /// Extract payload (no crypto support)
     #[cfg(not(feature = "crypto"))]
-    #[allow(dead_code)] // Will be used when processing raw bytes
-    fn decrypt_packet(&self, data: &[u8]) -> Option<MeshPacket> {
-        MeshPacket::from_bytes(data)
+    fn extract_payload(
+        &self,
+        payload_and_mic: &[u8],
+        _source: NodeId,
+        _packet_id: u32,
+        _header_bytes: &[u8],
+    ) -> Option<Vec<u8>> {
+        Some(payload_and_mic.to_vec())
     }
 
     /// Broadcast node info
@@ -816,5 +918,63 @@ mod tests {
 
         let stats = node.stats();
         assert_eq!(stats.packets_rx, 1);
+    }
+
+    #[test]
+    fn test_receive_bytes_wire_format() {
+        use crate::mesh::wire::WireHeader;
+
+        let mut node = MeshtasticNode::with_defaults();
+        let source = NodeId::random();
+
+        // Build a wire format packet
+        let channel_hash = node.config().primary_channel.channel_hash();
+        let wire_header = WireHeader::broadcast(source.to_u32(), 0x12345678, 3, channel_hash);
+        let payload = b"Hello wire!";
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&wire_header.to_bytes());
+        bytes.extend_from_slice(payload);
+
+        // Receive the wire format packet
+        let delivered = node.receive_bytes(&bytes, -75.0, 12.0);
+
+        // Should be delivered (it's a broadcast)
+        assert_eq!(delivered.len(), 1);
+        assert_eq!(delivered[0].payload, payload);
+
+        // Source should be a neighbor
+        assert!(node.neighbors.get(&source).is_some());
+    }
+
+    #[test]
+    fn test_receive_bytes_wrong_channel() {
+        use crate::mesh::wire::WireHeader;
+
+        let mut node = MeshtasticNode::with_defaults();
+        let source = NodeId::random();
+
+        // Build a wire format packet with wrong channel hash
+        let wrong_channel_hash = 0xFF;
+        let wire_header = WireHeader::broadcast(source.to_u32(), 0x12345678, 3, wrong_channel_hash);
+        let payload = b"Hello wrong channel!";
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(&wire_header.to_bytes());
+        bytes.extend_from_slice(payload);
+
+        // Should be rejected due to wrong channel
+        let delivered = node.receive_bytes(&bytes, -75.0, 12.0);
+        assert!(delivered.is_empty());
+    }
+
+    #[test]
+    fn test_receive_bytes_too_short() {
+        let mut node = MeshtasticNode::with_defaults();
+
+        // Too short (less than header + 1 byte payload)
+        let short_bytes = [0u8; 16]; // Just header, no payload
+        let delivered = node.receive_bytes(&short_bytes, -75.0, 12.0);
+        assert!(delivered.is_empty());
     }
 }

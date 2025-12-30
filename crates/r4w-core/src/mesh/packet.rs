@@ -363,6 +363,22 @@ impl MeshPacket {
     /// Maximum payload size in bytes
     pub const MAX_PAYLOAD_SIZE: usize = 237;
 
+    /// Create a packet from header and payload
+    ///
+    /// This is the primary constructor for packets received from the wire.
+    /// The packet type is inferred from the header flags.
+    pub fn from_parts(header: PacketHeader, payload: Vec<u8>) -> Self {
+        Self {
+            header,
+            packet_type: PacketType::Text, // Default, should be parsed from protobuf
+            payload,
+            mic: None,
+            rx_rssi: None,
+            rx_snr: None,
+            rx_time: None,
+        }
+    }
+
     /// Create a new broadcast packet
     pub fn broadcast(source: NodeId, payload: &[u8], hop_limit: u8) -> Self {
         Self {
