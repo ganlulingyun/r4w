@@ -502,3 +502,280 @@ fn test_demodulate_fft() {
     // Should find peak at bin 2 (the frequency of our input tone)
     assert_eq!(peak_bin, 2, "peak should be at bin 2");
 }
+
+// =============================================================================
+// Benchmarks: Host Functions vs Pure WASM
+// =============================================================================
+
+/// Benchmark helper: run a function multiple times and return (mean_us, std_dev_us)
+fn benchmark<F: FnMut() -> i64>(mut f: F, iterations: usize) -> (f64, f64) {
+    let mut times = Vec::with_capacity(iterations);
+    for _ in 0..iterations {
+        times.push(f() as f64);
+    }
+    let mean = times.iter().sum::<f64>() / times.len() as f64;
+    let variance = times.iter().map(|t| (t - mean).powi(2)).sum::<f64>() / times.len() as f64;
+    (mean, variance.sqrt())
+}
+
+#[test]
+fn bench_complex_multiply_host_vs_pure_wasm() {
+    let sandbox = WasmSandbox::new(WasmConfig::dsp()).expect("failed to create sandbox");
+    let module = sandbox.load_module(WASM_PATH).expect("failed to load module");
+    let mut instance = sandbox.instantiate(&module).expect("failed to instantiate");
+
+    // Test sizes matching LoRa SF7-SF12 (128, 256, 512, 1024, 2048, 4096)
+    let sizes = [128, 256, 512, 1024];
+    let iterations = 100;
+
+    println!("\n=== Complex Multiply Benchmark: Host vs Pure WASM ===\n");
+    println!("{:>8} {:>12} {:>12} {:>10}", "Size", "Host (µs)", "WASM (µs)", "Speedup");
+    println!("{:-<48}", "");
+
+    for &len in &sizes {
+        // Allocate buffers
+        let a_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc a");
+        let b_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc b");
+        let out_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc out");
+
+        // Initialize with test data
+        let mut data = vec![0u8; len * 8];
+        for i in 0..len {
+            data[i * 8..i * 8 + 4].copy_from_slice(&1.0f32.to_le_bytes());
+            data[i * 8 + 4..i * 8 + 8].copy_from_slice(&0.5f32.to_le_bytes());
+        }
+        instance.write_memory(a_ptr as usize, &data).expect("write a");
+        instance.write_memory(b_ptr as usize, &data).expect("write b");
+
+        // Benchmark host function
+        let (host_mean, _host_std) = benchmark(|| {
+            instance
+                .call_i32_i32_i32_i32("test_complex_multiply", a_ptr, b_ptr, len as i32)
+                .expect("host call failed")
+                .execution_time_us as i64
+        }, iterations);
+
+        // Benchmark pure WASM (need a wrapper that takes 4 args and returns void-ish)
+        // The pure_wasm_complex_multiply takes (a_ptr, b_ptr, out_ptr, len) and returns void
+        let start = std::time::Instant::now();
+        for _ in 0..iterations {
+            instance
+                .call_void_i32_i32_i32_i32("pure_wasm_complex_multiply", a_ptr, b_ptr, out_ptr, len as i32)
+                .expect("pure wasm call failed");
+        }
+        let wasm_total = start.elapsed().as_micros() as f64;
+        let wasm_mean = wasm_total / iterations as f64;
+
+        let speedup = wasm_mean / host_mean;
+        println!("{:>8} {:>12.1} {:>12.1} {:>10.2}x", len, host_mean, wasm_mean, speedup);
+    }
+}
+
+#[test]
+fn bench_fft_host_vs_pure_wasm() {
+    let sandbox = WasmSandbox::new(WasmConfig::dsp()).expect("failed to create sandbox");
+    let module = sandbox.load_module(WASM_PATH).expect("failed to load module");
+    let mut instance = sandbox.instantiate(&module).expect("failed to instantiate");
+
+    // Test sizes (must be power of 2 for radix-2 FFT)
+    // Include larger sizes to find crossover point
+    let sizes = [64, 128, 256, 512, 1024, 2048, 4096, 8192];
+    let iterations = 50;
+
+    println!("\n=== FFT Benchmark: Host (rustfft) vs Pure WASM (Cooley-Tukey) ===\n");
+    println!("{:>8} {:>12} {:>12} {:>10}", "Size", "Host (µs)", "WASM (µs)", "Speedup");
+    println!("{:-<48}", "");
+
+    for &len in &sizes {
+        // Allocate buffers
+        let input_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc input");
+        let output_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc output");
+
+        // Initialize with a tone
+        let mut data = vec![0u8; len * 8];
+        for i in 0..len {
+            let phase = 2.0 * std::f32::consts::PI * 3.0 * i as f32 / len as f32;
+            data[i * 8..i * 8 + 4].copy_from_slice(&phase.cos().to_le_bytes());
+            data[i * 8 + 4..i * 8 + 8].copy_from_slice(&phase.sin().to_le_bytes());
+        }
+        instance.write_memory(input_ptr as usize, &data).expect("write input");
+
+        // Benchmark host function (test_fft allocates output internally)
+        let (host_mean, _host_std) = benchmark(|| {
+            instance
+                .call_i32_i32_i32("test_fft", input_ptr, len as i32)
+                .expect("host fft call failed")
+                .execution_time_us as i64
+        }, iterations);
+
+        // Benchmark pure WASM FFT
+        let start = std::time::Instant::now();
+        for _ in 0..iterations {
+            instance
+                .call_void_i32_i32_i32("pure_wasm_fft", input_ptr, output_ptr, len as i32)
+                .expect("pure wasm fft call failed");
+        }
+        let wasm_total = start.elapsed().as_micros() as f64;
+        let wasm_mean = wasm_total / iterations as f64;
+
+        let speedup = wasm_mean / host_mean;
+        println!("{:>8} {:>12.1} {:>12.1} {:>10.2}x", len, host_mean, wasm_mean, speedup);
+    }
+}
+
+#[test]
+fn bench_find_peak_host_vs_pure_wasm() {
+    let sandbox = WasmSandbox::new(WasmConfig::dsp()).expect("failed to create sandbox");
+    let module = sandbox.load_module(WASM_PATH).expect("failed to load module");
+    let mut instance = sandbox.instantiate(&module).expect("failed to instantiate");
+
+    let sizes = [128, 256, 512, 1024, 2048];
+    let iterations = 100;
+
+    println!("\n=== Find Peak Benchmark: Host vs Pure WASM ===\n");
+    println!("{:>8} {:>12} {:>12} {:>10}", "Size", "Host (µs)", "WASM (µs)", "Speedup");
+    println!("{:-<48}", "");
+
+    for &len in &sizes {
+        let input_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc");
+
+        // Put a peak at a random location
+        let peak_idx = len / 3;
+        let mut data = vec![0u8; len * 8];
+        for i in 0..len {
+            let mag = if i == peak_idx { 10.0f32 } else { 1.0f32 };
+            data[i * 8..i * 8 + 4].copy_from_slice(&mag.to_le_bytes());
+            data[i * 8 + 4..i * 8 + 8].copy_from_slice(&0.0f32.to_le_bytes());
+        }
+        instance.write_memory(input_ptr as usize, &data).expect("write");
+
+        // Benchmark host
+        let (host_mean, _) = benchmark(|| {
+            instance
+                .call_i32_i32_i32("test_find_peak", input_ptr, len as i32)
+                .expect("host find_peak failed")
+                .execution_time_us as i64
+        }, iterations);
+
+        // Benchmark pure WASM
+        let start = std::time::Instant::now();
+        for _ in 0..iterations {
+            instance
+                .call_i32_i32_i32("pure_wasm_find_peak", input_ptr, len as i32)
+                .expect("pure wasm find_peak failed");
+        }
+        let wasm_total = start.elapsed().as_micros() as f64;
+        let wasm_mean = wasm_total / iterations as f64;
+
+        let speedup = wasm_mean / host_mean;
+        println!("{:>8} {:>12.1} {:>12.1} {:>10.2}x", len, host_mean, wasm_mean, speedup);
+    }
+}
+
+#[test]
+fn bench_total_power_host_vs_pure_wasm() {
+    let sandbox = WasmSandbox::new(WasmConfig::dsp()).expect("failed to create sandbox");
+    let module = sandbox.load_module(WASM_PATH).expect("failed to load module");
+    let mut instance = sandbox.instantiate(&module).expect("failed to instantiate");
+
+    let sizes = [128, 256, 512, 1024, 2048];
+    let iterations = 100;
+
+    println!("\n=== Total Power Benchmark: Host vs Pure WASM ===\n");
+    println!("{:>8} {:>12} {:>12} {:>10}", "Size", "Host (µs)", "WASM (µs)", "Speedup");
+    println!("{:-<48}", "");
+
+    for &len in &sizes {
+        let input_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc");
+
+        let mut data = vec![0u8; len * 8];
+        for i in 0..len {
+            data[i * 8..i * 8 + 4].copy_from_slice(&1.0f32.to_le_bytes());
+            data[i * 8 + 4..i * 8 + 8].copy_from_slice(&0.5f32.to_le_bytes());
+        }
+        instance.write_memory(input_ptr as usize, &data).expect("write");
+
+        // Benchmark host
+        let (host_mean, _) = benchmark(|| {
+            instance
+                .call_f32_i32_i32("test_total_power", input_ptr, len as i32)
+                .expect("host total_power failed")
+                .execution_time_us as i64
+        }, iterations);
+
+        // Benchmark pure WASM
+        let start = std::time::Instant::now();
+        for _ in 0..iterations {
+            instance
+                .call_f32_i32_i32("pure_wasm_total_power", input_ptr, len as i32)
+                .expect("pure wasm total_power failed");
+        }
+        let wasm_total = start.elapsed().as_micros() as f64;
+        let wasm_mean = wasm_total / iterations as f64;
+
+        let speedup = wasm_mean / host_mean;
+        println!("{:>8} {:>12.1} {:>12.1} {:>10.2}x", len, host_mean, wasm_mean, speedup);
+    }
+}
+
+#[test]
+fn bench_demodulate_pipeline_host_vs_pure_wasm() {
+    let sandbox = WasmSandbox::new(WasmConfig::dsp()).expect("failed to create sandbox");
+    let module = sandbox.load_module(WASM_PATH).expect("failed to load module");
+    let mut instance = sandbox.instantiate(&module).expect("failed to instantiate");
+
+    // Test realistic LoRa symbol sizes
+    let sizes = [128, 256, 512, 1024];
+    let iterations = 50;
+
+    println!("\n=== Full Demodulation Pipeline: Host DSP vs Pure WASM ===");
+    println!("    (complex_multiply + FFT + find_peak)\n");
+    println!("{:>8} {:>12} {:>12} {:>10}", "Size", "Host (µs)", "WASM (µs)", "Speedup");
+    println!("{:-<48}", "");
+
+    for &len in &sizes {
+        let input_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc input");
+        let ref_ptr = instance.alloc((len * 2 * 4) as i32).expect("alloc ref");
+
+        // Input: tone at bin 5
+        let mut input_data = vec![0u8; len * 8];
+        for i in 0..len {
+            let phase = 2.0 * std::f32::consts::PI * 5.0 * i as f32 / len as f32;
+            input_data[i * 8..i * 8 + 4].copy_from_slice(&phase.cos().to_le_bytes());
+            input_data[i * 8 + 4..i * 8 + 8].copy_from_slice(&phase.sin().to_le_bytes());
+        }
+        instance.write_memory(input_ptr as usize, &input_data).expect("write input");
+
+        // Reference: all ones
+        let mut ref_data = vec![0u8; len * 8];
+        for i in 0..len {
+            ref_data[i * 8..i * 8 + 4].copy_from_slice(&1.0f32.to_le_bytes());
+            ref_data[i * 8 + 4..i * 8 + 8].copy_from_slice(&0.0f32.to_le_bytes());
+        }
+        instance.write_memory(ref_ptr as usize, &ref_data).expect("write ref");
+
+        // Benchmark host-accelerated demodulation
+        let (host_mean, _) = benchmark(|| {
+            instance
+                .call_i32_i32_i32_i32("demodulate_fft", input_ptr, ref_ptr, len as i32)
+                .expect("host demodulate failed")
+                .execution_time_us as i64
+        }, iterations);
+
+        // Benchmark pure WASM demodulation
+        let start = std::time::Instant::now();
+        for _ in 0..iterations {
+            instance
+                .call_i32_i32_i32_i32("pure_wasm_demodulate_fft", input_ptr, ref_ptr, len as i32)
+                .expect("pure wasm demodulate failed");
+        }
+        let wasm_total = start.elapsed().as_micros() as f64;
+        let wasm_mean = wasm_total / iterations as f64;
+
+        let speedup = wasm_mean / host_mean;
+        println!("{:>8} {:>12.1} {:>12.1} {:>10.2}x", len, host_mean, wasm_mean, speedup);
+    }
+
+    println!("\n* Host uses rustfft (highly optimized, SIMD-aware)");
+    println!("* Pure WASM uses naive Cooley-Tukey radix-2 FFT");
+}

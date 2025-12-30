@@ -728,8 +728,63 @@ pub extern "C" fn demodulate_symbol(samples_ptr: *const Complex, samples_len: i3
 |----------|--------------|----------|---------|
 | Pure WASM | Per-sample calls to host | 300x | ❌ |
 | Pure WASM | Batch processing | 2-3x | ✅ |
-| Hybrid | Logic in WASM, DSP in native | 1.1-1.5x | ✅ |
+| Hybrid | Logic in WASM, DSP in native | 1.1-1.5x | ✅ (see caveats) |
 | Pure Native | No isolation | 1x | ⚠️ Security risk |
+
+#### Measured Host Function Benchmarks
+
+**Important Finding**: The current host function implementation has significant boundary-crossing overhead that can make pure WASM faster for many operations.
+
+Benchmarks measured on x86_64 Linux, release builds:
+
+**FFT Performance (Host rustfft vs Pure WASM Cooley-Tukey)**:
+
+| Size | Host (µs) | Pure WASM (µs) | Winner |
+|------|-----------|----------------|--------|
+| 64 | 2.6 | 1.0 | **WASM 2.6x faster** |
+| 256 | 10.3 | 3.3 | **WASM 3.1x faster** |
+| 1024 | 41.2 | 14.4 | **WASM 2.9x faster** |
+| 4096 | 169.3 | 68.5 | **WASM 2.5x faster** |
+| 8192 | 333.5 | 198.6 | **WASM 1.7x faster** |
+
+**Complex Multiply (Host vs Pure WASM)**:
+
+| Size | Host (µs) | Pure WASM (µs) | Winner |
+|------|-----------|----------------|--------|
+| 128 | 1.5 | 0.5 | **WASM 3x faster** |
+| 512 | 8.3 | 1.0 | **WASM 8x faster** |
+| 1024 | 15.6 | 1.9 | **WASM 8x faster** |
+
+**Full Demodulation Pipeline (complex_multiply + FFT + find_peak)**:
+
+| Size | Host (µs) | Pure WASM (µs) | Winner |
+|------|-----------|----------------|--------|
+| 128 | 7.6 | 2.4 | **WASM 3.2x faster** |
+| 512 | 29.3 | 8.2 | **WASM 3.6x faster** |
+| 1024 | 57.4 | 17.4 | **WASM 3.3x faster** |
+
+**Why is pure WASM faster?** The host function overhead includes:
+1. **Memory copying**: Reading samples from WASM linear memory
+2. **Type conversion**: f32 (WASM) ↔ f64 (r4w-core Complex64)
+3. **Memory copying**: Writing results back to WASM memory
+4. **Call boundary**: wasmtime host function dispatch
+
+This overhead dominates the actual computation for DSP operations that are O(n) or O(n log n).
+
+**When host functions ARE faster**:
+
+| Operation | Size | Host (µs) | WASM (µs) | Winner |
+|-----------|------|-----------|-----------|--------|
+| find_peak | 128 | 0.1 | 0.5 | **Host 5x faster** |
+| total_power | 128 | 0.0 | 0.4 | **Host fast** |
+
+Very small operations or those with minimal data transfer benefit from native optimization.
+
+**Recommendations**:
+1. **For DSP-heavy workloads**: Stay in pure WASM; wasmtime's JIT is excellent
+2. **For small fixed-size ops**: Host functions can help (e.g., lookup tables)
+3. **For maximum performance**: Reduce boundary crossings, batch operations
+4. **Future optimization**: Use f32 natively, minimize memory copies, SIMD in host
 
 #### Standard DSP Host Function Library
 

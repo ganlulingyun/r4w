@@ -309,3 +309,197 @@ pub extern "C" fn demodulate_fft(input_ptr: i32, reference_ptr: i32, len: i32) -
         peak
     }
 }
+
+// =============================================================================
+// Pure WASM Implementations (for benchmarking against host functions)
+// =============================================================================
+
+/// Pure WASM complex multiply (for benchmarking).
+/// out = a * b element-wise
+#[no_mangle]
+pub extern "C" fn pure_wasm_complex_multiply(a_ptr: i32, b_ptr: i32, out_ptr: i32, len: i32) {
+    let a = a_ptr as *const f32;
+    let b = b_ptr as *const f32;
+    let out = out_ptr as *mut f32;
+
+    for i in 0..len as usize {
+        unsafe {
+            let a_re = *a.add(i * 2);
+            let a_im = *a.add(i * 2 + 1);
+            let b_re = *b.add(i * 2);
+            let b_im = *b.add(i * 2 + 1);
+            // (a + bi)(c + di) = (ac - bd) + (ad + bc)i
+            *out.add(i * 2) = a_re * b_re - a_im * b_im;
+            *out.add(i * 2 + 1) = a_re * b_im + a_im * b_re;
+        }
+    }
+}
+
+/// Pure WASM compute magnitudes (for benchmarking).
+#[no_mangle]
+pub extern "C" fn pure_wasm_compute_magnitudes(in_ptr: i32, out_ptr: i32, len: i32) {
+    let input = in_ptr as *const f32;
+    let output = out_ptr as *mut f32;
+
+    for i in 0..len as usize {
+        unsafe {
+            let re = *input.add(i * 2);
+            let im = *input.add(i * 2 + 1);
+            *output.add(i) = (re * re + im * im).sqrt();
+        }
+    }
+}
+
+/// Pure WASM find peak (for benchmarking).
+#[no_mangle]
+pub extern "C" fn pure_wasm_find_peak(in_ptr: i32, len: i32) -> i32 {
+    let input = in_ptr as *const f32;
+    let mut max_mag_sq = 0.0f32;
+    let mut max_idx = 0i32;
+
+    for i in 0..len as usize {
+        unsafe {
+            let re = *input.add(i * 2);
+            let im = *input.add(i * 2 + 1);
+            let mag_sq = re * re + im * im;
+            if mag_sq > max_mag_sq {
+                max_mag_sq = mag_sq;
+                max_idx = i as i32;
+            }
+        }
+    }
+
+    max_idx
+}
+
+/// Pure WASM total power (for benchmarking).
+#[no_mangle]
+pub extern "C" fn pure_wasm_total_power(in_ptr: i32, len: i32) -> f32 {
+    let input = in_ptr as *const f32;
+    let mut total = 0.0f32;
+
+    for i in 0..len as usize {
+        unsafe {
+            let re = *input.add(i * 2);
+            let im = *input.add(i * 2 + 1);
+            total += re * re + im * im;
+        }
+    }
+
+    total
+}
+
+/// Pure WASM Hann window (for benchmarking).
+#[no_mangle]
+pub extern "C" fn pure_wasm_hann_window(out_ptr: i32, len: i32) {
+    let output = out_ptr as *mut f32;
+    let n = len as f32;
+
+    for i in 0..len as usize {
+        unsafe {
+            let x = 2.0 * PI * (i as f32) / n;
+            *output.add(i) = 0.5 * (1.0 - x.cos());
+        }
+    }
+}
+
+/// Pure WASM radix-2 Cooley-Tukey FFT (for benchmarking).
+/// Input/output are interleaved f32 (re, im pairs).
+/// len must be a power of 2.
+#[no_mangle]
+pub extern "C" fn pure_wasm_fft(in_ptr: i32, out_ptr: i32, len: i32) {
+    let input = in_ptr as *const f32;
+    let output = out_ptr as *mut f32;
+    let n = len as usize;
+
+    // Copy input to output (we'll work in-place on output)
+    for i in 0..n {
+        unsafe {
+            *output.add(i * 2) = *input.add(i * 2);
+            *output.add(i * 2 + 1) = *input.add(i * 2 + 1);
+        }
+    }
+
+    // Bit-reversal permutation
+    let mut j = 0usize;
+    for i in 0..n {
+        if i < j {
+            unsafe {
+                // Swap complex samples i and j
+                let tmp_re = *output.add(i * 2);
+                let tmp_im = *output.add(i * 2 + 1);
+                *output.add(i * 2) = *output.add(j * 2);
+                *output.add(i * 2 + 1) = *output.add(j * 2 + 1);
+                *output.add(j * 2) = tmp_re;
+                *output.add(j * 2 + 1) = tmp_im;
+            }
+        }
+        let mut m = n >> 1;
+        while m > 0 && j >= m {
+            j -= m;
+            m >>= 1;
+        }
+        j += m;
+    }
+
+    // Cooley-Tukey iterative FFT
+    let mut mmax = 1usize;
+    while mmax < n {
+        let istep = mmax << 1;
+        let theta = -PI / (mmax as f32); // -2*PI / istep
+        let wpr = (theta.cos(), theta.sin()); // twiddle factor step
+
+        let mut wr = (1.0f32, 0.0f32); // current twiddle factor
+
+        for m in 0..mmax {
+            for i in (m..n).step_by(istep) {
+                let j = i + mmax;
+                unsafe {
+                    // Complex multiply: temp = wr * output[j]
+                    let o_j_re = *output.add(j * 2);
+                    let o_j_im = *output.add(j * 2 + 1);
+                    let temp_re = wr.0 * o_j_re - wr.1 * o_j_im;
+                    let temp_im = wr.0 * o_j_im + wr.1 * o_j_re;
+
+                    let o_i_re = *output.add(i * 2);
+                    let o_i_im = *output.add(i * 2 + 1);
+
+                    // Butterfly
+                    *output.add(j * 2) = o_i_re - temp_re;
+                    *output.add(j * 2 + 1) = o_i_im - temp_im;
+                    *output.add(i * 2) = o_i_re + temp_re;
+                    *output.add(i * 2 + 1) = o_i_im + temp_im;
+                }
+            }
+            // Update twiddle factor: wr = wr * wpr (complex multiply)
+            let new_wr_re = wr.0 * wpr.0 - wr.1 * wpr.1;
+            let new_wr_im = wr.0 * wpr.1 + wr.1 * wpr.0;
+            wr = (new_wr_re, new_wr_im);
+        }
+        mmax = istep;
+    }
+}
+
+/// Pure WASM demodulation (for benchmarking).
+/// Uses pure WASM FFT, complex multiply, and find peak.
+#[no_mangle]
+pub extern "C" fn pure_wasm_demodulate_fft(input_ptr: i32, reference_ptr: i32, len: i32) -> i32 {
+    let size = (len * 2 * 4) as i32;
+    let mixed_ptr = alloc(size);
+    let spectrum_ptr = alloc(size);
+
+    // Mix with reference
+    pure_wasm_complex_multiply(input_ptr, reference_ptr, mixed_ptr, len);
+
+    // FFT
+    pure_wasm_fft(mixed_ptr, spectrum_ptr, len);
+
+    // Find peak
+    let peak = pure_wasm_find_peak(spectrum_ptr, len);
+
+    // Free buffers
+    dealloc(mixed_ptr, size);
+    dealloc(spectrum_ptr, size);
+
+    peak
+}
