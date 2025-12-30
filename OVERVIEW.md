@@ -1222,6 +1222,10 @@ R4W addresses a critical need in SDR deployments: **preventing interference betw
 │      │  No Sandbox  │   - Zero-cost, always-on                             │
 │      └──────────────┘   - Prevents buffer overflows, use-after-free        │
 │                                                                            │
+│ L1.5 ┌──────────────┐   WebAssembly sandbox                  TURN-KEY      │
+│      │ WASM Sandbox │   - Language-agnostic isolation (Rust, C, C++)       │
+│      └──────────────┘   - Native DSP host functions for performance        │
+│                                                                            │
 │  L2  ┌──────────────┐   Linux namespaces                     TURN-KEY      │
 │      │  Namespaces  │   - Process, network, mount isolation                │
 │      └──────────────┘   - Separate /proc, network stack per waveform       │
@@ -1259,6 +1263,8 @@ The following security features work out of the box:
 
 | Feature | Description | Crate |
 |---------|-------------|-------|
+| **WASM Sandbox** | WebAssembly isolation with wasmtime runtime | `r4w-sandbox` |
+| **DSP Host Functions** | Native FFT, complex ops, windows callable from WASM | `r4w-sandbox` |
 | **SecureBuffer** | Memory zeroization on drop, mlock to prevent swap | `r4w-sandbox` |
 | **EncryptedBuffer** | AES-GCM encrypted memory for keys | `r4w-sandbox` |
 | **GuardedBuffer** | Guard pages to detect overflows | `r4w-sandbox` |
@@ -1300,6 +1306,47 @@ sandbox.run(|| {
 For complete documentation, see:
 - [docs/ISOLATION_GUIDE.md](./docs/ISOLATION_GUIDE.md) - Comprehensive isolation architecture
 - [docs/SECURITY_GUIDE.md](./docs/SECURITY_GUIDE.md) - Security best practices
+
+## WASM Sandbox with DSP Host Functions
+
+The L1.5 WASM sandbox enables hybrid architecture: **WASM for isolated logic, native code for fast DSP**:
+
+```rust
+use r4w_sandbox::wasm::{WasmSandbox, WasmConfig};
+
+// Load waveform from untrusted source with DSP acceleration
+let config = WasmConfig::dsp();  // Enable SIMD, larger memory
+let mut sandbox = WasmSandbox::new(config)?;
+sandbox.load_module(&waveform_wasm_bytes)?;
+
+// WASM waveform calls native DSP host functions:
+// - fft/ifft (Forward/inverse FFT via rustfft)
+// - complex_multiply (SIMD-accelerated complex ops)
+// - find_peak (Peak detection in spectrum)
+// - hann_window, hamming_window (Window generation)
+// - total_power, compute_magnitudes (Signal analysis)
+
+let result = sandbox.call_demodulate(input_ptr, reference_ptr, len)?;
+```
+
+In WASM module (Rust/C/C++):
+```rust
+#[link(wasm_import_module = "r4w_dsp")]
+extern "C" {
+    fn fft(in_ptr: *const f32, out_ptr: *mut f32, len: i32);
+    fn complex_multiply(a: *const f32, b: *const f32, out: *mut f32, len: i32);
+    fn find_peak(ptr: *const f32, len: i32) -> i32;
+}
+
+// Hybrid demodulation: WASM logic + native DSP
+pub fn demodulate(input: &[f32], reference: &[f32]) -> i32 {
+    unsafe {
+        complex_multiply(input.as_ptr(), reference.as_ptr(), mixed.as_mut_ptr(), len);
+        fft(mixed.as_ptr(), spectrum.as_mut_ptr(), len);
+        find_peak(spectrum.as_ptr(), len)  // Returns peak bin
+    }
+}
+```
 
 ---
 
