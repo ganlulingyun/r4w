@@ -99,7 +99,7 @@ pub use telemetry::{
     DeviceMetrics, EnvironmentMetrics, PowerChannel, PowerMetrics,
     Telemetry, TelemetryConfig, TelemetryVariant,
 };
-pub use wire::{WireHeader, WireFlags, WIRE_HEADER_SIZE};
+pub use wire::{WireHeader, WireFlags, WIRE_HEADER_SIZE, PacketAnalysis, analyze_hex_string};
 pub use proto::PortNum;
 pub use simulation::{MeshSimulator, NodePosition, SimConfig, SimEvent, SimStats};
 pub use store_forward::{StoreForward, StoreForwardConfig, StoreForwardError, StoredMessage};

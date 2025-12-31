@@ -493,6 +493,17 @@ enum MeshCommand {
     /// Show available presets and regions
     Info,
 
+    /// Analyze a Meshtastic packet (hex dump with annotations)
+    Analyze {
+        /// Packet data as hex string (space-separated or continuous)
+        #[arg(long)]
+        hex: String,
+
+        /// Show compact one-line summary only
+        #[arg(short, long)]
+        summary: bool,
+    },
+
     /// Interactive mesh REPL for testing and debugging
     Repl {
         /// Node ID (hex, e.g., "a1b2c3d4")
@@ -1903,8 +1914,28 @@ fn cmd_mesh_info() -> Result<()> {
     println!("  r4w mesh send -m \"Private\" --dest a1b2c3d4");
     println!("  r4w mesh simulate --nodes 8 --messages 20 --snr 15");
     println!("  r4w mesh neighbors");
+    println!("  r4w mesh analyze --hex 'ff ff ff ff ...'");
 
     Ok(())
+}
+
+/// Analyze a Meshtastic packet with annotated hex dump
+fn cmd_mesh_analyze(hex: &str, summary_only: bool) -> Result<()> {
+    use r4w_core::mesh::analyze_hex_string;
+
+    match analyze_hex_string(hex) {
+        Ok(analysis) => {
+            if summary_only {
+                println!("{}", analysis.summary());
+            } else {
+                println!("{}", analysis.format_hex_dump());
+            }
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Failed to parse hex: {}", e);
+        }
+    }
 }
 
 /// Interactive mesh REPL for testing and debugging
@@ -2855,6 +2886,8 @@ fn main() -> Result<()> {
             } => cmd_mesh_simulate(nodes, messages, snr, preset, region, verbose),
 
             MeshCommand::Info => cmd_mesh_info(),
+
+            MeshCommand::Analyze { hex, summary } => cmd_mesh_analyze(&hex, summary),
 
             MeshCommand::Repl {
                 node_id,

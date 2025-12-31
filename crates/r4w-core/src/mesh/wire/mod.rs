@@ -36,5 +36,7 @@
 //! ```
 
 pub mod header;
+pub mod analyzer;
 
 pub use header::{WireHeader, WireFlags, WIRE_HEADER_SIZE};
+pub use analyzer::{PacketAnalysis, AnalysisMessage, MessageLevel, analyze_hex_string};
