@@ -40,6 +40,13 @@ cargo run --bin r4w -- mesh status --preset LongFast --region US
 cargo run --bin r4w -- mesh send -m "Hello mesh!" --dest broadcast
 cargo run --bin r4w -- mesh simulate --nodes 4 --messages 10
 
+# Waveform comparison (BER vs SNR)
+cargo run --bin r4w -- compare -w BPSK,QPSK,16QAM --snr-min -5 --snr-max 20
+cargo run --bin r4w -- compare --list  # Show available waveforms
+
+# Shell completions (bash/zsh/fish/powershell)
+cargo run --bin r4w -- completions bash > ~/.local/share/bash-completion/completions/r4w
+
 # Run in browser (WASM)
 cd crates/r4w-web && trunk serve
 
@@ -68,6 +75,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **CLI Enhancements** - Shell completions (bash/zsh/fish/powershell), waveform comparison with BER vs SNR analysis
+- **GitHub Actions CI** - Automated testing, cross-platform builds, WASM builds, performance regression tracking
 - **Mesh CLI Commands** - `r4w mesh` subcommands for LoRa mesh networking (status, send, neighbors, simulate, info)
 - **Mesh Networking Module** - Full mesh stack with MeshtasticNode, FloodRouter, CSMA/CA MAC, LoRaMesh integration
 - **Physical Layer Architecture** (Session 18):

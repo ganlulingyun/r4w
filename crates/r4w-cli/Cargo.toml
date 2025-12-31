@@ -15,6 +15,7 @@ r4w-core = { path = "../r4w-core" }
 r4w-sim = { path = "../r4w-sim" }
 
 clap.workspace = true
+clap_complete = "4.5"
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true

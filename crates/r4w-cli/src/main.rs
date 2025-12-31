@@ -9,7 +9,8 @@
 //! For real hardware operations, enable the `hardware` feature.
 
 use anyhow::{Context, Result};
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{generate, Shell};
 use r4w_core::agent::{AgentClient, AgentServer, DEFAULT_AGENT_PORT};
 use r4w_core::benchmark::{BenchmarkMetrics, BenchmarkReceiver, BenchmarkReport, SampleFormat, WaveformRunner};
 use r4w_core::demodulation::Demodulator;
@@ -334,6 +335,53 @@ enum Commands {
     Adsb {
         #[command(subcommand)]
         command: AdsbCommand,
+    },
+
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: Shell,
+    },
+
+    /// Compare waveforms across SNR range
+    #[command(allow_negative_numbers = true)]
+    Compare {
+        /// Waveforms to compare (comma-separated, e.g., "BPSK,QPSK,8PSK")
+        #[arg(short, long, default_value = "")]
+        waveforms: String,
+
+        /// Minimum SNR in dB
+        #[arg(long, default_value = "-5")]
+        snr_min: f64,
+
+        /// Maximum SNR in dB
+        #[arg(long, default_value = "20")]
+        snr_max: f64,
+
+        /// SNR step in dB
+        #[arg(long, default_value = "2.5")]
+        snr_step: f64,
+
+        /// Number of bits per test point
+        #[arg(long, default_value = "10000")]
+        bits: usize,
+
+        /// Sample rate in Hz
+        #[arg(long, default_value = "48000")]
+        sample_rate: f64,
+
+        /// Output format (text, json, csv)
+        #[arg(short, long, default_value = "text")]
+        output: String,
+
+        /// Output file (stdout if not specified)
+        #[arg(long)]
+        output_file: Option<PathBuf>,
+
+        /// List available waveforms
+        #[arg(long)]
+        list: bool,
     },
 }
 
@@ -2748,6 +2796,220 @@ fn cmd_remote(address: String, command: RemoteCommand) -> Result<()> {
     Ok(())
 }
 
+/// Compare waveforms across SNR range
+fn cmd_compare(
+    waveforms: String,
+    snr_min: f64,
+    snr_max: f64,
+    snr_step: f64,
+    bits: usize,
+    sample_rate: f64,
+    output: String,
+    output_file: Option<PathBuf>,
+    list: bool,
+) -> Result<()> {
+    use r4w_core::waveform::{psk, qam, fsk, ook, ask, Waveform, CommonParams};
+
+    // List available waveforms
+    if list {
+        println!("=== Waveforms Available for Comparison ===");
+        println!();
+        let available = ["BPSK", "QPSK", "8PSK", "16QAM", "64QAM", "BFSK", "4FSK", "OOK", "ASK", "4ASK"];
+        for name in available {
+            println!("  {}", name);
+        }
+        println!();
+        println!("Example: r4w compare -w BPSK,QPSK,8PSK --snr-min 0 --snr-max 15");
+        return Ok(());
+    }
+
+    if waveforms.is_empty() {
+        anyhow::bail!("No waveforms specified. Use -w BPSK,QPSK or --list to see options.");
+    }
+
+    // Parse waveform list
+    let wf_names: Vec<&str> = waveforms.split(',').map(|s| s.trim()).collect();
+
+    // Create waveforms
+    let symbol_rate = sample_rate / 10.0; // 10 samples per symbol
+    let common = CommonParams {
+        sample_rate,
+        carrier_freq: 0.0,
+        amplitude: 1.0,
+    };
+
+    let mut wf_list: Vec<(String, Box<dyn Waveform>)> = Vec::new();
+
+    for name in &wf_names {
+        let wf: Box<dyn Waveform> = match name.to_uppercase().as_str() {
+            "BPSK" => Box::new(psk::PSK::new_bpsk(common.clone(), symbol_rate)),
+            "QPSK" => Box::new(psk::PSK::new_qpsk(common.clone(), symbol_rate)),
+            "8PSK" => Box::new(psk::PSK::new_8psk(common.clone(), symbol_rate)),
+            "16QAM" | "QAM16" => Box::new(qam::QAM::new_16qam(common.clone(), symbol_rate)),
+            "64QAM" | "QAM64" => Box::new(qam::QAM::new_64qam(common.clone(), symbol_rate)),
+            "BFSK" | "FSK" => Box::new(fsk::FSK::new_bfsk(common.clone(), symbol_rate, sample_rate / 20.0)),
+            "4FSK" => Box::new(fsk::FSK::new_4fsk(common.clone(), symbol_rate, sample_rate / 20.0)),
+            "OOK" => Box::new(ook::OOK::new(common.clone(), symbol_rate)),
+            "ASK" => Box::new(ask::ASK::new_binary(common.clone(), symbol_rate, symbol_rate)),
+            "4ASK" | "4-ASK" => Box::new(ask::ASK::new_4ask(common.clone(), symbol_rate, symbol_rate)),
+            _ => {
+                anyhow::bail!("Unknown waveform: {}. Use --list to see available waveforms.", name);
+            }
+        };
+        wf_list.push((name.to_string(), wf));
+    }
+
+    // Generate random test data (bytes)
+    let mut rng = rand::thread_rng();
+    use rand::Rng;
+    let num_bytes = (bits + 7) / 8;
+    let tx_bytes: Vec<u8> = (0..num_bytes).map(|_| rng.gen()).collect();
+
+    // SNR sweep
+    let snr_points: Vec<f64> = {
+        let mut points = Vec::new();
+        let mut snr = snr_min;
+        while snr <= snr_max + 0.001 {
+            points.push(snr);
+            snr += snr_step;
+        }
+        points
+    };
+
+    // Results: waveform -> [(snr, ber)]
+    let mut results: Vec<(String, Vec<(f64, f64)>)> = Vec::new();
+
+    // Run BER tests
+    for (name, wf) in &wf_list {
+        let info = wf.info();
+        let mut ber_curve = Vec::new();
+
+        for &snr in &snr_points {
+            // Modulate
+            let samples = wf.modulate(&tx_bytes);
+
+            // Add AWGN noise
+            let noisy_samples = if snr < 100.0 {
+                let channel_config = ChannelConfig {
+                    model: ChannelModel::Awgn,
+                    snr_db: snr,
+                    ..Default::default()
+                };
+                let mut channel = Channel::new(channel_config);
+                channel.apply(&samples)
+            } else {
+                samples
+            };
+
+            // Demodulate
+            let result = wf.demodulate(&noisy_samples);
+            let rx_bytes = result.bits;
+
+            // Calculate BER at bit level
+            let min_bytes = tx_bytes.len().min(rx_bytes.len());
+            let mut bit_errors = 0usize;
+            let mut total_bits = 0usize;
+            for i in 0..min_bytes {
+                let diff = tx_bytes[i] ^ rx_bytes[i];
+                bit_errors += diff.count_ones() as usize;
+                total_bits += 8;
+            }
+
+            let ber = if total_bits > 0 {
+                bit_errors as f64 / total_bits as f64
+            } else {
+                1.0
+            };
+
+            ber_curve.push((snr, ber));
+        }
+
+        results.push((format!("{} ({} bits/sym)", name, info.bits_per_symbol), ber_curve));
+    }
+
+    // Format output
+    let output_text = match output.to_lowercase().as_str() {
+        "json" => {
+            let mut json_results: Vec<serde_json::Value> = Vec::new();
+            for (name, curve) in &results {
+                json_results.push(serde_json::json!({
+                    "waveform": name,
+                    "data": curve.iter().map(|(snr, ber)| {
+                        serde_json::json!({"snr": snr, "ber": ber})
+                    }).collect::<Vec<_>>()
+                }));
+            }
+            serde_json::to_string_pretty(&json_results)?
+        }
+        "csv" => {
+            let mut csv = String::new();
+            // Header
+            csv.push_str("SNR");
+            for (name, _) in &results {
+                csv.push(',');
+                csv.push_str(name);
+            }
+            csv.push('\n');
+            // Data rows
+            for (i, snr) in snr_points.iter().enumerate() {
+                csv.push_str(&format!("{:.1}", snr));
+                for (_, curve) in &results {
+                    csv.push_str(&format!(",{:.6}", curve[i].1));
+                }
+                csv.push('\n');
+            }
+            csv
+        }
+        _ => {
+            // Text format (table)
+            let mut text = String::new();
+            text.push_str("=== Waveform Comparison (BER vs SNR) ===\n\n");
+            text.push_str(&format!("Test: {} bits per SNR point\n", bits));
+            text.push_str(&format!("SNR range: {} to {} dB (step {})\n\n", snr_min, snr_max, snr_step));
+
+            // Header
+            text.push_str(&format!("{:>8}", "SNR(dB)"));
+            for (name, _) in &results {
+                text.push_str(&format!("{:>15}", name.split(' ').next().unwrap_or(name)));
+            }
+            text.push('\n');
+            text.push_str(&"-".repeat(8 + results.len() * 15));
+            text.push('\n');
+
+            // Data rows
+            for (i, snr) in snr_points.iter().enumerate() {
+                text.push_str(&format!("{:>8.1}", snr));
+                for (_, curve) in &results {
+                    let ber = curve[i].1;
+                    if ber == 0.0 {
+                        text.push_str(&format!("{:>15}", "0"));
+                    } else if ber < 0.0001 {
+                        text.push_str(&format!("{:>15.2e}", ber));
+                    } else {
+                        text.push_str(&format!("{:>15.4}", ber));
+                    }
+                }
+                text.push('\n');
+            }
+
+            text.push('\n');
+            text.push_str("Legend: Lower BER is better. 0 = no errors detected.\n");
+            text
+        }
+    };
+
+    // Write output
+    if let Some(path) = output_file {
+        let mut file = File::create(&path)?;
+        file.write_all(output_text.as_bytes())?;
+        println!("Results written to {:?}", path);
+    } else {
+        print!("{}", output_text);
+    }
+
+    Ok(())
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -2916,5 +3178,24 @@ fn main() -> Result<()> {
                 sample_rate,
             } => cmd_adsb_generate(output, icao, callsign, altitude, sample_rate),
         },
+
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            let bin_name = cmd.get_name().to_string();
+            generate(shell, &mut cmd, bin_name, &mut std::io::stdout());
+            Ok(())
+        }
+
+        Commands::Compare {
+            waveforms,
+            snr_min,
+            snr_max,
+            snr_step,
+            bits,
+            sample_rate,
+            output,
+            output_file,
+            list,
+        } => cmd_compare(waveforms, snr_min, snr_max, snr_step, bits, sample_rate, output, output_file, list),
     }
 }

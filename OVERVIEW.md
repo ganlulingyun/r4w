@@ -298,6 +298,14 @@ cargo run --bin r4w -- waveform --list
 # Simulate LoRa transmission
 cargo run --bin r4w -- simulate --message "Hello R4W!" --snr 10.0
 
+# Compare waveform BER performance across SNR range
+cargo run --bin r4w -- compare -w BPSK,QPSK,8PSK,16QAM --snr-min -5 --snr-max 20
+
+# Generate shell completions
+cargo run --bin r4w -- completions bash > ~/.local/share/bash-completion/completions/r4w
+cargo run --bin r4w -- completions zsh > ~/.zfunc/_r4w
+cargo run --bin r4w -- completions fish > ~/.config/fish/completions/r4w.fish
+
 # Run in browser (WASM)
 cd crates/r4w-web && trunk serve
 ```
