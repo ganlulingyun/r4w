@@ -5,10 +5,29 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 description = "R4W - Rust for Waveforms CLI"
+repository = "https://github.com/joemooney/r4w"
+keywords = ["sdr", "waveform", "dsp", "radio", "signal-processing"]
+categories = ["science", "command-line-utilities", "simulation"]
 
 [[bin]]
 name = "r4w"
 path = "src/main.rs"
+
+# cargo-binstall support
+# Install with: cargo binstall r4w-cli
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/v{ version }/{ name }-{ target }{ archive-suffix }"
+bin-dir = "{ bin }{ binary-ext }"
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"
+
+[package.metadata.binstall.overrides.aarch64-apple-darwin]
+pkg-fmt = "tgz"
+
+[package.metadata.binstall.overrides.x86_64-apple-darwin]
+pkg-fmt = "tgz"
 
 [dependencies]
 r4w-core = { path = "../r4w-core" }

@@ -281,10 +281,45 @@ Enable the `plugins` feature in r4w-core for real dynamic loading:
 r4w-core = { version = "0.1", features = ["plugins"] }
 ```
 
+## Installation
+
+### Option 1: cargo-binstall (Recommended)
+
+Pre-built binaries for quick installation:
+
+```bash
+# Install cargo-binstall if you don't have it
+cargo install cargo-binstall
+
+# Install r4w CLI
+cargo binstall r4w-cli
+```
+
+### Option 2: Docker
+
+```bash
+# Run the CLI
+docker run -it r4w:latest r4w --help
+
+# Development container with full toolchain
+docker-compose run r4w-dev
+
+# Mount recordings directory
+docker run -v ./recordings:/app/recordings r4w:latest r4w record -o /app/recordings/test
+```
+
+### Option 3: From Source
+
+```bash
+git clone https://github.com/joemooney/r4w
+cd r4w
+cargo build --release
+```
+
 ## Quick Start
 
 ```bash
-# Clone and build
+# Clone and build (if installed from source)
 git clone https://github.com/joemooney/r4w
 cd r4w
 cargo build --release
@@ -308,6 +343,42 @@ cargo run --bin r4w -- completions fish > ~/.config/fish/completions/r4w.fish
 
 # Run in browser (WASM)
 cd crates/r4w-web && trunk serve
+
+# Record I/Q samples to SigMF file
+cargo run --bin r4w -- record -o test.sigmf --generate tone --duration 5.0
+
+# Playback recorded signal
+cargo run --bin r4w -- playback -i test.sigmf --info
+
+# Display Prometheus metrics
+cargo run --bin r4w -- metrics --format prometheus
+
+# Serve metrics endpoint for Prometheus scraping
+cargo run --bin r4w -- metrics --serve --port 9090
+```
+
+## Getting Started Examples
+
+The workshop includes getting-started examples demonstrating core functionality:
+
+```bash
+# Basic modulation/demodulation
+cargo run -p r4w-workshop --example basic_modulation
+
+# Channel simulation (AWGN, fading)
+cargo run -p r4w-workshop --example channel_simulation
+
+# LoRa chirp spread spectrum
+cargo run -p r4w-workshop --example lora_basics
+
+# Compare different waveforms
+cargo run -p r4w-workshop --example waveform_comparison
+
+# SigMF recording/playback
+cargo run -p r4w-workshop --example sigmf_recording
+
+# Mesh network simulation
+cargo run -p r4w-workshop --example mesh_simulation
 ```
 
 ## Available Waveforms

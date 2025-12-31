@@ -47,8 +47,23 @@ cargo run --bin r4w -- compare --list  # Show available waveforms
 # Shell completions (bash/zsh/fish/powershell)
 cargo run --bin r4w -- completions bash > ~/.local/share/bash-completion/completions/r4w
 
+# Record/Playback signals (SigMF format)
+cargo run --bin r4w -- record -o test.sigmf --generate tone --duration 5.0
+cargo run --bin r4w -- playback -i test.sigmf --info
+
+# Prometheus metrics
+cargo run --bin r4w -- metrics --format prometheus
+cargo run --bin r4w -- metrics --serve --port 9090
+
 # Run in browser (WASM)
 cd crates/r4w-web && trunk serve
+
+# Docker
+docker run -it r4w:latest r4w --help
+docker-compose run r4w-dev  # Development container
+
+# cargo-binstall (pre-built binaries)
+cargo binstall r4w-cli
 
 # Cross-compile for ARM
 make build-cli-arm64
@@ -75,7 +90,9 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
-- **CLI Enhancements** - Shell completions (bash/zsh/fish/powershell), waveform comparison with BER vs SNR analysis
+- **Deployment Options** - Docker image, cargo-binstall manifest, GitHub Actions release workflow
+- **CLI Enhancements** - Record/Playback (SigMF), Prometheus metrics, shell completions, waveform comparison
+- **Example Gallery** - Getting-started examples for modulation, channels, LoRa, mesh networking
 - **GitHub Actions CI** - Automated testing, cross-platform builds, WASM builds, performance regression tracking
 - **Mesh CLI Commands** - `r4w mesh` subcommands for LoRa mesh networking (status, send, neighbors, simulate, info)
 - **Mesh Networking Module** - Full mesh stack with MeshtasticNode, FloodRouter, CSMA/CA MAC, LoRaMesh integration

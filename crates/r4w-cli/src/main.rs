@@ -383,6 +383,106 @@ enum Commands {
         #[arg(long)]
         list: bool,
     },
+
+    /// Record I/Q samples to SigMF file
+    Record {
+        /// Output file path (without extension, creates .sigmf-meta and .sigmf-data)
+        #[arg(short, long)]
+        output: PathBuf,
+
+        /// Sample rate in Hz
+        #[arg(short, long, default_value = "1000000")]
+        sample_rate: f64,
+
+        /// Center frequency in Hz
+        #[arg(short, long, default_value = "915000000")]
+        frequency: f64,
+
+        /// Duration in seconds (0 = until Ctrl+C)
+        #[arg(short, long, default_value = "0")]
+        duration: f64,
+
+        /// Description for the recording
+        #[arg(long)]
+        description: Option<String>,
+
+        /// Waveform name (for metadata)
+        #[arg(long)]
+        waveform: Option<String>,
+
+        /// Generate test signal instead of recording from device
+        #[arg(long)]
+        generate: Option<String>,
+    },
+
+    /// Playback I/Q samples from SigMF file
+    Playback {
+        /// Input SigMF file (.sigmf-meta)
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Show file info only (don't play)
+        #[arg(long)]
+        info: bool,
+
+        /// Output format for playback (text, json)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+
+        /// Number of samples to read (0 = all)
+        #[arg(short, long, default_value = "0")]
+        samples: usize,
+
+        /// Start offset in samples
+        #[arg(long, default_value = "0")]
+        offset: usize,
+
+        /// Apply waveform demodulation
+        #[arg(long)]
+        demodulate: Option<String>,
+    },
+
+    /// Convert between signal file formats
+    Convert {
+        /// Input file
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Output file
+        #[arg(short, long)]
+        output: PathBuf,
+
+        /// Input format (auto-detect if not specified)
+        #[arg(long)]
+        from: Option<String>,
+
+        /// Output format (sigmf, raw-cf32, raw-ci16)
+        #[arg(long, default_value = "sigmf")]
+        to: String,
+
+        /// Sample rate (required for raw input)
+        #[arg(long)]
+        sample_rate: Option<f64>,
+
+        /// Center frequency (optional)
+        #[arg(long)]
+        frequency: Option<f64>,
+    },
+
+    /// Display or serve Prometheus metrics
+    Metrics {
+        /// Output format (text, json, prometheus)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+
+        /// Start HTTP server for Prometheus scraping
+        #[arg(long)]
+        serve: bool,
+
+        /// Port for metrics server
+        #[arg(short, long, default_value = "9090")]
+        port: u16,
+    },
 }
 
 #[derive(Subcommand)]
@@ -3010,6 +3110,500 @@ fn cmd_compare(
     Ok(())
 }
 
+/// Record I/Q samples to SigMF file
+fn cmd_record(
+    output: PathBuf,
+    sample_rate: f64,
+    frequency: f64,
+    duration: f64,
+    description: Option<String>,
+    waveform: Option<String>,
+    generate: Option<String>,
+) -> Result<()> {
+    use r4w_sim::hal::sigmf::SigMfWriter;
+
+    println!("=== SigMF Recording ===");
+    println!("Output: {:?}", output);
+    println!("Sample rate: {} Hz", sample_rate);
+    println!("Frequency: {} Hz", frequency);
+
+    let mut writer = SigMfWriter::create(&output, sample_rate, frequency)
+        .map_err(|e| anyhow::anyhow!("Failed to create SigMF writer: {}", e))?;
+
+    // Set optional metadata
+    if let Some(desc) = &description {
+        writer.set_description(desc);
+    }
+    if let Some(wf) = &waveform {
+        writer.set_waveform(wf);
+    }
+
+    // Generate test signal or record from device
+    if let Some(signal_type) = generate {
+        println!("Generating test signal: {}", signal_type);
+
+        let num_samples = if duration > 0.0 {
+            (sample_rate * duration) as usize
+        } else {
+            (sample_rate * 1.0) as usize // Default 1 second
+        };
+
+        let samples: Vec<IQSample> = match signal_type.to_lowercase().as_str() {
+            "tone" | "cw" => {
+                // Generate a CW tone at 1kHz offset
+                let tone_freq = 1000.0;
+                (0..num_samples)
+                    .map(|i| {
+                        let t = i as f64 / sample_rate;
+                        let phase = 2.0 * std::f64::consts::PI * tone_freq * t;
+                        IQSample::new(phase.cos(), phase.sin())
+                    })
+                    .collect()
+            }
+            "chirp" => {
+                // Generate a chirp from -BW/2 to +BW/2
+                let bw = sample_rate / 4.0;
+                (0..num_samples)
+                    .map(|i| {
+                        let t = i as f64 / sample_rate;
+                        let freq = -bw / 2.0 + (bw / (num_samples as f64 / sample_rate)) * t;
+                        let phase = 2.0 * std::f64::consts::PI * freq * t;
+                        IQSample::new(phase.cos(), phase.sin())
+                    })
+                    .collect()
+            }
+            "noise" => {
+                // Generate white noise
+                use rand::Rng;
+                let mut rng = rand::thread_rng();
+                (0..num_samples)
+                    .map(|_| {
+                        IQSample::new(
+                            rng.gen_range(-1.0f64..1.0f64),
+                            rng.gen_range(-1.0f64..1.0f64),
+                        )
+                    })
+                    .collect()
+            }
+            _ => {
+                anyhow::bail!("Unknown signal type: {}. Use: tone, chirp, noise", signal_type);
+            }
+        };
+
+        writer
+            .write_samples(&samples)
+            .map_err(|e| anyhow::anyhow!("Failed to write samples: {}", e))?;
+
+        println!("Wrote {} samples ({:.2} seconds)", samples.len(), samples.len() as f64 / sample_rate);
+    } else {
+        // TODO: Record from SDR device
+        println!("Recording from device not yet implemented.");
+        println!("Use --generate <tone|chirp|noise> to create test signals.");
+        return Ok(());
+    }
+
+    writer.close().map_err(|e| anyhow::anyhow!("Failed to close writer: {}", e))?;
+
+    println!("Recording saved to:");
+    println!("  {}.sigmf-meta", output.display());
+    println!("  {}.sigmf-data", output.display());
+
+    Ok(())
+}
+
+/// Playback I/Q samples from SigMF file
+fn cmd_playback(
+    input: PathBuf,
+    info_only: bool,
+    format: String,
+    num_samples: usize,
+    offset: usize,
+    demodulate: Option<String>,
+) -> Result<()> {
+    use r4w_sim::hal::sigmf::SigMfReader;
+
+    let mut reader = SigMfReader::open(&input)
+        .map_err(|e| anyhow::anyhow!("Failed to open SigMF file: {}", e))?;
+
+    let meta = reader.metadata();
+    let sample_rate = meta.global.sample_rate;
+    let frequency = meta.captures.first().and_then(|c| c.frequency).unwrap_or(0.0);
+    let total_samples = reader.total_samples();
+
+    if info_only || format == "json" && num_samples == 0 {
+        if format == "json" {
+            let info = serde_json::json!({
+                "file": input.to_string_lossy(),
+                "sample_rate": sample_rate,
+                "frequency": frequency,
+                "datatype": meta.global.datatype,
+                "total_samples": total_samples,
+                "duration_seconds": total_samples as f64 / sample_rate,
+                "description": meta.global.description,
+                "waveform": meta.global.r4w_waveform,
+                "datetime": meta.global.datetime,
+                "author": meta.global.author,
+            });
+            println!("{}", serde_json::to_string_pretty(&info)?);
+        } else {
+            println!("=== SigMF File Info ===");
+            println!("File: {:?}", input);
+            println!("Sample rate: {} Hz", sample_rate);
+            println!("Frequency: {} Hz", frequency);
+            println!("Datatype: {}", meta.global.datatype);
+            println!("Total samples: {}", total_samples);
+            println!("Duration: {:.3} seconds", total_samples as f64 / sample_rate);
+            if let Some(desc) = &meta.global.description {
+                println!("Description: {}", desc);
+            }
+            if let Some(wf) = &meta.global.r4w_waveform {
+                println!("Waveform: {}", wf);
+            }
+            if let Some(dt) = &meta.global.datetime {
+                println!("Recorded: {}", dt);
+            }
+        }
+        return Ok(());
+    }
+
+    // Read samples
+    let total_usize = total_samples as usize;
+    let samples_to_read = if num_samples == 0 {
+        total_usize.saturating_sub(offset)
+    } else {
+        num_samples.min(total_usize.saturating_sub(offset))
+    };
+
+    if offset > 0 {
+        reader.seek(offset as u64)
+            .map_err(|e| anyhow::anyhow!("Failed to seek: {}", e))?;
+    }
+
+    let mut buffer = vec![IQSample::default(); samples_to_read];
+    let samples_read = reader.read_samples(&mut buffer)
+        .map_err(|e| anyhow::anyhow!("Failed to read samples: {}", e))?;
+
+    buffer.truncate(samples_read);
+
+    println!("=== SigMF Playback ===");
+    println!("Read {} samples from offset {}", samples_read, offset);
+
+    // Demodulate if requested
+    if let Some(wf_name) = demodulate {
+        use r4w_core::waveform::{psk, qam, fsk, ook, Waveform, CommonParams};
+
+        let symbol_rate = sample_rate / 10.0;
+        let common = CommonParams {
+            sample_rate,
+            carrier_freq: 0.0,
+            amplitude: 1.0,
+        };
+
+        let wf: Box<dyn Waveform> = match wf_name.to_uppercase().as_str() {
+            "BPSK" => Box::new(psk::PSK::new_bpsk(common, symbol_rate)),
+            "QPSK" => Box::new(psk::PSK::new_qpsk(common, symbol_rate)),
+            "8PSK" => Box::new(psk::PSK::new_8psk(common, symbol_rate)),
+            "16QAM" => Box::new(qam::QAM::new_16qam(common, symbol_rate)),
+            "BFSK" => Box::new(fsk::FSK::new_bfsk(common, symbol_rate, sample_rate / 20.0)),
+            "OOK" => Box::new(ook::OOK::new(common, symbol_rate)),
+            _ => anyhow::bail!("Unknown waveform for demodulation: {}", wf_name),
+        };
+
+        let result = wf.demodulate(&buffer);
+        println!("Demodulated {} bytes", result.bits.len());
+
+        // Try to decode as text
+        if let Ok(text) = String::from_utf8(result.bits.clone()) {
+            if text.chars().all(|c| c.is_ascii_graphic() || c.is_ascii_whitespace()) {
+                println!("Decoded text: {}", text);
+            } else {
+                println!("Decoded bytes: {:02X?}", &result.bits[..result.bits.len().min(64)]);
+            }
+        } else {
+            println!("Decoded bytes: {:02X?}", &result.bits[..result.bits.len().min(64)]);
+        }
+    } else {
+        // Just show sample statistics
+        let power: f64 = buffer.iter().map(|s| (s.re * s.re + s.im * s.im) as f64).sum::<f64>() / buffer.len() as f64;
+        let power_db = 10.0 * power.log10();
+
+        println!("Average power: {:.2} dB", power_db);
+        println!("First 10 samples: {:?}", &buffer[..buffer.len().min(10)]);
+    }
+
+    Ok(())
+}
+
+/// Convert between signal file formats
+fn cmd_convert(
+    input: PathBuf,
+    output: PathBuf,
+    from_format: Option<String>,
+    to_format: String,
+    sample_rate: Option<f64>,
+    frequency: Option<f64>,
+) -> Result<()> {
+    use r4w_sim::hal::sigmf::{SigMfReader, SigMfWriter};
+    use std::io::{BufReader, BufWriter};
+
+    println!("=== Signal Format Conversion ===");
+    println!("Input: {:?}", input);
+    println!("Output: {:?}", output);
+
+    // Detect input format
+    let input_ext = input.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let detected_format = from_format.unwrap_or_else(|| {
+        match input_ext {
+            "sigmf-meta" | "sigmf-data" => "sigmf".to_string(),
+            "iq" | "cf32" => "raw-cf32".to_string(),
+            "cs16" | "ci16" => "raw-ci16".to_string(),
+            "cs8" | "ci8" => "raw-ci8".to_string(),
+            _ => "raw-cf32".to_string(),
+        }
+    });
+
+    println!("Input format: {}", detected_format);
+    println!("Output format: {}", to_format);
+
+    // Read samples based on input format
+    let (samples, src_sample_rate, src_frequency): (Vec<IQSample>, f64, f64) = match detected_format.as_str() {
+        "sigmf" => {
+            let meta_path = if input_ext == "sigmf-data" {
+                input.with_extension("sigmf-meta")
+            } else {
+                input.clone()
+            };
+
+            let mut reader = SigMfReader::open(&meta_path)
+                .map_err(|e| anyhow::anyhow!("Failed to open SigMF: {}", e))?;
+
+            let meta = reader.metadata();
+            let sr = meta.global.sample_rate;
+            let freq = meta.captures.first().and_then(|c| c.frequency).unwrap_or(0.0);
+            let total = reader.total_samples() as usize;
+
+            let mut buffer = vec![IQSample::default(); total];
+            let read = reader.read_samples(&mut buffer)
+                .map_err(|e| anyhow::anyhow!("Failed to read: {}", e))?;
+            buffer.truncate(read);
+
+            (buffer, sr, freq)
+        }
+        "raw-cf32" => {
+            let sr = sample_rate.ok_or_else(|| anyhow::anyhow!("--sample-rate required for raw input"))?;
+            let freq = frequency.unwrap_or(0.0);
+
+            let file = File::open(&input)?;
+            let mut reader = BufReader::new(file);
+            let mut samples = Vec::new();
+
+            loop {
+                let mut buf = [0u8; 8];
+                match std::io::Read::read_exact(&mut reader, &mut buf) {
+                    Ok(()) => {
+                        let re = f32::from_le_bytes([buf[0], buf[1], buf[2], buf[3]]) as f64;
+                        let im = f32::from_le_bytes([buf[4], buf[5], buf[6], buf[7]]) as f64;
+                        samples.push(IQSample::new(re, im));
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                    Err(e) => return Err(anyhow::anyhow!("Read error: {}", e)),
+                }
+            }
+
+            (samples, sr, freq)
+        }
+        "raw-ci16" => {
+            let sr = sample_rate.ok_or_else(|| anyhow::anyhow!("--sample-rate required for raw input"))?;
+            let freq = frequency.unwrap_or(0.0);
+
+            let file = File::open(&input)?;
+            let mut reader = BufReader::new(file);
+            let mut samples = Vec::new();
+
+            loop {
+                let mut buf = [0u8; 4];
+                match std::io::Read::read_exact(&mut reader, &mut buf) {
+                    Ok(()) => {
+                        let re = i16::from_le_bytes([buf[0], buf[1]]) as f64 / 32768.0;
+                        let im = i16::from_le_bytes([buf[2], buf[3]]) as f64 / 32768.0;
+                        samples.push(IQSample::new(re, im));
+                    }
+                    Err(ref e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+                    Err(e) => return Err(anyhow::anyhow!("Read error: {}", e)),
+                }
+            }
+
+            (samples, sr, freq)
+        }
+        _ => anyhow::bail!("Unsupported input format: {}", detected_format),
+    };
+
+    println!("Read {} samples", samples.len());
+
+    // Write samples based on output format
+    match to_format.as_str() {
+        "sigmf" => {
+            let out_sr = sample_rate.unwrap_or(src_sample_rate);
+            let out_freq = frequency.unwrap_or(src_frequency);
+
+            let mut writer = SigMfWriter::create(&output, out_sr, out_freq)
+                .map_err(|e| anyhow::anyhow!("Failed to create SigMF: {}", e))?;
+
+            writer.write_samples(&samples)
+                .map_err(|e| anyhow::anyhow!("Failed to write: {}", e))?;
+
+            writer.close().map_err(|e| anyhow::anyhow!("Failed to close: {}", e))?;
+
+            println!("Wrote SigMF files:");
+            println!("  {}.sigmf-meta", output.display());
+            println!("  {}.sigmf-data", output.display());
+        }
+        "raw-cf32" => {
+            let file = File::create(&output)?;
+            let mut writer = BufWriter::new(file);
+
+            for sample in &samples {
+                std::io::Write::write_all(&mut writer, &(sample.re as f32).to_le_bytes())?;
+                std::io::Write::write_all(&mut writer, &(sample.im as f32).to_le_bytes())?;
+            }
+
+            println!("Wrote {} samples to {:?}", samples.len(), output);
+        }
+        "raw-ci16" => {
+            let file = File::create(&output)?;
+            let mut writer = BufWriter::new(file);
+
+            for sample in &samples {
+                let re = (sample.re * 32767.0).clamp(-32768.0, 32767.0) as i16;
+                let im = (sample.im * 32767.0).clamp(-32768.0, 32767.0) as i16;
+                std::io::Write::write_all(&mut writer, &re.to_le_bytes())?;
+                std::io::Write::write_all(&mut writer, &im.to_le_bytes())?;
+            }
+
+            println!("Wrote {} samples to {:?}", samples.len(), output);
+        }
+        _ => anyhow::bail!("Unsupported output format: {}", to_format),
+    }
+
+    Ok(())
+}
+
+/// Display or serve Prometheus metrics
+fn cmd_metrics(format: String, serve: bool, port: u16) -> Result<()> {
+    use r4w_core::observe::Metrics;
+
+    // Create a demo metrics instance
+    let metrics = Metrics::new();
+
+    // Populate with demo data
+    metrics.rx_samples.inc_by(1_000_000);
+    metrics.tx_samples.inc_by(500_000);
+    metrics.rx_buffer_level.set(4096);
+    metrics.tx_buffer_level.set(2048);
+    metrics.packets_decoded.inc_by(1500);
+    metrics.packets_failed.inc_by(12);
+    metrics.record_rssi(-85.5);
+    metrics.record_snr(15.2);
+    metrics.set_waveform("lora");
+
+    if serve {
+        println!("Starting metrics server on http://0.0.0.0:{}/metrics", port);
+        println!("Press Ctrl+C to stop");
+        println!();
+        println!("Add to prometheus.yml:");
+        println!("  - job_name: 'r4w'");
+        println!("    static_configs:");
+        println!("      - targets: ['localhost:{}']", port);
+
+        // Simple HTTP server for metrics
+        use std::net::TcpListener;
+        use std::io::{BufRead, BufReader, Write};
+
+        let listener = TcpListener::bind(format!("0.0.0.0:{}", port))?;
+
+        for stream in listener.incoming() {
+            match stream {
+                Ok(mut stream) => {
+                    let reader = BufReader::new(&stream);
+                    let request_line = reader.lines().next();
+
+                    if let Some(Ok(line)) = request_line {
+                        if line.contains("GET /metrics") || line.contains("GET / ") {
+                            let body = metrics.to_prometheus();
+                            let response = format!(
+                                "HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: {}\r\n\r\n{}",
+                                body.len(),
+                                body
+                            );
+                            let _ = stream.write_all(response.as_bytes());
+                        } else {
+                            let response = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+                            let _ = stream.write_all(response.as_bytes());
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Connection error: {}", e);
+                }
+            }
+        }
+
+        Ok(())
+    } else {
+        // Just display metrics
+        match format.to_lowercase().as_str() {
+            "prometheus" => {
+                println!("{}", metrics.to_prometheus());
+            }
+            "json" => {
+                let snapshot = metrics.snapshot();
+                println!("{}", serde_json::to_string_pretty(&serde_json::json!({
+                    "rx_samples": snapshot.rx_samples,
+                    "tx_samples": snapshot.tx_samples,
+                    "rx_buffer_level": snapshot.rx_buffer_level,
+                    "tx_buffer_level": snapshot.tx_buffer_level,
+                    "rx_overflows": snapshot.rx_overflows,
+                    "tx_underflows": snapshot.tx_underflows,
+                    "packets_decoded": snapshot.packets_decoded,
+                    "packets_failed": snapshot.packets_failed,
+                    "rssi_dbm": snapshot.rssi_dbm,
+                    "snr_db": snapshot.snr_db,
+                    "active_waveform": snapshot.active_waveform,
+                    "decode_success_rate": snapshot.decode_success_rate(),
+                }))?);
+            }
+            _ => {
+                println!("=== R4W Metrics ===");
+                let snapshot = metrics.snapshot();
+                println!();
+                println!("Samples:");
+                println!("  RX: {}", snapshot.rx_samples);
+                println!("  TX: {}", snapshot.tx_samples);
+                println!();
+                println!("Buffers:");
+                println!("  RX level: {}", snapshot.rx_buffer_level);
+                println!("  TX level: {}", snapshot.tx_buffer_level);
+                println!();
+                println!("Packets:");
+                println!("  Decoded: {}", snapshot.packets_decoded);
+                println!("  Failed: {}", snapshot.packets_failed);
+                println!("  Success rate: {:.1}%", snapshot.decode_success_rate() * 100.0);
+                println!();
+                println!("Signal:");
+                println!("  RSSI: {:.1} dBm", snapshot.rssi_dbm);
+                println!("  SNR: {:.1} dB", snapshot.snr_db);
+                println!();
+                println!("Waveform: {}", snapshot.active_waveform);
+                println!();
+                println!("Use -f prometheus for Prometheus format");
+                println!("Use --serve to start HTTP endpoint");
+            }
+        }
+
+        Ok(())
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -3197,5 +3791,31 @@ fn main() -> Result<()> {
             output_file,
             list,
         } => cmd_compare(waveforms, snr_min, snr_max, snr_step, bits, sample_rate, output, output_file, list),
+        Commands::Record {
+            output,
+            sample_rate,
+            frequency,
+            duration,
+            description,
+            waveform,
+            generate,
+        } => cmd_record(output, sample_rate, frequency, duration, description, waveform, generate),
+        Commands::Playback {
+            input,
+            info,
+            format,
+            samples,
+            offset,
+            demodulate,
+        } => cmd_playback(input, info, format, samples, offset, demodulate),
+        Commands::Convert {
+            input,
+            output,
+            from,
+            to,
+            sample_rate,
+            frequency,
+        } => cmd_convert(input, output, from, to, sample_rate, frequency),
+        Commands::Metrics { format, serve, port } => cmd_metrics(format, serve, port),
     }
 }

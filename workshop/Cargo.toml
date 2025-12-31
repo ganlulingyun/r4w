@@ -74,3 +74,28 @@ path = "advanced/exercises/70_ber_testing.rs"
 [[example]]
 name = "80_waveform_trait"
 path = "advanced/exercises/80_waveform_trait.rs"
+
+# Getting Started Examples
+[[example]]
+name = "basic_modulation"
+path = "getting_started/basic_modulation.rs"
+
+[[example]]
+name = "channel_simulation"
+path = "getting_started/channel_simulation.rs"
+
+[[example]]
+name = "lora_basics"
+path = "getting_started/lora_basics.rs"
+
+[[example]]
+name = "waveform_comparison"
+path = "getting_started/waveform_comparison.rs"
+
+[[example]]
+name = "sigmf_recording"
+path = "getting_started/sigmf_recording.rs"
+
+[[example]]
+name = "mesh_simulation"
+path = "getting_started/mesh_simulation.rs"

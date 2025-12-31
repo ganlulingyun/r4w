@@ -1,0 +1,34 @@
+# Build artifacts
+target/
+*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Test files
+*.iq
+*.sigmf-*
+
+# Local config
+.env
+.env.*
+*.local
+
+# CI/CD
+.github/
+
+# Misc
+Makefile
+*.log

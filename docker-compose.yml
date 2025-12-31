@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  r4w:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: r4w:latest
+    container_name: r4w
+    volumes:
+      # Mount a directory for signal recordings
+      - ./recordings:/app/recordings
+    # Override entrypoint for interactive use
+    # entrypoint: ["/bin/bash"]
+    # stdin_open: true
+    # tty: true
+
+  # Development container with all tools
+  r4w-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    image: r4w:dev
+    container_name: r4w-dev
+    volumes:
+      - .:/workspace
+      - cargo-cache:/usr/local/cargo/registry
+    working_dir: /workspace
+    entrypoint: ["/bin/bash"]
+    stdin_open: true
+    tty: true
+
+volumes:
+  cargo-cache:
