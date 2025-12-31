@@ -365,6 +365,18 @@ Measured with `tokei`:
 
 ## Recent Updates
 
+### December 2024 (Late)
+
+- **Mesh Simulation & Testing Tools Added**:
+  - Multi-node simulation framework (`simulation.rs`) - simulate mesh networks without hardware
+  - Store-and-forward for offline nodes (`store_forward.rs`)
+  - Traceroute functionality (`traceroute.rs`) - path discovery with RTT
+  - Interactive CLI REPL (`r4w mesh repl`) - real-time simulation control
+  - Packet analyzer (`wire/analyzer.rs`) - annotated hex dump
+  - GUI mesh topology visualization (`MeshNetworkView`)
+  - Property-based routing tests (14 tests)
+- **112 mesh tests now passing**
+
 ### December 2024
 
 - **Mesh CLI Commands Added** - `r4w mesh` subcommands for mesh networking:
@@ -1750,10 +1762,47 @@ node.send_telemetry_proto()?;
 - MESH-017: MeshNetwork trait implementation
 - Bug fixes: RNG in mac.rs/routing.rs, contention window scaling, packet serialization
 
+### Simulation & Testing Tools
+
+**Multi-Node Simulation Framework (`simulation.rs`)**
+- Software-based mesh network simulation without hardware
+- Configurable area, node count, transmission range
+- Realistic signal propagation with path loss model
+- Collision detection and statistics tracking
+- CLI: `r4w mesh simulate --nodes 8 --messages 20`
+
+**Store-and-Forward (`store_forward.rs`)**
+- Message storage for offline nodes
+- TTL-based message expiration
+- Periodic delivery attempts for stored messages
+- Configurable storage limits
+
+**Traceroute Functionality (`traceroute.rs`)**
+- Network path discovery with hop-by-hop tracing
+- RTT measurement for each hop
+- Timeout handling and statistics
+
+**Interactive CLI REPL**
+- CLI: `r4w mesh repl --nodes 5`
+- Commands: send, broadcast, step, run, neighbors, stats, traceroute
+- Real-time simulation control
+
+**Packet Analyzer (`wire/analyzer.rs`)**
+- Field-annotated hex dump display
+- Parse raw packet bytes with wire header breakdown
+- Encryption detection heuristics
+- CLI: `r4w mesh analyze --hex "ff ff ff ff..."`
+
+**GUI Network Visualization (`MeshNetworkView`)**
+- Interactive mesh topology display
+- Drag/pan and scroll/zoom controls
+- Color-coded connection lines by signal strength
+- Real-time statistics (TX, RX, collisions, PDR)
+- Message sending controls
+
 ### Remaining Work
 - Application layer UI (text messaging, position sharing)
 - SX126x hardware integration
-- Multi-node simulation framework
 - Real device interop testing
 
 See `requirements.yaml` for complete requirement details.
