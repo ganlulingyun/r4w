@@ -492,6 +492,25 @@ enum MeshCommand {
 
     /// Show available presets and regions
     Info,
+
+    /// Interactive mesh REPL for testing and debugging
+    Repl {
+        /// Node ID (hex, e.g., "a1b2c3d4")
+        #[arg(short, long)]
+        node_id: Option<String>,
+
+        /// Modem preset
+        #[arg(short, long, default_value = "LongFast")]
+        preset: String,
+
+        /// Region
+        #[arg(short, long, default_value = "US")]
+        region: String,
+
+        /// Number of simulated nodes for multi-node mode
+        #[arg(long, default_value = "1")]
+        sim_nodes: usize,
+    },
 }
 
 #[derive(Subcommand)]
@@ -1888,6 +1907,323 @@ fn cmd_mesh_info() -> Result<()> {
     Ok(())
 }
 
+/// Interactive mesh REPL for testing and debugging
+fn cmd_mesh_repl(
+    node_id: Option<String>,
+    preset: String,
+    region: String,
+    sim_nodes: usize,
+) -> Result<()> {
+    use r4w_core::mesh::{
+        MeshSimulator, MeshNetwork, MeshtasticConfig, MeshtasticNode, NodeId,
+        SimConfig, ModemPreset, Region, Traceroute,
+    };
+    use std::io::{self, BufRead, Write};
+
+    // Parse configuration
+    let modem_preset = match preset.to_lowercase().as_str() {
+        "longfast" => ModemPreset::LongFast,
+        "longslow" => ModemPreset::LongSlow,
+        "longmoderate" => ModemPreset::LongModerate,
+        "mediumfast" | "medfast" => ModemPreset::MediumFast,
+        "mediumslow" | "medslow" => ModemPreset::MediumSlow,
+        "shortfast" => ModemPreset::ShortFast,
+        "shortslow" => ModemPreset::ShortSlow,
+        _ => {
+            warn!("Unknown preset '{}', using LongFast", preset);
+            ModemPreset::LongFast
+        }
+    };
+
+    let region_enum = match region.to_uppercase().as_str() {
+        "US" => Region::US,
+        "EU" | "EU868" => Region::EU,
+        "CN" => Region::CN,
+        "JP" => Region::JP,
+        "ANZ" => Region::ANZ,
+        "KR" => Region::KR,
+        "TW" => Region::TW,
+        "IN" => Region::IN,
+        _ => {
+            warn!("Unknown region '{}', using US", region);
+            Region::US
+        }
+    };
+
+    // Create node(s)
+    let our_node_id = if let Some(ref id_str) = node_id {
+        let id = u32::from_str_radix(id_str.trim_start_matches("0x"), 16)
+            .context("Invalid node ID (use hex format like 'a1b2c3d4')")?;
+        NodeId::from_u32(id)
+    } else {
+        NodeId::random()
+    };
+
+    println!("=== Mesh Network REPL ===");
+    println!("Node ID: {:08x}", our_node_id.to_u32());
+    println!("Preset: {:?}, Region: {:?}", modem_preset, region_enum);
+
+    if sim_nodes > 1 {
+        // Multi-node simulation mode
+        println!("Simulation mode with {} nodes", sim_nodes);
+
+        let config = SimConfig::default()
+            .with_node_count(sim_nodes)
+            .with_area(5000.0, 5000.0)
+            .with_verbose(true);
+
+        let mut sim = MeshSimulator::new(config);
+
+        println!("\nSimulated nodes:");
+        for i in 0..sim_nodes {
+            if let Some(id) = sim.node_id(i) {
+                if let Some(pos) = sim.node_position(i) {
+                    println!("  Node {}: {:08x} at ({:.0}, {:.0})", i, id.to_u32(), pos.x, pos.y);
+                }
+            }
+        }
+
+        println!("\nCommands:");
+        println!("  send <from_idx> <message>  - Send broadcast from node");
+        println!("  step [n]                   - Run n simulation steps (default: 1)");
+        println!("  run <steps>                - Run many steps");
+        println!("  stats                      - Show statistics");
+        println!("  topology                   - Show network topology");
+        println!("  help                       - Show this help");
+        println!("  quit                       - Exit REPL");
+        println!();
+
+        let stdin = io::stdin();
+        let mut stdout = io::stdout();
+
+        loop {
+            print!("mesh-sim> ");
+            stdout.flush()?;
+
+            let mut line = String::new();
+            if stdin.lock().read_line(&mut line)? == 0 {
+                break; // EOF
+            }
+
+            let parts: Vec<&str> = line.trim().split_whitespace().collect();
+            if parts.is_empty() {
+                continue;
+            }
+
+            match parts[0] {
+                "send" | "s" => {
+                    if parts.len() < 3 {
+                        println!("Usage: send <from_idx> <message>");
+                        continue;
+                    }
+                    let from_idx: usize = parts[1].parse().unwrap_or(0);
+                    let message = parts[2..].join(" ");
+                    if sim.send_message(from_idx, &message, None) {
+                        println!("Message queued from node {}", from_idx);
+                    } else {
+                        println!("Failed to queue message");
+                    }
+                }
+
+                "step" => {
+                    let n: usize = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(1);
+                    for _ in 0..n {
+                        sim.step();
+                    }
+                    println!("Ran {} step(s), total: {}", n, sim.step_count());
+                }
+
+                "run" | "r" => {
+                    let n: u64 = parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(100);
+                    sim.run(n);
+                    println!("Ran {} steps, total: {}", n, sim.step_count());
+                }
+
+                "stats" => {
+                    let stats = sim.stats();
+                    println!("=== Simulation Statistics ===");
+                    println!("  Messages sent: {}", stats.messages_sent);
+                    println!("  Packets transmitted: {}", stats.packets_transmitted);
+                    println!("  Packets received: {}", stats.packets_received);
+                    println!("  Packets lost: {}", stats.packets_lost);
+                    println!("  Collisions: {}", stats.collisions);
+                    if stats.packets_transmitted > 0 {
+                        let pdr = stats.packets_received as f64 / stats.packets_transmitted as f64 * 100.0;
+                        println!("  Packet delivery rate: {:.1}%", pdr);
+                    }
+                }
+
+                "topology" | "topo" => {
+                    let adj = sim.topology();
+                    println!("=== Network Topology ===");
+                    for (i, neighbors) in adj.iter().enumerate() {
+                        if let Some(id) = sim.node_id(i) {
+                            let neighbor_str: Vec<String> = neighbors.iter()
+                                .map(|&j| format!("{}", j))
+                                .collect();
+                            println!("  Node {} ({:08x}): [{}]",
+                                i, id.to_u32(), neighbor_str.join(", "));
+                        }
+                    }
+                }
+
+                "help" | "?" => {
+                    println!("Commands:");
+                    println!("  send <from_idx> <message>  - Send broadcast from node");
+                    println!("  step [n]                   - Run n simulation steps");
+                    println!("  run <steps>                - Run many steps");
+                    println!("  stats                      - Show statistics");
+                    println!("  topology                   - Show network topology");
+                    println!("  quit                       - Exit REPL");
+                }
+
+                "quit" | "exit" | "q" => {
+                    println!("Goodbye!");
+                    break;
+                }
+
+                _ => {
+                    println!("Unknown command: {}. Type 'help' for available commands.", parts[0]);
+                }
+            }
+        }
+    } else {
+        // Single node mode
+        let mut config = MeshtasticConfig::default();
+        config.node_id = Some(our_node_id);
+        config.primary_channel.preset = modem_preset;
+        config.region = region_enum;
+        config.short_name = "CLI".to_string();
+        config.long_name = "CLI REPL Node".to_string();
+
+        let mut node = MeshtasticNode::new(config);
+        let mut traceroute = Traceroute::with_defaults(our_node_id);
+
+        println!("\nCommands:");
+        println!("  send <message>             - Broadcast a message");
+        println!("  sendto <node_id> <message> - Send direct message");
+        println!("  status                     - Show node status");
+        println!("  neighbors                  - Show neighbor table");
+        println!("  trace <node_id>            - Start traceroute");
+        println!("  help                       - Show this help");
+        println!("  quit                       - Exit REPL");
+        println!();
+
+        let stdin = io::stdin();
+        let mut stdout = io::stdout();
+
+        loop {
+            print!("mesh[{:08x}]> ", our_node_id.to_u32());
+            stdout.flush()?;
+
+            let mut line = String::new();
+            if stdin.lock().read_line(&mut line)? == 0 {
+                break; // EOF
+            }
+
+            let parts: Vec<&str> = line.trim().split_whitespace().collect();
+            if parts.is_empty() {
+                continue;
+            }
+
+            match parts[0] {
+                "send" | "s" => {
+                    if parts.len() < 2 {
+                        println!("Usage: send <message>");
+                        continue;
+                    }
+                    let message = parts[1..].join(" ");
+                    match node.broadcast(message.as_bytes(), 3) {
+                        Ok(_) => println!("Message queued for broadcast"),
+                        Err(e) => println!("Error: {:?}", e),
+                    }
+                }
+
+                "sendto" => {
+                    if parts.len() < 3 {
+                        println!("Usage: sendto <node_id> <message>");
+                        continue;
+                    }
+                    let dest_id = match u32::from_str_radix(parts[1].trim_start_matches("0x"), 16) {
+                        Ok(id) => NodeId::from_u32(id),
+                        Err(_) => {
+                            println!("Invalid node ID (use hex format)");
+                            continue;
+                        }
+                    };
+                    let message = parts[2..].join(" ");
+                    match node.send_direct(dest_id, message.as_bytes()) {
+                        Ok(_) => println!("Message queued for {:08x}", dest_id.to_u32()),
+                        Err(e) => println!("Error: {:?}", e),
+                    }
+                }
+
+                "status" | "stat" => {
+                    let stats = node.stats();
+                    println!("=== Node Status ===");
+                    println!("  Node ID: {:08x}", our_node_id.to_u32());
+                    println!("  Packets TX: {}", stats.packets_tx);
+                    println!("  Packets RX: {}", stats.packets_rx);
+                    println!("  Packets forwarded: {}", stats.packets_forwarded);
+                    println!("  Neighbors: {}", node.neighbors().len());
+                }
+
+                "neighbors" | "neigh" | "n" => {
+                    let neighbors = node.neighbors();
+                    println!("=== Neighbors ({}) ===", neighbors.len());
+                    for n in neighbors {
+                        println!("  {:08x} - RSSI: {:.0}dBm, SNR: {:.1}dB, hops: {}",
+                            n.info.node_id.to_u32(),
+                            n.link_quality.rssi,
+                            n.link_quality.snr,
+                            n.hop_count);
+                    }
+                }
+
+                "trace" => {
+                    if parts.len() < 2 {
+                        println!("Usage: trace <node_id>");
+                        continue;
+                    }
+                    let dest_id = match u32::from_str_radix(parts[1].trim_start_matches("0x"), 16) {
+                        Ok(id) => NodeId::from_u32(id),
+                        Err(_) => {
+                            println!("Invalid node ID (use hex format)");
+                            continue;
+                        }
+                    };
+                    let request = traceroute.start_trace(dest_id);
+                    println!("Traceroute started to {:08x} (request {})",
+                        dest_id.to_u32(), request.request_id);
+                    // In a real implementation, this would be sent over the mesh
+                    println!("(Note: In simulation mode, traceroute requires multi-node setup)");
+                }
+
+                "help" | "?" => {
+                    println!("Commands:");
+                    println!("  send <message>             - Broadcast a message");
+                    println!("  sendto <node_id> <message> - Send direct message");
+                    println!("  status                     - Show node status");
+                    println!("  neighbors                  - Show neighbor table");
+                    println!("  trace <node_id>            - Start traceroute");
+                    println!("  quit                       - Exit REPL");
+                }
+
+                "quit" | "exit" | "q" => {
+                    println!("Goodbye!");
+                    break;
+                }
+
+                _ => {
+                    println!("Unknown command: {}. Type 'help' for available commands.", parts[0]);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
 fn cmd_adsb_decode(message: String, verbose: bool) -> Result<()> {
     // Parse hex string to bytes
     let hex = message.trim().replace(" ", "").replace("0x", "");
@@ -2519,6 +2855,13 @@ fn main() -> Result<()> {
             } => cmd_mesh_simulate(nodes, messages, snr, preset, region, verbose),
 
             MeshCommand::Info => cmd_mesh_info(),
+
+            MeshCommand::Repl {
+                node_id,
+                preset,
+                region,
+                sim_nodes,
+            } => cmd_mesh_repl(node_id, preset, region, sim_nodes),
         },
 
         Commands::Adsb { command } => match command {
