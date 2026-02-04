@@ -96,6 +96,10 @@ cargo binstall r4w-cli
 # Cross-compile for ARM
 make build-cli-arm64
 make deploy-arm64 REMOTE_HOST=joe@raspberrypi
+
+# Generate HTML documentation from markdown (requires pandoc)
+make docs-html     # Output: docs/html/ (21 files with TOC and syntax highlighting)
+make docs-clean    # Remove generated HTML
 ```
 
 ### Waveform Development
