@@ -383,7 +383,7 @@ cargo run -p r4w-workshop --example mesh_simulation
 
 ## Available Waveforms
 
-R4W includes 38+ waveform implementations:
+R4W includes 42+ waveform implementations:
 
 ```
 Simple:       CW, OOK, PPM, ADS-B
@@ -398,6 +398,7 @@ IoT/Radar:    Zigbee (802.15.4), UWB, FMCW
 HF/Military:  STANAG 4285, ALE, 3G-ALE, MIL-STD-188-110
               SINCGARS*, HAVEQUICK*, Link-16*, P25*
 PMR:          TETRA, DMR (Tier II/III)
+GNSS:         GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1
 ```
 
 **\* Framework implementations** - These waveforms use a trait-based architecture where classified/proprietary components (frequency hopping algorithms, TRANSEC, voice codecs) are represented by simulator stubs. The unclassified signal processing, modulation, and framing are fully implemented. See [docs/PORTING_GUIDE_MILITARY.md](./docs/PORTING_GUIDE_MILITARY.md) for details.
@@ -408,7 +409,7 @@ All tests pass across the workspace:
 
 | Crate | Tests | Status |
 |-------|-------|--------|
-| r4w-core | 421 | ✅ Pass |
+| r4w-core | 459 | ✅ Pass |
 | r4w-sim | 50 | ✅ Pass |
 | r4w-gui | 22 | ✅ Pass |
 | r4w-sandbox | 14 | ✅ Pass |
@@ -444,7 +445,16 @@ Measured with `tokei`:
 
 ## Recent Updates
 
-### December 2024 (Latest)
+### February 2025 (Latest)
+
+- **GNSS Waveforms** (4 constellations):
+  - GPS L1 C/A: BPSK(1), 1023-chip Gold codes, PCPS acquisition, DLL/PLL tracking, LNAV message
+  - GLONASS L1OF: FDMA, 511-chip m-sequence, 14 frequency channels
+  - Galileo E1: CBOC(6,1,1/11), 4092-chip memory codes, E1B data + E1C pilot
+  - GPS L5: QPSK, 10230-chip codes, Neumann-Hoffman secondary codes, 10.23 Mchip/s
+  - CLI: `r4w gnss info`, `r4w gnss generate`, `r4w gnss code`, `r4w gnss simulate`, `r4w gnss compare`
+
+### December 2024
 
 - **Enhanced Channel Simulation**:
   - Jake's/Clarke's Doppler model with sum-of-sinusoids implementation

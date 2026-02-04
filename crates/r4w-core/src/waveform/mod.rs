@@ -73,6 +73,7 @@ pub mod dmr;         // DMR Digital Mobile Radio
 pub mod ale3g;       // 3G ALE - MIL-STD-188-141B Appendix C
 pub mod uwb;
 pub mod zigbee;
+pub mod gnss;     // GNSS (GPS, GLONASS, Galileo) waveforms
 
 use crate::types::IQSample;
 use serde::{Deserialize, Serialize};
@@ -478,6 +479,8 @@ impl WaveformFactory {
             "STANAG-4285", "ALE", "3G-ALE", "SINCGARS", "HAVEQUICK", "Link-16", "MIL-STD-188-110", "P25",
             // Professional Mobile Radio (PMR)
             "TETRA", "DMR",
+            // GNSS (Global Navigation Satellite Systems)
+            "GPS-L1CA", "GPS-L5", "GLONASS-L1OF", "Galileo-E1",
         ]
     }
 
@@ -572,6 +575,17 @@ impl WaveformFactory {
             // 3G ALE (MIL-STD-188-141B Appendix C)
             "3GALE" | "ALE3G" | "MILSTD188141B" => Some(Box::new(ale3g::Ale3g::default_config(sample_rate))),
             "3GALEAMD" => Some(Box::new(ale3g::Ale3g::with_amd(sample_rate, "TEST"))),
+            // GNSS waveforms
+            "GPSL1CA" | "GPSL1" | "GPSCA" => Some(Box::new(gnss::GpsL1Ca::default_config(sample_rate))),
+            "GPSL5" => Some(Box::new(gnss::GpsL5::default_config(sample_rate))),
+            "GLONASSL1OF" | "GLONASS" => Some(Box::new(gnss::GlonassL1of::default_config(sample_rate))),
+            "GALILEOE1" | "GALILEO" | "GAL" => Some(Box::new(gnss::GalileoE1::default_config(sample_rate))),
+            name if name.starts_with("GPSL1CAPRN") => {
+                let prn_str = &name[10..];
+                prn_str.parse::<u8>().ok()
+                    .filter(|&p| p >= 1 && p <= 32)
+                    .map(|p| Box::new(gnss::GpsL1Ca::new(sample_rate, p)) as Box<dyn Waveform>)
+            }
             _ => None,
         }
     }

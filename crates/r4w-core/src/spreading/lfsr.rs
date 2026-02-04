@@ -75,6 +75,17 @@ impl Lfsr {
         self.state
     }
 
+    /// Get the output of a specific tap position (1-based, where 1 is LSB)
+    /// Used by GPS C/A code generation which needs intermediate tap outputs from G2
+    pub fn tap_output(&self, tap: u8) -> u8 {
+        ((self.state >> (tap - 1)) & 1) as u8
+    }
+
+    /// Get the degree of this LFSR
+    pub fn degree(&self) -> u8 {
+        self.degree
+    }
+
     /// Set the state directly (for synchronization)
     pub fn set_state(&mut self, state: u32) {
         assert!(state != 0, "State must be non-zero");

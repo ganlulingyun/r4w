@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Architecture
 
 - **r4w-core**: Core DSP algorithms, timing, RT primitives, configuration
-  - `waveform/`: 38+ waveform implementations
+  - `waveform/`: 42+ waveform implementations (including GNSS: GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1)
   - `analysis/`: Spectrum analyzer, waterfall generator, signal statistics, peak detection
   - `timing.rs`: Multi-clock model (SampleClock, WallClock, HardwareClock, SyncedTime)
   - `rt/`: Lock-free ring buffers, buffer pools, RT thread spawning
@@ -52,6 +52,13 @@ cargo run --bin r4w -- completions bash > ~/.local/share/bash-completion/complet
 # Record/Playback signals (SigMF format)
 cargo run --bin r4w -- record -o test.sigmf --generate tone --duration 5.0
 cargo run --bin r4w -- playback -i test.sigmf --info
+
+# GNSS signal exploration
+cargo run --bin r4w -- gnss info --signal all
+cargo run --bin r4w -- gnss compare
+cargo run --bin r4w -- gnss code --prn 1 --cross-prn 7
+cargo run --bin r4w -- gnss simulate --prn 1 --cn0 40 --doppler 1000
+cargo run --bin r4w -- gnss generate --signal GPS-L1CA --prn 1 --bits 10
 
 # Signal analysis
 cargo run --bin r4w -- analyze spectrum -i file.sigmf-meta --fft-size 1024
@@ -101,6 +108,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **GNSS Waveforms** - GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1 with PRN code generation, FFT-based PCPS acquisition, DLL/PLL tracking loops, navigation data encoding/decoding, and `r4w gnss` CLI subcommand
 - **Enhanced Channel Simulation** - Jake's/Clarke's Doppler model, Tapped Delay Line (TDL) multipath with 3GPP profiles (EPA, EVA, ETU)
 - **CLI Analysis Tools** - `r4w analyze` subcommands: spectrum, waterfall, stats, peaks
 - **Signal Gallery** - 23 PNG images: constellations, spectra, channel effects (`gallery/`)

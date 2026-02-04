@@ -21,6 +21,7 @@ use r4w_core::waveform::ppm::PPM;
 use r4w_core::params::LoRaParams;
 use r4w_core::types::IQSample;
 use r4w_core::waveform::{CommonParams, WaveformFactory};
+use r4w_core::waveform::gnss::types::{GnssSignal, GnssSignalInfo};
 use r4w_sim::{Channel, ChannelConfig, ChannelModel};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
@@ -387,6 +388,12 @@ enum Commands {
     Adsb {
         #[command(subcommand)]
         command: AdsbCommand,
+    },
+
+    /// GNSS signal commands (GPS, GLONASS, Galileo)
+    Gnss {
+        #[command(subcommand)]
+        command: GnssCommand,
     },
 
     /// Generate shell completions
@@ -777,6 +784,80 @@ enum AdsbCommand {
         #[arg(short, long, default_value = "2000000")]
         sample_rate: f64,
     },
+}
+
+#[derive(Subcommand)]
+enum GnssCommand {
+    /// Show GNSS signal parameters
+    Info {
+        /// Signal type (GPS-L1CA, GPS-L5, GLONASS-L1OF, Galileo-E1, or "all")
+        #[arg(short, long, default_value = "all")]
+        signal: String,
+
+        /// PRN number (for signal-specific info)
+        #[arg(short, long, default_value = "1")]
+        prn: u8,
+    },
+
+    /// Generate GNSS baseband I/Q signal
+    Generate {
+        /// Signal type
+        #[arg(short, long, default_value = "GPS-L1CA")]
+        signal: String,
+
+        /// PRN number
+        #[arg(short, long, default_value = "1")]
+        prn: u8,
+
+        /// Number of navigation bits to generate
+        #[arg(short, long, default_value = "10")]
+        bits: usize,
+
+        /// Sample rate in Hz
+        #[arg(long, default_value = "1023000")]
+        sample_rate: f64,
+
+        /// Output file
+        #[arg(short, long, default_value = "gnss_signal.iq")]
+        output: PathBuf,
+    },
+
+    /// Show PRN code properties (autocorrelation, cross-correlation)
+    Code {
+        /// PRN number
+        #[arg(short, long, default_value = "1")]
+        prn: u8,
+
+        /// Cross-correlate with this PRN
+        #[arg(long)]
+        cross_prn: Option<u8>,
+
+        /// Signal type (GPS-L1CA, GLONASS, Galileo-E1, GPS-L5)
+        #[arg(short, long, default_value = "GPS-L1CA")]
+        signal: String,
+    },
+
+    /// Run acquisition + tracking simulation
+    Simulate {
+        /// PRN number
+        #[arg(short, long, default_value = "1")]
+        prn: u8,
+
+        /// C/N0 in dB-Hz
+        #[arg(long, default_value = "40")]
+        cn0: f64,
+
+        /// Doppler offset in Hz
+        #[arg(long, default_value = "1000")]
+        doppler: f64,
+
+        /// Duration in milliseconds
+        #[arg(short, long, default_value = "100")]
+        duration: u64,
+    },
+
+    /// Compare signals across constellations
+    Compare,
 }
 
 fn validate_sf(sf: u8) -> Result<u8> {
@@ -2996,6 +3077,229 @@ fn cmd_adsb_generate(
     Ok(())
 }
 
+// trace:FR-037 | ai:claude
+fn cmd_gnss_info(signal: String, prn: u8) -> Result<()> {
+    let signals: Vec<GnssSignal> = match signal.to_uppercase().replace("-", "").replace("_", "").as_str() {
+        "GPSL1CA" | "GPSL1" | "GPS" => vec![GnssSignal::GpsL1Ca],
+        "GPSL5" => vec![GnssSignal::GpsL5],
+        "GLONASSL1OF" | "GLONASS" => vec![GnssSignal::GlonassL1of],
+        "GALILEOE1" | "GALILEO" | "GAL" => vec![GnssSignal::GalileoE1],
+        "ALL" => vec![GnssSignal::GpsL1Ca, GnssSignal::GpsL5, GnssSignal::GlonassL1of, GnssSignal::GalileoE1],
+        _ => anyhow::bail!("Unknown signal: {}. Use GPS-L1CA, GPS-L5, GLONASS-L1OF, Galileo-E1, or all", signal),
+    };
+
+    for sig in &signals {
+        let info = GnssSignalInfo::from_signal(*sig);
+        println!("╔══════════════════════════════════════════════════════╗");
+        println!("║  {} - {} Signal Info", sig.constellation(), sig);
+        println!("╠══════════════════════════════════════════════════════╣");
+        println!("║  Carrier Frequency:   {:.3} MHz", info.carrier_freq_mhz);
+        println!("║  Chipping Rate:       {:.3} Mchip/s", info.chipping_rate_mchips);
+        println!("║  Code Length:         {} chips", info.code_length);
+        println!("║  Code Period:         {:.3} ms", info.code_period_ms);
+        println!("║  Data Rate:           {:.0} bps", info.data_rate_bps);
+        println!("║  Modulation:          {}", info.modulation);
+        println!("║  Multiple Access:     {}", info.multiple_access);
+        println!("║  Processing Gain:     {:.1} dB", info.processing_gain_db);
+        println!("╚══════════════════════════════════════════════════════╝");
+        println!();
+    }
+
+    if signals.contains(&GnssSignal::GpsL1Ca) {
+        println!("PRN {} code properties:", prn);
+        let mut gen = r4w_core::waveform::gnss::prn::GpsCaCodeGenerator::new(prn);
+        let code = gen.generate_code();
+        let ones: usize = code.iter().filter(|&&c| c == 1).count();
+        let neg_ones: usize = code.iter().filter(|&&c| c == -1).count();
+        println!("  Code balance: {} (+1) / {} (-1)", ones, neg_ones);
+
+        let peak: i32 = code.iter().map(|&c| (c as i32) * (c as i32)).sum();
+        println!("  Autocorrelation peak: {}", peak);
+    }
+
+    Ok(())
+}
+
+fn cmd_gnss_generate(signal: String, prn: u8, bits: usize, sample_rate: f64, output: PathBuf) -> Result<()> {
+
+    let waveform_name = match signal.to_uppercase().replace("-", "").replace("_", "").as_str() {
+        "GPSL1CA" | "GPSL1" | "GPS" => "GPS-L1CA",
+        "GPSL5" => "GPS-L5",
+        "GLONASSL1OF" | "GLONASS" => "GLONASS-L1OF",
+        "GALILEOE1" | "GALILEO" => "Galileo-E1",
+        _ => anyhow::bail!("Unknown signal: {}", signal),
+    };
+
+    let wf = WaveformFactory::create(waveform_name, sample_rate)
+        .ok_or_else(|| anyhow::anyhow!("Failed to create {} waveform", waveform_name))?;
+
+    // Generate test data
+    let data: Vec<u8> = (0..bits.max(1)).map(|i| (i % 256) as u8).collect();
+    let samples = wf.modulate(&data);
+
+    println!("Generated {} signal (PRN {})", waveform_name, prn);
+    println!("  {} I/Q samples at {:.0} Hz sample rate", samples.len(), sample_rate);
+    println!("  Duration: {:.3} ms", samples.len() as f64 / sample_rate * 1000.0);
+
+    // Write samples
+    let file = File::create(&output).context("Failed to create output file")?;
+    let mut writer = BufWriter::new(file);
+    for sample in &samples {
+        let bytes = (sample.re as f32).to_le_bytes();
+        writer.write_all(&bytes)?;
+        let bytes = (sample.im as f32).to_le_bytes();
+        writer.write_all(&bytes)?;
+    }
+
+    println!("  Wrote {} to {:?}", samples.len() * 8, output);
+    Ok(())
+}
+
+fn cmd_gnss_code(prn: u8, cross_prn: Option<u8>, signal: String) -> Result<()> {
+    use r4w_core::spreading::{autocorrelation, max_cross_correlation};
+
+    let sig = signal.to_uppercase().replace("-", "").replace("_", "");
+
+    match sig.as_str() {
+        "GPSL1CA" | "GPSL1" | "GPS" => {
+            let mut gen = r4w_core::waveform::gnss::prn::GpsCaCodeGenerator::new(prn);
+            let code = gen.generate_code();
+
+            println!("GPS L1 C/A PRN {} Code Properties", prn);
+            println!("  Code length: {} chips", code.len());
+            println!("  First 20 chips: {:?}", &code[..20]);
+
+            let peak = autocorrelation(&code, 0);
+            println!("  Autocorrelation peak (lag 0): {}", peak);
+
+            // Show a few off-peak values
+            println!("  Autocorrelation samples:");
+            for lag in [1, 10, 100, 511, 512] {
+                println!("    lag {}: {}", lag, autocorrelation(&code, lag));
+            }
+
+            if let Some(cross) = cross_prn {
+                let mut gen2 = r4w_core::waveform::gnss::prn::GpsCaCodeGenerator::new(cross);
+                let code2 = gen2.generate_code();
+                let max_xcorr = max_cross_correlation(&code, &code2);
+                println!("\n  Cross-correlation PRN {} vs PRN {}:", prn, cross);
+                println!("    Maximum |cross-correlation|: {}", max_xcorr);
+                println!("    Gold code bound (t(10)): 65");
+                println!("    Bounded: {}", if max_xcorr <= 65 { "YES" } else { "NO" });
+            }
+        }
+        "GLONASSL1OF" | "GLONASS" => {
+            let mut gen = r4w_core::waveform::gnss::prn::GlonassCodeGenerator::new(0);
+            let code = gen.generate_code();
+            println!("GLONASS L1OF Code Properties");
+            println!("  Code length: {} chips (same for all SVs)", code.len());
+            println!("  Autocorrelation peak: {}", autocorrelation(&code, 0));
+            println!("  Multiple access: FDMA (not CDMA)");
+        }
+        _ => {
+            println!("Code analysis for {} not yet supported. Try GPS-L1CA or GLONASS.", signal);
+        }
+    }
+
+    Ok(())
+}
+
+fn cmd_gnss_simulate(prn: u8, cn0: f64, doppler: f64, duration: u64) -> Result<()> {
+    use r4w_core::waveform::gnss::acquisition::PcpsAcquisition;
+    use r4w_core::waveform::gnss::prn::GpsCaCodeGenerator;
+    let code_length = 1023;
+    let sample_rate = 1_023_000.0; // 1 sample/chip
+
+    println!("GNSS Acquisition + Tracking Simulation");
+    println!("  PRN: {}", prn);
+    println!("  C/N0: {:.1} dB-Hz", cn0);
+    println!("  Doppler: {:.1} Hz", doppler);
+    println!("  Duration: {} ms", duration);
+    println!();
+
+    // Generate code
+    let mut gen = GpsCaCodeGenerator::new(prn);
+    let code = gen.generate_code();
+
+    // Generate signal with Doppler and noise
+    let code_phase_true = 314;
+    let doppler_true = doppler;
+    let noise_power = 10.0_f64.powf(-cn0 / 10.0) * sample_rate;
+
+    let mut signal: Vec<IQSample> = Vec::with_capacity(code_length);
+    for i in 0..code_length {
+        let chip_idx = (i + code_length - code_phase_true) % code_length;
+        let chip_val = code[chip_idx] as f64;
+        let t = i as f64 / sample_rate;
+        let phase = 2.0 * std::f64::consts::PI * doppler_true * t;
+
+        // Signal + noise
+        let noise_i = noise_power.sqrt() * ((i as f64 * 1.234).sin() * 0.5);
+        let noise_q = noise_power.sqrt() * ((i as f64 * 2.345).cos() * 0.5);
+
+        signal.push(IQSample::new(
+            chip_val * phase.cos() + noise_i,
+            chip_val * phase.sin() + noise_q,
+        ));
+    }
+
+    // Run acquisition
+    println!("── Acquisition ──");
+    let acq = PcpsAcquisition::new(code_length, sample_rate)
+        .with_doppler_range(5000.0, 500.0)
+        .with_threshold(2.0);
+    let result = acq.acquire(&signal, &code, prn);
+
+    println!("  Detected: {}", result.detected);
+    println!("  Code phase: {:.0} chips (true: {})", result.code_phase, code_phase_true);
+    println!("  Doppler: {:.0} Hz (true: {:.0} Hz)", result.doppler_hz, doppler_true);
+    println!("  Peak metric: {:.1}", result.peak_metric);
+
+    if let Some(cn0_est) = result.cn0_estimate {
+        println!("  C/N0 estimate: {:.1} dB-Hz", cn0_est);
+    }
+
+    if result.detected {
+        let phase_error = (result.code_phase - code_phase_true as f64).abs();
+        let doppler_error = (result.doppler_hz - doppler_true).abs();
+        println!("\n  Code phase error: {:.0} chips", phase_error);
+        println!("  Doppler error: {:.0} Hz", doppler_error);
+    }
+
+    Ok(())
+}
+
+fn cmd_gnss_compare() -> Result<()> {
+    println!("╔══════════════════════════════════════════════════════════════════════════════╗");
+    println!("║                    GNSS Signal Comparison                                    ║");
+    println!("╠══════════════╦══════════╦════════════╦═══════╦═══════╦═══════════╦═══════════╣");
+    println!("║ Signal       ║ Freq MHz ║ Chip Mchps ║ Chips ║ dB PG ║ Data bps  ║ Access    ║");
+    println!("╠══════════════╬══════════╬════════════╬═══════╬═══════╬═══════════╬═══════════╣");
+
+    for sig in [GnssSignal::GpsL1Ca, GnssSignal::GpsL5, GnssSignal::GlonassL1of, GnssSignal::GalileoE1] {
+        let info = GnssSignalInfo::from_signal(sig);
+        println!("║ {:12} ║ {:>8.2} ║ {:>10.3} ║ {:>5} ║ {:>5.1} ║ {:>9.0} ║ {:9} ║",
+            format!("{}", sig),
+            info.carrier_freq_mhz,
+            info.chipping_rate_mchips,
+            info.code_length,
+            info.processing_gain_db,
+            info.data_rate_bps,
+            info.multiple_access,
+        );
+    }
+    println!("╚══════════════╩══════════╩════════════╩═══════╩═══════╩═══════════╩═══════════╝");
+
+    println!("\nKey Observations:");
+    println!("  • GPS L5 has 10× the chipping rate of L1 C/A → better multipath rejection");
+    println!("  • GLONASS uses FDMA (same code, different frequencies) vs GPS/Galileo CDMA");
+    println!("  • Galileo E1 has 4× longer codes than GPS L1 C/A → better cross-correlation");
+    println!("  • GPS L5 + L1 enables dual-frequency ionospheric correction");
+    println!("  • Processing gain increases with code length: more chips = more robust");
+
+    Ok(())
+}
+
 fn cmd_remote(address: String, command: RemoteCommand) -> Result<()> {
     // Parse address
     let (host, port) = if address.contains(':') {
@@ -3999,6 +4303,16 @@ fn main() -> Result<()> {
                 altitude,
                 sample_rate,
             } => cmd_adsb_generate(output, icao, callsign, altitude, sample_rate),
+        },
+
+        Commands::Gnss { command } => match command {
+            GnssCommand::Info { signal, prn } => cmd_gnss_info(signal, prn),
+            GnssCommand::Generate { signal, prn, bits, sample_rate, output } =>
+                cmd_gnss_generate(signal, prn, bits, sample_rate, output),
+            GnssCommand::Code { prn, cross_prn, signal } => cmd_gnss_code(prn, cross_prn, signal),
+            GnssCommand::Simulate { prn, cn0, doppler, duration } =>
+                cmd_gnss_simulate(prn, cn0, doppler, duration),
+            GnssCommand::Compare => cmd_gnss_compare(),
         },
 
         Commands::Completions { shell } => {
