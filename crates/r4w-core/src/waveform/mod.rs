@@ -74,6 +74,7 @@ pub mod ale3g;       // 3G ALE - MIL-STD-188-141B Appendix C
 pub mod uwb;
 pub mod zigbee;
 pub mod gnss;     // GNSS (GPS, GLONASS, Galileo) waveforms
+pub mod beacon;   // 121.5/243 MHz emergency distress beacons (ELT, EPIRB, PLB)
 
 use crate::types::IQSample;
 use serde::{Deserialize, Serialize};
@@ -481,6 +482,8 @@ impl WaveformFactory {
             "TETRA", "DMR",
             // GNSS (Global Navigation Satellite Systems)
             "GPS-L1CA", "GPS-L5", "GLONASS-L1OF", "Galileo-E1",
+            // Emergency beacons
+            "ELT-121.5", "EPIRB-121.5", "PLB-121.5", "Beacon-243",
         ]
     }
 
@@ -580,6 +583,11 @@ impl WaveformFactory {
             "GPSL5" => Some(Box::new(gnss::GpsL5::default_config(sample_rate))),
             "GLONASSL1OF" | "GLONASS" => Some(Box::new(gnss::GlonassL1of::default_config(sample_rate))),
             "GALILEOE1" | "GALILEO" | "GAL" => Some(Box::new(gnss::GalileoE1::default_config(sample_rate))),
+            // Emergency beacons
+            "ELT" | "ELT121.5" | "ELT1215" => Some(Box::new(beacon::Beacon::elt(sample_rate))),
+            "EPIRB" | "EPIRB121.5" | "EPIRB1215" => Some(Box::new(beacon::Beacon::epirb(sample_rate))),
+            "PLB" | "PLB121.5" | "PLB1215" => Some(Box::new(beacon::Beacon::plb(sample_rate))),
+            "BEACON243" | "MILITARY243" | "MIL243" => Some(Box::new(beacon::Beacon::military(sample_rate))),
             name if name.starts_with("GPSL1CAPRN") => {
                 let prn_str = &name[10..];
                 prn_str.parse::<u8>().ok()
