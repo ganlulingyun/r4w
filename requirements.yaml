@@ -16,9 +16,9 @@ requirements:
   req_type: Epic
   tags:
   - mesh
+  - lora
   - meshtastic
   - protocol
-  - lora
   history:
   - id: b87df4b0-b8f6-47cc-bf04-604b5362c7fc
     author: CLI
@@ -40,9 +40,9 @@ requirements:
   modified_at: 2025-12-30T20:09:32.375521722Z
   req_type: Functional
   tags:
+  - lora
   - encoding
   - physical-layer
-  - lora
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -108,8 +108,8 @@ requirements:
   modified_at: 2025-12-30T18:54:27.733209443Z
   req_type: Functional
   tags:
-  - regulatory
   - physical-layer
+  - regulatory
   - frequency
   relationships:
   - rel_type: Parent
@@ -136,9 +136,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.011274770Z
   req_type: Functional
   tags:
+  - mac-layer
   - collision-avoidance
   - csma
-  - mac-layer
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -170,8 +170,8 @@ requirements:
   modified_at: 2025-12-30T18:54:51.015773789Z
   req_type: Functional
   tags:
-  - mac-layer
   - framing
+  - mac-layer
   - packet
   relationships:
   - rel_type: Parent
@@ -204,9 +204,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.749015544Z
   req_type: Functional
   tags:
-  - fairness
   - mac-layer
   - utilization
+  - fairness
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -232,9 +232,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.020338923Z
   req_type: Functional
   tags:
-  - flood
   - broadcast
   - routing
+  - flood
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -266,9 +266,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.024770069Z
   req_type: Functional
   tags:
-  - routing
   - unicast
   - next-hop
+  - routing
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -328,8 +328,8 @@ requirements:
   modified_at: 2025-12-30T18:54:27.770472367Z
   req_type: Functional
   tags:
-  - routing
   - neighbor
+  - routing
   - discovery
   relationships:
   - rel_type: Parent
@@ -356,9 +356,9 @@ requirements:
   modified_at: 2025-12-30T18:33:56.924811543Z
   req_type: Functional
   tags:
+  - messages
   - interop
   - protobuf
-  - messages
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -376,9 +376,9 @@ requirements:
   modified_at: 2025-12-30T18:34:06.606337548Z
   req_type: Functional
   tags:
-  - interop
-  - aes
   - encryption
+  - aes
+  - interop
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -416,9 +416,9 @@ requirements:
   modified_at: 2025-12-30T18:34:30.970516731Z
   req_type: Functional
   tags:
-  - text
-  - app
   - messaging
+  - app
+  - text
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -436,8 +436,8 @@ requirements:
   modified_at: 2025-12-30T18:34:41.008292847Z
   req_type: Functional
   tags:
-  - gps
   - app
+  - gps
   - position
   relationships:
   - rel_type: Parent
@@ -456,8 +456,8 @@ requirements:
   modified_at: 2025-12-30T18:54:51.029265252Z
   req_type: Functional
   tags:
-  - trait
   - integration
+  - trait
   - architecture
   relationships:
   - rel_type: Parent
@@ -490,8 +490,8 @@ requirements:
   modified_at: 2025-12-30T18:35:04.632283047Z
   req_type: Functional
   tags:
-  - radio
   - hardware
+  - radio
   - sx126x
   relationships:
   - rel_type: Parent
@@ -510,9 +510,9 @@ requirements:
   modified_at: 2025-12-30T18:35:14.680235464Z
   req_type: Functional
   tags:
+  - simulation
   - testing
   - multi-node
-  - simulation
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -530,9 +530,9 @@ requirements:
   modified_at: 2025-12-30T18:35:26.159312602Z
   req_type: NonFunctional
   tags:
-  - power
   - nfr
   - battery
+  - power
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -600,9 +600,9 @@ requirements:
   modified_at: 2026-01-01T00:45:23.000655534Z
   req_type: Functional
   tags:
+  - fading
   - channel
   - doppler
-  - fading
 - id: c83161da-58d1-47d8-b8bf-0af9b75f8607
   spec_id: FR-025
   title: Tapped Delay Line Multipath Channel
@@ -615,9 +615,9 @@ requirements:
   modified_at: 2026-01-01T00:45:26.089040868Z
   req_type: Functional
   tags:
-  - channel
-  - multipath
   - 3gpp
+  - multipath
+  - channel
 - id: 3fa6715a-0464-4aed-bf9b-e50552ddf5d3
   spec_id: FR-026
   title: CLI Spectrum Analysis Command
@@ -630,9 +630,9 @@ requirements:
   modified_at: 2026-01-01T00:45:29.202873633Z
   req_type: Functional
   tags:
-  - spectrum
-  - cli
   - fft
+  - cli
+  - spectrum
 - id: deb7cb95-87ae-49e7-9f8d-4ca65c2e8d61
   spec_id: FR-027
   title: CLI Waterfall PNG Generation
@@ -660,9 +660,9 @@ requirements:
   modified_at: 2026-01-01T00:45:47.480602821Z
   req_type: Functional
   tags:
-  - cli
-  - statistics
   - power
+  - statistics
+  - cli
 - id: 1bb45e13-5952-4b5f-83de-a1046ec7d0f8
   spec_id: FR-029
   title: CLI Peak Detection
@@ -675,9 +675,9 @@ requirements:
   modified_at: 2026-01-01T00:45:50.819575716Z
   req_type: Functional
   tags:
-  - peaks
-  - cli
   - detection
+  - cli
+  - peaks
 - id: c743ccdf-5f80-413b-96a3-dd09dc0e7233
   spec_id: TASK-030
   title: Signal Visualization Gallery
@@ -690,9 +690,9 @@ requirements:
   modified_at: 2026-01-01T00:45:53.481069148Z
   req_type: Task
   tags:
-  - examples
-  - gallery
   - visualization
+  - gallery
+  - examples
 - id: 96888938-b9e2-4088-9302-9c3381e7d0d7
   spec_id: TASK-031
   title: Jupyter Tutorial Notebooks
@@ -700,14 +700,212 @@ requirements:
   status: Completed
   priority: Medium
   owner: joe
-  feature: Documentation
+  feature: 31-Documentation
   created_at: 2026-01-01T00:45:56.165629168Z
   modified_at: 2026-01-01T00:45:56.165629168Z
   req_type: Task
   tags:
-  - education
-  - tutorials
   - notebooks
+  - tutorials
+  - education
+- id: 55ba297c-a183-4fe3-a616-e484cab0176f
+  spec_id: FR-032
+  prefix_override: FR
+  title: GPS L1 C/A Waveform
+  description: Implement GPS L1 C/A signal waveform with PRN code generation (Gold codes, 1023 chips), BPSK(1) modulation at 1575.42 MHz, FFT-based PCPS acquisition, DLL/PLL tracking loops, and navigation data encoding/decoding. Includes r4w gnss CLI subcommand for signal exploration.
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 32-GNSS Waveforms
+  created_at: 2026-02-04T03:57:38.317847765Z
+  modified_at: 2026-02-04T03:59:12.312816698Z
+  req_type: Functional
+  comments:
+  - id: b613eae9-ae18-4c77-bf6c-695d2188f7cf
+    author: joe
+    content: Implemented in crates/r4w-core/src/waveform/gnss/gps_l1ca.rs. Commit cae11ba.
+    created_at: 2026-02-04T03:59:12.312812678Z
+    modified_at: 2026-02-04T03:59:12.312812678Z
+- id: 28e79ce3-a181-4580-9085-0260685457c6
+  spec_id: FR-033
+  prefix_override: FR
+  title: GPS L5 Waveform
+  description: Implement GPS L5 signal waveform at 1176.45 MHz with 10.23 Mchip/s chipping rate, 10230-chip codes (I5/Q5), QPSK(10) modulation, and Neuman-Hofman overlay codes.
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 33-GNSS Waveforms
+  created_at: 2026-02-04T03:57:44.446331989Z
+  modified_at: 2026-02-04T03:59:12.318116318Z
+  req_type: Functional
+  comments:
+  - id: 6582e035-0ee9-4974-af92-936a656820aa
+    author: joe
+    content: Implemented in crates/r4w-core/src/waveform/gnss/gps_l5.rs. Commit cae11ba.
+    created_at: 2026-02-04T03:59:12.318112674Z
+    modified_at: 2026-02-04T03:59:12.318112674Z
+- id: a29058cb-459f-45e9-8806-529b3119aeed
+  spec_id: FR-034
+  prefix_override: FR
+  title: GLONASS L1OF Waveform
+  description: Implement GLONASS L1OF signal waveform with FDMA channel assignment (~1602 MHz + k*0.5625 MHz), 0.511 Mchip/s chipping rate, 511-chip maximal-length sequence, BPSK(0.5) modulation, and frequency channel parameter support.
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 34-GNSS Waveforms
+  created_at: 2026-02-04T03:57:49.244626358Z
+  modified_at: 2026-02-04T03:59:12.323446071Z
+  req_type: Functional
+  comments:
+  - id: 0c6493be-7047-4a6e-a572-32cc1108fa9d
+    author: joe
+    content: Implemented in crates/r4w-core/src/waveform/gnss/glonass_l1of.rs. Commit cae11ba.
+    created_at: 2026-02-04T03:59:12.323441593Z
+    modified_at: 2026-02-04T03:59:12.323441593Z
+- id: 714d68f5-01e0-439c-a4e3-bf715780832c
+  spec_id: FR-035
+  prefix_override: FR
+  title: Galileo E1 Waveform
+  description: Implement Galileo E1 signal waveform at 1575.42 MHz with 1.023 Mchip/s chipping rate, 4092-chip codes, CBOC modulation (Composite Binary Offset Carrier), and memory code generation via PnSequence.
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 35-GNSS Waveforms
+  created_at: 2026-02-04T03:57:53.613027245Z
+  modified_at: 2026-02-04T03:59:12.329040332Z
+  req_type: Functional
+  comments:
+  - id: dcd1c957-e625-4398-bd45-9c12964f4f38
+    author: joe
+    content: Implemented in crates/r4w-core/src/waveform/gnss/galileo_e1.rs. Commit cae11ba.
+    created_at: 2026-02-04T03:59:12.329036049Z
+    modified_at: 2026-02-04T03:59:12.329036049Z
+- id: 3029867f-9750-4d2f-b541-6bbcc069606a
+  spec_id: FR-036
+  prefix_override: FR
+  title: GNSS PRN Code Generation
+  description: 'Implement PRN code generators for all GNSS constellations: GPS C/A Gold codes (PRN 1-32), GPS L5 I5/Q5 codes, GLONASS maximal-length sequences with FDMA channel mapping, and Galileo E1 memory codes. Support cross-correlation analysis between PRN codes.'
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 36-GNSS Waveforms
+  created_at: 2026-02-04T03:57:58.526345776Z
+  modified_at: 2026-02-04T03:59:12.334535408Z
+  req_type: Functional
+  comments:
+  - id: bc3beb53-2293-4cf3-8cd9-ef59455fd314
+    author: joe
+    content: PRN generators in respective waveform files. Cross-correlation analysis via r4w gnss code CLI. Commit cae11ba.
+    created_at: 2026-02-04T03:59:12.334531488Z
+    modified_at: 2026-02-04T03:59:12.334531488Z
+- id: 965d0468-82c7-4584-bbbe-cb5e564cd682
+  spec_id: FR-037
+  prefix_override: FR
+  title: GNSS Acquisition and Tracking
+  description: Implement FFT-based Parallel Code Phase Search (PCPS) acquisition for GNSS signals with Doppler search across configurable frequency bins. Implement DLL (Delay Lock Loop) and PLL (Phase Lock Loop) tracking loops for code and carrier tracking after acquisition.
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 37-GNSS Waveforms
+  created_at: 2026-02-04T03:58:03.663551776Z
+  modified_at: 2026-02-04T03:59:12.340012329Z
+  req_type: Functional
+  comments:
+  - id: 3d117b14-7e19-47b8-ae71-1526e807d4cc
+    author: joe
+    content: PCPS acquisition in crates/r4w-core/src/waveform/gnss/acquisition.rs. DLL/PLL tracking in tracking.rs. Commit cae11ba.
+    created_at: 2026-02-04T03:59:12.340008551Z
+    modified_at: 2026-02-04T03:59:12.340008551Z
+- id: 872ee06e-c766-4a51-8143-23621ebac68f
+  spec_id: FR-038
+  prefix_override: FR
+  title: GNSS CLI Subcommand
+  description: 'Implement r4w gnss CLI subcommand with sub-commands: info (signal parameters), compare (side-by-side table), code (PRN code analysis with cross-correlation), simulate (single-signal simulation with C/N0 and Doppler), and generate (baseband IQ generation with nav data bits).'
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 38-GNSS Waveforms
+  created_at: 2026-02-04T03:58:08.923275518Z
+  modified_at: 2026-02-04T03:59:12.345470321Z
+  req_type: Functional
+  comments:
+  - id: 28ddb88f-65c3-4d58-a309-2dc8a673cccf
+    author: joe
+    content: 'CLI handler in crates/r4w-cli/src/main.rs. Sub-commands: info, compare, code, simulate, generate. Commit cae11ba.'
+    created_at: 2026-02-04T03:59:12.345466248Z
+    modified_at: 2026-02-04T03:59:12.345466248Z
+- id: 6b670e94-e870-490f-b9fe-e403523b0c72
+  spec_id: FR-039
+  prefix_override: FR
+  title: GNSS Scenario Engine
+  description: Generic multi-emitter IQ composition engine in r4w-sim/scenario/. Includes Emitter trait (state_at, generate_iq, carrier_frequency_hz, nominal_power_dbm), ScenarioEngine (per-emitter Doppler shift via continuous phase accumulation, FSPL amplitude scaling, composite AWGN), ScenarioConfig (duration, sample_rate, center_frequency, noise_floor), and Trajectory types (Static, Linear, Waypoints, Circular with ENU-to-ECEF rotation). Block-by-block generation for memory efficiency.
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 39-GNSS Scenario Generator
+  created_at: 2026-02-04T03:58:17.446968491Z
+  modified_at: 2026-02-04T03:59:04.514728074Z
+  req_type: Functional
+  comments:
+  - id: fd9112ae-1dc3-438c-a287-798d93553d37
+    author: joe
+    content: Implemented in crates/r4w-sim/src/scenario/ (mod.rs, emitter.rs, trajectory.rs, config.rs, engine.rs). Emitter trait is generic; GNSS SatelliteEmitter implements it in r4w-core. 6 unit tests. Commit 00b4842.
+    created_at: 2026-02-04T03:59:04.514723662Z
+    modified_at: 2026-02-04T03:59:04.514723662Z
+- id: ed086584-b16d-409e-b040-1db4518e78dc
+  spec_id: FR-040
+  prefix_override: FR
+  title: GNSS Environment Models
+  description: 'Realistic GNSS propagation environment models in r4w-core/waveform/gnss/environment/. Includes: (1) KeplerianOrbit with 6 orbital elements, Newton-Raphson Kepler solver, ECI-to-ECEF rotation, and nominal orbit constructors for GPS/Galileo/GLONASS; (2) KlobucharModel ionospheric delay with 8 broadcast coefficients and 1/f² frequency scaling; (3) SaastamoinenModel tropospheric delay with hydrostatic+wet components and elevation mapping; (4) GnssMultipathPreset mapping environments (OpenSky/Suburban/UrbanCanyon/Indoor) to TDL taps with elevation dependence; (5) AntennaPattern gain models (Isotropic/Hemispherical/Patch/ChokeRing) with cos^n elevation response. Also includes WGS-84 coordinate types (ECEF/LLA) with bidirectional conversions, look angle computation, range rate, and FSPL in r4w-core/coordinates.rs.'
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 40-GNSS Scenario Generator
+  created_at: 2026-02-04T03:58:35.742223090Z
+  modified_at: 2026-02-04T03:59:04.520614805Z
+  req_type: Functional
+  comments:
+  - id: 02400552-6fe2-43c7-8dc3-017c10a81bf3
+    author: joe
+    content: Implemented in crates/r4w-core/src/waveform/gnss/environment/ (orbit.rs, ionosphere.rs, troposphere.rs, multipath.rs, antenna.rs) and crates/r4w-core/src/coordinates.rs. 27 unit tests across environment models and coordinates. Commit 00b4842.
+    created_at: 2026-02-04T03:59:04.520611201Z
+    modified_at: 2026-02-04T03:59:04.520611201Z
+- id: 2d0e6959-c2a2-4fd6-83c8-89c3607de709
+  spec_id: FR-041
+  prefix_override: FR
+  title: GNSS IQ Signal Generator
+  description: 'Multi-satellite composite IQ signal generator in r4w-core/waveform/gnss/. GnssScenario top-level API with from_preset() and generate()/generate_block() methods. SatelliteEmitter produces code-phase aligned baseband IQ from geometric pseudorange with per-satellite ionospheric/tropospheric delays applied as phase shifts. 6 scenario presets: OpenSky (4 GPS), UrbanCanyon (elevated SVs only, multipath), MultiConstellation (3 GPS + 3 Galileo), Driving (linear trajectory), Walking (slow trajectory), HighDynamics (fast-moving). Deterministic xorshift64 PRNG with Box-Muller for composite AWGN. Default 2.046 MHz sample rate.'
+  status: Completed
+  priority: High
+  owner: joe
+  feature: 41-GNSS Scenario Generator
+  created_at: 2026-02-04T03:58:44.103280085Z
+  modified_at: 2026-02-04T03:59:04.526360536Z
+  req_type: Functional
+  comments:
+  - id: 513a19e2-b667-456b-be68-a0a17f53d353
+    author: joe
+    content: Implemented in crates/r4w-core/src/waveform/gnss/ (scenario.rs, scenario_config.rs, satellite_emitter.rs). Uses xorshift64+Box-Muller instead of rand crate. 10 unit tests including all-presets smoke test. Commit 00b4842.
+    created_at: 2026-02-04T03:59:04.526356613Z
+    modified_at: 2026-02-04T03:59:04.526356613Z
+- id: d16c6f08-9ed0-4e12-9327-af9bff73f2ac
+  spec_id: FR-042
+  prefix_override: FR
+  title: GNSS Scenario CLI and GUI
+  description: 'CLI: r4w gnss scenario subcommand with --preset (OpenSky/UrbanCanyon/MultiConstellation/Driving/Walking/HighDynamics), --duration, --sample-rate, --output, --config, and --list-presets options. Displays satellite status table (PRN, elevation, azimuth, range, Doppler, C/N0, iono/tropo delays) and signal statistics. GUI: GnssSimulatorView in r4w-explorer with polar sky plot (elevation rings, cardinal labels, colored SVs), C/N0 bar chart per satellite, IQ waveform time-domain display, preset selector, duration/sample-rate sliders, and environment toggles (ionosphere, troposphere, multipath). Jupyter workshops 09 (scenario generation) and 10 (environment models) for education.'
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 42-GNSS Scenario Generator
+  created_at: 2026-02-04T03:58:53.206190310Z
+  modified_at: 2026-02-04T03:59:04.532344079Z
+  req_type: Functional
+  comments:
+  - id: e94604bb-1577-49ff-b72d-89c540ececb0
+    author: joe
+    content: CLI handler in crates/r4w-cli/src/main.rs (cmd_gnss_scenario). GUI view in crates/r4w-gui/src/views/gnss_simulator.rs. Workshops in notebooks/09_gnss_scenario_generation.ipynb and notebooks/10_gnss_environment_models.ipynb. Commit 00b4842.
+    created_at: 2026-02-04T03:59:04.532339906Z
+    modified_at: 2026-02-04T03:59:04.532339906Z
 id_config:
   format: SingleLevel
   numbering: Global
@@ -753,8 +951,8 @@ id_config:
     prefix: META
     description: Database configuration and templates
 features: []
-next_feature_number: 31
-next_spec_number: 32
+next_feature_number: 43
+next_spec_number: 43
 prefix_counters: {}
 relationship_definitions:
 - name: parent
