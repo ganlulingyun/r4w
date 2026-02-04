@@ -445,7 +445,7 @@ Measured with `tokei`:
 
 ## Recent Updates
 
-### February 2025 (Latest)
+### February 2026 (Latest)
 
 - **GNSS Waveforms** (4 constellations):
   - GPS L1 C/A: BPSK(1), 1023-chip Gold codes, PCPS acquisition, DLL/PLL tracking, LNAV message
@@ -467,6 +467,8 @@ Measured with `tokei`:
   - CLI: `r4w gnss scenario --preset open-sky --duration 0.001 --output test.iq`
   - GUI: GNSS Simulator view with sky plot, C/N0 bars, IQ waveform display
   - Workshops: `notebooks/09_gnss_scenario_generation.ipynb`, `notebooks/10_gnss_environment_models.ipynb`
+  - AIDA requirements: FR-032..FR-042 (all Completed)
+  - Developer's guide: [docs/GNSS_GUIDE.md](./docs/GNSS_GUIDE.md)
 
 ### December 2024
 
@@ -485,7 +487,7 @@ Measured with `tokei`:
   - Channel effect visualizations: AWGN at various SNRs, fading, multipath
   - Gallery generator example: `cargo run --example gallery_generate -p r4w-sim --features image`
 - **Jupyter Tutorial Notebooks** (`notebooks/`):
-  - 8 interactive notebooks covering SDR fundamentals
+  - 10 interactive notebooks covering SDR fundamentals and GNSS
   - Python wrapper for R4W CLI (`r4w_python` module)
   - Topics: I/Q basics, modulation, spectrum analysis, channel effects, LoRa, BER simulation, mesh networking
 
@@ -1947,6 +1949,7 @@ For comprehensive documentation, see the [docs/](./docs/) directory:
 | [docs/FPGA_DEVELOPERS_GUIDE.md](./docs/FPGA_DEVELOPERS_GUIDE.md) | FPGA engineer's guide: IP cores, register maps, collaboration |
 | [docs/SECURITY_GUIDE.md](./docs/SECURITY_GUIDE.md) | Security: memory safety, crypto, isolation, secure deployment |
 | [docs/ISOLATION_GUIDE.md](./docs/ISOLATION_GUIDE.md) | Waveform isolation: containers, VMs, hardware separation |
+| [docs/GNSS_GUIDE.md](./docs/GNSS_GUIDE.md) | GNSS waveforms, scenario engine, environment models, CLI/GUI reference |
 | [docs/PORTING_GUIDE_MILITARY.md](./docs/PORTING_GUIDE_MILITARY.md) | Military waveform porting: SINCGARS, HAVEQUICK, Link-16, P25 |
 | [MISSING_FEATURES.md](./MISSING_FEATURES.md) | Production readiness assessment and roadmap |
 
