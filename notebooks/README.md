@@ -37,6 +37,8 @@ Interactive Jupyter notebooks for learning SDR concepts with R4W.
 | 06 | BER Simulation | Monte Carlo error rate simulation |
 | 07 | Waveform Comparison | Performance comparison across waveforms |
 | 08 | Mesh Networking | Meshtastic simulation |
+| 09 | GNSS Scenario Generation | Multi-satellite IQ signals, presets, acquisition |
+| 10 | GNSS Environment Models | Orbits, ionosphere, troposphere, multipath, antennas |
 
 ## Python API
 
@@ -75,5 +77,7 @@ notebooks/
 ├── 05_lora_deep_dive.ipynb
 ├── 06_ber_simulation.ipynb
 ├── 07_waveform_comparison.ipynb
-└── 08_mesh_networking.ipynb
+├── 08_mesh_networking.ipynb
+├── 09_gnss_scenario_generation.ipynb
+└── 10_gnss_environment_models.ipynb
 ```

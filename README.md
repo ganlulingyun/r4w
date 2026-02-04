@@ -21,7 +21,7 @@ Powered by ![AIDA_Logo](images/aida_logo_1.png) - a Joe Mooney/Claude Code Produ
 
 ## Features
 
-- **38+ Waveforms**: CW, OOK, ASK, FSK, PSK, QAM, OFDM, LoRa, DSSS, FHSS, SINCGARS, HAVEQUICK, Link-16, P25, TETRA, DMR, 3G-ALE, and more
+- **42+ Waveforms**: CW, OOK, ASK, FSK, PSK, QAM, OFDM, LoRa, DSSS, FHSS, SINCGARS, HAVEQUICK, Link-16, P25, TETRA, DMR, 3G-ALE, GNSS (GPS, GLONASS, Galileo), and more
 - **Waveform Wizard**: Interactive GUI for designing waveforms with AI-assisted implementation
 - **Cross-Platform**: x86 Linux, ARM, macOS, Windows, WebAssembly, FPGA, Xilinx Zynq, Lattice
 - **Security & Isolation**: 8-level waveform isolation from process sandboxing to air-gapped systems
@@ -54,7 +54,7 @@ cd crates/r4w-web && trunk serve
 | Crate | Description |
 |-------|-------------|
 | **r4w-core** | Core DSP algorithms, waveform trait, FFT, FEC, coding |
-| **r4w-sim** | Channel simulation (AWGN, Rayleigh, Rician), UDP transport |
+| **r4w-sim** | Channel simulation (AWGN, Rayleigh, Rician), scenario engine, UDP transport |
 | **r4w-fpga** | FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5) |
 | **r4w-sandbox** | Waveform isolation (process, container, hardware separation) |
 | **r4w-gui** | Educational visualization application (egui) |
@@ -76,6 +76,7 @@ IoT/Radar:    Zigbee (802.15.4), UWB, FMCW
 HF/Military:  STANAG 4285, ALE, 3G-ALE, MIL-STD-188-110
               SINCGARS*, HAVEQUICK*, Link-16*, P25*
 PMR:          TETRA, DMR (Tier II/III)
+GNSS:         GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1
 ```
 
 **\* Framework implementations** - These waveforms use a trait-based architecture where classified/proprietary components (frequency hopping algorithms, TRANSEC, voice codecs) are represented by simulator stubs. The unclassified signal processing, modulation, and framing are fully implemented. See [docs/PORTING_GUIDE_MILITARY.md](docs/PORTING_GUIDE_MILITARY.md) for details on implementing operational versions.
@@ -223,6 +224,27 @@ cargo run --bin r4w-explorer
 
 See [waveform-spec/](waveform-spec/) for the schema and examples.
 
+## GNSS Signal Simulation
+
+R4W includes a multi-satellite GNSS IQ signal generator with realistic propagation effects:
+
+- **4 Constellations**: GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1
+- **Environment Models**: Keplerian orbits, Klobuchar ionosphere, Saastamoinen troposphere, multipath presets, antenna patterns
+- **Scenario Presets**: Open Sky, Urban Canyon, Multi-Constellation, Driving, Walking, High Dynamics
+- **Coordinate Library**: WGS-84 ECEF/LLA conversions, look angles, range rate, FSPL
+- **GUI Simulator**: Sky plot, C/N0 bars, IQ waveform display in r4w-explorer
+
+```bash
+# Explore GNSS signal parameters
+cargo run --bin r4w -- gnss compare
+
+# Generate a multi-satellite scenario
+cargo run --bin r4w -- gnss scenario --preset open-sky --duration 0.002 --output signal.iq
+
+# Simulate single-satellite acquisition
+cargo run --bin r4w -- gnss simulate --prn 1 --cn0 40 --doppler 1000
+```
+
 ## FPGA Integration
 
 R4W is designed for FPGA acceleration:
@@ -252,6 +274,7 @@ See [docs/FPGA_DEVELOPERS_GUIDE.md](docs/FPGA_DEVELOPERS_GUIDE.md) for IP cores,
 | **[MISSING_FEATURES.md](MISSING_FEATURES.md)** | Production readiness assessment and roadmap |
 | **[Tutorial](https://joemooney.github.io/r4w/tutorial/)** | Interactive HTML tutorial |
 | **[Workshops](workshops/)** | 11 hands-on workshops (~11 hours) covering I/Q, modulation, spread spectrum, and more |
+| **[Notebooks](notebooks/)** | 10 Jupyter tutorials: I/Q, modulation, spectrum, channels, LoRa, BER, GNSS scenarios |
 
 ## Development
 
