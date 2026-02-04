@@ -6560,11 +6560,42 @@ Implement GNSS (Global Navigation Satellite System) waveforms for R4W, covering 
 3. Added GNSS_GUIDE.md to README.md Documentation table
 4. Committed and pushed as `4960f6c`
 
+### User Request 6
+> Update OVERVIEW.md with the new GNSS guide and session changes
+
+**Actions Taken**:
+1. Fixed date from "February 2025" to "February 2026"
+2. Added GNSS_GUIDE.md to documentation table
+3. Added AIDA requirements reference (FR-032..FR-042) under GNSS scenario entry
+4. Updated notebook count from 8 to 10
+5. Committed and pushed as `c648a10`
+
+### User Request 7
+> For each of the md files in the docs directory generate the equivalent HTML document
+
+**Actions Taken**:
+1. Found existing `docs-html` Makefile target that was outdated (missing newer docs, output to wrong directory)
+2. Updated `docs-html` target:
+   - Changed output directory from `docs/slides/docs/` to `docs/html/`
+   - Added missing docs: `GNSS_GUIDE.md`, `MEASURABLE_OBJECTIVES.md`, `CLAUDE.md` (14 top-level + 7 porting guides = 21 total)
+   - Added `--toc --toc-depth=3` for auto-generated table of contents
+   - Added `--highlight-style=pygments` for code syntax highlighting
+   - Added per-file progress output
+3. Added `docs-clean` target to remove generated HTML
+4. Included `docs-clean` in `clean-all`
+5. Added `docs/html/` to `.gitignore`
+6. Updated help text with `docs-html` and `docs-clean` commands
+7. Ran `make docs-html` — all 21 HTML files generated successfully via pandoc
+8. Committed and pushed as `f4f4eb1`
+
 ### Git Operations
 - `2efa400` — docs(reqs): add GNSS requirements FR-032..FR-042 to AIDA database
 - `4af92a9` — fix(analysis): fix doc-test for SpectrumAnalyzer::compute signature
 - `cb113e8` — docs: add GNSS waveforms and scenario generator to README
 - `4960f6c` — docs: add GNSS Developer's Guide
+- `1b231e8` — docs: add Session 21 to PROMPT_HISTORY.md
+- `c648a10` — docs: update OVERVIEW.md with GNSS guide and session changes
+- `f4f4eb1` — build: add docs-html target for markdown-to-HTML conversion
 
 ### Files Changed
 
@@ -6575,6 +6606,10 @@ Implement GNSS (Global Navigation Satellite System) waveforms for R4W, covering 
 | `README.md` | Added GNSS waveforms, scenario section, notebook link, GNSS guide link |
 | `notebooks/README.md` | Added notebooks 09 and 10 to table and directory tree |
 | `docs/GNSS_GUIDE.md` | Created — comprehensive GNSS developer's guide |
+| `OVERVIEW.md` | Fixed date, added GNSS guide to docs table, updated notebook count |
+| `PROMPT_HISTORY.md` | Added Session 21 |
+| `Makefile` | Updated docs-html target (docs/html/, added GNSS/CLAUDE/MEASURABLE, TOC, syntax highlight) |
+| `.gitignore` | Added docs/html/ |
 
 ### Test Results
 - All 704 tests passing (622 r4w-core + 57 r4w-sim + 23 r4w-core doc-tests + 2 r4w-sim doc-tests)
