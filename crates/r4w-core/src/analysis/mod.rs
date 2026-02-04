@@ -21,8 +21,8 @@
 //! let sample_rate = 1_000_000.0;
 //!
 //! // Compute spectrum
-//! let analyzer = SpectrumAnalyzer::new(1024);
-//! let spectrum = analyzer.compute(&samples);
+//! let mut analyzer = SpectrumAnalyzer::new(1024);
+//! let spectrum = analyzer.compute(&samples, sample_rate);
 //!
 //! // Compute statistics
 //! let stats = SignalStats::compute(&samples, Some(sample_rate));
