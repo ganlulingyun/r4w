@@ -21,7 +21,7 @@ Powered by ![AIDA_Logo](images/aida_logo_1.png) - a Joe Mooney/Claude Code Produ
 
 ## Features
 
-- **42+ Waveforms**: CW, OOK, ASK, FSK, PSK, QAM, OFDM, LoRa, DSSS, FHSS, SINCGARS, HAVEQUICK, Link-16, P25, TETRA, DMR, 3G-ALE, GNSS (GPS, GLONASS, Galileo), and more
+- **46+ Waveforms**: CW, OOK, ASK, FSK, PSK, QAM, OFDM, LoRa, DSSS, FHSS, SINCGARS, HAVEQUICK, Link-16, P25, TETRA, DMR, 3G-ALE, GNSS (GPS, GLONASS, Galileo), Emergency Beacons (ELT, EPIRB, PLB), and more
 - **Waveform Wizard**: Interactive GUI for designing waveforms with AI-assisted implementation
 - **Cross-Platform**: x86 Linux, ARM, macOS, Windows, WebAssembly, FPGA, Xilinx Zynq, Lattice
 - **Security & Isolation**: 8-level waveform isolation from process sandboxing to air-gapped systems
@@ -77,6 +77,7 @@ HF/Military:  STANAG 4285, ALE, 3G-ALE, MIL-STD-188-110
               SINCGARS*, HAVEQUICK*, Link-16*, P25*
 PMR:          TETRA, DMR (Tier II/III)
 GNSS:         GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1
+Emergency:    ELT-121.5, EPIRB-121.5, PLB-121.5, Beacon-243
 ```
 
 **\* Framework implementations** - These waveforms use a trait-based architecture where classified/proprietary components (frequency hopping algorithms, TRANSEC, voice codecs) are represented by simulator stubs. The unclassified signal processing, modulation, and framing are fully implemented. See [docs/PORTING_GUIDE_MILITARY.md](docs/PORTING_GUIDE_MILITARY.md) for details on implementing operational versions.

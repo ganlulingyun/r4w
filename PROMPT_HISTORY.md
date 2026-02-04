@@ -6614,3 +6614,41 @@ Implement GNSS (Global Navigation Satellite System) waveforms for R4W, covering 
 ### Test Results
 - All 704 tests passing (622 r4w-core + 57 r4w-sim + 23 r4w-core doc-tests + 2 r4w-sim doc-tests)
 - Doc-test in analysis/mod.rs fixed (was the only failure)
+
+---
+
+## Session 22 — Emergency Distress Beacon Waveform
+**Date**: 2026-02-03
+
+### User Request
+- Complete the 121.5 MHz / 243 MHz swept-tone beacon waveform implementation (started in Session 21)
+
+### Actions Taken
+1. Registered `beacon.rs` in `waveform/mod.rs` module system
+2. Added 4 beacon types to `WaveformFactory::list()`: ELT-121.5, EPIRB-121.5, PLB-121.5, Beacon-243
+3. Added factory `create()` match arms for all beacon variants
+4. Fixed compilation errors: `ModulationStage` missing fields (`input_bits`, `output_symbols`, `constellation`) and `samples` field wrapped in `Option`
+5. All 14 beacon-specific tests pass, 766 total workspace tests pass
+6. Added AIDA requirement FR-043 (Emergency Distress Beacon Waveform, Completed)
+7. Updated README.md: waveform count 42+ → 46+, added Emergency line to Available Waveforms
+8. Updated CLAUDE.md: added beacon to Recent Updates
+
+### Beacon Waveform Details
+- **Signal**: AM carrier with swept audio tone (300–1600 Hz), >85% modulation depth
+- **Standard**: ICAO Annex 10, ITU Radio Regulations
+- **Types**: ELT (aircraft, sweep down), EPIRB (maritime), PLB (personal, sweep up), Military (243 MHz)
+- **Implementation**: `beacon.rs` — 642 lines, full Waveform trait, 14 unit tests
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `crates/r4w-core/src/waveform/beacon.rs` | Created — full beacon waveform implementation |
+| `crates/r4w-core/src/waveform/mod.rs` | Added `pub mod beacon`, factory entries for 4 beacon types |
+| `README.md` | Updated waveform count and Available Waveforms list |
+| `CLAUDE.md` | Added beacon to Recent Updates |
+| `PROMPT_HISTORY.md` | Added Session 22 |
+| `requirements.yaml` | Added FR-043 (Completed) |
+
+### Git Operations
+- Commit d65f593: `[AI:claude] feat(waveform): add 121.5/243 MHz emergency distress beacon (FR-043)`
