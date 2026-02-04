@@ -37,6 +37,9 @@ vivado/build/
 *.jed
 PROMPT_HISTORY.md
 
+# Generated HTML documentation
+docs/html/
+
 # Test WASM crate build artifacts
 crates/r4w-wasm-test-waveform/target/
 crates/r4w-wasm-test-waveform/Cargo.lock

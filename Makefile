@@ -15,7 +15,8 @@
         install install-system uninstall uninstall-system \
         build-agent deploy-arm64 deploy-both remote-agent-start remote-agent-stop \
         remote-agent-status remote-agent-logs deploy-and-start deploy-help \
-        slides slide slides-demo slides-images slides-clean slides-list
+        slides slide slides-demo slides-images slides-clean slides-list \
+        docs-html docs-clean
 
 # Default target
 all: build
@@ -178,10 +179,12 @@ slides: slides-images $(PRESENTATIONS:%=$(SLIDES_OUT)/%.html)
 	@echo "All slides built in $(SLIDES_OUT)/"
 
 ## Build HTML documentation from markdown
+DOCS_HTML_OUT := docs/html
+
 docs-html:
-	@mkdir -p $(SLIDES_OUT)/docs $(SLIDES_OUT)/docs/porting
+	@mkdir -p $(DOCS_HTML_OUT) $(DOCS_HTML_OUT)/porting
 	@echo "Converting documentation to HTML..."
-	@for doc in README.md:readme OVERVIEW.md:overview \
+	@for doc in README.md:readme OVERVIEW.md:overview CLAUDE.md:claude \
 		docs/WAVEFORM_DEVELOPERS_GUIDE.md:waveform-guide \
 		docs/FPGA_DEVELOPERS_GUIDE.md:fpga-guide \
 		docs/SECURITY_GUIDE.md:security-guide \
@@ -190,17 +193,27 @@ docs-html:
 		docs/PHYSICAL_LAYER_GUIDE.md:physical-layer-guide \
 		docs/PORTING_GUIDE_MILITARY.md:porting-military \
 		docs/CRYPTO_BOUNDARY.md:crypto-boundary \
-		docs/TICK_SCHEDULER_GUIDE.md:tick-scheduler; do \
+		docs/TICK_SCHEDULER_GUIDE.md:tick-scheduler \
+		docs/GNSS_GUIDE.md:gnss-guide \
+		docs/MEASURABLE_OBJECTIVES.md:measurable-objectives; do \
 		src=$${doc%%:*}; name=$${doc##*:}; \
-		pandoc "$$src" -o "$(SLIDES_OUT)/docs/$$name.html" --standalone \
-			--css="style.css" --metadata title="R4W - $$name"; \
+		pandoc "$$src" -o "$(DOCS_HTML_OUT)/$$name.html" --standalone \
+			--metadata title="R4W - $$name" \
+			--toc --toc-depth=3 \
+			--highlight-style=pygments; \
+		echo "  $$src -> $(DOCS_HTML_OUT)/$$name.html"; \
 	done
 	@for f in docs/porting/*.md; do \
 		name=$$(basename "$$f" .md); \
-		[ "$$name" != "README" ] && pandoc "$$f" -o "$(SLIDES_OUT)/docs/porting/$$name.html" \
-			--standalone --css="../style.css" --metadata title="Porting: $$name"; \
-	done || true
-	@echo "Documentation built in $(SLIDES_OUT)/docs/"
+		pandoc "$$f" -o "$(DOCS_HTML_OUT)/porting/$$name.html" --standalone \
+			--metadata title="Porting: $$name" \
+			--toc --toc-depth=3 \
+			--highlight-style=pygments; \
+		echo "  $$f -> $(DOCS_HTML_OUT)/porting/$$name.html"; \
+	done
+	@echo ""
+	@echo "Documentation built in $(DOCS_HTML_OUT)/"
+	@echo "Open: $(DOCS_HTML_OUT)/readme.html"
 
 ## Build a single slideshow (use: make slide NAME=05_r4w_demo)
 slide: slides-images
@@ -260,6 +273,11 @@ slides-list:
 # ============================================================================
 # Documentation
 # ============================================================================
+
+## Clean generated HTML documentation
+docs-clean:
+	rm -rf $(DOCS_HTML_OUT)
+	@echo "Cleaned $(DOCS_HTML_OUT)/"
 
 ## Generate documentation
 doc:
@@ -604,8 +622,8 @@ deploy-help:
 clean:
 	cargo clean
 
-## Clean everything including web artifacts
-clean-all: clean web-clean
+## Clean everything including web artifacts and generated docs
+clean-all: clean web-clean docs-clean slides-clean
 	rm -rf target/
 
 # ============================================================================
@@ -716,8 +734,10 @@ help:
 	@echo "  make quality      - Run all quality checks"
 	@echo ""
 	@echo "Docs:"
-	@echo "  make doc          - Generate documentation"
-	@echo "  make doc-open     - Generate and open docs"
+	@echo "  make doc          - Generate Rust API documentation"
+	@echo "  make doc-open     - Generate and open Rust API docs"
+	@echo "  make docs-html    - Convert all markdown guides to HTML (docs/html/)"
+	@echo "  make docs-clean   - Remove generated HTML docs"
 	@echo ""
 	@echo "Presentations:"
 	@echo "  make slides       - Build all HTML slideshows"
