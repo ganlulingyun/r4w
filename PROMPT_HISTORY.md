@@ -6404,3 +6404,75 @@ Implement GNSS (Global Navigation Satellite System) waveforms for R4W, covering 
 ### Test Results
 - 585 tests total, all passing (38 new GNSS-specific tests)
 - AIDA requirements: FR-032 through FR-038
+
+---
+
+## Session 20: GNSS IQ Scenario Generator
+
+**Date**: February 2026
+
+### User Request
+> Implement the GNSS IQ Signal Generator with Realistic Channel Effects plan (4-layer architecture)
+
+**Actions Taken**:
+
+1. **Phase 1: Coordinate Library + Generic Scenario Engine**
+   - Created `r4w-core/src/coordinates.rs` — ECEF/LLA/ENU types, WGS-84 conversions, look angles, range rate, FSPL
+   - Created `r4w-sim/src/scenario/` module — `Trajectory` enum (Static, Linear, Waypoints, Circular), `Emitter` trait, `ScenarioConfig`, `ScenarioEngine` (multi-emitter Doppler/FSPL/noise composition)
+
+2. **Phase 2: GNSS Environment Models**
+   - Created `environment/orbit.rs` — Keplerian orbit propagation with Newton-Raphson Kepler solver, nominal orbit constructors for GPS (26,560 km, 55°), Galileo (29,600 km, 56°), GLONASS (25,508 km, 64.8°)
+   - Created `environment/ionosphere.rs` — Klobuchar 8-coefficient broadcast model with elevation/azimuth/time/latitude dependence, frequency scaling (1/f²)
+   - Created `environment/troposphere.rs` — Saastamoinen model with hydrostatic + wet components, standard atmosphere lapse rate, elevation mapping function
+   - Created `environment/multipath.rs` — Presets (OpenSky, Suburban, UrbanCanyon, Indoor) mapping to TDL taps, elevation-dependent configuration
+   - Created `environment/antenna.rs` — AntennaPattern (Isotropic, Hemispherical, Patch, ChokeRing) with cos^n gain model, BodyAttitude for tilt effects
+
+3. **Phase 3: GNSS Scenario Composer**
+   - Created `scenario_config.rs` — `GnssScenarioConfig`, `SatelliteConfig`, `ReceiverConfig`, `EnvironmentConfig`, `OutputConfig`, `GnssScenarioPreset` enum (6 presets)
+   - Created `satellite_emitter.rs` — `SatelliteEmitter` wrapping Waveform + orbit + atmo models, code-phase aligned IQ generation from geometric range
+   - Created `scenario.rs` — `GnssScenario` top-level API with `generate()`, `generate_block()`, `satellite_status()`, `write_output()`, deterministic xorshift64 noise (no rand dependency in r4w-core)
+
+4. **Phase 4: CLI Integration**
+   - Added `Scenario` variant to `GnssCommand` with `--preset`, `--config`, `--output`, `--duration`, `--sample-rate`, `--list-presets`
+   - Implemented `cmd_gnss_scenario()` handler with satellite status table, IQ generation, file output, power stats
+
+5. **Phase 5: GUI Integration**
+   - Created `GnssSimulatorView` with sky plot (polar), C/N0 bar chart per SV, IQ waveform display, preset selector, environment toggles
+   - Registered as `ActiveView::GnssSimulator` in app.rs navigation
+
+6. **Workshops**
+   - Created `notebooks/09_gnss_scenario_generation.ipynb` — CLI-driven scenario generation, multi-constellation comparison, environment effects
+   - Created `notebooks/10_gnss_environment_models.ipynb` — Keplerian orbits, Klobuchar ionosphere, Saastamoinen troposphere, multipath, antenna patterns, link budget
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `crates/r4w-core/src/coordinates.rs` | Created — ECEF/LLA types, geodetic conversions |
+| `crates/r4w-core/src/lib.rs` | Added `pub mod coordinates` |
+| `crates/r4w-core/src/waveform/gnss/mod.rs` | Added environment, satellite_emitter, scenario, scenario_config modules |
+| `crates/r4w-core/src/waveform/gnss/environment/mod.rs` | Created — re-exports |
+| `crates/r4w-core/src/waveform/gnss/environment/orbit.rs` | Created — Keplerian orbits |
+| `crates/r4w-core/src/waveform/gnss/environment/ionosphere.rs` | Created — Klobuchar model |
+| `crates/r4w-core/src/waveform/gnss/environment/troposphere.rs` | Created — Saastamoinen model |
+| `crates/r4w-core/src/waveform/gnss/environment/multipath.rs` | Created — Multipath presets |
+| `crates/r4w-core/src/waveform/gnss/environment/antenna.rs` | Created — Antenna patterns |
+| `crates/r4w-core/src/waveform/gnss/scenario_config.rs` | Created — Config + presets |
+| `crates/r4w-core/src/waveform/gnss/satellite_emitter.rs` | Created — SatelliteEmitter |
+| `crates/r4w-core/src/waveform/gnss/scenario.rs` | Created — GnssScenario API |
+| `crates/r4w-sim/src/scenario/mod.rs` | Created — re-exports |
+| `crates/r4w-sim/src/scenario/trajectory.rs` | Created — Trajectory models |
+| `crates/r4w-sim/src/scenario/emitter.rs` | Created — Emitter trait |
+| `crates/r4w-sim/src/scenario/config.rs` | Created — ScenarioConfig |
+| `crates/r4w-sim/src/scenario/engine.rs` | Created — ScenarioEngine |
+| `crates/r4w-sim/src/lib.rs` | Added scenario module + re-exports |
+| `crates/r4w-cli/src/main.rs` | Added Scenario GnssCommand variant + handler |
+| `crates/r4w-gui/src/views/gnss_simulator.rs` | Created — GNSS Simulator view |
+| `crates/r4w-gui/src/views/mod.rs` | Added gnss_simulator module |
+| `crates/r4w-gui/src/app.rs` | Added GnssSimulator ActiveView + view field + render |
+| `notebooks/09_gnss_scenario_generation.ipynb` | Created — Workshop |
+| `notebooks/10_gnss_environment_models.ipynb` | Created — Workshop |
+
+### Test Results
+- 45 new tests (39 in r4w-core + 6 in r4w-sim), all passing
+- AIDA requirements: FR-039 through FR-042

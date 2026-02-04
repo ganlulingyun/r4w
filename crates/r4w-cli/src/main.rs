@@ -858,6 +858,33 @@ enum GnssCommand {
 
     /// Compare signals across constellations
     Compare,
+
+    /// Generate multi-satellite GNSS IQ scenario with realistic channel effects
+    Scenario {
+        /// Scenario preset (open-sky, urban-canyon, driving, walking, high-dynamics, multi-constellation)
+        #[arg(short = 'P', long)]
+        preset: Option<String>,
+
+        /// YAML configuration file
+        #[arg(short, long)]
+        config: Option<PathBuf>,
+
+        /// Output file for IQ samples
+        #[arg(short, long, default_value = "gnss_scenario.iq")]
+        output: PathBuf,
+
+        /// Scenario duration in seconds
+        #[arg(short, long, default_value = "0.001")]
+        duration: f64,
+
+        /// Sample rate in Hz
+        #[arg(long, default_value = "2046000")]
+        sample_rate: f64,
+
+        /// List available presets
+        #[arg(long)]
+        list_presets: bool,
+    },
 }
 
 fn validate_sf(sf: u8) -> Result<u8> {
@@ -3300,6 +3327,95 @@ fn cmd_gnss_compare() -> Result<()> {
     Ok(())
 }
 
+// trace:FR-042 | ai:claude
+fn cmd_gnss_scenario(
+    preset: Option<String>,
+    _config: Option<PathBuf>,
+    output: PathBuf,
+    duration: f64,
+    sample_rate: f64,
+    list_presets: bool,
+) -> Result<()> {
+    use r4w_core::waveform::gnss::scenario::GnssScenario;
+    use r4w_core::waveform::gnss::scenario_config::GnssScenarioPreset;
+
+    if list_presets {
+        println!("Available GNSS scenario presets:");
+        println!();
+        for p in GnssScenarioPreset::all() {
+            let cfg = p.to_config();
+            println!("  {:20} - {} satellites, {} environment",
+                format!("{}", p).to_lowercase().replace(' ', "-"),
+                cfg.satellites.len(),
+                cfg.environment.multipath_preset,
+            );
+        }
+        return Ok(());
+    }
+
+    let preset_enum = match preset.as_deref() {
+        Some("open-sky") | None => GnssScenarioPreset::OpenSky,
+        Some("urban-canyon") => GnssScenarioPreset::UrbanCanyon,
+        Some("driving") => GnssScenarioPreset::Driving,
+        Some("walking") => GnssScenarioPreset::Walking,
+        Some("high-dynamics") => GnssScenarioPreset::HighDynamics,
+        Some("multi-constellation") => GnssScenarioPreset::MultiConstellation,
+        Some(other) => {
+            anyhow::bail!("Unknown preset '{}'. Use --list-presets to see options.", other);
+        }
+    };
+
+    println!("GNSS Scenario Generator");
+    println!("=======================");
+    println!("Preset:      {}", preset_enum);
+    println!("Duration:    {} ms", duration * 1000.0);
+    println!("Sample rate: {} MHz", sample_rate / 1e6);
+    println!("Output:      {}", output.display());
+    println!();
+
+    let mut config = preset_enum.to_config();
+    config.output.duration_s = duration;
+    config.output.sample_rate = sample_rate;
+
+    let mut scenario = GnssScenario::new(config);
+
+    // Show satellite status
+    let statuses = scenario.satellite_status();
+    println!("Satellites ({} configured):", statuses.len());
+    println!("  {:>4} {:>10} {:>8} {:>8} {:>10} {:>8}",
+        "PRN", "Signal", "El (°)", "Az (°)", "Range (km)", "C/N0");
+    for s in &statuses {
+        println!("  {:>4} {:>10} {:>8.1} {:>8.1} {:>10.0} {:>8.1}",
+            s.prn,
+            format!("{}", s.signal),
+            s.elevation_deg,
+            s.azimuth_deg,
+            s.range_m / 1000.0,
+            s.cn0_dbhz,
+        );
+    }
+    println!();
+
+    // Generate IQ
+    let total = scenario.total_samples();
+    println!("Generating {} samples...", total);
+    let samples = scenario.generate();
+    println!("Generated {} IQ samples", samples.len());
+
+    // Write output
+    scenario.write_output(&samples, &output)?;
+    let file_size = samples.len() * 16; // 2 x f64
+    println!("Written {} bytes to {}", file_size, output.display());
+
+    // Stats
+    let avg_power: f64 = samples.iter()
+        .map(|s| s.re * s.re + s.im * s.im)
+        .sum::<f64>() / samples.len() as f64;
+    println!("Average power: {:.2} dB", 10.0 * avg_power.log10());
+
+    Ok(())
+}
+
 fn cmd_remote(address: String, command: RemoteCommand) -> Result<()> {
     // Parse address
     let (host, port) = if address.contains(':') {
@@ -4313,6 +4429,8 @@ fn main() -> Result<()> {
             GnssCommand::Simulate { prn, cn0, doppler, duration } =>
                 cmd_gnss_simulate(prn, cn0, doppler, duration),
             GnssCommand::Compare => cmd_gnss_compare(),
+            GnssCommand::Scenario { preset, config, output, duration, sample_rate, list_presets } =>
+                cmd_gnss_scenario(preset, config, output, duration, sample_rate, list_presets),
         },
 
         Commands::Completions { shell } => {

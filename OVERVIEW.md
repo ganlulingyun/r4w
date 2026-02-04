@@ -454,6 +454,20 @@ Measured with `tokei`:
   - GPS L5: QPSK, 10230-chip codes, Neumann-Hoffman secondary codes, 10.23 Mchip/s
   - CLI: `r4w gnss info`, `r4w gnss generate`, `r4w gnss code`, `r4w gnss simulate`, `r4w gnss compare`
 
+- **GNSS IQ Scenario Generator** (Multi-satellite composite IQ):
+  - Generic scenario engine: `Emitter` trait, `Trajectory` models, per-emitter Doppler/FSPL/channel, composite noise
+  - Keplerian orbit propagation with nominal constructors for GPS, Galileo, GLONASS
+  - Klobuchar ionospheric delay model (8 broadcast coefficients, 1/f² scaling)
+  - Saastamoinen tropospheric delay (hydrostatic + wet, elevation mapping)
+  - Multipath presets: OpenSky, Suburban, UrbanCanyon, Indoor → TDL tap configurations
+  - Antenna patterns: Isotropic, Hemispherical, Patch, ChokeRing with elevation-dependent gain
+  - Scenario presets: OpenSky, UrbanCanyon, Driving, Walking, HighDynamics, MultiConstellation
+  - Code-phase aligned IQ generation from geometric pseudorange
+  - Coordinate library: ECEF/LLA/ENU, WGS-84 conversions, look angles, range rate, FSPL
+  - CLI: `r4w gnss scenario --preset open-sky --duration 0.001 --output test.iq`
+  - GUI: GNSS Simulator view with sky plot, C/N0 bars, IQ waveform display
+  - Workshops: `notebooks/09_gnss_scenario_generation.ipynb`, `notebooks/10_gnss_environment_models.ipynb`
+
 ### December 2024
 
 - **Enhanced Channel Simulation**:

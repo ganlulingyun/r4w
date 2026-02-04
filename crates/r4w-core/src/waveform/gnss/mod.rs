@@ -32,6 +32,10 @@ pub mod glonass_l1of;
 pub mod boc;
 pub mod galileo_e1;
 pub mod gps_l5;
+pub mod environment;
+pub mod satellite_emitter;
+pub mod scenario;
+pub mod scenario_config;
 
 pub use types::*;
 pub use prn::{GpsCaCodeGenerator, GlonassCodeGenerator, GalileoE1CodeGenerator, GpsL5CodeGenerator};
@@ -42,3 +46,7 @@ pub use gps_l1ca::GpsL1Ca;
 pub use glonass_l1of::GlonassL1of;
 pub use galileo_e1::GalileoE1;
 pub use gps_l5::GpsL5;
+pub use environment::{AntennaPattern, BodyAttitude, GnssMultipathPreset, KeplerianOrbit, KlobucharModel, SaastamoinenModel};
+pub use satellite_emitter::SatelliteEmitter;
+pub use scenario::GnssScenario;
+pub use scenario_config::{GnssScenarioConfig, GnssScenarioPreset, SatelliteConfig, ReceiverConfig, EnvironmentConfig, OutputConfig};

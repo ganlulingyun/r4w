@@ -51,6 +51,7 @@ pub mod channel;
 pub mod device;
 pub mod doppler;
 pub mod hal;
+pub mod scenario;
 pub mod simulator;
 
 // Re-exports
@@ -58,6 +59,7 @@ pub use channel::{Channel, ChannelConfig, ChannelModel, TappedDelayLine, TdlProf
 pub use device::{SdrConfig, SdrDevice, SdrError, SdrResult};
 pub use doppler::{DopplerGenerator, DopplerModel, JakesDoppler, velocity_to_doppler};
 pub use hal::{ClockControl, ClockSource, DriverRegistry, SampleFormat, SdrDeviceExt, StreamConfig, StreamDirection, StreamHandle, StreamStatus, TunerControl};
+pub use scenario::{Emitter, EmitterState, EmitterStatus, ScenarioConfig, ScenarioEngine, Trajectory, TrajectoryState};
 pub use simulator::Simulator;
 
 /// Prelude for convenient imports

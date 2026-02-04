@@ -14,7 +14,7 @@ use crate::platform::{platform, PlatformServices};
 use crate::streaming::{PlaybackState, StreamConfig, StreamManager};
 use crate::views::{
     AdsbView, AleView, ChirpView, CodeExplorerView, ConstellationView, DemodView,
-    FhssView, GenericDemodulationView, GenericModulationView, GenericPipelineView,
+    FhssView, GenericDemodulationView, GenericModulationView, GenericPipelineView, GnssSimulatorView,
     MeshNetworkView, ModulationView, OverviewView, PerformanceView, PipelineView, RemoteLabView,
     SpectrumView, Stanag4285View, StreamingView, UdpBenchmarkView, WaveformComparisonView,
     WaveformView, WaveformParams, WaveformWizardView,
@@ -126,6 +126,7 @@ pub enum ActiveView {
     Constellation,
     Performance,
     WaveformComparison,
+    GnssSimulator,
 }
 
 impl ActiveView {
@@ -151,6 +152,7 @@ impl ActiveView {
             Self::Constellation => "Constellation",
             Self::Performance => "Performance",
             Self::WaveformComparison => "Waveform Comparison",
+            Self::GnssSimulator => "GNSS Simulator",
         }
     }
 
@@ -176,6 +178,7 @@ impl ActiveView {
             Self::Constellation => "I/Q signal visualization",
             Self::Performance => "Compare sequential vs parallel performance",
             Self::WaveformComparison => "Benchmark comparison of BPSK, QPSK, and LoRa waveforms",
+            Self::GnssSimulator => "Multi-satellite GNSS IQ generation with realistic channel effects",
         }
     }
 
@@ -196,7 +199,8 @@ impl ActiveView {
             Self::Spectrum => true,
             Self::Constellation => true,
             Self::Performance => true, // Performance view available for all waveforms
-            Self::WaveformComparison => true, // Comparison view available for all waveforms
+            Self::WaveformComparison => true,
+            Self::GnssSimulator => true,
             // ADS-B specific view
             Self::AdsbDecoder => waveform == "ADS-B",
             // Chirp is LoRa-specific (chirp signal visualization)
@@ -273,6 +277,7 @@ pub struct WaveformExplorer {
     constellation_view: ConstellationView,
     performance_view: PerformanceView,
     waveform_comparison_view: WaveformComparisonView,
+    gnss_simulator_view: GnssSimulatorView,
 
     /// Generic views (for non-LoRa waveforms)
     generic_mod_view: GenericModulationView,
@@ -434,6 +439,7 @@ impl WaveformExplorer {
             spectrum_view: SpectrumView::new(),
             constellation_view: ConstellationView::new(),
             waveform_comparison_view: WaveformComparisonView::new(),
+            gnss_simulator_view: GnssSimulatorView::new(),
             generic_mod_view: GenericModulationView::new(),
             generic_demod_view: GenericDemodulationView::new(),
             generic_pipeline_view: GenericPipelineView::new(),
@@ -729,6 +735,7 @@ impl WaveformExplorer {
                     ActiveView::Pipeline,
                     ActiveView::Spectrum,
                     ActiveView::Constellation,
+                    ActiveView::GnssSimulator,
                 ];
 
                 for view in all_views {
@@ -4111,6 +4118,9 @@ impl WaveformExplorer {
                 }
                 ActiveView::WaveformComparison => {
                     self.waveform_comparison_view.render(ui);
+                }
+                ActiveView::GnssSimulator => {
+                    self.gnss_simulator_view.render(ui);
                 }
             }
         });

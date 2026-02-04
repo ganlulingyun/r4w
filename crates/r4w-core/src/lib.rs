@@ -45,6 +45,7 @@
 //! ```
 
 pub mod agent;
+pub mod coordinates;
 pub mod analysis;
 pub mod anti_jam;
 pub mod benchmark;

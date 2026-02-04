@@ -10,6 +10,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **r4w-core**: Core DSP algorithms, timing, RT primitives, configuration
   - `waveform/`: 42+ waveform implementations (including GNSS: GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1)
+  - `waveform/gnss/environment/`: Keplerian orbits, Klobuchar ionosphere, Saastamoinen troposphere, multipath presets, antenna patterns
+  - `waveform/gnss/scenario*.rs`: Multi-satellite GNSS IQ scenario generation with realistic channel effects
+  - `coordinates.rs`: ECEF/LLA coordinate types, geodetic conversions, look angles, range rate, FSPL
   - `analysis/`: Spectrum analyzer, waterfall generator, signal statistics, peak detection
   - `timing.rs`: Multi-clock model (SampleClock, WallClock, HardwareClock, SyncedTime)
   - `rt/`: Lock-free ring buffers, buffer pools, RT thread spawning
@@ -18,6 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `hal/`: StreamHandle, TunerControl, ClockControl, SdrDeviceExt traits
   - `channel.rs`: AWGN, Rayleigh, Rician, CFO, TDL multipath (EPA/EVA/ETU), Jake's Doppler
   - `doppler.rs`: Jake's/Clarke's, Flat, and Gaussian Doppler models
+  - `scenario/`: Generic multi-emitter IQ scenario engine (trajectory, emitter trait, Doppler/FSPL/noise)
   - `simulator.rs`: Software SDR simulator
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
@@ -59,6 +63,12 @@ cargo run --bin r4w -- gnss compare
 cargo run --bin r4w -- gnss code --prn 1 --cross-prn 7
 cargo run --bin r4w -- gnss simulate --prn 1 --cn0 40 --doppler 1000
 cargo run --bin r4w -- gnss generate --signal GPS-L1CA --prn 1 --bits 10
+
+# GNSS scenario generation (multi-satellite IQ with channel effects)
+cargo run --bin r4w -- gnss scenario --list-presets
+cargo run --bin r4w -- gnss scenario --preset open-sky --duration 0.001 --output test.iq
+cargo run --bin r4w -- gnss scenario --preset urban-canyon --duration 0.01
+cargo run --bin r4w -- gnss scenario --preset multi-constellation --sample-rate 4092000
 
 # Signal analysis
 cargo run --bin r4w -- analyze spectrum -i file.sigmf-meta --fft-size 1024
@@ -108,6 +118,11 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **GNSS IQ Scenario Generator** - Multi-satellite composite IQ generation with Keplerian orbits, Klobuchar ionosphere, Saastamoinen troposphere, multipath presets, antenna patterns, orbital Doppler, and FSPL. CLI: `r4w gnss scenario`. GUI: GNSS Simulator view with sky plot and C/N0 bars. Presets: OpenSky, UrbanCanyon, Driving, Walking, HighDynamics, MultiConstellation.
+- **Generic Scenario Engine** - Reusable multi-emitter IQ composition framework in r4w-sim with `Emitter` trait, trajectory models, per-emitter Doppler/path-loss/channel, and composite noise.
+- **Coordinate Library** - ECEF/LLA/ENU types with WGS-84 conversions, look angles, range rate, FSPL in r4w-core.
+- **GNSS Environment Models** - Keplerian orbit propagation (GPS/Galileo/GLONASS nominal orbits), Klobuchar ionospheric delay, Saastamoinen tropospheric delay, multipath presets (OpenSky/Suburban/UrbanCanyon/Indoor), antenna patterns (Isotropic/Patch/ChokeRing).
+- **Jupyter Workshops** - 10 interactive tutorials including GNSS scenario generation and environment models (`notebooks/09_*.ipynb`, `notebooks/10_*.ipynb`)
 - **GNSS Waveforms** - GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1 with PRN code generation, FFT-based PCPS acquisition, DLL/PLL tracking loops, navigation data encoding/decoding, and `r4w gnss` CLI subcommand
 - **Enhanced Channel Simulation** - Jake's/Clarke's Doppler model, Tapped Delay Line (TDL) multipath with 3GPP profiles (EPA, EVA, ETU)
 - **CLI Analysis Tools** - `r4w analyze` subcommands: spectrum, waterfall, stats, peaks
