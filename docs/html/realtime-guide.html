@@ -1,0 +1,1211 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>R4W - realtime-guide</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">R4W - realtime-guide</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#real-time-scheduler-guide"
+id="toc-real-time-scheduler-guide">Real-Time Scheduler Guide</a>
+<ul>
+<li><a href="#overview" id="toc-overview">Overview</a></li>
+<li><a href="#when-to-use-which-scheduler"
+id="toc-when-to-use-which-scheduler">When to Use Which
+Scheduler</a></li>
+<li><a href="#core-concepts" id="toc-core-concepts">Core Concepts</a>
+<ul>
+<li><a href="#radio-state-machine" id="toc-radio-state-machine">1. Radio
+State Machine</a></li>
+<li><a href="#scheduled-events" id="toc-scheduled-events">2. Scheduled
+Events</a></li>
+<li><a href="#clock-sources" id="toc-clock-sources">3. Clock
+Sources</a></li>
+</ul></li>
+<li><a href="#basic-usage" id="toc-basic-usage">Basic Usage</a>
+<ul>
+<li><a href="#creating-a-scheduler"
+id="toc-creating-a-scheduler">Creating a Scheduler</a></li>
+<li><a href="#scheduling-events" id="toc-scheduling-events">Scheduling
+Events</a></li>
+<li><a href="#processing-events" id="toc-processing-events">Processing
+Events</a></li>
+</ul></li>
+<li><a href="#common-patterns" id="toc-common-patterns">Common
+Patterns</a>
+<ul>
+<li><a href="#pattern-1-tx-burst" id="toc-pattern-1-tx-burst">Pattern 1:
+TX Burst</a></li>
+<li><a href="#pattern-2-rx-window" id="toc-pattern-2-rx-window">Pattern
+2: RX Window</a></li>
+<li><a href="#pattern-3-frequency-hopping-fhss"
+id="toc-pattern-3-frequency-hopping-fhss">Pattern 3: Frequency Hopping
+(FHSS)</a></li>
+<li><a href="#pattern-4-tdma-frame"
+id="toc-pattern-4-tdma-frame">Pattern 4: TDMA Frame</a></li>
+<li><a href="#pattern-5-periodic-beacon"
+id="toc-pattern-5-periodic-beacon">Pattern 5: Periodic Beacon</a></li>
+<li><a href="#pattern-6-callbacks" id="toc-pattern-6-callbacks">Pattern
+6: Callbacks</a></li>
+</ul></li>
+<li><a href="#txrx-coordination" id="toc-txrx-coordination">TX/RX
+Coordination</a>
+<ul>
+<li><a href="#half-duplex-operation"
+id="toc-half-duplex-operation">Half-Duplex Operation</a></li>
+<li><a href="#turnaround-times" id="toc-turnaround-times">Turnaround
+Times</a></li>
+<li><a href="#direct-state-access" id="toc-direct-state-access">Direct
+State Access</a></li>
+</ul></li>
+<li><a href="#event-handlers" id="toc-event-handlers">Event
+Handlers</a></li>
+<li><a href="#statistics-and-monitoring"
+id="toc-statistics-and-monitoring">Statistics and Monitoring</a></li>
+<li><a href="#use-cases" id="toc-use-cases">Use Cases</a>
+<ul>
+<li><a href="#use-case-1-tdd-lte-like-system"
+id="toc-use-case-1-tdd-lte-like-system">Use Case 1: TDD LTE-Like
+System</a></li>
+<li><a href="#use-case-2-sincgars-style-fhss"
+id="toc-use-case-2-sincgars-style-fhss">Use Case 2: SINCGARS-Style
+FHSS</a></li>
+<li><a href="#use-case-3-lora-class-b-beacon-sync"
+id="toc-use-case-3-lora-class-b-beacon-sync">Use Case 3: LoRa Class B
+Beacon Sync</a></li>
+<li><a href="#use-case-4-multi-radio-coordination"
+id="toc-use-case-4-multi-radio-coordination">Use Case 4: Multi-Radio
+Coordination</a></li>
+</ul></li>
+<li><a href="#integration-with-tickscheduler"
+id="toc-integration-with-tickscheduler">Integration with
+TickScheduler</a></li>
+<li><a href="#thread-safety" id="toc-thread-safety">Thread
+Safety</a></li>
+<li><a href="#performance-considerations"
+id="toc-performance-considerations">Performance Considerations</a>
+<ul>
+<li><a href="#deadline-tolerance" id="toc-deadline-tolerance">Deadline
+Tolerance</a></li>
+<li><a href="#priority-levels" id="toc-priority-levels">Priority
+Levels</a></li>
+<li><a href="#memory-allocation" id="toc-memory-allocation">Memory
+Allocation</a></li>
+</ul></li>
+<li><a href="#error-handling" id="toc-error-handling">Error
+Handling</a></li>
+<li><a href="#api-reference" id="toc-api-reference">API Reference</a>
+<ul>
+<li><a href="#realtimescheduler"
+id="toc-realtimescheduler">RealTimeScheduler</a></li>
+<li><a href="#convenience-methods"
+id="toc-convenience-methods">Convenience Methods</a></li>
+<li><a href="#eventaction-variants"
+id="toc-eventaction-variants">EventAction Variants</a></li>
+</ul></li>
+<li><a href="#see-also" id="toc-see-also">See Also</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="real-time-scheduler-guide">Real-Time Scheduler Guide</h1>
+<p>This guide covers the <code>RealTimeScheduler</code> module in R4W,
+designed for operational SDR systems requiring precise timing, TX/RX
+coordination, and hardware synchronization.</p>
+<h2 id="overview">Overview</h2>
+<p>While the <a
+href="./TICK_SCHEDULER_GUIDE.md"><code>TickScheduler</code></a> is
+designed for simulation with virtual time, the
+<code>RealTimeScheduler</code> is built for <strong>production
+systems</strong> with:</p>
+<ul>
+<li><strong>Wall-clock timing</strong>: Events fire at precise real-time
+moments</li>
+<li><strong>TX/RX coordination</strong>: State machine prevents
+simultaneous TX/RX in half-duplex systems</li>
+<li><strong>Guard conditions</strong>: Events only fire when
+preconditions are met</li>
+<li><strong>Priority scheduling</strong>: Critical events preempt lower
+priority ones</li>
+<li><strong>Thread-safe</strong>: Multiple threads can schedule events
+concurrently</li>
+<li><strong>Hardware clock integration</strong>: Sync with SDR device
+clocks, GPS/PTP</li>
+</ul>
+<h2 id="when-to-use-which-scheduler">When to Use Which Scheduler</h2>
+<table>
+<colgroup>
+<col style="width: 38%" />
+<col style="width: 42%" />
+<col style="width: 19%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Scenario</th>
+<th>Scheduler</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Educational visualization</td>
+<td>TickScheduler</td>
+<td>Virtual time, step-by-step</td>
+</tr>
+<tr class="even">
+<td>Unit testing protocols</td>
+<td>TickScheduler</td>
+<td>Deterministic, reproducible</td>
+</tr>
+<tr class="odd">
+<td>Protocol development</td>
+<td>TickScheduler</td>
+<td>Pause, inspect, fast-forward</td>
+</tr>
+<tr class="even">
+<td>Production TX/RX</td>
+<td><strong>RealTimeScheduler</strong></td>
+<td>Wall-clock precision</td>
+</tr>
+<tr class="odd">
+<td>Frequency hopping</td>
+<td><strong>RealTimeScheduler</strong></td>
+<td>Precise hop timing</td>
+</tr>
+<tr class="even">
+<td>TDMA/TDD systems</td>
+<td><strong>RealTimeScheduler</strong></td>
+<td>Slot synchronization</td>
+</tr>
+<tr class="odd">
+<td>Multi-radio coordination</td>
+<td><strong>RealTimeScheduler</strong></td>
+<td>Prevent interference</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="core-concepts">Core Concepts</h2>
+<h3 id="radio-state-machine">1. Radio State Machine</h3>
+<p>The scheduler manages radio state transitions to prevent invalid
+operations (e.g., TX during RX):</p>
+<pre><code>                    ┌──────────────────────────────────────────────┐
+                    │              Radio State Machine             │
+                    └──────────────────────────────────────────────┘
+
+        ┌─────────────────────────────────────────────────────────────┐
+        │                                                             │
+        │    ┌─────────┐                           ┌─────────┐        │
+        │    │  Idle   │◄─────────────────────────►│ Hopping │        │
+        │    └────┬────┘                           └─────────┘        │
+        │         │                                    ▲              │
+        │    ┌────┴────┐                               │              │
+        │    ▼         ▼                               │              │
+        │ ┌─────────────────┐     ┌─────────────────┐  │              │
+        │ │  Transmitting   │     │   Receiving     │  │              │
+        │ └────────┬────────┘     └────────┬────────┘  │              │
+        │          │                       │           │              │
+        │          ▼                       ▼           │              │
+        │ ┌─────────────────┐     ┌─────────────────┐  │              │
+        │ │  TxTurnaround   │────►│  RxTurnaround   │──┘              │
+        │ └─────────────────┘     └─────────────────┘                 │
+        │          │                       │                          │
+        │          └───────────────────────┘                          │
+        │                    │                                        │
+        │                    ▼                                        │
+        │              ┌─────────┐                                    │
+        │              │  Error  │──────────────────►(back to Idle)   │
+        │              └─────────┘                                    │
+        │                                                             │
+        └─────────────────────────────────────────────────────────────┘</code></pre>
+<p><strong>State Descriptions:</strong></p>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 18%" />
+<col style="width: 34%" />
+<col style="width: 23%" />
+<col style="width: 23%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>State</th>
+<th>Description</th>
+<th>Can TX?</th>
+<th>Can RX?</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Idle</code></td>
+<td>Ready for operation</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr class="even">
+<td><code>Transmitting</code></td>
+<td>Actively transmitting</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr class="odd">
+<td><code>TxTurnaround</code></td>
+<td>TX complete, switching to RX</td>
+<td>❌</td>
+<td>✅ (after delay)</td>
+</tr>
+<tr class="even">
+<td><code>Receiving</code></td>
+<td>Actively receiving</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr class="odd">
+<td><code>RxTurnaround</code></td>
+<td>RX complete, switching to TX</td>
+<td>✅ (after delay)</td>
+<td>❌</td>
+</tr>
+<tr class="even">
+<td><code>Hopping</code></td>
+<td>Changing frequency</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr class="odd">
+<td><code>Calibrating</code></td>
+<td>Calibration mode</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+<tr class="even">
+<td><code>Error</code></td>
+<td>Error state</td>
+<td>❌</td>
+<td>❌</td>
+</tr>
+</tbody>
+</table>
+<h3 id="scheduled-events">2. Scheduled Events</h3>
+<p>Events have: - <strong>Deadline</strong>: Absolute time in
+nanoseconds when the event should execute - <strong>Priority</strong>:
+Lower number = higher priority (0 is highest) - <strong>Action</strong>:
+What to do (StartTx, StopRx, SetFrequency, etc.) -
+<strong>Guard</strong>: Optional condition that must be true for
+execution - <strong>Repeat interval</strong>: For periodic events</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt_scheduler::</span><span class="op">{</span>ScheduledEvent<span class="op">,</span> EventAction<span class="op">,</span> RadioState<span class="op">};</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::time::</span>Duration<span class="op">;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Schedule a TX start with guard condition</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> event <span class="op">=</span> <span class="pp">ScheduledEvent::</span>new(</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>now_ns() <span class="op">+</span> <span class="dv">1_000_000</span><span class="op">,</span>  <span class="co">// 1ms from now</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="pp">EventAction::</span>StartTx<span class="op">,</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="op">.</span>with_priority(<span class="dv">0</span>)                    <span class="co">// Highest priority</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="op">.</span>with_guard(<span class="op">|</span>state<span class="op">|</span> state<span class="op">.</span>can_transmit())  <span class="co">// Only if TX allowed</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="op">.</span>with_source(<span class="st">&quot;my_protocol&quot;</span>)<span class="op">;</span>         <span class="co">// For logging/cancellation</span></span></code></pre></div>
+<h3 id="clock-sources">3. Clock Sources</h3>
+<p>The scheduler supports multiple clock sources:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Clock Source</th>
+<th>Use Case</th>
+<th>Precision</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>System</code></td>
+<td>Development, testing</td>
+<td>~1μs</td>
+</tr>
+<tr class="even">
+<td><code>Hpet</code></td>
+<td>Linux high-precision</td>
+<td>~100ns</td>
+</tr>
+<tr class="odd">
+<td><code>Tsc</code></td>
+<td>x86 cycle counter</td>
+<td>~10ns</td>
+</tr>
+<tr class="even">
+<td><code>Gps</code></td>
+<td>Multi-device sync</td>
+<td>~50ns</td>
+</tr>
+<tr class="odd">
+<td><code>Ptp</code></td>
+<td>IEEE 1588 networks</td>
+<td>~100ns</td>
+</tr>
+<tr class="even">
+<td><code>HardwareDevice</code></td>
+<td>SDR device clock</td>
+<td>Varies</td>
+</tr>
+<tr class="odd">
+<td><code>Custom</code></td>
+<td>Testing, simulation</td>
+<td>N/A</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="basic-usage">Basic Usage</h2>
+<h3 id="creating-a-scheduler">Creating a Scheduler</h3>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt_scheduler::</span><span class="op">{</span>RealTimeScheduler<span class="op">,</span> ClockSource<span class="op">};</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::time::</span>Duration<span class="op">;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> scheduler <span class="op">=</span> <span class="pp">RealTimeScheduler::</span>builder()</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>clock_source(<span class="pp">ClockSource::</span>System)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>tx_rx_turnaround(<span class="pp">Duration::</span>from_micros(<span class="dv">100</span>))  <span class="co">// 100μs TX→RX</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>rx_tx_turnaround(<span class="pp">Duration::</span>from_micros(<span class="dv">100</span>))  <span class="co">// 100μs RX→TX</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>deadline_tolerance(<span class="pp">Duration::</span>from_micros(<span class="dv">500</span>)) <span class="co">// 500μs late = missed</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()</span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>unwrap()<span class="op">;</span></span></code></pre></div>
+<h3 id="scheduling-events">Scheduling Events</h3>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt_scheduler::</span><span class="op">{</span>ScheduledEvent<span class="op">,</span> EventAction<span class="op">};</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Schedule a single TX start</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> event <span class="op">=</span> <span class="pp">ScheduledEvent::</span>new(</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>now_ns() <span class="op">+</span> <span class="dv">10_000_000</span><span class="op">,</span>  <span class="co">// 10ms from now</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="pp">EventAction::</span>StartTx<span class="op">,</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>schedule(event)<span class="op">;</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Schedule multiple events atomically</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>schedule_batch(<span class="pp">vec!</span>[</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="pp">ScheduledEvent::</span>new(<span class="dv">100_000_000</span><span class="op">,</span> <span class="pp">EventAction::</span>StartTx)<span class="op">,</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="pp">ScheduledEvent::</span>new(<span class="dv">110_000_000</span><span class="op">,</span> <span class="pp">EventAction::</span>StopTx)<span class="op">,</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>])<span class="op">;</span></span></code></pre></div>
+<h3 id="processing-events">Processing Events</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Process all due events (non-blocking)</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> results <span class="op">=</span> scheduler<span class="op">.</span>process()<span class="op">;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> result <span class="kw">in</span> results <span class="op">{</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">match</span> result <span class="op">{</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(event) <span class="op">=&gt;</span> <span class="pp">println!</span>(<span class="st">&quot;Executed: {:?}&quot;</span><span class="op">,</span> event<span class="op">.</span>action)<span class="op">,</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Err</span>(e) <span class="op">=&gt;</span> <span class="pp">eprintln!</span>(<span class="st">&quot;Failed: {}&quot;</span><span class="op">,</span> e)<span class="op">,</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Or run continuously in a loop</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="pp">std::thread::</span>spawn(<span class="kw">move</span> <span class="op">||</span> <span class="op">{</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>run()<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Stop from another thread</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>stop()<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="common-patterns">Common Patterns</h2>
+<h3 id="pattern-1-tx-burst">Pattern 1: TX Burst</h3>
+<p>Schedule a transmission with automatic stop:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Schedule 10ms TX burst starting in 5ms</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> (start_id<span class="op">,</span> stop_id) <span class="op">=</span> scheduler<span class="op">.</span>schedule_tx_burst(</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>now_ns() <span class="op">+</span> <span class="dv">5_000_000</span><span class="op">,</span>  <span class="co">// Start time</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>    <span class="pp">Duration::</span>from_millis(<span class="dv">10</span>)<span class="op">,</span>        <span class="co">// Duration</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Can cancel if needed</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>cancel(start_id)<span class="op">;</span></span></code></pre></div>
+<h3 id="pattern-2-rx-window">Pattern 2: RX Window</h3>
+<p>Schedule a receive window:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Listen for 50ms starting in 1ms</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> (start_id<span class="op">,</span> stop_id) <span class="op">=</span> scheduler<span class="op">.</span>schedule_rx_window(</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>now_ns() <span class="op">+</span> <span class="dv">1_000_000</span><span class="op">,</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="pp">Duration::</span>from_millis(<span class="dv">50</span>)<span class="op">,</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span></code></pre></div>
+<h3 id="pattern-3-frequency-hopping-fhss">Pattern 3: Frequency Hopping
+(FHSS)</h3>
+<p>Schedule a hop sequence:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> frequencies <span class="op">=</span> <span class="pp">vec!</span>[</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    <span class="dv">902_000_000</span><span class="op">,</span>  <span class="co">// 902 MHz</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="dv">915_000_000</span><span class="op">,</span>  <span class="co">// 915 MHz</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="dv">928_000_000</span><span class="op">,</span>  <span class="co">// 928 MHz</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>]<span class="op">;</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Hop every 10ms</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> event_ids <span class="op">=</span> scheduler<span class="op">.</span>schedule_hop_sequence(</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>now_ns()<span class="op">,</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>    <span class="pp">Duration::</span>from_millis(<span class="dv">10</span>)<span class="op">,</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">&amp;</span>frequencies<span class="op">,</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="co">// Cancel all hops from a source</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>cancel_from_source(<span class="st">&quot;fhss&quot;</span>)<span class="op">;</span></span></code></pre></div>
+<h3 id="pattern-4-tdma-frame">Pattern 4: TDMA Frame</h3>
+<p>Schedule a TDMA frame with your TX slot:</p>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">// 4 slots, 10ms each, we transmit in slot 2</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> event_ids <span class="op">=</span> scheduler<span class="op">.</span>schedule_tdma_frame(</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>now_ns()<span class="op">,</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="pp">Duration::</span>from_millis(<span class="dv">10</span>)<span class="op">,</span>  <span class="co">// Slot duration</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span><span class="op">,</span>                          <span class="co">// Our TX slot (0-indexed)</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="dv">4</span><span class="op">,</span>                          <span class="co">// Total slots</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span></code></pre></div>
+<h3 id="pattern-5-periodic-beacon">Pattern 5: Periodic Beacon</h3>
+<p>Schedule a repeating beacon:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Beacon every 100ms, transmit for 5ms</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> beacon_id <span class="op">=</span> scheduler<span class="op">.</span>schedule_beacon(</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>now_ns()<span class="op">,</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="pp">Duration::</span>from_millis(<span class="dv">100</span>)<span class="op">,</span>  <span class="co">// Repeat interval</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="pp">Duration::</span>from_millis(<span class="dv">5</span>)<span class="op">,</span>    <span class="co">// TX duration</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Cancel beacon</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>cancel(beacon_id)<span class="op">;</span></span></code></pre></div>
+<h3 id="pattern-6-callbacks">Pattern 6: Callbacks</h3>
+<p>Schedule arbitrary code execution:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Schedule a callback</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> callback_id <span class="op">=</span> scheduler<span class="op">.</span>schedule_callback(</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>now_ns() <span class="op">+</span> <span class="dv">1_000_000</span><span class="op">,</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span>state<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>        <span class="pp">println!</span>(<span class="st">&quot;Callback fired! State: {:?}&quot;</span><span class="op">,</span> state)<span class="op">;</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">},</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Or register callback and schedule separately</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> id <span class="op">=</span> scheduler<span class="op">.</span>register_callback(<span class="op">|</span>state<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Handle event</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> event <span class="op">=</span> <span class="pp">ScheduledEvent::</span>new(</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>    deadline_ns<span class="op">,</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>    <span class="pp">EventAction::</span>Callback <span class="op">{</span> callback_id<span class="op">:</span> id <span class="op">},</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>schedule(event)<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="txrx-coordination">TX/RX Coordination</h2>
+<h3 id="half-duplex-operation">Half-Duplex Operation</h3>
+<p>The scheduler automatically enforces half-duplex constraints:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="co">// These will be serialized automatically</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>schedule(<span class="pp">ScheduledEvent::</span>new(<span class="dv">0</span><span class="op">,</span> <span class="pp">EventAction::</span>StartTx)</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>with_guard(<span class="op">|</span>s<span class="op">|</span> s<span class="op">.</span>can_transmit()))<span class="op">;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>schedule(<span class="pp">ScheduledEvent::</span>new(<span class="dv">1_000_000</span><span class="op">,</span> <span class="pp">EventAction::</span>StartRx)</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>with_guard(<span class="op">|</span>s<span class="op">|</span> s<span class="op">.</span>can_receive()))<span class="op">;</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">// The RX will wait until TX completes + turnaround</span></span></code></pre></div>
+<h3 id="turnaround-times">Turnaround Times</h3>
+<p>Configure turnaround delays:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> scheduler <span class="op">=</span> <span class="pp">RealTimeScheduler::</span>builder()</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>tx_rx_turnaround(<span class="pp">Duration::</span>from_micros(<span class="dv">50</span>))   <span class="co">// TX→RX: 50μs</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>rx_tx_turnaround(<span class="pp">Duration::</span>from_micros(<span class="dv">100</span>))  <span class="co">// RX→TX: 100μs</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()<span class="op">?;</span></span></code></pre></div>
+<p>When <code>StopTx</code> executes: 1. State transitions to
+<code>TxTurnaround</code> 2. Scheduler auto-schedules transition to
+<code>Idle</code> after turnaround delay 3. RX can then start</p>
+<h3 id="direct-state-access">Direct State Access</h3>
+<p>For advanced control:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt_scheduler::</span>RadioState<span class="op">;</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Check current state</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> state <span class="op">=</span> scheduler<span class="op">.</span>state()<span class="op">;</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> state<span class="op">.</span>can_transmit() <span class="op">{</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Safe to TX</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Direct state manipulation (use carefully!)</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>atomic_state()<span class="op">.</span>set(<span class="pp">RadioState::</span>Idle)<span class="op">;</span></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a><span class="co">// Atomic transition with guard</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> result <span class="op">=</span> scheduler<span class="op">.</span>atomic_state()<span class="op">.</span>transition_if(</span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    <span class="pp">RadioState::</span>Transmitting<span class="op">,</span></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    <span class="op">|</span>s<span class="op">|</span> <span class="pp">matches!</span>(s<span class="op">,</span> <span class="pp">RadioState::</span>Idle <span class="op">|</span> <span class="pp">RadioState::</span>RxTurnaround)<span class="op">,</span></span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="event-handlers">Event Handlers</h2>
+<p>Register handlers for custom event processing:</p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt_scheduler::</span><span class="op">{</span>EventHandler<span class="op">,</span> ScheduledEvent<span class="op">,</span> RadioState<span class="op">,</span> EventError<span class="op">};</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::sync::</span>Arc<span class="op">;</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> MyHandler<span class="op">;</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> EventHandler <span class="cf">for</span> MyHandler <span class="op">{</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> handle(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> <span class="op">&amp;</span>ScheduledEvent<span class="op">,</span> state<span class="op">:</span> <span class="op">&amp;</span>RadioState) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> EventError<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">match</span> <span class="op">&amp;</span>event<span class="op">.</span>action <span class="op">{</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>            <span class="pp">EventAction::</span>SetFrequency <span class="op">{</span> hz <span class="op">}</span> <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>                <span class="pp">println!</span>(<span class="st">&quot;Tuning to {} Hz&quot;</span><span class="op">,</span> hz)<span class="op">;</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>                <span class="co">// Actually tune your hardware here</span></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a>                <span class="cn">Ok</span>(())</span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>            <span class="pp">EventAction::</span>Custom <span class="op">{</span> id<span class="op">,</span> data <span class="op">}</span> <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>                <span class="pp">println!</span>(<span class="st">&quot;Custom event {}: {:?}&quot;</span><span class="op">,</span> id<span class="op">,</span> data)<span class="op">;</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>                <span class="cn">Ok</span>(())</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>            _ <span class="op">=&gt;</span> <span class="cn">Ok</span>(())<span class="op">,</span>  <span class="co">// Let default handling proceed</span></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> name(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="op">&amp;</span><span class="dt">str</span> <span class="op">{</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>        <span class="st">&quot;my_handler&quot;</span></span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>add_handler(<span class="pp">Arc::</span>new(MyHandler))<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="statistics-and-monitoring">Statistics and Monitoring</h2>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> stats <span class="op">=</span> scheduler<span class="op">.</span>stats()<span class="op">;</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Events scheduled: {}&quot;</span><span class="op">,</span> stats<span class="op">.</span>events_scheduled)<span class="op">;</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Events executed: {}&quot;</span><span class="op">,</span> stats<span class="op">.</span>events_executed)<span class="op">;</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Deadlines missed: {}&quot;</span><span class="op">,</span> stats<span class="op">.</span>deadlines_missed)<span class="op">;</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Guards blocked: {}&quot;</span><span class="op">,</span> stats<span class="op">.</span>guards_blocked)<span class="op">;</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Max latency: {}ns&quot;</span><span class="op">,</span> stats<span class="op">.</span>max_latency_ns)<span class="op">;</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Avg latency: {}ns&quot;</span><span class="op">,</span> stats<span class="op">.</span>avg_latency_ns)<span class="op">;</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;State transitions: {}&quot;</span><span class="op">,</span> stats<span class="op">.</span>state_transitions)<span class="op">;</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Reset statistics</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>reset_stats()<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="use-cases">Use Cases</h2>
+<h3 id="use-case-1-tdd-lte-like-system">Use Case 1: TDD LTE-Like
+System</h3>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">// TDD frame: 5ms downlink, 5ms uplink, repeating</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> schedule_tdd_frame(scheduler<span class="op">:</span> <span class="op">&amp;</span>RealTimeScheduler<span class="op">,</span> frame_start<span class="op">:</span> <span class="dt">u64</span>) <span class="op">{</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> slot_duration <span class="op">=</span> <span class="pp">Duration::</span>from_millis(<span class="dv">5</span>)<span class="op">;</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Downlink (we TX)</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>schedule_tx_burst(frame_start<span class="op">,</span> slot_duration)<span class="op">;</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Uplink (we RX)</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> uplink_start <span class="op">=</span> frame_start <span class="op">+</span> slot_duration<span class="op">.</span>as_nanos() <span class="kw">as</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>schedule_rx_window(uplink_start<span class="op">,</span> slot_duration)<span class="op">;</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Schedule next frame</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> next_frame <span class="op">=</span> frame_start <span class="op">+</span> <span class="dv">2</span> <span class="op">*</span> slot_duration<span class="op">.</span>as_nanos() <span class="kw">as</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>schedule_callback(next_frame<span class="op">,</span> <span class="kw">move</span> <span class="op">|</span>_<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>        schedule_tdd_frame(scheduler<span class="op">,</span> next_frame)<span class="op">;</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="use-case-2-sincgars-style-fhss">Use Case 2: SINCGARS-Style
+FHSS</h3>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">// 100 hops/second with TX/RX alternation</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> schedule_sincgars_net(</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">:</span> <span class="op">&amp;</span>RealTimeScheduler<span class="op">,</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    hop_freqs<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u64</span>]<span class="op">,</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    our_slot<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>    total_slots<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>) <span class="op">{</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> hop_interval <span class="op">=</span> <span class="pp">Duration::</span>from_millis(<span class="dv">10</span>)<span class="op">;</span>  <span class="co">// 100 hops/sec</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> slot_duration <span class="op">=</span> hop_interval <span class="op">/</span> total_slots <span class="kw">as</span> <span class="dt">u32</span><span class="op">;</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (hop_idx<span class="op">,</span> <span class="op">&amp;</span>freq) <span class="kw">in</span> hop_freqs<span class="op">.</span>iter()<span class="op">.</span>enumerate() <span class="op">{</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> hop_start <span class="op">=</span> scheduler<span class="op">.</span>now_ns() <span class="op">+</span> (hop_idx <span class="kw">as</span> <span class="dt">u64</span> <span class="op">*</span> hop_interval<span class="op">.</span>as_nanos() <span class="kw">as</span> <span class="dt">u64</span>)<span class="op">;</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Schedule frequency change</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>        scheduler<span class="op">.</span>schedule(<span class="pp">ScheduledEvent::</span>new(</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>            hop_start<span class="op">,</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>            <span class="pp">EventAction::</span>SetFrequency <span class="op">{</span> hz<span class="op">:</span> freq <span class="op">},</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>        )<span class="op">.</span>with_priority(<span class="dv">0</span>))<span class="op">;</span>  <span class="co">// Highest priority</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Schedule our TX slot within this hop</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> our_slot_start <span class="op">=</span> hop_start <span class="op">+</span> (our_slot <span class="kw">as</span> <span class="dt">u64</span> <span class="op">*</span> slot_duration<span class="op">.</span>as_nanos() <span class="kw">as</span> <span class="dt">u64</span>)<span class="op">;</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>        scheduler<span class="op">.</span>schedule_tx_burst(our_slot_start<span class="op">,</span> slot_duration)<span class="op">;</span></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>        <span class="co">// RX during other slots</span></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> slot <span class="kw">in</span> <span class="dv">0</span><span class="op">..</span>total_slots <span class="op">{</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> slot <span class="op">!=</span> our_slot <span class="op">{</span></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>                <span class="kw">let</span> slot_start <span class="op">=</span> hop_start <span class="op">+</span> (slot <span class="kw">as</span> <span class="dt">u64</span> <span class="op">*</span> slot_duration<span class="op">.</span>as_nanos() <span class="kw">as</span> <span class="dt">u64</span>)<span class="op">;</span></span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>                scheduler<span class="op">.</span>schedule_rx_window(slot_start<span class="op">,</span> slot_duration)<span class="op">;</span></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="use-case-3-lora-class-b-beacon-sync">Use Case 3: LoRa Class B
+Beacon Sync</h3>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">// LoRa Class B: Listen for beacon, then open RX windows</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> schedule_class_b_windows(</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">:</span> <span class="op">&amp;</span>RealTimeScheduler<span class="op">,</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    beacon_time<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>    ping_slots<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u64</span>]<span class="op">,</span>  <span class="co">// Offsets from beacon</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>) <span class="op">{</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Open RX window for beacon</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>schedule_rx_window(</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>        beacon_time <span class="op">-</span> <span class="pp">Duration::</span>from_millis(<span class="dv">10</span>)<span class="op">.</span>as_nanos() <span class="kw">as</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>        <span class="pp">Duration::</span>from_millis(<span class="dv">20</span>)<span class="op">,</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Schedule ping slot windows</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> <span class="op">&amp;</span>offset <span class="kw">in</span> ping_slots <span class="op">{</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> window_start <span class="op">=</span> beacon_time <span class="op">+</span> offset<span class="op">;</span></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>        scheduler<span class="op">.</span>schedule_rx_window(</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>            window_start<span class="op">,</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>            <span class="pp">Duration::</span>from_millis(<span class="dv">30</span>)<span class="op">,</span>  <span class="co">// Ping slot duration</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>        )<span class="op">;</span></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="use-case-4-multi-radio-coordination">Use Case 4: Multi-Radio
+Coordination</h3>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::sync::</span>Arc<span class="op">;</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Prevent two radios from TX simultaneously (co-site interference)</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> CoSiteCoordinator <span class="op">{</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    radio1<span class="op">:</span> Arc<span class="op">&lt;</span>RealTimeScheduler<span class="op">&gt;,</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    radio2<span class="op">:</span> Arc<span class="op">&lt;</span>RealTimeScheduler<span class="op">&gt;,</span></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> CoSiteCoordinator <span class="op">{</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> schedule_tx(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> radio<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> start_ns<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span> duration<span class="op">:</span> Duration) <span class="op">{</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> (sched<span class="op">,</span> other) <span class="op">=</span> <span class="cf">match</span> radio <span class="op">{</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>            <span class="dv">1</span> <span class="op">=&gt;</span> (<span class="op">&amp;</span><span class="kw">self</span><span class="op">.</span>radio1<span class="op">,</span> <span class="op">&amp;</span><span class="kw">self</span><span class="op">.</span>radio2)<span class="op">,</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>            <span class="dv">2</span> <span class="op">=&gt;</span> (<span class="op">&amp;</span><span class="kw">self</span><span class="op">.</span>radio2<span class="op">,</span> <span class="op">&amp;</span><span class="kw">self</span><span class="op">.</span>radio1)<span class="op">,</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>            _ <span class="op">=&gt;</span> <span class="pp">panic!</span>(<span class="st">&quot;Invalid radio&quot;</span>)<span class="op">,</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>        <span class="op">};</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Guard: Only TX if other radio is not transmitting</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> other_state <span class="op">=</span> other<span class="op">.</span>atomic_state()<span class="op">;</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> event <span class="op">=</span> <span class="pp">ScheduledEvent::</span>new(start_ns<span class="op">,</span> <span class="pp">EventAction::</span>StartTx)</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>            <span class="op">.</span>with_guard(<span class="kw">move</span> <span class="op">|</span>_<span class="op">|</span> <span class="op">{</span></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>                <span class="op">!</span><span class="pp">matches!</span>(other_state<span class="op">.</span>get()<span class="op">,</span> <span class="pp">RadioState::</span>Transmitting)</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>        sched<span class="op">.</span>schedule(event)<span class="op">;</span></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Schedule stop</span></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>        sched<span class="op">.</span>schedule(<span class="pp">ScheduledEvent::</span>new(</span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>            start_ns <span class="op">+</span> duration<span class="op">.</span>as_nanos() <span class="kw">as</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>            <span class="pp">EventAction::</span>StopTx<span class="op">,</span></span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a>        ))<span class="op">;</span></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h2 id="integration-with-tickscheduler">Integration with
+TickScheduler</h2>
+<p>Both schedulers can work together:</p>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::scheduler::</span>TickScheduler<span class="op">;</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt_scheduler::</span>RealTimeScheduler<span class="op">;</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Use TickScheduler for protocol development</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> sim_scheduler <span class="op">=</span> <span class="pp">TickScheduler::</span>builder()</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>resolution(<span class="pp">TickResolution::</span>Millisecond(<span class="dv">1</span>))</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()<span class="op">;</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Test your protocol logic with virtual time...</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Then switch to RealTimeScheduler for production</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> rt_scheduler <span class="op">=</span> <span class="pp">RealTimeScheduler::</span>builder()</span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>clock_source(<span class="pp">ClockSource::</span>System)</span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()<span class="op">?;</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Same events, just scheduled on real-time scheduler</span></span></code></pre></div>
+<hr />
+<h2 id="thread-safety">Thread Safety</h2>
+<p>The <code>RealTimeScheduler</code> is designed for multi-threaded
+use:</p>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::sync::</span>Arc<span class="op">;</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::</span>thread<span class="op">;</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> scheduler <span class="op">=</span> <span class="pp">Arc::</span>new(<span class="pp">RealTimeScheduler::</span>builder()<span class="op">.</span>build()<span class="op">?</span>)<span class="op">;</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Scheduler thread</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> sched_clone <span class="op">=</span> scheduler<span class="op">.</span>clone()<span class="op">;</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> handle <span class="op">=</span> <span class="pp">thread::</span>spawn(<span class="kw">move</span> <span class="op">||</span> <span class="op">{</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    sched_clone<span class="op">.</span>run()<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="co">// Other threads can schedule events</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> sched_clone <span class="op">=</span> scheduler<span class="op">.</span>clone()<span class="op">;</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="pp">thread::</span>spawn(<span class="kw">move</span> <span class="op">||</span> <span class="op">{</span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>        sched_clone<span class="op">.</span>schedule(<span class="pp">ScheduledEvent::</span>new(</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>            sched_clone<span class="op">.</span>now_ns() <span class="op">+</span> <span class="dv">1_000_000</span><span class="op">,</span></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>            <span class="pp">EventAction::</span>StartTx<span class="op">,</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>        )<span class="op">.</span>with_guard(<span class="op">|</span>s<span class="op">|</span> s<span class="op">.</span>can_transmit()))<span class="op">;</span></span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>        <span class="pp">thread::</span>sleep(<span class="pp">Duration::</span>from_millis(<span class="dv">100</span>))<span class="op">;</span></span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a><span class="co">// Stop from main thread</span></span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>stop()<span class="op">;</span></span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>handle<span class="op">.</span>join()<span class="op">.</span>unwrap()<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="performance-considerations">Performance Considerations</h2>
+<h3 id="deadline-tolerance">Deadline Tolerance</h3>
+<p>Configure based on your timing requirements:</p>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> scheduler <span class="op">=</span> <span class="pp">RealTimeScheduler::</span>builder()</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Tight timing (FHSS, TDMA)</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>deadline_tolerance(<span class="pp">Duration::</span>from_micros(<span class="dv">100</span>))</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Relaxed timing (beacons, periodic TX)</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>deadline_tolerance(<span class="pp">Duration::</span>from_millis(<span class="dv">5</span>))</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()<span class="op">?;</span></span></code></pre></div>
+<h3 id="priority-levels">Priority Levels</h3>
+<p>Use priorities to ensure critical events execute first:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Priority</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>Frequency hops, slot boundaries</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td>TX/RX start/stop</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Beacons, periodic events</td>
+</tr>
+<tr class="even">
+<td>128</td>
+<td>Default</td>
+</tr>
+<tr class="odd">
+<td>255</td>
+<td>Low-priority maintenance</td>
+</tr>
+</tbody>
+</table>
+<h3 id="memory-allocation">Memory Allocation</h3>
+<p>The scheduler uses heap allocation for the event queue. For hard
+real-time:</p>
+<ol type="1">
+<li>Pre-schedule events in batches</li>
+<li>Use repeating events instead of scheduling new ones</li>
+<li>Avoid callbacks that allocate</li>
+</ol>
+<hr />
+<h2 id="error-handling">Error Handling</h2>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt_scheduler::</span><span class="op">{</span>EventError<span class="op">,</span> RadioStateError<span class="op">};</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> results <span class="op">=</span> scheduler<span class="op">.</span>process()<span class="op">;</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> result <span class="kw">in</span> results <span class="op">{</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">match</span> result <span class="op">{</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Ok</span>(event) <span class="op">=&gt;</span> <span class="op">{</span> <span class="co">/* Success */</span> <span class="op">}</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Err</span>(<span class="pp">EventError::</span>GuardBlocked) <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Guard condition prevented execution</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Event was consumed, may need to reschedule</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Err</span>(<span class="pp">EventError::</span>DeadlineMissed <span class="op">{</span> deadline_ns<span class="op">,</span> actual_ns <span class="op">}</span>) <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Event executed late</span></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> lateness <span class="op">=</span> actual_ns <span class="op">-</span> deadline_ns<span class="op">;</span></span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>            <span class="pp">eprintln!</span>(<span class="st">&quot;Event late by {}ns&quot;</span><span class="op">,</span> lateness)<span class="op">;</span></span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Err</span>(<span class="pp">EventError::</span>StateError(<span class="pp">RadioStateError::</span>InvalidTransition <span class="op">{</span> from<span class="op">,</span> to <span class="op">}</span>)) <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>            <span class="co">// State machine prevented transition</span></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>            <span class="pp">eprintln!</span>(<span class="st">&quot;Cannot go from {:?} to {:?}&quot;</span><span class="op">,</span> from<span class="op">,</span> to)<span class="op">;</span></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a>        <span class="cn">Err</span>(e) <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>            <span class="pp">eprintln!</span>(<span class="st">&quot;Other error: {}&quot;</span><span class="op">,</span> e)<span class="op">;</span></span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h2 id="api-reference">API Reference</h2>
+<h3 id="realtimescheduler">RealTimeScheduler</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>builder()</code></td>
+<td>Create a scheduler builder</td>
+</tr>
+<tr class="even">
+<td><code>now_ns()</code></td>
+<td>Current time in nanoseconds</td>
+</tr>
+<tr class="odd">
+<td><code>state()</code></td>
+<td>Current radio state</td>
+</tr>
+<tr class="even">
+<td><code>schedule(event)</code></td>
+<td>Schedule a single event</td>
+</tr>
+<tr class="odd">
+<td><code>schedule_batch(events)</code></td>
+<td>Schedule multiple events atomically</td>
+</tr>
+<tr class="even">
+<td><code>cancel(id)</code></td>
+<td>Cancel event by ID</td>
+</tr>
+<tr class="odd">
+<td><code>cancel_from_source(source)</code></td>
+<td>Cancel all events from source</td>
+</tr>
+<tr class="even">
+<td><code>process()</code></td>
+<td>Process all due events</td>
+</tr>
+<tr class="odd">
+<td><code>run()</code></td>
+<td>Run scheduler loop until stopped</td>
+</tr>
+<tr class="even">
+<td><code>stop()</code></td>
+<td>Stop the scheduler loop</td>
+</tr>
+<tr class="odd">
+<td><code>stats()</code></td>
+<td>Get performance statistics</td>
+</tr>
+</tbody>
+</table>
+<h3 id="convenience-methods">Convenience Methods</h3>
+<table>
+<colgroup>
+<col style="width: 38%" />
+<col style="width: 61%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>schedule_tx_burst(start, duration)</code></td>
+<td>Schedule TX with auto-stop</td>
+</tr>
+<tr class="even">
+<td><code>schedule_rx_window(start, duration)</code></td>
+<td>Schedule RX window</td>
+</tr>
+<tr class="odd">
+<td><code>schedule_hop_sequence(start, interval, freqs)</code></td>
+<td>Schedule FHSS hops</td>
+</tr>
+<tr class="even">
+<td><code>schedule_beacon(start, interval, tx_duration)</code></td>
+<td>Schedule repeating beacon</td>
+</tr>
+<tr class="odd">
+<td><code>schedule_tdma_frame(start, slot_duration, tx_slot, total_slots)</code></td>
+<td>Schedule TDMA frame</td>
+</tr>
+<tr class="even">
+<td><code>schedule_callback(deadline, fn)</code></td>
+<td>Schedule code execution</td>
+</tr>
+</tbody>
+</table>
+<h3 id="eventaction-variants">EventAction Variants</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>StartTx</code></td>
+<td>Begin transmission</td>
+</tr>
+<tr class="even">
+<td><code>StopTx</code></td>
+<td>End transmission, enter turnaround</td>
+</tr>
+<tr class="odd">
+<td><code>StartRx</code></td>
+<td>Begin receiving</td>
+</tr>
+<tr class="even">
+<td><code>StopRx</code></td>
+<td>End receiving, enter turnaround</td>
+</tr>
+<tr class="odd">
+<td><code>SetFrequency { hz }</code></td>
+<td>Change frequency</td>
+</tr>
+<tr class="even">
+<td><code>SetPower { dbm }</code></td>
+<td>Change TX power</td>
+</tr>
+<tr class="odd">
+<td><code>StateTransition { target }</code></td>
+<td>Direct state change</td>
+</tr>
+<tr class="even">
+<td><code>Callback { callback_id }</code></td>
+<td>Execute registered callback</td>
+</tr>
+<tr class="odd">
+<td><code>Reset</code></td>
+<td>Return to Idle state</td>
+</tr>
+<tr class="even">
+<td><code>Calibrate</code></td>
+<td>Enter calibration mode</td>
+</tr>
+<tr class="odd">
+<td><code>Custom { id, data }</code></td>
+<td>Custom action for handlers</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="./TICK_SCHEDULER_GUIDE.md">TICK_SCHEDULER_GUIDE.md</a> -
+Simulation scheduler with virtual time</li>
+<li><a href="./PHYSICAL_LAYER_GUIDE.md">PHYSICAL_LAYER_GUIDE.md</a> -
+Timing model and RT primitives</li>
+<li><a href="./FPGA_DEVELOPERS_GUIDE.md">FPGA_DEVELOPERS_GUIDE.md</a> -
+Hardware timing integration</li>
+</ul>
+</body>
+</html>

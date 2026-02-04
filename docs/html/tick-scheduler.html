@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>R4W - tick-scheduler</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">R4W - tick-scheduler</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#tick-scheduler-guide" id="toc-tick-scheduler-guide">Tick
+Scheduler Guide</a>
+<ul>
+<li><a href="#table-of-contents" id="toc-table-of-contents">Table of
+Contents</a></li>
+<li><a href="#overview" id="toc-overview">1. Overview</a>
+<ul>
+<li><a href="#architecture" id="toc-architecture">Architecture</a></li>
+</ul></li>
+<li><a href="#core-concepts" id="toc-core-concepts">2. Core Concepts</a>
+<ul>
+<li><a href="#what-is-a-tick" id="toc-what-is-a-tick">What is a
+Tick?</a></li>
+<li><a href="#tickevent" id="toc-tickevent">TickEvent</a></li>
+<li><a href="#ticksubscriber-trait"
+id="toc-ticksubscriber-trait">TickSubscriber Trait</a></li>
+</ul></li>
+<li><a href="#basic-usage" id="toc-basic-usage">3. Basic Usage</a>
+<ul>
+<li><a href="#creating-a-scheduler"
+id="toc-creating-a-scheduler">Creating a Scheduler</a></li>
+<li><a href="#subscribing-components"
+id="toc-subscribing-components">Subscribing Components</a></li>
+<li><a href="#running-the-scheduler"
+id="toc-running-the-scheduler">Running the Scheduler</a></li>
+</ul></li>
+<li><a href="#tick-resolution" id="toc-tick-resolution">4. Tick
+Resolution</a>
+<ul>
+<li><a href="#available-resolutions"
+id="toc-available-resolutions">Available Resolutions</a></li>
+<li><a href="#examples" id="toc-examples">Examples</a></li>
+<li><a href="#choosing-resolution" id="toc-choosing-resolution">Choosing
+Resolution</a></li>
+</ul></li>
+<li><a href="#time-scaling" id="toc-time-scaling">5. Time Scaling</a>
+<ul>
+<li><a href="#scale-values" id="toc-scale-values">Scale Values</a></li>
+<li><a href="#example-educational-slow-motion"
+id="toc-example-educational-slow-motion">Example: Educational Slow
+Motion</a></li>
+<li><a href="#example-fast-testing"
+id="toc-example-fast-testing">Example: Fast Testing</a></li>
+<li><a href="#example-pause-and-step"
+id="toc-example-pause-and-step">Example: Pause and Step</a></li>
+</ul></li>
+<li><a href="#sleep-and-wake" id="toc-sleep-and-wake">6. Sleep and
+Wake</a>
+<ul>
+<li><a href="#basic-sleep" id="toc-basic-sleep">Basic Sleep</a></li>
+<li><a href="#sleep-patterns" id="toc-sleep-patterns">Sleep
+Patterns</a></li>
+<li><a href="#canceling-sleep" id="toc-canceling-sleep">Canceling
+Sleep</a></li>
+</ul></li>
+<li><a href="#integration-with-timing-model"
+id="toc-integration-with-timing-model">7. Integration with Timing
+Model</a>
+<ul>
+<li><a href="#tick-to-timestamp-conversion"
+id="toc-tick-to-timestamp-conversion">Tick to Timestamp
+Conversion</a></li>
+<li><a href="#timestamp-in-tickevent"
+id="toc-timestamp-in-tickevent">Timestamp in TickEvent</a></li>
+</ul></li>
+<li><a href="#use-cases" id="toc-use-cases">8. Use Cases</a>
+<ul>
+<li><a href="#use-case-1-educational-signal-visualization"
+id="toc-use-case-1-educational-signal-visualization">Use Case 1:
+Educational Signal Visualization</a></li>
+<li><a href="#use-case-2-txrx-channel-simulation"
+id="toc-use-case-2-txrx-channel-simulation">Use Case 2: TX/RX Channel
+Simulation</a></li>
+<li><a href="#use-case-3-protocol-timing-verification"
+id="toc-use-case-3-protocol-timing-verification">Use Case 3: Protocol
+Timing Verification</a></li>
+<li><a href="#use-case-4-deterministic-testing"
+id="toc-use-case-4-deterministic-testing">Use Case 4: Deterministic
+Testing</a></li>
+<li><a href="#use-case-5-multi-device-synchronization"
+id="toc-use-case-5-multi-device-synchronization">Use Case 5:
+Multi-Device Synchronization</a></li>
+</ul></li>
+<li><a href="#architecture-patterns" id="toc-architecture-patterns">9.
+Architecture Patterns</a>
+<ul>
+<li><a href="#pattern-scheduler-as-shared-state"
+id="toc-pattern-scheduler-as-shared-state">Pattern: Scheduler as Shared
+State</a></li>
+<li><a href="#pattern-message-passing-between-components"
+id="toc-pattern-message-passing-between-components">Pattern: Message
+Passing Between Components</a></li>
+<li><a href="#pattern-state-machine-components"
+id="toc-pattern-state-machine-components">Pattern: State Machine
+Components</a></li>
+</ul></li>
+<li><a href="#api-reference" id="toc-api-reference">10. API
+Reference</a>
+<ul>
+<li><a href="#tickscheduler"
+id="toc-tickscheduler">TickScheduler</a></li>
+<li><a href="#tickschedulerbuilder"
+id="toc-tickschedulerbuilder">TickSchedulerBuilder</a></li>
+<li><a href="#schedulerstats"
+id="toc-schedulerstats">SchedulerStats</a></li>
+</ul></li>
+<li><a href="#quick-reference" id="toc-quick-reference">Quick
+Reference</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="tick-scheduler-guide">Tick Scheduler Guide</h1>
+<p>This guide covers the discrete event tick scheduler for coordinating
+SDR components with controllable time progression.</p>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol type="1">
+<li><a href="#1-overview">Overview</a></li>
+<li><a href="#2-core-concepts">Core Concepts</a></li>
+<li><a href="#3-basic-usage">Basic Usage</a></li>
+<li><a href="#4-tick-resolution">Tick Resolution</a></li>
+<li><a href="#5-time-scaling">Time Scaling</a></li>
+<li><a href="#6-sleep-and-wake">Sleep and Wake</a></li>
+<li><a href="#7-integration-with-timing-model">Integration with Timing
+Model</a></li>
+<li><a href="#8-use-cases">Use Cases</a></li>
+<li><a href="#9-architecture-patterns">Architecture Patterns</a></li>
+<li><a href="#10-api-reference">API Reference</a></li>
+</ol>
+<hr />
+<h2 id="overview">1. Overview</h2>
+<p>The tick scheduler provides a discrete event simulation (DES)
+framework for R4W applications. It enables:</p>
+<ul>
+<li><strong>Controllable time</strong>: Speed up, slow down, pause, or
+step through time</li>
+<li><strong>Deterministic simulation</strong>: Reproducible behavior for
+testing</li>
+<li><strong>Component coordination</strong>: Synchronized TX/RX/channel
+simulation</li>
+<li><strong>Educational visualization</strong>: Step-by-step signal
+processing</li>
+</ul>
+<h3 id="architecture">Architecture</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                      TickSchedule                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
+│  │ TimeScale   │  │ CurrentTick │  │ SleepQueue          │  │
+│  │ 0.0=paused  │  │ (monotonic) │  │ (wake_tick, id)     │  │
+│  │ 0.5=slow    │  │             │  │                     │  │
+│  │ 1.0=real    │  │             │  │                     │  │
+│  │ 2.0=fast    │  │             │  │                     │  │
+│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│                           │                                 │
+│                           ▼                                 │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Subscriber Registry                     │   │
+│  │  [Transmitter, Receiver, Channel, Monitor, ...]      │   │
+│  └──────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                            │
+            ┌───────────────┼───────────────┐
+            ▼               ▼               ▼
+     ┌──────────┐    ┌──────────┐    ┌──────────┐
+     │ on_tick()│    │ on_tick()│    │ on_tick()│
+     │ TX Comp  │    │ Channel  │    │ RX Comp  │
+     └──────────┘    └──────────┘    └──────────┘</code></pre>
+<hr />
+<h2 id="core-concepts">2. Core Concepts</h2>
+<h3 id="what-is-a-tick">What is a Tick?</h3>
+<p>A <strong>tick</strong> is an abstract unit of time progression. Each
+tick: - Advances the simulation by one time quantum - Notifies all
+subscribed components - Delivers any expired sleep requests</p>
+<h3 id="tickevent">TickEvent</h3>
+<p>When a tick occurs, components receive a <code>TickEvent</code>:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> TickEvent <span class="op">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> tick<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span>           <span class="co">// Current absolute tick number</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> elapsed<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span>        <span class="co">// Ticks since component&#39;s last event</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> sleep_expired<span class="op">:</span> <span class="dt">bool</span><span class="op">,</span> <span class="co">// True if this is a wake-up from sleep</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> component_id<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span>   <span class="co">// Subscriber&#39;s ID</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">pub</span> timestamp<span class="op">:</span> <span class="dt">Option</span><span class="op">&lt;</span>Timestamp<span class="op">&gt;,</span> <span class="co">// Timing info (if enabled)</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="ticksubscriber-trait">TickSubscriber Trait</h3>
+<p>Components implement <code>TickSubscriber</code> to receive tick
+notifications:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TickSubscriber<span class="op">:</span> <span class="bu">Send</span> <span class="op">{</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent)<span class="op">;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Optional lifecycle hooks</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_register(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> scheduler<span class="op">:</span> <span class="op">&amp;</span>TickScheduler) <span class="op">{}</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_unregister(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>) <span class="op">{}</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h2 id="basic-usage">3. Basic Usage</h2>
+<h3 id="creating-a-scheduler">Creating a Scheduler</h3>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::scheduler::</span><span class="op">{</span>TickScheduler<span class="op">,</span> TickResolution<span class="op">};</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Simple millisecond-based scheduler</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> scheduler <span class="op">=</span> <span class="pp">TickScheduler::</span>new(<span class="pp">TickResolution::</span>Millisecond(<span class="dv">1</span>))<span class="op">;</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Sample-based scheduler (48 samples per tick at 48kHz)</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> scheduler <span class="op">=</span> <span class="pp">TickScheduler::</span>with_sample_rate(<span class="dv">48000.0</span><span class="op">,</span> <span class="dv">48</span>)<span class="op">;</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Using the builder</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> scheduler <span class="op">=</span> <span class="pp">TickSchedulerBuilder::</span>new()</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>milliseconds(<span class="dv">5</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>time_scale(<span class="dv">1.0</span>)</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()<span class="op">;</span></span></code></pre></div>
+<h3 id="subscribing-components">Subscribing Components</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::sync::</span><span class="op">{</span>Arc<span class="op">,</span> Mutex<span class="op">};</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> MyComponent <span class="op">{</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    id<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    sample_count<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> MyComponent <span class="op">{</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Process tick - generate samples, update state, etc.</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>sample_count <span class="op">+=</span> <span class="dv">48</span><span class="op">;</span> <span class="co">// 48 samples per tick</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="pp">println!</span>(<span class="st">&quot;Tick {}: processed {} samples&quot;</span><span class="op">,</span> event<span class="op">.</span>tick<span class="op">,</span> <span class="kw">self</span><span class="op">.</span>sample_count)<span class="op">;</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>id <span class="op">}</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> component <span class="op">=</span> <span class="pp">Arc::</span>new(<span class="pp">Mutex::</span>new(MyComponent <span class="op">{</span> id<span class="op">:</span> <span class="dv">1</span><span class="op">,</span> sample_count<span class="op">:</span> <span class="dv">0</span> <span class="op">}</span>))<span class="op">;</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>subscribe(component)<span class="op">;</span></span></code></pre></div>
+<h3 id="running-the-scheduler">Running the Scheduler</h3>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Step manually (for debugging)</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>step(<span class="dv">10</span>)<span class="op">;</span>  <span class="co">// Advance 10 ticks</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Run continuously</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>set_time_scale(<span class="dv">1.0</span>)<span class="op">;</span>  <span class="co">// Real-time</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>run()<span class="op">;</span>  <span class="co">// Blocks until stopped</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co">// In another thread, control the scheduler:</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>pause()<span class="op">;</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>set_time_scale(<span class="dv">0.5</span>)<span class="op">;</span>  <span class="co">// Half speed</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>resume()<span class="op">;</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>stop()<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="tick-resolution">4. Tick Resolution</h2>
+<p>The tick resolution defines what one tick represents in terms of time
+or samples.</p>
+<h3 id="available-resolutions">Available Resolutions</h3>
+<table>
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 37%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Resolution</th>
+<th>Description</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Samples { count, sample_rate }</code></td>
+<td>N samples at given rate</td>
+<td>Bit-accurate DSP simulation</td>
+</tr>
+<tr class="even">
+<td><code>Symbol { symbol_rate, sample_rate }</code></td>
+<td>One symbol period</td>
+<td>Waveform testing</td>
+</tr>
+<tr class="odd">
+<td><code>Frame { samples_per_frame, sample_rate }</code></td>
+<td>One frame/packet</td>
+<td>Protocol simulation</td>
+</tr>
+<tr class="even">
+<td><code>Microsecond(us)</code></td>
+<td>N microseconds</td>
+<td>High-precision timing</td>
+</tr>
+<tr class="odd">
+<td><code>Millisecond(ms)</code></td>
+<td>N milliseconds</td>
+<td>General simulation</td>
+</tr>
+<tr class="even">
+<td><code>Custom(Duration)</code></td>
+<td>Custom duration</td>
+<td>Specialized needs</td>
+</tr>
+</tbody>
+</table>
+<h3 id="examples">Examples</h3>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="co">// 1 tick = 48 samples at 48kHz (1ms)</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> res <span class="op">=</span> <span class="pp">TickResolution::</span>Samples <span class="op">{</span> count<span class="op">:</span> <span class="dv">48</span><span class="op">,</span> sample_rate<span class="op">:</span> <span class="dv">48000.0</span> <span class="op">};</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">// 1 tick = 1 symbol at 9600 baud</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> res <span class="op">=</span> <span class="pp">TickResolution::</span>Symbol <span class="op">{</span> symbol_rate<span class="op">:</span> <span class="dv">9600.0</span><span class="op">,</span> sample_rate<span class="op">:</span> <span class="dv">48000.0</span> <span class="op">};</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="co">// 1 tick = 1 LoRa frame (4096 samples at SF12)</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> res <span class="op">=</span> <span class="pp">TickResolution::</span>Frame <span class="op">{</span> samples_per_frame<span class="op">:</span> <span class="dv">4096</span><span class="op">,</span> sample_rate<span class="op">:</span> <span class="dv">125000.0</span> <span class="op">};</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a><span class="co">// 1 tick = 100 microseconds</span></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> res <span class="op">=</span> <span class="pp">TickResolution::</span>Microsecond(<span class="dv">100</span>)<span class="op">;</span></span></code></pre></div>
+<h3 id="choosing-resolution">Choosing Resolution</h3>
+<pre><code>High Resolution                              Low Resolution
+(fine-grained)                               (coarse-grained)
+    │                                              │
+    ▼                                              ▼
+  Sample → Symbol → Frame → Millisecond → Second
+
+  More ticks/sec           Fewer ticks/sec
+  Higher overhead          Lower overhead
+  More precision           Less precision</code></pre>
+<p><strong>Guidelines:</strong> - <strong>Bit-level simulation</strong>:
+Use <code>Samples</code> with small count - <strong>Symbol-level
+testing</strong>: Use <code>Symbol</code> - <strong>Packet-level
+protocol</strong>: Use <code>Frame</code> - <strong>Real-time
+visualization</strong>: Use <code>Millisecond(10-50)</code></p>
+<hr />
+<h2 id="time-scaling">5. Time Scaling</h2>
+<p>Time scaling controls simulation speed relative to real-time.</p>
+<h3 id="scale-values">Scale Values</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Scale</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>0.0</code></td>
+<td>Paused (no ticks generated)</td>
+</tr>
+<tr class="even">
+<td><code>0.5</code></td>
+<td>Half speed (2x slower)</td>
+</tr>
+<tr class="odd">
+<td><code>1.0</code></td>
+<td>Real-time</td>
+</tr>
+<tr class="even">
+<td><code>2.0</code></td>
+<td>Double speed</td>
+</tr>
+<tr class="odd">
+<td><code>10.0</code></td>
+<td>10x faster than real-time</td>
+</tr>
+</tbody>
+</table>
+<h3 id="example-educational-slow-motion">Example: Educational Slow
+Motion</h3>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Slow motion for step-by-step visualization</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>set_time_scale(<span class="dv">0.1</span>)<span class="op">;</span>  <span class="co">// 10x slower than real-time</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Each tick shows one symbol&#39;s processing</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="co">// User can see constellation points being placed</span></span></code></pre></div>
+<h3 id="example-fast-testing">Example: Fast Testing</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Fast-forward through simulation for testing</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>set_time_scale(<span class="dv">100.0</span>)<span class="op">;</span>  <span class="co">// 100x faster</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Run 1 million ticks quickly</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>step(<span class="dv">1_000_000</span>)<span class="op">;</span></span></code></pre></div>
+<h3 id="example-pause-and-step">Example: Pause and Step</h3>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Pause for debugging</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>set_time_scale(<span class="dv">0.0</span>)<span class="op">;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Step one tick at a time</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>step(<span class="dv">1</span>)<span class="op">;</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Inspect state...</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>step(<span class="dv">1</span>)<span class="op">;</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Inspect state...</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Resume at normal speed</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>set_time_scale(<span class="dv">1.0</span>)<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="sleep-and-wake">6. Sleep and Wake</h2>
+<p>Components can request wake-up after N ticks, enabling event-driven
+behavior.</p>
+<h3 id="basic-sleep">Basic Sleep</h3>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> MyComponent <span class="op">{</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> event<span class="op">.</span>sleep_expired <span class="op">{</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>            <span class="co">// This is a wake-up from our sleep request</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>            <span class="pp">println!</span>(<span class="st">&quot;Woke up at tick {}&quot;</span><span class="op">,</span> event<span class="op">.</span>tick)<span class="op">;</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Normal tick processing</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Schedule wake-up in 100 ticks</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>            <span class="co">// (scheduler reference needed - see patterns below)</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>id <span class="op">}</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a><span class="co">// From outside the subscriber:</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>sleep(<span class="dv">100</span><span class="op">,</span> component_id)<span class="op">;</span>  <span class="co">// Wake component after 100 ticks</span></span></code></pre></div>
+<h3 id="sleep-patterns">Sleep Patterns</h3>
+<p><strong>Pattern 1: Periodic Wake-up</strong></p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Wake every 100 ticks</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> event<span class="op">.</span>sleep_expired <span class="op">||</span> event<span class="op">.</span>tick <span class="op">==</span> <span class="dv">1</span> <span class="op">{</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>do_periodic_work()<span class="op">;</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Would need scheduler reference to schedule next wake</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><strong>Pattern 2: Timeout</strong></p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Wait for event with timeout</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> event<span class="op">.</span>sleep_expired <span class="op">{</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Timeout expired - no response received</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>handle_timeout()<span class="op">;</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span> <span class="cf">else</span> <span class="cf">if</span> <span class="kw">self</span><span class="op">.</span>response_received <span class="op">{</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Got response before timeout</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Cancel pending sleep (from outside)</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="canceling-sleep">Canceling Sleep</h3>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Cancel all pending sleeps for a component</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>cancel_sleeps(component_id)<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="integration-with-timing-model">7. Integration with Timing
+Model</h2>
+<p>The tick scheduler integrates with R4W’s multi-clock timing
+model.</p>
+<h3 id="tick-to-timestamp-conversion">Tick to Timestamp Conversion</h3>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">// Create scheduler with sample rate for timing integration</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> scheduler <span class="op">=</span> <span class="pp">TickScheduler::</span>with_sample_rate(<span class="dv">48000.0</span><span class="op">,</span> <span class="dv">48</span>)<span class="op">;</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Get timestamp at any tick</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> ts <span class="op">=</span> scheduler<span class="op">.</span>tick_to_timestamp(<span class="dv">1000</span>)<span class="op">;</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Access all clock domains</span></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Samples: {}&quot;</span><span class="op">,</span> ts<span class="op">.</span>sample<span class="op">.</span>samples())<span class="op">;</span>      <span class="co">// 48000</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Wall time: {} ns&quot;</span><span class="op">,</span> ts<span class="op">.</span>wall<span class="op">.</span>as_nanos())<span class="op">;</span>  <span class="co">// ~1 second</span></span></code></pre></div>
+<h3 id="timestamp-in-tickevent">Timestamp in TickEvent</h3>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(ts) <span class="op">=</span> <span class="op">&amp;</span>event<span class="op">.</span>timestamp <span class="op">{</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Access precise timing</span></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> sample <span class="op">=</span> ts<span class="op">.</span>sample<span class="op">.</span>samples()<span class="op">;</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> wall_ns <span class="op">=</span> ts<span class="op">.</span>wall<span class="op">.</span>as_nanos()<span class="op">;</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Correlate with hardware timestamps if available</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(hw) <span class="op">=</span> <span class="op">&amp;</span>ts<span class="op">.</span>hardware <span class="op">{</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> hw_ticks <span class="op">=</span> hw<span class="op">.</span>ticks()<span class="op">;</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h2 id="use-cases">8. Use Cases</h2>
+<h3 id="use-case-1-educational-signal-visualization">Use Case 1:
+Educational Signal Visualization</h3>
+<p>Show modulation step-by-step:</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> ModulationVisualizer <span class="op">{</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>    id<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>    bits<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">bool</span><span class="op">&gt;,</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    current_bit<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>    samples<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;,</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> ModulationVisualizer <span class="op">{</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">self</span><span class="op">.</span>current_bit <span class="op">&lt;</span> <span class="kw">self</span><span class="op">.</span>bits<span class="op">.</span>len() <span class="op">{</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Modulate one bit per tick</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> bit <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>bits[<span class="kw">self</span><span class="op">.</span>current_bit]<span class="op">;</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> sample <span class="op">=</span> <span class="cf">if</span> bit <span class="op">{</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>                <span class="pp">IQSample::</span>new(<span class="dv">1.0</span><span class="op">,</span> <span class="dv">0.0</span>)  <span class="co">// BPSK &#39;1&#39;</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>                <span class="pp">IQSample::</span>new(<span class="op">-</span><span class="dv">1.0</span><span class="op">,</span> <span class="dv">0.0</span>) <span class="co">// BPSK &#39;0&#39;</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>            <span class="op">};</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>samples<span class="op">.</span>push(sample)<span class="op">;</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>current_bit <span class="op">+=</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Update GUI constellation display</span></span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>update_display(<span class="op">&amp;</span>sample)<span class="op">;</span></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>id <span class="op">}</span></span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a><span class="co">// Run at 0.5x speed for slow-motion visualization</span></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>scheduler<span class="op">.</span>set_time_scale(<span class="dv">0.5</span>)<span class="op">;</span></span></code></pre></div>
+<h3 id="use-case-2-txrx-channel-simulation">Use Case 2: TX/RX Channel
+Simulation</h3>
+<p>Simulate complete RF path:</p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> ChannelSimulation <span class="op">{</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>    tx<span class="op">:</span> Arc<span class="op">&lt;</span>Mutex<span class="op">&lt;</span>Transmitter<span class="op">&gt;&gt;,</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>    channel<span class="op">:</span> Arc<span class="op">&lt;</span>Mutex<span class="op">&lt;</span>Channel<span class="op">&gt;&gt;,</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>    rx<span class="op">:</span> Arc<span class="op">&lt;</span>Mutex<span class="op">&lt;</span>Receiver<span class="op">&gt;&gt;,</span></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="co">// TX generates samples on each tick</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> Transmitter <span class="op">{</span></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>modulate_next_symbol()<span class="op">;</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>output_buffer<span class="op">.</span>extend(samples)<span class="op">;</span></span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="dv">0</span> <span class="op">}</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Channel applies impairments</span></span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> Channel <span class="op">{</span></span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="kw">let</span> <span class="cn">Some</span>(sample) <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>tx_buffer<span class="op">.</span>pop() <span class="op">{</span></span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> impaired <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>apply_awgn(sample<span class="op">,</span> <span class="kw">self</span><span class="op">.</span>snr_db)<span class="op">;</span></span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> delayed <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>apply_multipath(impaired)<span class="op">;</span></span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>rx_buffer<span class="op">.</span>push(delayed)<span class="op">;</span></span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="dv">1</span> <span class="op">}</span></span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a><span class="co">// RX demodulates</span></span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> Receiver <span class="op">{</span></span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">self</span><span class="op">.</span>rx_buffer<span class="op">.</span>len() <span class="op">&gt;=</span> <span class="kw">self</span><span class="op">.</span>symbol_samples <span class="op">{</span></span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> samples<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span>_<span class="op">&gt;</span> <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>rx_buffer<span class="op">.</span>drain(<span class="op">..</span><span class="kw">self</span><span class="op">.</span>symbol_samples)<span class="op">.</span>collect()<span class="op">;</span></span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>            <span class="kw">let</span> symbol <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>demodulate(<span class="op">&amp;</span>samples)<span class="op">;</span></span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>decoded_symbols<span class="op">.</span>push(symbol)<span class="op">;</span></span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb19-36"><a href="#cb19-36" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb19-37"><a href="#cb19-37" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="dv">2</span> <span class="op">}</span></span>
+<span id="cb19-38"><a href="#cb19-38" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="use-case-3-protocol-timing-verification">Use Case 3: Protocol
+Timing Verification</h3>
+<p>Test timing-critical protocols:</p>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> ProtocolTimer <span class="op">{</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    id<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    state<span class="op">:</span> ProtocolState<span class="op">,</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    timeout_ticks<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> ProtocolTimer <span class="op">{</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">match</span> <span class="kw">self</span><span class="op">.</span>state <span class="op">{</span></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>            <span class="pp">ProtocolState::</span>WaitingForAck <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> event<span class="op">.</span>sleep_expired <span class="op">{</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>                    <span class="co">// Timeout - retransmit</span></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>                    <span class="kw">self</span><span class="op">.</span>retransmit()<span class="op">;</span></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>                    <span class="kw">self</span><span class="op">.</span>state <span class="op">=</span> <span class="pp">ProtocolState::</span>WaitingForAck<span class="op">;</span></span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>                    <span class="co">// Schedule another timeout</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>            <span class="pp">ProtocolState::</span>Idle <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>                <span class="co">// Check for new data to send</span></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>            _ <span class="op">=&gt;</span> <span class="op">{}</span></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>id <span class="op">}</span></span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="use-case-4-deterministic-testing">Use Case 4: Deterministic
+Testing</h3>
+<p>Reproducible test scenarios:</p>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="at">#[</span>test<span class="at">]</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> test_ber_at_10db_snr() <span class="op">{</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> scheduler <span class="op">=</span> <span class="pp">TickScheduler::</span>new(<span class="pp">TickResolution::</span>Samples <span class="op">{</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>        count<span class="op">:</span> <span class="dv">48</span><span class="op">,</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>        sample_rate<span class="op">:</span> <span class="dv">48000.0</span><span class="op">,</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Seed RNG for reproducibility</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> rng <span class="op">=</span> <span class="pp">StdRng::</span>seed_from_u64(<span class="dv">12345</span>)<span class="op">;</span></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> tx <span class="op">=</span> <span class="pp">Arc::</span>new(<span class="pp">Mutex::</span>new(<span class="pp">Transmitter::</span>new(<span class="op">&amp;</span><span class="kw">mut</span> rng)))<span class="op">;</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> channel <span class="op">=</span> <span class="pp">Arc::</span>new(<span class="pp">Mutex::</span>new(<span class="pp">Channel::</span>new(<span class="dv">10.0</span><span class="op">,</span> <span class="op">&amp;</span><span class="kw">mut</span> rng)))<span class="op">;</span>  <span class="co">// 10 dB SNR</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> rx <span class="op">=</span> <span class="pp">Arc::</span>new(<span class="pp">Mutex::</span>new(<span class="pp">Receiver::</span>new()))<span class="op">;</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>subscribe(tx)<span class="op">;</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>subscribe(channel)<span class="op">;</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>subscribe(rx<span class="op">.</span>clone())<span class="op">;</span></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Run exactly 10000 ticks</span></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>step(<span class="dv">10000</span>)<span class="op">;</span></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Check BER</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> ber <span class="op">=</span> rx<span class="op">.</span>lock()<span class="op">.</span>unwrap()<span class="op">.</span>calculate_ber()<span class="op">;</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a>    <span class="pp">assert!</span>(ber <span class="op">&lt;</span> <span class="dv">1e-3</span><span class="op">,</span> <span class="st">&quot;BER {} exceeds threshold at 10dB&quot;</span><span class="op">,</span> ber)<span class="op">;</span></span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="use-case-5-multi-device-synchronization">Use Case 5:
+Multi-Device Synchronization</h3>
+<p>Simulate coordinated radios:</p>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co">// GPS-synchronized radios</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> SyncedRadio <span class="op">{</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    id<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    tx_slot<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span>  <span class="co">// Which tick to transmit</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> SyncedRadio <span class="op">{</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>        <span class="co">// All radios see the same tick</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> slot <span class="op">=</span> event<span class="op">.</span>tick <span class="op">%</span> <span class="dv">10</span><span class="op">;</span>  <span class="co">// 10-slot TDMA</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> slot <span class="op">==</span> <span class="kw">self</span><span class="op">.</span>tx_slot <span class="op">{</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>transmit()<span class="op">;</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>receive()<span class="op">;</span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>id <span class="op">}</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a><span class="co">// Radio 0 transmits on slot 0, Radio 1 on slot 1, etc.</span></span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="dv">0</span><span class="op">..</span><span class="dv">10</span> <span class="op">{</span></span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> radio <span class="op">=</span> <span class="pp">Arc::</span>new(<span class="pp">Mutex::</span>new(SyncedRadio <span class="op">{</span> id<span class="op">:</span> i<span class="op">,</span> tx_slot<span class="op">:</span> i <span class="op">}</span>))<span class="op">;</span></span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">.</span>subscribe(radio)<span class="op">;</span></span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h2 id="architecture-patterns">9. Architecture Patterns</h2>
+<h3 id="pattern-scheduler-as-shared-state">Pattern: Scheduler as Shared
+State</h3>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::sync::</span><span class="op">{</span>Arc<span class="op">,</span> RwLock<span class="op">};</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> SimulationContext <span class="op">{</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>    scheduler<span class="op">:</span> Arc<span class="op">&lt;</span>RwLock<span class="op">&lt;</span>TickScheduler<span class="op">&gt;&gt;,</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>    components<span class="op">:</span> <span class="dt">Vec</span><span class="op">&lt;</span>Arc<span class="op">&lt;</span>Mutex<span class="op">&lt;</span><span class="kw">dyn</span> TickSubscriber<span class="op">&gt;&gt;&gt;,</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> SimulationContext <span class="op">{</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> request_sleep(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> ticks<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span> component_id<span class="op">:</span> <span class="dt">u64</span>) <span class="op">{</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>scheduler<span class="op">.</span>write()<span class="op">.</span>unwrap()<span class="op">.</span>sleep(ticks<span class="op">,</span> component_id)<span class="op">;</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="pattern-message-passing-between-components">Pattern: Message
+Passing Between Components</h3>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::sync::mpsc::</span><span class="op">{</span>channel<span class="op">,</span> Sender<span class="op">,</span> Receiver<span class="op">};</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Producer <span class="op">{</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>    id<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>    tx<span class="op">:</span> Sender<span class="op">&lt;</span>IQSample<span class="op">&gt;,</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> Consumer <span class="op">{</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    id<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>    rx<span class="op">:</span> Receiver<span class="op">&lt;</span>IQSample<span class="op">&gt;,</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> Producer <span class="op">{</span></span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> sample <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>generate()<span class="op">;</span></span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>tx<span class="op">.</span>send(sample)<span class="op">.</span>ok()<span class="op">;</span></span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>id <span class="op">}</span></span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> Consumer <span class="op">{</span></span>
+<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="kw">let</span> <span class="cn">Ok</span>(sample) <span class="op">=</span> <span class="kw">self</span><span class="op">.</span>rx<span class="op">.</span>try_recv() <span class="op">{</span></span>
+<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>            <span class="kw">self</span><span class="op">.</span>process(sample)<span class="op">;</span></span>
+<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>id <span class="op">}</span></span>
+<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="pattern-state-machine-components">Pattern: State Machine
+Components</h3>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">enum</span> RadioState <span class="op">{</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>    Idle<span class="op">,</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>    Transmitting <span class="op">{</span> remaining<span class="op">:</span> <span class="dt">u64</span> <span class="op">},</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>    Receiving<span class="op">,</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>    Processing<span class="op">,</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> StateMachineRadio <span class="op">{</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    id<span class="op">:</span> <span class="dt">u64</span><span class="op">,</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    state<span class="op">:</span> RadioState<span class="op">,</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> TickSubscriber <span class="cf">for</span> StateMachineRadio <span class="op">{</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> on_tick(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> event<span class="op">:</span> TickEvent) <span class="op">{</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>        <span class="kw">self</span><span class="op">.</span>state <span class="op">=</span> <span class="cf">match</span> <span class="op">&amp;</span><span class="kw">self</span><span class="op">.</span>state <span class="op">{</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>            <span class="pp">RadioState::</span>Idle <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="kw">self</span><span class="op">.</span>has_data_to_send() <span class="op">{</span></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">RadioState::</span>Transmitting <span class="op">{</span> remaining<span class="op">:</span> <span class="dv">100</span> <span class="op">}</span></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">RadioState::</span>Receiving</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>            <span class="pp">RadioState::</span>Transmitting <span class="op">{</span> remaining <span class="op">}</span> <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>                <span class="kw">self</span><span class="op">.</span>transmit_sample()<span class="op">;</span></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>                <span class="cf">if</span> <span class="op">*</span>remaining <span class="op">&gt;</span> <span class="dv">1</span> <span class="op">{</span></span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">RadioState::</span>Transmitting <span class="op">{</span> remaining<span class="op">:</span> remaining <span class="op">-</span> <span class="dv">1</span> <span class="op">}</span></span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span> <span class="cf">else</span> <span class="op">{</span></span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>                    <span class="pp">RadioState::</span>Processing</span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>                <span class="op">}</span></span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>            <span class="pp">RadioState::</span>Receiving <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>                <span class="kw">self</span><span class="op">.</span>receive_sample()<span class="op">;</span></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>                <span class="pp">RadioState::</span>Receiving</span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>            <span class="pp">RadioState::</span>Processing <span class="op">=&gt;</span> <span class="op">{</span></span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a>                <span class="kw">self</span><span class="op">.</span>process_received()<span class="op">;</span></span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>                <span class="pp">RadioState::</span>Idle</span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>        <span class="op">};</span></span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span> <span class="op">{</span> <span class="kw">self</span><span class="op">.</span>id <span class="op">}</span></span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h2 id="api-reference">10. API Reference</h2>
+<h3 id="tickscheduler">TickScheduler</h3>
+<table>
+<colgroup>
+<col style="width: 38%" />
+<col style="width: 61%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>new(resolution)</code></td>
+<td>Create scheduler with given resolution</td>
+</tr>
+<tr class="even">
+<td><code>with_sample_rate(rate, samples_per_tick)</code></td>
+<td>Create with sample-based timing</td>
+</tr>
+<tr class="odd">
+<td><code>subscribe(component)</code></td>
+<td>Register a component</td>
+</tr>
+<tr class="even">
+<td><code>unsubscribe(id)</code></td>
+<td>Remove a component</td>
+</tr>
+<tr class="odd">
+<td><code>tick()</code></td>
+<td>Advance by one tick</td>
+</tr>
+<tr class="even">
+<td><code>step(n)</code></td>
+<td>Advance by N ticks</td>
+</tr>
+<tr class="odd">
+<td><code>run()</code></td>
+<td>Run continuously until stopped</td>
+</tr>
+<tr class="even">
+<td><code>pause()</code></td>
+<td>Pause the scheduler</td>
+</tr>
+<tr class="odd">
+<td><code>resume()</code></td>
+<td>Resume from pause</td>
+</tr>
+<tr class="even">
+<td><code>stop()</code></td>
+<td>Stop the scheduler</td>
+</tr>
+<tr class="odd">
+<td><code>reset()</code></td>
+<td>Reset to initial state</td>
+</tr>
+<tr class="even">
+<td><code>sleep(ticks, id)</code></td>
+<td>Schedule wake-up for component</td>
+</tr>
+<tr class="odd">
+<td><code>cancel_sleeps(id)</code></td>
+<td>Cancel pending sleeps</td>
+</tr>
+<tr class="even">
+<td><code>set_time_scale(scale)</code></td>
+<td>Set time scaling factor</td>
+</tr>
+<tr class="odd">
+<td><code>current_tick()</code></td>
+<td>Get current tick number</td>
+</tr>
+<tr class="even">
+<td><code>tick_to_timestamp(tick)</code></td>
+<td>Convert tick to Timestamp</td>
+</tr>
+<tr class="odd">
+<td><code>stats()</code></td>
+<td>Get scheduler statistics</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tickschedulerbuilder">TickSchedulerBuilder</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Method</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>new()</code></td>
+<td>Create builder</td>
+</tr>
+<tr class="even">
+<td><code>resolution(res)</code></td>
+<td>Set tick resolution</td>
+</tr>
+<tr class="odd">
+<td><code>samples(count, rate)</code></td>
+<td>Set sample-based resolution</td>
+</tr>
+<tr class="even">
+<td><code>symbol_rate(sym_rate, sample_rate)</code></td>
+<td>Set symbol-based resolution</td>
+</tr>
+<tr class="odd">
+<td><code>milliseconds(ms)</code></td>
+<td>Set millisecond resolution</td>
+</tr>
+<tr class="even">
+<td><code>time_scale(scale)</code></td>
+<td>Set initial time scale</td>
+</tr>
+<tr class="odd">
+<td><code>build()</code></td>
+<td>Build the scheduler</td>
+</tr>
+</tbody>
+</table>
+<h3 id="schedulerstats">SchedulerStats</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>total_ticks</code></td>
+<td>Total ticks processed</td>
+</tr>
+<tr class="even">
+<td><code>sleep_requests</code></td>
+<td>Total sleep requests</td>
+</tr>
+<tr class="odd">
+<td><code>events_delivered</code></td>
+<td>Total events sent</td>
+</tr>
+<tr class="even">
+<td><code>pending_sleeps</code></td>
+<td>Current pending sleep count</td>
+</tr>
+<tr class="odd">
+<td><code>subscriber_count</code></td>
+<td>Current subscriber count</td>
+</tr>
+<tr class="even">
+<td><code>avg_tick_duration_us</code></td>
+<td>Average tick processing time</td>
+</tr>
+<tr class="odd">
+<td><code>max_tick_duration_us</code></td>
+<td>Maximum tick processing time</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="quick-reference">Quick Reference</h2>
+<pre><code>┌──────────────────────────────────────────────────────────────┐
+│                 Tick Scheduler Quick Reference               │
+├──────────────────────────────────────────────────────────────┤
+│ Time Scales:                                                 │
+│   0.0  = Paused (manual stepping only)                       │
+│   0.5  = Half speed (2x slower)                              │
+│   1.0  = Real-time                                           │
+│   2.0  = Double speed                                        │
+│   10.0 = 10x faster                                          │
+├──────────────────────────────────────────────────────────────┤
+│ Tick Resolutions:                                            │
+│   Samples    - For bit-accurate simulation                   │
+│   Symbol     - For waveform testing                          │
+│   Frame      - For protocol testing                          │
+│   Millisecond- For visualization                             │
+├──────────────────────────────────────────────────────────────┤
+│ TickEvent Fields:                                            │
+│   tick           - Current absolute tick (u64)               │
+│   elapsed        - Ticks since last event (u64)              │
+│   sleep_expired  - Is this a wake-up? (bool)                 │
+│   component_id   - Subscriber&#39;s ID (u64)                     │
+│   timestamp      - Optional Timestamp                        │
+├──────────────────────────────────────────────────────────────┤
+│ Common Patterns:                                             │
+│   scheduler.step(1)     - Single step (debugging)            │
+│   scheduler.step(1000)  - Batch processing                   │
+│   scheduler.run()       - Continuous (blocks)                │
+│   scheduler.sleep(n,id) - Wake after n ticks                 │
+└──────────────────────────────────────────────────────────────┘</code></pre>
+</body>
+</html>

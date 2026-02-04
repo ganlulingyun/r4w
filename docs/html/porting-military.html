@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>R4W - porting-military</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">R4W - porting-military</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#military-waveform-porting-guide"
+id="toc-military-waveform-porting-guide">Military Waveform Porting
+Guide</a>
+<ul>
+<li><a href="#detailed-porting-guides"
+id="toc-detailed-porting-guides">Detailed Porting Guides</a></li>
+<li><a href="#overview" id="toc-overview">Overview</a></li>
+<li><a href="#waveform-implementation-status"
+id="toc-waveform-implementation-status">Waveform Implementation
+Status</a>
+<ul>
+<li><a href="#sincgars-vhf-frequency-hopping"
+id="toc-sincgars-vhf-frequency-hopping">SINCGARS (VHF Frequency
+Hopping)</a></li>
+<li><a href="#havequick-uhf-frequency-hopping"
+id="toc-havequick-uhf-frequency-hopping">HAVEQUICK (UHF Frequency
+Hopping)</a></li>
+<li><a href="#link-16-l-band-tdma-frequency-hopping"
+id="toc-link-16-l-band-tdma-frequency-hopping">Link-16 (L-Band TDMA +
+Frequency Hopping)</a></li>
+<li><a href="#mil-std-188-110-hf-serial-tone"
+id="toc-mil-std-188-110-hf-serial-tone">MIL-STD-188-110 (HF Serial
+Tone)</a></li>
+<li><a href="#apco-p25-public-safety-digital-radio"
+id="toc-apco-p25-public-safety-digital-radio">APCO P25 (Public Safety
+Digital Radio)</a></li>
+</ul></li>
+<li><a href="#porting-process" id="toc-porting-process">Porting
+Process</a>
+<ul>
+<li><a href="#for-classified-components"
+id="toc-for-classified-components">For Classified Components</a></li>
+<li><a href="#for-unclassified-components"
+id="toc-for-unclassified-components">For Unclassified
+Components</a></li>
+</ul></li>
+<li><a href="#security-considerations"
+id="toc-security-considerations">Security Considerations</a>
+<ul>
+<li><a href="#do-not" id="toc-do-not">Do NOT</a></li>
+<li><a href="#do" id="toc-do">DO</a></li>
+</ul></li>
+<li><a href="#summary-table" id="toc-summary-table">Summary Table</a>
+<ul>
+<li><a href="#effort-breakdown-by-category"
+id="toc-effort-breakdown-by-category">Effort Breakdown by
+Category</a></li>
+</ul></li>
+<li><a href="#contact" id="toc-contact">Contact</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="military-waveform-porting-guide">Military Waveform Porting
+Guide</h1>
+<p>This document describes the implementation status of military
+waveforms in R4W and provides guidance for porting classified
+components.</p>
+<h2 id="detailed-porting-guides">Detailed Porting Guides</h2>
+<p>For step-by-step porting instructions, see the detailed guides in <a
+href="./porting/"><code>docs/porting/</code></a>:</p>
+<table>
+<colgroup>
+<col style="width: 35%" />
+<col style="width: 65%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Guide</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong><a
+href="./porting/BUILD_PROCEDURES.md">BUILD_PROCEDURES.md</a></strong></td>
+<td>Build options, linking, FFI, C/C++ interop, cross-compilation</td>
+</tr>
+<tr class="even">
+<td><a href="./porting/sincgars.md">sincgars.md</a></td>
+<td>SINCGARS implementation details and trait requirements</td>
+</tr>
+<tr class="odd">
+<td><a href="./porting/havequick.md">havequick.md</a></td>
+<td>HAVEQUICK implementation with GPS time sync</td>
+</tr>
+<tr class="even">
+<td><a href="./porting/link16.md">link16.md</a></td>
+<td>Link-16 TDMA, COMSEC, and J-series messages</td>
+</tr>
+<tr class="odd">
+<td><a href="./porting/milstd188110.md">milstd188110.md</a></td>
+<td>MIL-STD-188-110 enhancements (fully unclassified)</td>
+</tr>
+<tr class="even">
+<td><a href="./porting/p25.md">p25.md</a></td>
+<td>P25 voice codec options and trunking</td>
+</tr>
+</tbody>
+</table>
+<h2 id="overview">Overview</h2>
+<p>R4W implements military waveforms using a <strong>framework +
+traits</strong> architecture that separates:</p>
+<ol type="1">
+<li><strong>Unclassified Framework Code</strong> - Signal processing,
+modulation/demodulation, message framing</li>
+<li><strong>Classified Component Traits</strong> - Interfaces for
+security-critical algorithms</li>
+<li><strong>Simulator Implementations</strong> - Unclassified
+test/training implementations</li>
+</ol>
+<p>The classified components are represented by Rust traits.
+Organizations with appropriate clearances can implement these traits
+with actual classified algorithms, compile them in a secure environment,
+and link them with the unclassified framework.</p>
+<h2 id="waveform-implementation-status">Waveform Implementation
+Status</h2>
+<h3 id="sincgars-vhf-frequency-hopping">SINCGARS (VHF Frequency
+Hopping)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Status</th>
+<th>Classification</th>
+<th>Effort %</th>
+<th>Complete %</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Framework</strong></td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>5%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>FM Modulation/Demodulation</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>15%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>CVSD Voice Codec</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>12%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>Data Modem (FSK)</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>10%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>Message Framing</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>8%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td><strong>HoppingAlgorithm</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED</td>
+<td>20%</td>
+<td>20%</td>
+</tr>
+<tr class="odd">
+<td><strong>TransecProvider</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED</td>
+<td>12%</td>
+<td>15%</td>
+</tr>
+<tr class="even">
+<td><strong>NetIdMapper</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED</td>
+<td>5%</td>
+<td>20%</td>
+</tr>
+<tr class="odd">
+<td><strong>TimeSyncProtocol</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED</td>
+<td>8%</td>
+<td>25%</td>
+</tr>
+<tr class="even">
+<td><strong>CryptoProvider</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED</td>
+<td>5%</td>
+<td>10%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort-Weighted Completion: 62%</strong> - Unclassified (50%
+of effort): 100% complete → 50% - Classified (50% of effort): 18%
+average → 9% - Total weighted: <strong>59%</strong></p>
+<h4 id="required-for-operational-use">Required for Operational Use</h4>
+<p>To port SINCGARS for operational use, implement these traits:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/sincgars/traits.rs</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> HoppingAlgorithm<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>TransecKey<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> time<span class="op">:</span> SincgarsTime)<span class="op">;</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_channel(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> ChannelNumber<span class="op">;</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> advance_hop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sync_to_time(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> time<span class="op">:</span> SincgarsTime)<span class="op">;</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> time_to_hop_number(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> time<span class="op">:</span> SincgarsTime) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_valid(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_hop_number(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> peek_channels(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> count<span class="op">:</span> <span class="dt">usize</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>ChannelNumber<span class="op">&gt;;</span></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TransecProvider<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_key(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key_id<span class="op">:</span> KeyId) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>TransecKey<span class="op">,</span> TransecError<span class="op">&gt;;</span></span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> has_valid_key(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_key_metadata(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;</span>KeyMetadata<span class="op">&gt;;</span></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> derive_session_key(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> context<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>SessionKey<span class="op">,</span> TransecError<span class="op">&gt;;</span></span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_key(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;&amp;</span>TransecKey<span class="op">&gt;;</span></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> CryptoProvider<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> plaintext<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> context<span class="op">:</span> <span class="op">&amp;</span>CryptoContext) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> CryptoError<span class="op">&gt;;</span></span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> ciphertext<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> context<span class="op">:</span> <span class="op">&amp;</span>CryptoContext) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> CryptoError<span class="op">&gt;;</span></span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> generate_sync_vector(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> SyncVector<span class="op">;</span></span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> process_sync_vector(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> sync<span class="op">:</span> <span class="op">&amp;</span>SyncVector) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> CryptoError<span class="op">&gt;;</span></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_ready(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>SessionKey) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> CryptoError<span class="op">&gt;;</span></span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_frame_counter(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h3 id="havequick-uhf-frequency-hopping">HAVEQUICK (UHF Frequency
+Hopping)</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 19%" />
+<col style="width: 14%" />
+<col style="width: 28%" />
+<col style="width: 17%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Status</th>
+<th>Classification</th>
+<th>Effort %</th>
+<th>Complete %</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Framework</strong></td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>5%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>AM Voice Modulation</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>12%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>ASK Data Modulation</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>10%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>Channel Frequency Math</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>8%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>WOD Parsing</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>10%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td><strong>HoppingAlgorithm</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED</td>
+<td>22%</td>
+<td>20%</td>
+</tr>
+<tr class="odd">
+<td><strong>TimeSyncProtocol</strong></td>
+<td>Partial</td>
+<td>CLASSIFIED</td>
+<td>12%</td>
+<td>40%</td>
+</tr>
+<tr class="even">
+<td><strong>NetController</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED</td>
+<td>10%</td>
+<td>25%</td>
+</tr>
+<tr class="odd">
+<td><strong>TransecProvider</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED (KY-58)</td>
+<td>11%</td>
+<td>15%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort-Weighted Completion: 63%</strong> - Unclassified (45%
+of effort): 100% complete → 45% - Classified (55% of effort): 24%
+average → 13% - Total weighted: <strong>58%</strong></p>
+<h4 id="required-for-operational-use-1">Required for Operational
+Use</h4>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/havequick/traits.rs</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> HoppingAlgorithm<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> wod<span class="op">:</span> <span class="op">&amp;</span>WordOfDay<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> tod<span class="op">:</span> TimeOfDay)<span class="op">;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_current_channel(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> ChannelNumber<span class="op">;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> advance_hop(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> sync_to_time(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> tod<span class="op">:</span> TimeOfDay)<span class="op">;</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> current_hop_number(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">u64</span><span class="op">;</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> predict_channel(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> hop_number<span class="op">:</span> <span class="dt">u64</span>) <span class="op">-&gt;</span> ChannelNumber<span class="op">;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> NetController<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_wod(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> wod<span class="op">:</span> WordOfDay) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> HavequickError<span class="op">&gt;;</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_wod(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId) <span class="op">-&gt;</span> <span class="dt">Option</span><span class="op">&lt;&amp;</span>WordOfDay<span class="op">&gt;;</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_authorized(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> net_id<span class="op">:</span> NetId) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_authorized_nets(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>NetId<span class="op">&gt;;</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h3 id="link-16-l-band-tdma-frequency-hopping">Link-16 (L-Band TDMA +
+Frequency Hopping)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Status</th>
+<th>Classification</th>
+<th>Effort %</th>
+<th>Complete %</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Framework</strong></td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>5%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>MSK Modulation</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>10%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>TDMA Timing</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>8%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>J-Series Message Codec</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>12%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>Reed-Solomon FEC</td>
+<td>Simulator</td>
+<td>UNCLASSIFIED</td>
+<td>8%</td>
+<td>80%</td>
+</tr>
+<tr class="even">
+<td>Interleaver</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>5%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>Pulse Formatter</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>6%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>Track Database</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>8%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>NPG Management</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>6%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td><strong>HoppingPattern</strong></td>
+<td>Simulator only</td>
+<td>COMSEC</td>
+<td>12%</td>
+<td>20%</td>
+</tr>
+<tr class="odd">
+<td><strong>TransecProvider</strong></td>
+<td>Simulator only</td>
+<td>CLASSIFIED</td>
+<td>10%</td>
+<td>15%</td>
+</tr>
+<tr class="even">
+<td><strong>TimeSync (NTRU)</strong></td>
+<td>Partial</td>
+<td>UNCLASSIFIED</td>
+<td>5%</td>
+<td>60%</td>
+</tr>
+<tr class="odd">
+<td><strong>NetworkController</strong></td>
+<td>Partial</td>
+<td>UNCLASSIFIED</td>
+<td>5%</td>
+<td>70%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort-Weighted Completion: 78%</strong> - Core unclassified
+(68% of effort): 96% average → 65% - Classified/COMSEC (22% of effort):
+18% average → 4% - Partial components (10% of effort): 65% average → 7%
+- Total weighted: <strong>76%</strong></p>
+<h4 id="required-for-operational-use-2">Required for Operational
+Use</h4>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// crates/r4w-core/src/waveform/link16/traits.rs</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> HoppingPattern<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> crypto_var<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> net_id<span class="op">:</span> <span class="dt">u16</span>)<span class="op">;</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_frequency(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> Frequency<span class="op">;</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> get_epoch_frequencies(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> epoch<span class="op">:</span> <span class="dt">u8</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>Frequency<span class="op">&gt;;</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> reset(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> TransecProvider<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> load_key(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> Link16Error<span class="op">&gt;;</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> encrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;;</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> decrypt(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> data<span class="op">:</span> <span class="op">&amp;</span>[<span class="dt">u8</span>]<span class="op">,</span> slot<span class="op">:</span> TimeSlot) <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span><span class="dt">Vec</span><span class="op">&lt;</span><span class="dt">u8</span><span class="op">&gt;,</span> Link16Error<span class="op">&gt;;</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> is_loaded(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">bool</span><span class="op">;</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> mode(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> CryptoMode<span class="op">;</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> zeroize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span>)<span class="op">;</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h3 id="mil-std-188-110-hf-serial-tone">MIL-STD-188-110 (HF Serial
+Tone)</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 19%" />
+<col style="width: 14%" />
+<col style="width: 28%" />
+<col style="width: 17%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Status</th>
+<th>Classification</th>
+<th>Effort %</th>
+<th>Complete %</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>PSK Modulation (BPSK/QPSK/8-PSK)</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>25%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>Convolutional FEC</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>20%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>Block Interleaver</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>15%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>Preamble Generation</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>15%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>Data Rate Modes</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>10%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>Viterbi Decoder</td>
+<td>Basic</td>
+<td>UNCLASSIFIED</td>
+<td>15%</td>
+<td>60%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort-Weighted Completion: 94%</strong> - Complete
+components (85% of effort): 100% → 85% - Viterbi decoder (15% of
+effort): 60% → 9% - Total weighted: <strong>94%</strong></p>
+<p><em>Note: This is a fully unclassified waveform. The Viterbi decoder
+works but could be optimized.</em></p>
+<hr />
+<h3 id="apco-p25-public-safety-digital-radio">APCO P25 (Public Safety
+Digital Radio)</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Status</th>
+<th>Classification</th>
+<th>Effort %</th>
+<th>Complete %</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>C4FM Modulation</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>12%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>CQPSK Modulation</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>10%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>H-DQPSK (Phase 2)</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>12%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>Frame Sync</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>8%</td>
+<td>100%</td>
+</tr>
+<tr class="odd">
+<td>NID/NAC Encoding</td>
+<td>Complete</td>
+<td>UNCLASSIFIED</td>
+<td>5%</td>
+<td>100%</td>
+</tr>
+<tr class="even">
+<td>IMBE Voice Codec</td>
+<td>Not implemented</td>
+<td>PROPRIETARY</td>
+<td>18%</td>
+<td>0%</td>
+</tr>
+<tr class="odd">
+<td>AMBE+2 Voice Codec</td>
+<td>Not implemented</td>
+<td>PROPRIETARY</td>
+<td>15%</td>
+<td>0%</td>
+</tr>
+<tr class="even">
+<td>Trunking Protocol</td>
+<td>Not implemented</td>
+<td>UNCLASSIFIED</td>
+<td>12%</td>
+<td>0%</td>
+</tr>
+<tr class="odd">
+<td>AES Encryption</td>
+<td>Not implemented</td>
+<td>UNCLASSIFIED</td>
+<td>8%</td>
+<td>0%</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Effort-Weighted Completion: 47%</strong> - RF layer (47% of
+effort): 100% complete → 47% - Voice codecs (33% of effort): 0% → 0% -
+Trunking/encryption (20% of effort): 0% → 0% - Total weighted:
+<strong>47%</strong></p>
+<h4 id="notes-on-p25-codecs">Notes on P25 Codecs</h4>
+<p>The IMBE and AMBE+2 voice codecs used by P25 are proprietary (DVSI).
+Options:</p>
+<ol type="1">
+<li><strong>Codec2</strong> - Open source codec, not P25 compatible but
+similar quality</li>
+<li><strong>mbelib</strong> - Open source IMBE/AMBE decoder (receive
+only, legal gray area)</li>
+<li><strong>DVSI license</strong> - Purchase vocoder license from DVSI
+for full compatibility</li>
+<li><strong>Hardware vocoder</strong> - Use DVSI AMBE chip (e.g.,
+DV3000) via serial interface</li>
+</ol>
+<hr />
+<h2 id="porting-process">Porting Process</h2>
+<h3 id="for-classified-components">For Classified Components</h3>
+<ol type="1">
+<li><p><strong>Obtain Authorization</strong></p>
+<ul>
+<li>Ensure proper clearances and facility accreditation</li>
+<li>Obtain necessary agreements (CDA, MOU, etc.)</li>
+</ul></li>
+<li><p><strong>Set Up Secure Environment</strong></p>
+<ul>
+<li>Air-gapped development system</li>
+<li>Classified build environment</li>
+<li>Code review procedures</li>
+</ul></li>
+<li><p><strong>Implement Traits</strong></p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">// In your classified crate</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::sincgars::traits::</span><span class="op">*;</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">struct</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Classified state</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="kw">impl</span> HoppingAlgorithm <span class="cf">for</span> ClassifiedHopper <span class="op">{</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> initialize(<span class="op">&amp;</span><span class="kw">mut</span> <span class="kw">self</span><span class="op">,</span> key<span class="op">:</span> <span class="op">&amp;</span>TransecKey<span class="op">,</span> net_id<span class="op">:</span> NetId<span class="op">,</span> time<span class="op">:</span> SincgarsTime) <span class="op">{</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Classified implementation</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="co">// ... other methods</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div></li>
+<li><p><strong>Build with Feature Flags</strong></p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode toml"><code class="sourceCode toml"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Cargo.toml</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">[features]</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="dt">default</span> <span class="op">=</span> <span class="op">[</span><span class="st">&quot;simulator&quot;</span><span class="op">]</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="dt">simulator</span> <span class="op">=</span> <span class="op">[]</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="dt">classified</span> <span class="op">=</span> <span class="op">[]</span>  <span class="co"># Enable classified implementations</span></span></code></pre></div></li>
+<li><p><strong>Testing</strong></p>
+<ul>
+<li>Use simulator implementations for unclassified testing</li>
+<li>Classified testing in secure environment only</li>
+</ul></li>
+</ol>
+<h3 id="for-unclassified-components">For Unclassified Components</h3>
+<p>Components like voice codecs, improved FEC, or better sync can be
+contributed directly:</p>
+<ol type="1">
+<li>Fork the repository</li>
+<li>Implement the improvement</li>
+<li>Add tests</li>
+<li>Submit pull request</li>
+</ol>
+<hr />
+<h2 id="security-considerations">Security Considerations</h2>
+<h3 id="do-not">Do NOT</h3>
+<ul>
+<li>Commit classified code to this repository</li>
+<li>Discuss classified algorithms in issues/PRs</li>
+<li>Attempt to reverse-engineer classified implementations</li>
+<li>Use simulator implementations for actual secure communications</li>
+</ul>
+<h3 id="do">DO</h3>
+<ul>
+<li>Use simulator implementations for training and development</li>
+<li>Implement classified components in separate, secure
+repositories</li>
+<li>Follow your organization’s security procedures</li>
+<li>Report security issues responsibly</li>
+</ul>
+<hr />
+<h2 id="summary-table">Summary Table</h2>
+<table>
+<colgroup>
+<col style="width: 11%" />
+<col style="width: 19%" />
+<col style="width: 21%" />
+<col style="width: 27%" />
+<col style="width: 19%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Waveform</th>
+<th>Effort-Weighted</th>
+<th>Unclassified Work</th>
+<th>Classified/Proprietary</th>
+<th>Primary Missing</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SINCGARS</td>
+<td><strong>59%</strong></td>
+<td>50% (done)</td>
+<td>50% (stubs)</td>
+<td>Hopping, TRANSEC, Crypto</td>
+</tr>
+<tr class="even">
+<td>HAVEQUICK</td>
+<td><strong>58%</strong></td>
+<td>45% (done)</td>
+<td>55% (stubs)</td>
+<td>Hopping, WOD, KY-58</td>
+</tr>
+<tr class="odd">
+<td>Link-16</td>
+<td><strong>76%</strong></td>
+<td>68% (done)</td>
+<td>22% (stubs)</td>
+<td>Hopping, TRANSEC</td>
+</tr>
+<tr class="even">
+<td>MIL-STD-188-110</td>
+<td><strong>94%</strong></td>
+<td>100% (all)</td>
+<td>0%</td>
+<td>Viterbi optimization</td>
+</tr>
+<tr class="odd">
+<td>P25</td>
+<td><strong>47%</strong></td>
+<td>47% (RF done)</td>
+<td>53% (missing)</td>
+<td>Voice codec, Trunking</td>
+</tr>
+</tbody>
+</table>
+<h3 id="effort-breakdown-by-category">Effort Breakdown by Category</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                    Total Effort Distribution                    │
+├─────────────────────────────────────────────────────────────────┤
+│ SINCGARS:   [██████████████████████░░░░░░░░░░░░░░░░░░] 59%      │
+│ HAVEQUICK:  [█████████████████████░░░░░░░░░░░░░░░░░░░] 58%      │
+│ Link-16:    [██████████████████████████████░░░░░░░░░░] 76%      │
+│ MIL-STD:    [█████████████████████████████████████░░░] 94%      │
+│ P25:        [██████████████████░░░░░░░░░░░░░░░░░░░░░░] 47%      │
+├─────────────────────────────────────────────────────────────────┤
+│ Overall Average (effort-weighted): 67%                          │
+└─────────────────────────────────────────────────────────────────┘
+
+Legend:
+  ███ = Complete (unclassified, fully functional)
+  ░░░ = Remaining (classified stubs or not implemented)</code></pre>
+<hr />
+<h2 id="contact">Contact</h2>
+<p>For questions about porting or contributing unclassified
+improvements, please open a GitHub issue.</p>
+<p>For classified integration inquiries, contact your program office or
+contracting organization.</p>
+</body>
+</html>

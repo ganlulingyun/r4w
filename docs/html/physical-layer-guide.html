@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>R4W - physical-layer-guide</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">R4W - physical-layer-guide</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#physical-layer-developers-guide"
+id="toc-physical-layer-developers-guide">Physical Layer Developer’s
+Guide</a>
+<ul>
+<li><a href="#table-of-contents" id="toc-table-of-contents">Table of
+Contents</a></li>
+<li><a href="#architecture-overview" id="toc-architecture-overview">1.
+Architecture Overview</a>
+<ul>
+<li><a href="#key-crates" id="toc-key-crates">Key Crates</a></li>
+</ul></li>
+<li><a href="#timing-model" id="toc-timing-model">2. Timing Model</a>
+<ul>
+<li><a href="#clock-types" id="toc-clock-types">2.1 Clock Types</a></li>
+<li><a href="#unified-timestamp" id="toc-unified-timestamp">2.2 Unified
+Timestamp</a></li>
+<li><a href="#clock-domain-conversions"
+id="toc-clock-domain-conversions">2.3 Clock Domain Conversions</a></li>
+<li><a href="#rate-limiting-for-real-time"
+id="toc-rate-limiting-for-real-time">2.4 Rate Limiting for
+Real-Time</a></li>
+<li><a href="#high-resolution-timing"
+id="toc-high-resolution-timing">2.5 High-Resolution Timing</a></li>
+</ul></li>
+<li><a href="#hardware-abstraction-layer-hal"
+id="toc-hardware-abstraction-layer-hal">3. Hardware Abstraction Layer
+(HAL)</a>
+<ul>
+<li><a href="#core-traits" id="toc-core-traits">3.1 Core Traits</a></li>
+<li><a href="#device-discovery-and-creation"
+id="toc-device-discovery-and-creation">3.2 Device Discovery and
+Creation</a></li>
+<li><a href="#file-io-with-sigmf" id="toc-file-io-with-sigmf">3.3 File
+I/O with SigMF</a></li>
+</ul></li>
+<li><a href="#real-time-primitives" id="toc-real-time-primitives">4.
+Real-Time Primitives</a>
+<ul>
+<li><a href="#lock-free-ring-buffer" id="toc-lock-free-ring-buffer">4.1
+Lock-Free Ring Buffer</a></li>
+<li><a href="#buffer-pool" id="toc-buffer-pool">4.2 Buffer Pool</a></li>
+<li><a href="#memory-locked-buffers" id="toc-memory-locked-buffers">4.3
+Memory-Locked Buffers</a></li>
+<li><a href="#real-time-threads" id="toc-real-time-threads">4.4
+Real-Time Threads</a></li>
+<li><a href="#utility-functions" id="toc-utility-functions">4.5 Utility
+Functions</a></li>
+</ul></li>
+<li><a href="#configuration-system" id="toc-configuration-system">5.
+Configuration System</a>
+<ul>
+<li><a href="#configuration-structure"
+id="toc-configuration-structure">5.1 Configuration Structure</a></li>
+<li><a href="#loading-configuration" id="toc-loading-configuration">5.2
+Loading Configuration</a></li>
+<li><a href="#using-hardware-profiles"
+id="toc-using-hardware-profiles">5.3 Using Hardware Profiles</a></li>
+<li><a href="#generating-example-configuration"
+id="toc-generating-example-configuration">5.4 Generating Example
+Configuration</a></li>
+</ul></li>
+<li><a href="#observability" id="toc-observability">6. Observability</a>
+<ul>
+<li><a href="#structured-logging" id="toc-structured-logging">6.1
+Structured Logging</a></li>
+<li><a href="#metrics-collection" id="toc-metrics-collection">6.2
+Metrics Collection</a></li>
+<li><a href="#custom-metrics" id="toc-custom-metrics">6.3 Custom
+Metrics</a></li>
+<li><a href="#initialization-helper" id="toc-initialization-helper">6.4
+Initialization Helper</a></li>
+</ul></li>
+<li><a href="#integration-examples" id="toc-integration-examples">7.
+Integration Examples</a>
+<ul>
+<li><a href="#complete-sdr-application-setup"
+id="toc-complete-sdr-application-setup">7.1 Complete SDR Application
+Setup</a></li>
+<li><a href="#multi-device-synchronized-setup"
+id="toc-multi-device-synchronized-setup">7.2 Multi-Device Synchronized
+Setup</a></li>
+<li><a href="#recording-session-with-metrics"
+id="toc-recording-session-with-metrics">7.3 Recording Session with
+Metrics</a></li>
+</ul></li>
+<li><a href="#quick-reference" id="toc-quick-reference">Quick
+Reference</a>
+<ul>
+<li><a href="#timing-types" id="toc-timing-types">Timing Types</a></li>
+<li><a href="#hal-traits" id="toc-hal-traits">HAL Traits</a></li>
+<li><a href="#rt-primitives" id="toc-rt-primitives">RT
+Primitives</a></li>
+<li><a href="#config-sections" id="toc-config-sections">Config
+Sections</a></li>
+</ul></li>
+<li><a href="#see-also" id="toc-see-also">See Also</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="physical-layer-developers-guide">Physical Layer Developer’s
+Guide</h1>
+<p>This guide covers the physical layer infrastructure in R4W that sits
+beneath the waveform abstraction. These components handle timing,
+hardware abstraction, real-time processing, configuration, and
+observability.</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol type="1">
+<li><a href="#1-architecture-overview">Architecture Overview</a></li>
+<li><a href="#2-timing-model">Timing Model</a></li>
+<li><a href="#3-hardware-abstraction-layer-hal">Hardware Abstraction
+Layer (HAL)</a></li>
+<li><a href="#4-real-time-primitives">Real-Time Primitives</a></li>
+<li><a href="#5-configuration-system">Configuration System</a></li>
+<li><a href="#6-observability">Observability</a></li>
+<li><a href="#7-integration-examples">Integration Examples</a></li>
+</ol>
+<hr />
+<h2 id="architecture-overview">1. Architecture Overview</h2>
+<p>The physical layer provides the foundation for all SDR
+operations:</p>
+<pre><code>┌─────────────────────────────────────────────────────────────┐
+│                    Waveform Layer                           │
+│             (LoRa, PSK, QAM, FSK, etc.)                     │
+├─────────────────────────────────────────────────────────────┤
+│                  HAL Interface (Rust traits)                │
+│   SdrDeviceExt, StreamHandle, TunerControl, ClockControl    │
+├───────────────┬───────────────┬─────────────────────────────┤
+│   Simulator   │   File I/O    │  Hardware Drivers           │
+│               │   (SigMF)     │  (UHD, SoapySDR, RTL-SDR)   │
+├───────────────┴───────────────┴─────────────────────────────┤
+│                  RT Primitives Layer                        │
+│   RingBuffer, BufferPool, LockedBuffer, RtThread            │
+├─────────────────────────────────────────────────────────────┤
+│                  Timing Layer                               │
+│   SampleClock, WallClock, HardwareClock, SyncedTime         │
+├─────────────────────────────────────────────────────────────┤
+│                  Configuration &amp; Observability              │
+│   R4wConfig (YAML), Metrics, Logging, Tracing               │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+<h3 id="key-crates">Key Crates</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Crate</th>
+<th>Module</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>r4w-core</code></td>
+<td><code>timing</code></td>
+<td>Multi-clock timing model</td>
+</tr>
+<tr class="even">
+<td><code>r4w-core</code></td>
+<td><code>rt</code></td>
+<td>Real-time primitives</td>
+</tr>
+<tr class="odd">
+<td><code>r4w-core</code></td>
+<td><code>config</code></td>
+<td>YAML configuration</td>
+</tr>
+<tr class="even">
+<td><code>r4w-core</code></td>
+<td><code>observe</code></td>
+<td>Logging, metrics</td>
+</tr>
+<tr class="odd">
+<td><code>r4w-sim</code></td>
+<td><code>hal</code></td>
+<td>Hardware abstraction</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="timing-model">2. Timing Model</h2>
+<p><strong>Module</strong>: <code>r4w_core::timing</code></p>
+<p>The timing model provides a unified abstraction across multiple clock
+domains, essential for correlating sample time with real-world time and
+synchronizing multiple devices.</p>
+<h3 id="clock-types">2.1 Clock Types</h3>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span><span class="op">{</span>SampleClock<span class="op">,</span> WallClock<span class="op">,</span> HardwareClock<span class="op">,</span> SyncedTime<span class="op">,</span> Timestamp<span class="op">};</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Sample clock - counts samples monotonically</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> sample_clock <span class="op">=</span> <span class="pp">SampleClock::</span>new(<span class="dv">48000.0</span>)<span class="op">;</span> <span class="co">// 48 kHz sample rate</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>sample_clock<span class="op">.</span>advance(<span class="dv">48000</span>)<span class="op">;</span> <span class="co">// Advance by 1 second of samples</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> duration <span class="op">=</span> sample_clock<span class="op">.</span>to_duration()<span class="op">;</span> <span class="co">// Convert to Duration</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Wall clock - system time with nanosecond precision</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> wall <span class="op">=</span> <span class="pp">WallClock::</span>now()<span class="op">;</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> unix_secs <span class="op">=</span> wall<span class="op">.</span>as_secs()<span class="op">;</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> unix_nanos <span class="op">=</span> wall<span class="op">.</span>as_nanos()<span class="op">;</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Hardware clock - device timestamps (tick-based)</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> hw <span class="op">=</span> <span class="pp">HardwareClock::</span>new(<span class="dv">100_000_000.0</span>)<span class="op">;</span> <span class="co">// 100 MHz tick rate</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> samples <span class="op">=</span> hw<span class="op">.</span>ticks_to_samples(hw<span class="op">.</span>ticks()<span class="op">,</span> <span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="co">// Synced time - GPS/PTP synchronized (TAI-based)</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> synced <span class="op">=</span> <span class="pp">SyncedTime::</span>from_utc_nanos(wall<span class="op">.</span>as_nanos()<span class="op">,</span> <span class="pp">TimeSource::</span>Gps)<span class="op">;</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> tai <span class="op">=</span> synced<span class="op">.</span>tai_nanos()<span class="op">;</span></span></code></pre></div>
+<h3 id="unified-timestamp">2.2 Unified Timestamp</h3>
+<p>The <code>Timestamp</code> struct combines all clock domains:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span>Timestamp<span class="op">;</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Create a timestamp at the current time</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> ts <span class="op">=</span> <span class="pp">Timestamp::</span>new(<span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Add hardware clock info</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>ts <span class="op">=</span> ts<span class="op">.</span>with_hardware(<span class="pp">HardwareClock::</span>new(<span class="dv">100_000_000.0</span>))<span class="op">;</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Add GPS-synced time</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>ts <span class="op">=</span> ts<span class="op">.</span>with_synced(<span class="pp">SyncedTime::</span>from_utc_nanos(</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    <span class="pp">WallClock::</span>now()<span class="op">.</span>as_nanos()<span class="op">,</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    <span class="pp">TimeSource::</span>Gps<span class="op">,</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>))<span class="op">;</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="co">// Advance all clocks together</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>ts<span class="op">.</span>advance_samples(<span class="dv">48000</span>)<span class="op">;</span> <span class="co">// Advances sample, wall, and hardware clocks</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="co">// Query best time source</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="cf">match</span> ts<span class="op">.</span>best_time_source() <span class="op">{</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>    <span class="pp">TimeSource::</span>Gps <span class="op">=&gt;</span> <span class="pp">println!</span>(<span class="st">&quot;GPS synchronized&quot;</span>)<span class="op">,</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    <span class="pp">TimeSource::</span>Ptp <span class="op">=&gt;</span> <span class="pp">println!</span>(<span class="st">&quot;PTP synchronized&quot;</span>)<span class="op">,</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="pp">TimeSource::</span>Freerun <span class="op">=&gt;</span> <span class="pp">println!</span>(<span class="st">&quot;Free-running&quot;</span>)<span class="op">,</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    _ <span class="op">=&gt;</span> <span class="op">{}</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="clock-domain-conversions">2.3 Clock Domain Conversions</h3>
+<p>The <code>ClockDomain</code> trait enables conversions between clock
+types:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span>ClockDomain<span class="op">;</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> sample_clock <span class="op">=</span> <span class="pp">SampleClock::</span>at_sample(<span class="dv">48000</span><span class="op">,</span> <span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Convert to samples (at a given sample rate)</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> samples <span class="op">=</span> sample_clock<span class="op">.</span>to_samples(<span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Convert to wall clock nanoseconds</span></span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> nanos <span class="op">=</span> sample_clock<span class="op">.</span>to_wall_nanos()<span class="op">;</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Convert to Duration</span></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> duration <span class="op">=</span> sample_clock<span class="op">.</span>to_duration()<span class="op">;</span></span></code></pre></div>
+<h3 id="rate-limiting-for-real-time">2.4 Rate Limiting for
+Real-Time</h3>
+<p>The <code>RateLimiter</code> helps maintain consistent timing for
+streaming:</p>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span>RateLimiter<span class="op">;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::</span>thread<span class="op">;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> limiter <span class="op">=</span> <span class="pp">RateLimiter::</span>new(<span class="dv">48000.0</span>)<span class="op">;</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a><span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Process samples...</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> samples_processed <span class="op">=</span> <span class="dv">480</span><span class="op">;</span> <span class="co">// 10ms worth</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Get sleep duration to maintain rate</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(sleep_duration) <span class="op">=</span> limiter<span class="op">.</span>record(samples_processed) <span class="op">{</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>        <span class="pp">thread::</span>sleep(sleep_duration)<span class="op">;</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Check if we&#39;re keeping up</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="op">!</span>limiter<span class="op">.</span>is_realtime() <span class="op">{</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>        <span class="pp">eprintln!</span>(<span class="st">&quot;Warning: not keeping up with real-time!&quot;</span>)<span class="op">;</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="high-resolution-timing">2.5 High-Resolution Timing</h3>
+<p>For measuring intervals with nanosecond precision:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span>MonotonicTimer<span class="op">;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> timer <span class="op">=</span> <span class="pp">MonotonicTimer::</span>start()<span class="op">;</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Do some work...</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> elapsed <span class="op">=</span> timer<span class="op">.</span>elapsed()<span class="op">;</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Took {:?}&quot;</span><span class="op">,</span> elapsed)<span class="op">;</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Lap timing</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> timer <span class="op">=</span> <span class="pp">MonotonicTimer::</span>start()<span class="op">;</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="dv">0</span><span class="op">..</span><span class="dv">10</span> <span class="op">{</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>    process_batch()<span class="op">;</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> lap <span class="op">=</span> timer<span class="op">.</span>lap()<span class="op">;</span> <span class="co">// Returns elapsed and resets</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;Batch {} took {:?}&quot;</span><span class="op">,</span> i<span class="op">,</span> lap)<span class="op">;</span></span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<hr />
+<h2 id="hardware-abstraction-layer-hal">3. Hardware Abstraction Layer
+(HAL)</h2>
+<p><strong>Module</strong>: <code>r4w_sim::hal</code></p>
+<p>The HAL provides a layered abstraction for SDR hardware, enabling the
+same waveform code to run on simulators, file I/O, or real hardware.</p>
+<h3 id="core-traits">3.1 Core Traits</h3>
+<h4 id="streamhandle---streaming-iq-samples">StreamHandle - Streaming
+I/Q Samples</h4>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sim::hal::</span><span class="op">{</span>StreamHandle<span class="op">,</span> StreamConfig<span class="op">,</span> StreamDirection<span class="op">};</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::time::</span>Duration<span class="op">;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Configure and create a stream</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> StreamConfig <span class="op">{</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>    direction<span class="op">:</span> <span class="pp">StreamDirection::</span>Rx<span class="op">,</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>    channels<span class="op">:</span> <span class="pp">vec!</span>[<span class="dv">0</span>]<span class="op">,</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>    buffer_size<span class="op">:</span> <span class="dv">8192</span><span class="op">,</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    num_buffers<span class="op">:</span> <span class="dv">4</span><span class="op">,</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">..</span><span class="bu">Default</span><span class="pp">::</span><span class="kw">default</span>()</span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> stream <span class="op">=</span> device<span class="op">.</span>create_rx_stream(config)<span class="op">?;</span></span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a><span class="co">// Start streaming</span></span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>stream<span class="op">.</span>start()<span class="op">?;</span></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a><span class="co">// Read samples with timeout</span></span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> buffer <span class="op">=</span> <span class="pp">vec!</span>[<span class="pp">IQSample::</span><span class="kw">default</span>()<span class="op">;</span> <span class="dv">1024</span>]<span class="op">;</span></span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> (count<span class="op">,</span> timestamp) <span class="op">=</span> stream<span class="op">.</span>read(<span class="op">&amp;</span><span class="kw">mut</span> buffer<span class="op">,</span> <span class="pp">Duration::</span>from_millis(<span class="dv">100</span>))<span class="op">?;</span></span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a><span class="co">// Check for overflows</span></span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> status <span class="op">=</span> stream<span class="op">.</span>status()<span class="op">;</span></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> status<span class="op">.</span>overflow_count <span class="op">&gt;</span> <span class="dv">0</span> <span class="op">{</span></span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    <span class="pp">eprintln!</span>(<span class="st">&quot;Overflow! {} samples lost&quot;</span><span class="op">,</span> status<span class="op">.</span>overflow_count)<span class="op">;</span></span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a><span class="co">// Stop streaming</span></span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>stream<span class="op">.</span>stop()<span class="op">?;</span></span></code></pre></div>
+<h4 id="tunercontrol---frequency-and-gain">TunerControl - Frequency and
+Gain</h4>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sim::hal::</span>TunerControl<span class="op">;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Get the tuner interface</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> tuner <span class="op">=</span> device<span class="op">.</span>tuner()<span class="op">;</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Set parameters (returns actual value set)</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> actual_freq <span class="op">=</span> tuner<span class="op">.</span>set_frequency(<span class="dv">915_000_000</span>)<span class="op">?;</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> actual_rate <span class="op">=</span> tuner<span class="op">.</span>set_sample_rate(<span class="dv">1_000_000.0</span>)<span class="op">?;</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> actual_gain <span class="op">=</span> tuner<span class="op">.</span>set_rx_gain(<span class="dv">30.0</span>)<span class="op">?;</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Query capabilities</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> (min_freq<span class="op">,</span> max_freq) <span class="op">=</span> tuner<span class="op">.</span>frequency_range()<span class="op">;</span></span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> (min_gain<span class="op">,</span> max_gain) <span class="op">=</span> tuner<span class="op">.</span>gain_range()<span class="op">;</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> antennas <span class="op">=</span> tuner<span class="op">.</span>available_antennas()<span class="op">;</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Set antenna port</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a>tuner<span class="op">.</span>set_antenna(<span class="st">&quot;RX2&quot;</span>)<span class="op">?;</span></span></code></pre></div>
+<h4 id="clockcontrol---synchronization">ClockControl -
+Synchronization</h4>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sim::hal::</span><span class="op">{</span>ClockControl<span class="op">,</span> ClockSource<span class="op">};</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span>TimeSource<span class="op">;</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Get clock control (if supported)</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(clock) <span class="op">=</span> device<span class="op">.</span>clock() <span class="op">{</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Use external reference</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    clock<span class="op">.</span>set_clock_source(<span class="pp">ClockSource::</span>External)<span class="op">?;</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>    clock<span class="op">.</span>set_time_source(<span class="pp">TimeSource::</span>Gps)<span class="op">?;</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Wait for PPS and set time</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>    clock<span class="op">.</span>wait_for_pps(<span class="pp">Duration::</span>from_secs(<span class="dv">2</span>))<span class="op">?;</span></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    clock<span class="op">.</span>set_time_at_pps(timestamp)<span class="op">?;</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Check lock status</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> clock<span class="op">.</span>is_locked() <span class="op">{</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>        <span class="pp">println!</span>(<span class="st">&quot;Locked to external reference&quot;</span>)<span class="op">;</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="device-discovery-and-creation">3.2 Device Discovery and
+Creation</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sim::hal::</span><span class="op">{</span>DriverRegistry<span class="op">,</span> create_default_registry<span class="op">};</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Create registry with built-in drivers</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> registry <span class="op">=</span> create_default_registry()<span class="op">;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">// List available drivers</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> driver_name <span class="kw">in</span> registry<span class="op">.</span>list() <span class="op">{</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;Driver: {}&quot;</span><span class="op">,</span> driver_name)<span class="op">;</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Discover all devices</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (driver<span class="op">,</span> info) <span class="kw">in</span> registry<span class="op">.</span>discover_all() <span class="op">{</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;{}: {} ({})&quot;</span><span class="op">,</span> driver<span class="op">,</span> info<span class="op">.</span>name<span class="op">,</span> info<span class="op">.</span>serial)<span class="op">;</span></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Create device from URI</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> device <span class="op">=</span> registry<span class="op">.</span>create(<span class="st">&quot;soapysdr://driver=hackrf&quot;</span>)<span class="op">?;</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="co">// Or get specific driver</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(driver) <span class="op">=</span> registry<span class="op">.</span>get(<span class="st">&quot;rtlsdr&quot;</span>) <span class="op">{</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> devices <span class="op">=</span> driver<span class="op">.</span>discover()<span class="op">;</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(info) <span class="op">=</span> devices<span class="op">.</span>first() <span class="op">{</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> device <span class="op">=</span> driver<span class="op">.</span>create(info)<span class="op">?;</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="file-io-with-sigmf">3.3 File I/O with SigMF</h3>
+<p>The HAL includes SigMF (Signal Metadata Format) support for recording
+and playback:</p>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sim::hal::</span><span class="op">{</span>SigMfWriter<span class="op">,</span> SigMfReader<span class="op">,</span> SigMfMeta<span class="op">};</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Write samples to SigMF file</span></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> meta <span class="op">=</span> SigMfMeta <span class="op">{</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">:</span> <span class="dv">1_000_000.0</span><span class="op">,</span></span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>    center_frequency<span class="op">:</span> <span class="dv">915_000_000.0</span><span class="op">,</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>    author<span class="op">:</span> <span class="st">&quot;R4W&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>    description<span class="op">:</span> <span class="st">&quot;LoRa capture&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">..</span><span class="bu">Default</span><span class="pp">::</span><span class="kw">default</span>()</span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> writer <span class="op">=</span> <span class="pp">SigMfWriter::</span>create(<span class="st">&quot;capture&quot;</span><span class="op">,</span> <span class="op">&amp;</span>meta)<span class="op">?;</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>writer<span class="op">.</span>write_samples(<span class="op">&amp;</span>samples)<span class="op">?;</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>writer<span class="op">.</span>close()<span class="op">?;</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Read samples from SigMF file</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> reader <span class="op">=</span> <span class="pp">SigMfReader::</span>open(<span class="st">&quot;capture&quot;</span>)<span class="op">?;</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> meta <span class="op">=</span> reader<span class="op">.</span>metadata()<span class="op">;</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Sample rate: {}&quot;</span><span class="op">,</span> meta<span class="op">.</span>sample_rate)<span class="op">;</span></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> buffer <span class="op">=</span> <span class="pp">vec!</span>[<span class="pp">IQSample::</span><span class="kw">default</span>()<span class="op">;</span> <span class="dv">1024</span>]<span class="op">;</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> count <span class="op">=</span> reader<span class="op">.</span>read_samples(<span class="op">&amp;</span><span class="kw">mut</span> buffer)<span class="op">?;</span></span></code></pre></div>
+<hr />
+<h2 id="real-time-primitives">4. Real-Time Primitives</h2>
+<p><strong>Module</strong>: <code>r4w_core::rt</code></p>
+<p>The RT module provides lock-free, allocation-free primitives for
+real-time signal processing.</p>
+<h3 id="lock-free-ring-buffer">4.1 Lock-Free Ring Buffer</h3>
+<p>Single-producer, single-consumer (SPSC) ring buffer for streaming
+between threads:</p>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt::</span>RingBuffer<span class="op">;</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::sync::</span>Arc<span class="op">;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::</span>thread<span class="op">;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Create ring buffer (capacity rounds up to power of 2)</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> ring<span class="op">:</span> Arc<span class="op">&lt;</span>RingBuffer<span class="op">&lt;</span><span class="dt">f32</span><span class="op">&gt;&gt;</span> <span class="op">=</span> <span class="pp">Arc::</span>new(<span class="pp">RingBuffer::</span>new(<span class="dv">1024</span>))<span class="op">;</span></span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Producer thread</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> ring_tx <span class="op">=</span> <span class="pp">Arc::</span>clone(<span class="op">&amp;</span>ring)<span class="op">;</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="pp">thread::</span>spawn(<span class="kw">move</span> <span class="op">||</span> <span class="op">{</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Single element</span></span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a>        ring_tx<span class="op">.</span>push(sample)<span class="op">.</span>unwrap()<span class="op">;</span></span>
+<span id="cb12-14"><a href="#cb12-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-15"><a href="#cb12-15" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Batch push (returns count actually pushed)</span></span>
+<span id="cb12-16"><a href="#cb12-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> pushed <span class="op">=</span> ring_tx<span class="op">.</span>push_slice(<span class="op">&amp;</span>samples)<span class="op">;</span></span>
+<span id="cb12-17"><a href="#cb12-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-18"><a href="#cb12-18" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Blocking push (spins until complete)</span></span>
+<span id="cb12-19"><a href="#cb12-19" aria-hidden="true" tabindex="-1"></a>        ring_tx<span class="op">.</span>push_slice_blocking(<span class="op">&amp;</span>large_batch)<span class="op">;</span></span>
+<span id="cb12-20"><a href="#cb12-20" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-21"><a href="#cb12-21" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">;</span></span>
+<span id="cb12-22"><a href="#cb12-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-23"><a href="#cb12-23" aria-hidden="true" tabindex="-1"></a><span class="co">// Consumer thread</span></span>
+<span id="cb12-24"><a href="#cb12-24" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> ring_rx <span class="op">=</span> <span class="pp">Arc::</span>clone(<span class="op">&amp;</span>ring)<span class="op">;</span></span>
+<span id="cb12-25"><a href="#cb12-25" aria-hidden="true" tabindex="-1"></a><span class="pp">thread::</span>spawn(<span class="kw">move</span> <span class="op">||</span> <span class="op">{</span></span>
+<span id="cb12-26"><a href="#cb12-26" aria-hidden="true" tabindex="-1"></a>    <span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb12-27"><a href="#cb12-27" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Single element</span></span>
+<span id="cb12-28"><a href="#cb12-28" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(sample) <span class="op">=</span> ring_rx<span class="op">.</span>pop() <span class="op">{</span></span>
+<span id="cb12-29"><a href="#cb12-29" aria-hidden="true" tabindex="-1"></a>            process(sample)<span class="op">;</span></span>
+<span id="cb12-30"><a href="#cb12-30" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb12-31"><a href="#cb12-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-32"><a href="#cb12-32" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Batch pop</span></span>
+<span id="cb12-33"><a href="#cb12-33" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> buffer <span class="op">=</span> [<span class="dv">0.0f32</span><span class="op">;</span> <span class="dv">256</span>]<span class="op">;</span></span>
+<span id="cb12-34"><a href="#cb12-34" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> popped <span class="op">=</span> ring_rx<span class="op">.</span>pop_slice(<span class="op">&amp;</span><span class="kw">mut</span> buffer)<span class="op">;</span></span>
+<span id="cb12-35"><a href="#cb12-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-36"><a href="#cb12-36" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Check status</span></span>
+<span id="cb12-37"><a href="#cb12-37" aria-hidden="true" tabindex="-1"></a>        <span class="pp">println!</span>(<span class="st">&quot;Buffer level: {}/{}&quot;</span><span class="op">,</span> ring_rx<span class="op">.</span>len()<span class="op">,</span> ring_rx<span class="op">.</span>capacity())<span class="op">;</span></span>
+<span id="cb12-38"><a href="#cb12-38" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb12-39"><a href="#cb12-39" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">;</span></span></code></pre></div>
+<h3 id="buffer-pool">4.2 Buffer Pool</h3>
+<p>Pre-allocated buffers to avoid runtime allocation:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt::</span>BufferPool<span class="op">;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Create pool: 8 buffers, each 4096 samples</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> pool<span class="op">:</span> BufferPool<span class="op">&lt;</span><span class="dt">f32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="pp">BufferPool::</span>new(<span class="dv">8</span><span class="op">,</span> <span class="dv">4096</span>)<span class="op">;</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Acquire a buffer (lock-free)</span></span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> buf <span class="op">=</span> pool<span class="op">.</span>acquire()<span class="op">?;</span></span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Use the buffer</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>buf<span class="op">.</span>as_mut_slice()[<span class="dv">0</span>] <span class="op">=</span> <span class="dv">1.0</span><span class="op">;</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> data <span class="op">=</span> buf<span class="op">.</span>as_slice()<span class="op">;</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Buffer automatically returns to pool when dropped</span></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>drop(buf)<span class="op">;</span></span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Check availability</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Available: {}/{}&quot;</span><span class="op">,</span> pool<span class="op">.</span>available()<span class="op">,</span> pool<span class="op">.</span>buffer_count())<span class="op">;</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a><span class="co">// Blocking acquire (spins until available)</span></span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> buf <span class="op">=</span> pool<span class="op">.</span>acquire_blocking()<span class="op">;</span></span></code></pre></div>
+<h3 id="memory-locked-buffers">4.3 Memory-Locked Buffers</h3>
+<p>Prevent page faults in real-time paths:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt::</span>LockedBuffer<span class="op">;</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Allocate and lock memory (requires privileges)</span></span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> buf<span class="op">:</span> LockedBuffer<span class="op">&lt;</span><span class="dt">f32</span><span class="op">&gt;</span> <span class="op">=</span> <span class="pp">LockedBuffer::</span>new(<span class="dv">4096</span>)<span class="op">?;</span></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Check if locking succeeded</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> buf<span class="op">.</span>is_locked() <span class="op">{</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;Memory locked - no page faults possible&quot;</span>)<span class="op">;</span></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="co">// Use like a normal slice</span></span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>buf<span class="op">.</span>as_mut_slice()[<span class="dv">0</span>] <span class="op">=</span> <span class="dv">1.0</span><span class="op">;</span></span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> slice <span class="op">=</span> buf<span class="op">.</span>as_slice()<span class="op">;</span></span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a><span class="co">// Memory is unlocked and freed on drop</span></span></code></pre></div>
+<h3 id="real-time-threads">4.4 Real-Time Threads</h3>
+<p>Spawn threads with RT priority and CPU affinity:</p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt::</span><span class="op">{</span>RtConfig<span class="op">,</span> RtPriority<span class="op">,</span> spawn_rt_thread<span class="op">};</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Configure RT thread</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> <span class="pp">RtConfig::</span>builder()</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>name(<span class="st">&quot;rx_thread&quot;</span>)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>priority(<span class="pp">RtPriority::</span>High)      <span class="co">// SCHED_FIFO 80 on Linux</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>cpu_affinity(<span class="op">&amp;</span>[<span class="dv">0</span>])              <span class="co">// Pin to CPU 0</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>lock_memory(<span class="cn">true</span>)               <span class="co">// mlockall()</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>stack_size(<span class="dv">1024</span> <span class="op">*</span> <span class="dv">1024</span>)         <span class="co">// 1 MB stack</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>build()<span class="op">;</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co">// Spawn the thread</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> handle <span class="op">=</span> spawn_rt_thread(config<span class="op">,</span> <span class="op">||</span> <span class="op">{</span></span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Real-time processing loop</span></span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>    <span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> samples <span class="op">=</span> read_samples()<span class="op">;</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>        process(samples)<span class="op">;</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span>)<span class="op">?;</span></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="co">// Get suggested CPU allocation</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> (rx_cpus<span class="op">,</span> tx_cpus<span class="op">,</span> dsp_cpus) <span class="op">=</span> suggest_cpu_allocation()<span class="op">;</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;RX: {:?}, TX: {:?}, DSP: {:?}&quot;</span><span class="op">,</span> rx_cpus<span class="op">,</span> tx_cpus<span class="op">,</span> dsp_cpus)<span class="op">;</span></span></code></pre></div>
+<h3 id="utility-functions">4.5 Utility Functions</h3>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt::</span><span class="op">{</span>secure_zero<span class="op">,</span> prefault_pages<span class="op">,</span> align_up<span class="op">,</span> CACHE_LINE_SIZE<span class="op">};</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Securely zero memory (prevents compiler optimization)</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> secret <span class="op">=</span> [<span class="dv">0u8</span><span class="op">;</span> <span class="dv">32</span>]<span class="op">;</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a><span class="co">// ... use secret ...</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>secure_zero(<span class="op">&amp;</span><span class="kw">mut</span> secret)<span class="op">;</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a><span class="co">// Pre-touch pages to avoid page faults</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> buffer <span class="op">=</span> <span class="pp">vec!</span>[<span class="dv">0u8</span><span class="op">;</span> <span class="dv">1_000_000</span>]<span class="op">;</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>prefault_pages(<span class="op">&amp;</span><span class="kw">mut</span> buffer)<span class="op">;</span></span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a><span class="co">// Align to cache line</span></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> aligned <span class="op">=</span> align_up(<span class="dv">100</span><span class="op">,</span> CACHE_LINE_SIZE)<span class="op">;</span> <span class="co">// Returns 128</span></span></code></pre></div>
+<hr />
+<h2 id="configuration-system">5. Configuration System</h2>
+<p><strong>Module</strong>: <code>r4w_core::config</code></p>
+<p>The configuration system provides YAML-based boot configuration with
+sensible defaults.</p>
+<h3 id="configuration-structure">5.1 Configuration Structure</h3>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co"># r4w.yaml - Example configuration</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">version</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;1.0&quot;</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a><span class="fu">device</span><span class="kw">:</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">driver</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;soapysdr&quot;</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">args</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;driver=hackrf&quot;</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">sample_rate</span><span class="kw">:</span><span class="at"> </span><span class="fl">2.4e6</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">center_frequency</span><span class="kw">:</span><span class="at"> </span><span class="fl">915e6</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rx_gain</span><span class="kw">:</span><span class="at"> </span><span class="fl">40.0</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tx_gain</span><span class="kw">:</span><span class="at"> </span><span class="fl">30.0</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">antenna</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;RX&quot;</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">clock_source</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;internal&quot;</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">time_source</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;internal&quot;</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="fu">buffers</span><span class="kw">:</span></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rx_ring_size</span><span class="kw">:</span><span class="at"> </span><span class="dv">1048576</span><span class="co">      # 1M samples</span></span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tx_ring_size</span><span class="kw">:</span><span class="at"> </span><span class="dv">262144</span><span class="co">       # 256K samples</span></span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">dma_buffer_count</span><span class="kw">:</span><span class="at"> </span><span class="dv">8</span></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">dma_buffer_size</span><span class="kw">:</span><span class="at"> </span><span class="dv">65536</span></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">overflow_policy</span><span class="kw">:</span><span class="at"> drop</span><span class="co">      # drop, block, or warn</span></span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a><span class="fu">realtime</span><span class="kw">:</span></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">enable</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rx_priority</span><span class="kw">:</span><span class="at"> </span><span class="dv">80</span></span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">tx_priority</span><span class="kw">:</span><span class="at"> </span><span class="dv">80</span></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">dsp_priority</span><span class="kw">:</span><span class="at"> </span><span class="dv">70</span></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">lock_memory</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">cpu_affinity</span><span class="kw">:</span></span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">rx</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">0</span><span class="kw">]</span></span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">tx</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">1</span><span class="kw">]</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">dsp</span><span class="kw">:</span><span class="at"> </span><span class="kw">[</span><span class="dv">2</span><span class="kw">,</span><span class="at"> </span><span class="dv">3</span><span class="kw">]</span></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a><span class="fu">logging</span><span class="kw">:</span></span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">level</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;info&quot;</span><span class="co">              # trace, debug, info, warn, error</span></span>
+<span id="cb17-35"><a href="#cb17-35" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">format</span><span class="kw">:</span><span class="at"> compact</span><span class="co">            # compact, json, full</span></span>
+<span id="cb17-36"><a href="#cb17-36" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">file</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;/var/log/r4w/r4w.log&quot;</span></span>
+<span id="cb17-37"><a href="#cb17-37" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rotate_size</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;100MB&quot;</span></span>
+<span id="cb17-38"><a href="#cb17-38" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rotate_keep</span><span class="kw">:</span><span class="at"> </span><span class="dv">5</span></span>
+<span id="cb17-39"><a href="#cb17-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-40"><a href="#cb17-40" aria-hidden="true" tabindex="-1"></a><span class="fu">metrics</span><span class="kw">:</span></span>
+<span id="cb17-41"><a href="#cb17-41" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">enable</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb17-42"><a href="#cb17-42" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">bind</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;0.0.0.0:9090&quot;</span></span>
+<span id="cb17-43"><a href="#cb17-43" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">path</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;/metrics&quot;</span></span>
+<span id="cb17-44"><a href="#cb17-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-45"><a href="#cb17-45" aria-hidden="true" tabindex="-1"></a><span class="fu">capture</span><span class="kw">:</span></span>
+<span id="cb17-46"><a href="#cb17-46" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">enable</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
+<span id="cb17-47"><a href="#cb17-47" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">format</span><span class="kw">:</span><span class="at"> sigmf</span><span class="co">              # sigmf or raw</span></span>
+<span id="cb17-48"><a href="#cb17-48" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">path</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;/var/capture/r4w&quot;</span></span>
+<span id="cb17-49"><a href="#cb17-49" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rotate_size</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;1GB&quot;</span></span>
+<span id="cb17-50"><a href="#cb17-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-51"><a href="#cb17-51" aria-hidden="true" tabindex="-1"></a><span class="co"># Hardware profiles for quick switching</span></span>
+<span id="cb17-52"><a href="#cb17-52" aria-hidden="true" tabindex="-1"></a><span class="fu">profiles</span><span class="kw">:</span></span>
+<span id="cb17-53"><a href="#cb17-53" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">rtlsdr_v3</span><span class="kw">:</span></span>
+<span id="cb17-54"><a href="#cb17-54" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">driver</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;rtlsdr&quot;</span></span>
+<span id="cb17-55"><a href="#cb17-55" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">sample_rate</span><span class="kw">:</span><span class="at"> </span><span class="fl">2.4e6</span></span>
+<span id="cb17-56"><a href="#cb17-56" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">rx_gain</span><span class="kw">:</span><span class="at"> </span><span class="fl">40.0</span></span>
+<span id="cb17-57"><a href="#cb17-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-58"><a href="#cb17-58" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">usrp_b200</span><span class="kw">:</span></span>
+<span id="cb17-59"><a href="#cb17-59" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">driver</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;uhd&quot;</span></span>
+<span id="cb17-60"><a href="#cb17-60" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">args</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;type=b200&quot;</span></span>
+<span id="cb17-61"><a href="#cb17-61" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">sample_rate</span><span class="kw">:</span><span class="at"> </span><span class="fl">10e6</span></span>
+<span id="cb17-62"><a href="#cb17-62" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">clock_source</span><span class="kw">:</span><span class="at"> </span><span class="st">&quot;gpsdo&quot;</span></span></code></pre></div>
+<h3 id="loading-configuration">5.2 Loading Configuration</h3>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::config::</span>R4wConfig<span class="op">;</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Load from default search path:</span></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="co">// 1. $R4W_CONFIG environment variable</span></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a><span class="co">// 2. ./r4w.yaml</span></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="co">// 3. ~/.config/r4w/config.yaml</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a><span class="co">// 4. /etc/r4w/config.yaml</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> <span class="pp">R4wConfig::</span>load()<span class="op">?;</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Load from specific file</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> <span class="pp">R4wConfig::</span>load_from(<span class="dt">Path</span><span class="pp">::</span>new(<span class="st">&quot;/path/to/config.yaml&quot;</span>))<span class="op">?;</span></span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Parse from string</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> yaml <span class="op">=</span> <span class="st">r#&quot;</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a><span class="st">device:</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a><span class="st">  driver: &quot;rtlsdr&quot;</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a><span class="st">  sample_rate: 2.4e6</span></span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a><span class="st">&quot;#</span><span class="op">;</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> <span class="pp">R4wConfig::</span>parse(yaml)<span class="op">?;</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a><span class="co">// Validate configuration</span></span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>config<span class="op">.</span>validate()<span class="op">?;</span></span></code></pre></div>
+<h3 id="using-hardware-profiles">5.3 Using Hardware Profiles</h3>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::config::</span>R4wConfig<span class="op">;</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> <span class="pp">R4wConfig::</span>load()<span class="op">?;</span></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co">// Switch to RTL-SDR profile</span></span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> rtl_config <span class="op">=</span> config<span class="op">.</span>with_profile(<span class="st">&quot;rtlsdr_v3&quot;</span>)<span class="op">?;</span></span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a><span class="pp">assert_eq!</span>(rtl_config<span class="op">.</span>device<span class="op">.</span>driver<span class="op">,</span> <span class="st">&quot;rtlsdr&quot;</span>)<span class="op">;</span></span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Switch to USRP B200 profile</span></span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> usrp_config <span class="op">=</span> config<span class="op">.</span>with_profile(<span class="st">&quot;usrp_b200&quot;</span>)<span class="op">?;</span></span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a><span class="pp">assert_eq!</span>(usrp_config<span class="op">.</span>device<span class="op">.</span>driver<span class="op">,</span> <span class="st">&quot;uhd&quot;</span>)<span class="op">;</span></span></code></pre></div>
+<h3 id="generating-example-configuration">5.4 Generating Example
+Configuration</h3>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::config::</span>R4wConfig<span class="op">;</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Generate example YAML</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> example <span class="op">=</span> <span class="pp">R4wConfig::</span>example_yaml()<span class="op">;</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;{}&quot;</span><span class="op">,</span> example)<span class="op">;</span></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Save configuration</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> <span class="pp">R4wConfig::</span><span class="kw">default</span>()<span class="op">;</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>config<span class="op">.</span>save(<span class="dt">Path</span><span class="pp">::</span>new(<span class="st">&quot;./r4w.yaml&quot;</span>))<span class="op">?;</span></span></code></pre></div>
+<hr />
+<h2 id="observability">6. Observability</h2>
+<p><strong>Module</strong>: <code>r4w_core::observe</code></p>
+<p>Three-pillar observability: logging, metrics, and tracing.</p>
+<h3 id="structured-logging">6.1 Structured Logging</h3>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::observe::</span><span class="op">{</span>init_logging<span class="op">,</span> LogConfig<span class="op">,</span> LogLevel<span class="op">,</span> LogFormat<span class="op">};</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Initialize logging (call once at startup)</span></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> LogConfig <span class="op">{</span></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>    level<span class="op">:</span> <span class="pp">LogLevel::</span><span class="bu">Debug</span><span class="op">,</span></span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>    format<span class="op">:</span> <span class="pp">LogFormat::</span>Json<span class="op">,</span></span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>    timestamps<span class="op">:</span> <span class="cn">true</span><span class="op">,</span></span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a>    source_location<span class="op">:</span> <span class="cn">true</span><span class="op">,</span></span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">..</span><span class="bu">Default</span><span class="pp">::</span><span class="kw">default</span>()</span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a>init_logging(<span class="op">&amp;</span>config)<span class="op">;</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Use preset configurations</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>init_logging(<span class="op">&amp;</span><span class="pp">LogConfig::</span>development())<span class="op">;</span> <span class="co">// Debug, pretty, verbose</span></span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>init_logging(<span class="op">&amp;</span><span class="pp">LogConfig::</span>production())<span class="op">;</span>  <span class="co">// Info, JSON, minimal</span></span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>init_logging(<span class="op">&amp;</span><span class="pp">LogConfig::</span>quiet())<span class="op">;</span>       <span class="co">// Errors only</span></span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a><span class="co">// Use tracing macros</span></span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a><span class="pp">tracing::info!</span>(samples <span class="op">=</span> <span class="dv">1024</span><span class="op">,</span> <span class="st">&quot;Processed batch&quot;</span>)<span class="op">;</span></span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a><span class="pp">tracing::debug!</span>(freq <span class="op">=</span> <span class="dv">915e6</span><span class="op">,</span> gain <span class="op">=</span> <span class="dv">30.0</span><span class="op">,</span> <span class="st">&quot;Tuner configured&quot;</span>)<span class="op">;</span></span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a><span class="pp">tracing::warn!</span>(<span class="st">&quot;Buffer overflow detected&quot;</span>)<span class="op">;</span></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a><span class="pp">tracing::error!</span>(error <span class="op">=</span> <span class="op">?</span>e<span class="op">,</span> <span class="st">&quot;Device failed&quot;</span>)<span class="op">;</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a><span class="co">// Spans for structured context</span></span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> span <span class="op">=</span> <span class="pp">tracing::info_span!</span>(<span class="st">&quot;rx_processing&quot;</span><span class="op">,</span> channel <span class="op">=</span> <span class="dv">0</span>)<span class="op">;</span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> _enter <span class="op">=</span> span<span class="op">.</span>enter()<span class="op">;</span></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a><span class="co">// All logs in this scope include channel=0</span></span></code></pre></div>
+<h3 id="metrics-collection">6.2 Metrics Collection</h3>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::observe::</span>Metrics<span class="op">;</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Create metrics instance</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> metrics <span class="op">=</span> <span class="pp">Metrics::</span>new()<span class="op">;</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Sample counters</span></span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>rx_samples<span class="op">.</span>inc_by(<span class="dv">1024</span>)<span class="op">;</span></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>tx_samples<span class="op">.</span>inc_by(<span class="dv">512</span>)<span class="op">;</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="co">// Buffer level gauges</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>rx_buffer_level<span class="op">.</span>set(<span class="dv">4096</span>)<span class="op">;</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>tx_buffer_level<span class="op">.</span>set(<span class="dv">1024</span>)<span class="op">;</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a><span class="co">// Error counters</span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>rx_overflows<span class="op">.</span>inc()<span class="op">;</span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>crc_errors<span class="op">.</span>inc()<span class="op">;</span></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a><span class="co">// Signal metrics (scaled internally)</span></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>record_rssi(<span class="op">-</span><span class="dv">80.5</span>)<span class="op">;</span>  <span class="co">// dBm</span></span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>record_snr(<span class="dv">12.3</span>)<span class="op">;</span>    <span class="co">// dB</span></span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a><span class="co">// Packet counters</span></span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>packets_decoded<span class="op">.</span>inc()<span class="op">;</span></span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>packets_failed<span class="op">.</span>inc()<span class="op">;</span></span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a><span class="co">// Latency histogram</span></span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>processing_latency_us<span class="op">.</span>observe(<span class="dv">150.0</span>)<span class="op">;</span></span>
+<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a><span class="co">// Set active waveform</span></span>
+<span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>set_waveform(<span class="st">&quot;lora&quot;</span>)<span class="op">;</span></span>
+<span id="cb22-31"><a href="#cb22-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-32"><a href="#cb22-32" aria-hidden="true" tabindex="-1"></a><span class="co">// Get snapshot</span></span>
+<span id="cb22-33"><a href="#cb22-33" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> snap <span class="op">=</span> metrics<span class="op">.</span>snapshot()<span class="op">;</span></span>
+<span id="cb22-34"><a href="#cb22-34" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;RX samples: {}&quot;</span><span class="op">,</span> snap<span class="op">.</span>rx_samples)<span class="op">;</span></span>
+<span id="cb22-35"><a href="#cb22-35" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Success rate: {:.1}%&quot;</span><span class="op">,</span> snap<span class="op">.</span>decode_success_rate() <span class="op">*</span> <span class="dv">100.0</span>)<span class="op">;</span></span>
+<span id="cb22-36"><a href="#cb22-36" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Avg latency: {:.1} us&quot;</span><span class="op">,</span> snap<span class="op">.</span>avg_latency_us())<span class="op">;</span></span>
+<span id="cb22-37"><a href="#cb22-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-38"><a href="#cb22-38" aria-hidden="true" tabindex="-1"></a><span class="co">// Export as Prometheus format</span></span>
+<span id="cb22-39"><a href="#cb22-39" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> prometheus <span class="op">=</span> metrics<span class="op">.</span>to_prometheus()<span class="op">;</span></span>
+<span id="cb22-40"><a href="#cb22-40" aria-hidden="true" tabindex="-1"></a><span class="co">// Returns text like:</span></span>
+<span id="cb22-41"><a href="#cb22-41" aria-hidden="true" tabindex="-1"></a><span class="co">// # HELP r4w_rx_samples_total Total RX samples processed</span></span>
+<span id="cb22-42"><a href="#cb22-42" aria-hidden="true" tabindex="-1"></a><span class="co">// # TYPE r4w_rx_samples_total counter</span></span>
+<span id="cb22-43"><a href="#cb22-43" aria-hidden="true" tabindex="-1"></a><span class="co">// r4w_rx_samples_total 1024</span></span></code></pre></div>
+<h3 id="custom-metrics">6.3 Custom Metrics</h3>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::observe::metrics::</span><span class="op">{</span>Counter<span class="op">,</span> Gauge<span class="op">,</span> Histogram<span class="op">};</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Custom counter</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> my_counter <span class="op">=</span> <span class="pp">Counter::</span>new()<span class="op">;</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>my_counter<span class="op">.</span>inc()<span class="op">;</span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>my_counter<span class="op">.</span>inc_by(<span class="dv">100</span>)<span class="op">;</span></span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Count: {}&quot;</span><span class="op">,</span> my_counter<span class="op">.</span>get())<span class="op">;</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="co">// Custom gauge</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> my_gauge <span class="op">=</span> <span class="pp">Gauge::</span>new()<span class="op">;</span></span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a>my_gauge<span class="op">.</span>set(<span class="dv">50</span>)<span class="op">;</span></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a>my_gauge<span class="op">.</span>inc()<span class="op">;</span></span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a>my_gauge<span class="op">.</span>dec()<span class="op">;</span></span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a>my_gauge<span class="op">.</span>add(<span class="op">-</span><span class="dv">10</span>)<span class="op">;</span></span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a><span class="co">// Custom histogram with specific buckets</span></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> my_hist <span class="op">=</span> <span class="pp">Histogram::</span>new(<span class="pp">vec!</span>[<span class="dv">1.0</span><span class="op">,</span> <span class="dv">5.0</span><span class="op">,</span> <span class="dv">10.0</span><span class="op">,</span> <span class="dv">50.0</span><span class="op">,</span> <span class="dv">100.0</span>])<span class="op">;</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a>my_hist<span class="op">.</span>observe(<span class="dv">7.5</span>)<span class="op">;</span></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a><span class="pp">println!</span>(<span class="st">&quot;Count: {}, Sum: {}&quot;</span><span class="op">,</span> my_hist<span class="op">.</span>count()<span class="op">,</span> my_hist<span class="op">.</span>sum())<span class="op">;</span></span></code></pre></div>
+<h3 id="initialization-helper">6.4 Initialization Helper</h3>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::observe::</span><span class="op">{</span>init<span class="op">,</span> LogConfig<span class="op">};</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co">// Initialize all observability subsystems</span></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> log_config <span class="op">=</span> <span class="pp">LogConfig::</span><span class="kw">default</span>()<span class="op">;</span></span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> metrics <span class="op">=</span> init(<span class="op">&amp;</span>log_config)<span class="op">;</span></span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Now use metrics and logging</span></span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>metrics<span class="op">.</span>rx_samples<span class="op">.</span>inc()<span class="op">;</span></span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="pp">tracing::info!</span>(<span class="st">&quot;System initialized&quot;</span>)<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="integration-examples">7. Integration Examples</h2>
+<h3 id="complete-sdr-application-setup">7.1 Complete SDR Application
+Setup</h3>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::config::</span>R4wConfig<span class="op">;</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::observe::</span><span class="op">{</span>init<span class="op">,</span> LogConfig<span class="op">};</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::rt::</span><span class="op">{</span>RingBuffer<span class="op">,</span> RtConfig<span class="op">,</span> RtPriority<span class="op">,</span> spawn_rt_thread<span class="op">};</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span>Timestamp<span class="op">;</span></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sim::hal::</span><span class="op">{</span>create_default_registry<span class="op">,</span> StreamConfig<span class="op">};</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::sync::</span>Arc<span class="op">;</span></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a><span class="kw">fn</span> main() <span class="op">-&gt;</span> <span class="dt">Result</span><span class="op">&lt;</span>()<span class="op">,</span> <span class="dt">Box</span><span class="op">&lt;</span><span class="kw">dyn</span> <span class="pp">std::error::</span><span class="bu">Error</span><span class="op">&gt;&gt;</span> <span class="op">{</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 1. Load configuration</span></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> config <span class="op">=</span> <span class="pp">R4wConfig::</span>load()<span class="op">?;</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    config<span class="op">.</span>validate()<span class="op">?;</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 2. Initialize observability</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> log_config <span class="op">=</span> <span class="pp">LogConfig::</span>production()<span class="op">;</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> metrics <span class="op">=</span> init(<span class="op">&amp;</span>log_config)<span class="op">;</span></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    <span class="pp">tracing::info!</span>(<span class="st">&quot;Starting R4W application&quot;</span>)<span class="op">;</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 3. Create ring buffer for streaming</span></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> ring<span class="op">:</span> Arc<span class="op">&lt;</span>RingBuffer<span class="op">&lt;</span>IQSample<span class="op">&gt;&gt;</span> <span class="op">=</span> <span class="pp">Arc::</span>new(</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>        <span class="pp">RingBuffer::</span>new(config<span class="op">.</span>buffers<span class="op">.</span>rx_ring_size)</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>    )<span class="op">;</span></span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 4. Create device</span></span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> registry <span class="op">=</span> create_default_registry()<span class="op">;</span></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> uri <span class="op">=</span> <span class="pp">format!</span>(<span class="st">&quot;{}://{}&quot;</span><span class="op">,</span> config<span class="op">.</span>device<span class="op">.</span>driver<span class="op">,</span> config<span class="op">.</span>device<span class="op">.</span>args)<span class="op">;</span></span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> device <span class="op">=</span> registry<span class="op">.</span>create(<span class="op">&amp;</span>uri)<span class="op">?;</span></span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 5. Configure device</span></span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>    <span class="op">{</span></span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> tuner <span class="op">=</span> device<span class="op">.</span>tuner()<span class="op">;</span></span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>        tuner<span class="op">.</span>set_frequency(config<span class="op">.</span>device<span class="op">.</span>center_frequency <span class="kw">as</span> <span class="dt">u64</span>)<span class="op">?;</span></span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>        tuner<span class="op">.</span>set_sample_rate(config<span class="op">.</span>device<span class="op">.</span>sample_rate)<span class="op">?;</span></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>        tuner<span class="op">.</span>set_rx_gain(config<span class="op">.</span>device<span class="op">.</span>rx_gain)<span class="op">?;</span></span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 6. Spawn RT producer thread</span></span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> ring_tx <span class="op">=</span> <span class="pp">Arc::</span>clone(<span class="op">&amp;</span>ring)<span class="op">;</span></span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> rt_config <span class="op">=</span> <span class="pp">RtConfig::</span>builder()</span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>name(<span class="st">&quot;rx_thread&quot;</span>)</span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>priority(<span class="pp">RtPriority::</span>Custom(config<span class="op">.</span>realtime<span class="op">.</span>rx_priority))</span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>cpu_affinity(<span class="op">&amp;</span>config<span class="op">.</span>realtime<span class="op">.</span>cpu_affinity<span class="op">.</span>rx)</span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>lock_memory(config<span class="op">.</span>realtime<span class="op">.</span>lock_memory)</span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>        <span class="op">.</span>build()<span class="op">;</span></span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> stream_config <span class="op">=</span> <span class="pp">StreamConfig::</span><span class="kw">default</span>()<span class="op">;</span></span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> stream <span class="op">=</span> device<span class="op">.</span>create_rx_stream(stream_config)<span class="op">?;</span></span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a>    stream<span class="op">.</span>start()<span class="op">?;</span></span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a>    spawn_rt_thread(rt_config<span class="op">,</span> <span class="kw">move</span> <span class="op">||</span> <span class="op">{</span></span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> buffer <span class="op">=</span> <span class="pp">vec!</span>[<span class="pp">IQSample::</span><span class="kw">default</span>()<span class="op">;</span> <span class="dv">8192</span>]<span class="op">;</span></span>
+<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a>        <span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a>            <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Ok</span>((count<span class="op">,</span> _ts)) <span class="op">=</span> stream<span class="op">.</span>read(<span class="op">&amp;</span><span class="kw">mut</span> buffer<span class="op">,</span> <span class="pp">Duration::</span>from_millis(<span class="dv">100</span>)) <span class="op">{</span></span>
+<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a>                ring_tx<span class="op">.</span>push_slice(<span class="op">&amp;</span>buffer[<span class="op">..</span>count])<span class="op">;</span></span>
+<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a>            <span class="op">}</span></span>
+<span id="cb25-55"><a href="#cb25-55" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb25-56"><a href="#cb25-56" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span>)<span class="op">?;</span></span>
+<span id="cb25-57"><a href="#cb25-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-58"><a href="#cb25-58" aria-hidden="true" tabindex="-1"></a>    <span class="co">// 7. Consumer loop (could be another RT thread)</span></span>
+<span id="cb25-59"><a href="#cb25-59" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> ring_rx <span class="op">=</span> <span class="pp">Arc::</span>clone(<span class="op">&amp;</span>ring)<span class="op">;</span></span>
+<span id="cb25-60"><a href="#cb25-60" aria-hidden="true" tabindex="-1"></a>    <span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb25-61"><a href="#cb25-61" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> <span class="kw">mut</span> buffer <span class="op">=</span> <span class="pp">vec!</span>[<span class="pp">IQSample::</span><span class="kw">default</span>()<span class="op">;</span> <span class="dv">1024</span>]<span class="op">;</span></span>
+<span id="cb25-62"><a href="#cb25-62" aria-hidden="true" tabindex="-1"></a>        <span class="kw">let</span> popped <span class="op">=</span> ring_rx<span class="op">.</span>pop_slice(<span class="op">&amp;</span><span class="kw">mut</span> buffer)<span class="op">;</span></span>
+<span id="cb25-63"><a href="#cb25-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-64"><a href="#cb25-64" aria-hidden="true" tabindex="-1"></a>        <span class="cf">if</span> popped <span class="op">&gt;</span> <span class="dv">0</span> <span class="op">{</span></span>
+<span id="cb25-65"><a href="#cb25-65" aria-hidden="true" tabindex="-1"></a>            metrics<span class="op">.</span>rx_samples<span class="op">.</span>inc_by(popped <span class="kw">as</span> <span class="dt">u64</span>)<span class="op">;</span></span>
+<span id="cb25-66"><a href="#cb25-66" aria-hidden="true" tabindex="-1"></a>            <span class="co">// Process samples...</span></span>
+<span id="cb25-67"><a href="#cb25-67" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb25-68"><a href="#cb25-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-69"><a href="#cb25-69" aria-hidden="true" tabindex="-1"></a>        <span class="co">// Update buffer metrics</span></span>
+<span id="cb25-70"><a href="#cb25-70" aria-hidden="true" tabindex="-1"></a>        metrics<span class="op">.</span>rx_buffer_level<span class="op">.</span>set(ring_rx<span class="op">.</span>len() <span class="kw">as</span> <span class="dt">i64</span>)<span class="op">;</span></span>
+<span id="cb25-71"><a href="#cb25-71" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb25-72"><a href="#cb25-72" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h3 id="multi-device-synchronized-setup">7.2 Multi-Device Synchronized
+Setup</h3>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span><span class="op">{</span>SyncedTime<span class="op">,</span> TimeSource<span class="op">,</span> Timestamp<span class="op">};</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sim::hal::</span>ClockSource<span class="op">;</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Configure both devices for GPS sync</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> device <span class="kw">in</span> [<span class="op">&amp;</span><span class="kw">mut</span> device1<span class="op">,</span> <span class="op">&amp;</span><span class="kw">mut</span> device2] <span class="op">{</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(clock) <span class="op">=</span> device<span class="op">.</span>clock() <span class="op">{</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>        clock<span class="op">.</span>set_clock_source(<span class="pp">ClockSource::</span>Gpsdo)<span class="op">?;</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        clock<span class="op">.</span>set_time_source(<span class="pp">TimeSource::</span>Gps)<span class="op">?;</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="co">// Wait for both to lock</span></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> device <span class="kw">in</span> [<span class="op">&amp;</span><span class="kw">mut</span> device1<span class="op">,</span> <span class="op">&amp;</span><span class="kw">mut</span> device2] <span class="op">{</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(clock) <span class="op">=</span> device<span class="op">.</span>clock() <span class="op">{</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">while</span> <span class="op">!</span>clock<span class="op">.</span>is_locked() <span class="op">{</span></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>            <span class="pp">std::thread::</span>sleep(<span class="pp">Duration::</span>from_millis(<span class="dv">100</span>))<span class="op">;</span></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>        <span class="op">}</span></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a><span class="co">// Set synchronized time at next PPS</span></span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> sync_time <span class="op">=</span> <span class="pp">SyncedTime::</span>from_utc_nanos(</span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>    <span class="pp">WallClock::</span>now()<span class="op">.</span>as_nanos() <span class="op">+</span> <span class="dv">2_000_000_000</span><span class="op">,</span> <span class="co">// 2 seconds from now</span></span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a>    <span class="pp">TimeSource::</span>Gps<span class="op">,</span></span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> timestamp <span class="op">=</span> <span class="pp">Timestamp::</span>new(sample_rate)<span class="op">.</span>with_synced(sync_time)<span class="op">;</span></span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> device <span class="kw">in</span> [<span class="op">&amp;</span><span class="kw">mut</span> device1<span class="op">,</span> <span class="op">&amp;</span><span class="kw">mut</span> device2] <span class="op">{</span></span>
+<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> <span class="kw">let</span> <span class="cn">Some</span>(clock) <span class="op">=</span> device<span class="op">.</span>clock() <span class="op">{</span></span>
+<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a>        clock<span class="op">.</span>set_time_at_pps(timestamp<span class="op">.</span>clone())<span class="op">?;</span></span>
+<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a><span class="pp">tracing::info!</span>(<span class="st">&quot;Devices synchronized to GPS&quot;</span>)<span class="op">;</span></span></code></pre></div>
+<h3 id="recording-session-with-metrics">7.3 Recording Session with
+Metrics</h3>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::timing::</span>MonotonicTimer<span class="op">;</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_sim::hal::</span><span class="op">{</span>SigMfWriter<span class="op">,</span> SigMfMeta<span class="op">};</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> meta <span class="op">=</span> SigMfMeta <span class="op">{</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>    sample_rate<span class="op">:</span> config<span class="op">.</span>device<span class="op">.</span>sample_rate<span class="op">,</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>    center_frequency<span class="op">:</span> config<span class="op">.</span>device<span class="op">.</span>center_frequency<span class="op">,</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    description<span class="op">:</span> <span class="st">&quot;Capture session&quot;</span><span class="op">.</span>to_string()<span class="op">,</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    <span class="op">..</span><span class="bu">Default</span><span class="pp">::</span><span class="kw">default</span>()</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> writer <span class="op">=</span> <span class="pp">SigMfWriter::</span>create(<span class="st">&quot;capture&quot;</span><span class="op">,</span> <span class="op">&amp;</span>meta)<span class="op">?;</span></span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> timer <span class="op">=</span> <span class="pp">MonotonicTimer::</span>start()<span class="op">;</span></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a><span class="cf">loop</span> <span class="op">{</span></span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> <span class="kw">mut</span> buffer <span class="op">=</span> <span class="pp">vec!</span>[<span class="pp">IQSample::</span><span class="kw">default</span>()<span class="op">;</span> <span class="dv">8192</span>]<span class="op">;</span></span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> (count<span class="op">,</span> timestamp) <span class="op">=</span> stream<span class="op">.</span>read(<span class="op">&amp;</span><span class="kw">mut</span> buffer<span class="op">,</span> <span class="pp">Duration::</span>from_millis(<span class="dv">100</span>))<span class="op">?;</span></span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>    writer<span class="op">.</span>write_samples(<span class="op">&amp;</span>buffer[<span class="op">..</span>count])<span class="op">?;</span></span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>    metrics<span class="op">.</span>rx_samples<span class="op">.</span>inc_by(count <span class="kw">as</span> <span class="dt">u64</span>)<span class="op">;</span></span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Check for issues</span></span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> status <span class="op">=</span> stream<span class="op">.</span>status()<span class="op">;</span></span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> status<span class="op">.</span>overflow_count <span class="op">&gt;</span> <span class="dv">0</span> <span class="op">{</span></span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>        metrics<span class="op">.</span>rx_overflows<span class="op">.</span>inc_by(status<span class="op">.</span>overflow_count)<span class="op">;</span></span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>        <span class="pp">tracing::warn!</span>(overflows <span class="op">=</span> status<span class="op">.</span>overflow_count<span class="op">,</span> <span class="st">&quot;RX overflows&quot;</span>)<span class="op">;</span></span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>    <span class="co">// Stop after 10 seconds</span></span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> timer<span class="op">.</span>elapsed() <span class="op">&gt;</span> <span class="pp">Duration::</span>from_secs(<span class="dv">10</span>) <span class="op">{</span></span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>        <span class="cf">break</span><span class="op">;</span></span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a>writer<span class="op">.</span>close()<span class="op">?;</span></span>
+<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> snap <span class="op">=</span> metrics<span class="op">.</span>snapshot()<span class="op">;</span></span>
+<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a><span class="pp">tracing::info!</span>(</span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>    samples <span class="op">=</span> snap<span class="op">.</span>rx_samples<span class="op">,</span></span>
+<span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a>    overflows <span class="op">=</span> snap<span class="op">.</span>rx_overflows<span class="op">,</span></span>
+<span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Recording complete&quot;</span></span>
+<span id="cb27-40"><a href="#cb27-40" aria-hidden="true" tabindex="-1"></a>)<span class="op">;</span></span></code></pre></div>
+<hr />
+<h2 id="quick-reference">Quick Reference</h2>
+<h3 id="timing-types">Timing Types</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>SampleClock</code></td>
+<td>DSP operations, sample counting</td>
+</tr>
+<tr class="even">
+<td><code>WallClock</code></td>
+<td>Logging, debugging, correlation</td>
+</tr>
+<tr class="odd">
+<td><code>HardwareClock</code></td>
+<td>Device timestamps, sync</td>
+</tr>
+<tr class="even">
+<td><code>SyncedTime</code></td>
+<td>GPS/PTP, multi-device</td>
+</tr>
+<tr class="odd">
+<td><code>Timestamp</code></td>
+<td>Unified timestamp</td>
+</tr>
+</tbody>
+</table>
+<h3 id="hal-traits">HAL Traits</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Trait</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>StreamHandle</code></td>
+<td>Read/write samples</td>
+</tr>
+<tr class="even">
+<td><code>TunerControl</code></td>
+<td>Freq, gain, rate</td>
+</tr>
+<tr class="odd">
+<td><code>ClockControl</code></td>
+<td>Time sync, PPS</td>
+</tr>
+<tr class="even">
+<td><code>SdrDeviceExt</code></td>
+<td>High-level device</td>
+</tr>
+<tr class="odd">
+<td><code>DeviceDriver</code></td>
+<td>Device factory</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rt-primitives">RT Primitives</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>RingBuffer&lt;T&gt;</code></td>
+<td>Lock-free SPSC queue</td>
+</tr>
+<tr class="even">
+<td><code>BufferPool&lt;T&gt;</code></td>
+<td>Pre-allocated buffers</td>
+</tr>
+<tr class="odd">
+<td><code>LockedBuffer&lt;T&gt;</code></td>
+<td>mlock’d memory</td>
+</tr>
+<tr class="even">
+<td><code>RtConfig</code></td>
+<td>Thread configuration</td>
+</tr>
+</tbody>
+</table>
+<h3 id="config-sections">Config Sections</h3>
+<table>
+<thead>
+<tr class="header">
+<th>Section</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>device</code></td>
+<td>SDR driver and settings</td>
+</tr>
+<tr class="even">
+<td><code>buffers</code></td>
+<td>Ring/DMA buffer sizes</td>
+</tr>
+<tr class="odd">
+<td><code>realtime</code></td>
+<td>Thread priorities, affinity</td>
+</tr>
+<tr class="even">
+<td><code>logging</code></td>
+<td>Log level, format, output</td>
+</tr>
+<tr class="odd">
+<td><code>metrics</code></td>
+<td>Prometheus endpoint</td>
+</tr>
+<tr class="even">
+<td><code>profiles</code></td>
+<td>Hardware presets</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="see-also">See Also</h2>
+<ul>
+<li><a href="WAVEFORM_DEVELOPERS_GUIDE.md">Waveform Developer’s
+Guide</a> - Building waveforms on top of this layer</li>
+<li><a href="FPGA_DEVELOPERS_GUIDE.md">FPGA Developer’s Guide</a> -
+Hardware acceleration</li>
+<li><a href="../workshops/">Workshops</a> - Hands-on tutorials</li>
+</ul>
+</body>
+</html>

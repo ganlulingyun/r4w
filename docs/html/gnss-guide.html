@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>R4W - gnss-guide</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      background-color: #1a1a1a;
+      border: none;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">R4W - gnss-guide</h1>
+</header>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#gnss-developers-guide" id="toc-gnss-developers-guide">GNSS
+Developer’s Guide</a>
+<ul>
+<li><a href="#table-of-contents" id="toc-table-of-contents">Table of
+Contents</a></li>
+<li><a href="#architecture-overview"
+id="toc-architecture-overview">Architecture Overview</a></li>
+<li><a href="#gnss-waveforms" id="toc-gnss-waveforms">GNSS Waveforms</a>
+<ul>
+<li><a href="#prn-code-generators" id="toc-prn-code-generators">PRN Code
+Generators</a></li>
+<li><a href="#transmit-power" id="toc-transmit-power">Transmit
+Power</a></li>
+</ul></li>
+<li><a href="#signal-acquisition-and-tracking"
+id="toc-signal-acquisition-and-tracking">Signal Acquisition and
+Tracking</a>
+<ul>
+<li><a href="#pcps-acquisition" id="toc-pcps-acquisition">PCPS
+Acquisition</a></li>
+<li><a href="#tracking-channels" id="toc-tracking-channels">Tracking
+Channels</a></li>
+</ul></li>
+<li><a href="#coordinate-library" id="toc-coordinate-library">Coordinate
+Library</a>
+<ul>
+<li><a href="#types" id="toc-types">Types</a></li>
+<li><a href="#functions" id="toc-functions">Functions</a></li>
+<li><a href="#constants" id="toc-constants">Constants</a></li>
+</ul></li>
+<li><a href="#environment-models"
+id="toc-environment-models">Environment Models</a>
+<ul>
+<li><a href="#keplerian-orbits-orbit.rs"
+id="toc-keplerian-orbits-orbit.rs">Keplerian Orbits
+(<code>orbit.rs</code>)</a></li>
+<li><a href="#klobuchar-ionospheric-model-ionosphere.rs"
+id="toc-klobuchar-ionospheric-model-ionosphere.rs">Klobuchar Ionospheric
+Model (<code>ionosphere.rs</code>)</a></li>
+<li><a href="#saastamoinen-tropospheric-model-troposphere.rs"
+id="toc-saastamoinen-tropospheric-model-troposphere.rs">Saastamoinen
+Tropospheric Model (<code>troposphere.rs</code>)</a></li>
+<li><a href="#multipath-presets-multipath.rs"
+id="toc-multipath-presets-multipath.rs">Multipath Presets
+(<code>multipath.rs</code>)</a></li>
+<li><a href="#antenna-patterns-antenna.rs"
+id="toc-antenna-patterns-antenna.rs">Antenna Patterns
+(<code>antenna.rs</code>)</a></li>
+</ul></li>
+<li><a href="#scenario-engine" id="toc-scenario-engine">Scenario
+Engine</a>
+<ul>
+<li><a href="#emitter-trait" id="toc-emitter-trait">Emitter
+Trait</a></li>
+<li><a href="#trajectory" id="toc-trajectory">Trajectory</a></li>
+<li><a href="#scenarioengine"
+id="toc-scenarioengine">ScenarioEngine</a></li>
+</ul></li>
+<li><a href="#gnss-scenario-generator"
+id="toc-gnss-scenario-generator">GNSS Scenario Generator</a>
+<ul>
+<li><a href="#gnssscenario" id="toc-gnssscenario">GnssScenario</a></li>
+<li><a href="#scenario-presets" id="toc-scenario-presets">Scenario
+Presets</a></li>
+<li><a href="#satelliteemitter"
+id="toc-satelliteemitter">SatelliteEmitter</a></li>
+<li><a href="#configuration"
+id="toc-configuration">Configuration</a></li>
+</ul></li>
+<li><a href="#cli-reference" id="toc-cli-reference">CLI Reference</a>
+<ul>
+<li><a href="#signal-exploration" id="toc-signal-exploration">Signal
+Exploration</a></li>
+<li><a href="#scenario-generation" id="toc-scenario-generation">Scenario
+Generation</a></li>
+</ul></li>
+<li><a href="#gui-simulator" id="toc-gui-simulator">GUI
+Simulator</a></li>
+<li><a href="#jupyter-workshops" id="toc-jupyter-workshops">Jupyter
+Workshops</a>
+<ul>
+<li><a href="#gnss-scenario-generation"
+id="toc-gnss-scenario-generation">09: GNSS Scenario Generation</a></li>
+<li><a href="#gnss-environment-models"
+id="toc-gnss-environment-models">10: GNSS Environment Models</a></li>
+</ul></li>
+<li><a href="#api-reference" id="toc-api-reference">API Reference</a>
+<ul>
+<li><a href="#key-types-r4w-core" id="toc-key-types-r4w-core">Key Types
+(r4w-core)</a></li>
+<li><a href="#key-types-r4w-sim" id="toc-key-types-r4w-sim">Key Types
+(r4w-sim)</a></li>
+</ul></li>
+<li><a href="#examples" id="toc-examples">Examples</a>
+<ul>
+<li><a href="#generate-and-analyze-a-scenario-in-rust"
+id="toc-generate-and-analyze-a-scenario-in-rust">Generate and analyze a
+scenario in Rust</a></li>
+<li><a href="#custom-multi-constellation-configuration"
+id="toc-custom-multi-constellation-configuration">Custom
+multi-constellation configuration</a></li>
+<li><a href="#reading-generated-iq-files-in-python"
+id="toc-reading-generated-iq-files-in-python">Reading generated IQ files
+in Python</a></li>
+</ul></li>
+<li><a href="#requirements-traceability"
+id="toc-requirements-traceability">Requirements Traceability</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="gnss-developers-guide">GNSS Developer’s Guide</h1>
+<p>R4W includes a complete GNSS signal simulation subsystem: four
+constellation waveforms, a multi-satellite scenario engine with
+realistic propagation models, CLI tools, a GUI simulator, and Jupyter
+workshops.</p>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+<li><a href="#architecture-overview">Architecture Overview</a></li>
+<li><a href="#gnss-waveforms">GNSS Waveforms</a></li>
+<li><a href="#signal-acquisition-and-tracking">Signal Acquisition and
+Tracking</a></li>
+<li><a href="#coordinate-library">Coordinate Library</a></li>
+<li><a href="#environment-models">Environment Models</a></li>
+<li><a href="#scenario-engine">Scenario Engine</a></li>
+<li><a href="#gnss-scenario-generator">GNSS Scenario Generator</a></li>
+<li><a href="#cli-reference">CLI Reference</a></li>
+<li><a href="#gui-simulator">GUI Simulator</a></li>
+<li><a href="#jupyter-workshops">Jupyter Workshops</a></li>
+<li><a href="#api-reference">API Reference</a></li>
+<li><a href="#examples">Examples</a></li>
+</ul>
+<hr />
+<h2 id="architecture-overview">Architecture Overview</h2>
+<p>The GNSS subsystem is organized in four layers:</p>
+<pre><code>Layer 4: CLI (r4w gnss) + GUI (GnssSimulatorView)
+Layer 3: GNSS Scenario Composer (r4w-core/waveform/gnss/)
+Layer 2: GNSS Environment Models (r4w-core/waveform/gnss/environment/)
+Layer 1: Generic Scenario Engine (r4w-sim/scenario/)
+         Coordinate Library (r4w-core/coordinates.rs)</code></pre>
+<p><strong>Crate boundaries:</strong> - <code>r4w-core</code> contains
+coordinate types, GNSS waveforms, environment models, and the scenario
+composer - <code>r4w-sim</code> contains the generic scenario engine
+(Emitter trait, ScenarioEngine, Trajectory) - <code>r4w-cli</code>
+provides the <code>r4w gnss</code> command - <code>r4w-gui</code>
+provides the GnssSimulatorView in r4w-explorer</p>
+<hr />
+<h2 id="gnss-waveforms">GNSS Waveforms</h2>
+<p>Four constellation signals are implemented, each conforming to the
+<code>Waveform</code> trait:</p>
+<table>
+<colgroup>
+<col style="width: 12%" />
+<col style="width: 9%" />
+<col style="width: 16%" />
+<col style="width: 23%" />
+<col style="width: 20%" />
+<col style="width: 18%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Signal</th>
+<th>Type</th>
+<th>Frequency</th>
+<th>Chipping Rate</th>
+<th>Code Length</th>
+<th>Modulation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GPS L1 C/A</td>
+<td><code>GpsL1Ca</code></td>
+<td>1575.42 MHz</td>
+<td>1.023 Mchip/s</td>
+<td>1023 chips</td>
+<td>BPSK(1)</td>
+</tr>
+<tr class="even">
+<td>GPS L5</td>
+<td><code>GpsL5</code></td>
+<td>1176.45 MHz</td>
+<td>10.23 Mchip/s</td>
+<td>10230 chips</td>
+<td>QPSK(10)</td>
+</tr>
+<tr class="odd">
+<td>GLONASS L1OF</td>
+<td><code>GlonassL1of</code></td>
+<td>~1602 MHz (FDMA)</td>
+<td>0.511 Mchip/s</td>
+<td>511 chips</td>
+<td>BPSK(0.5)</td>
+</tr>
+<tr class="even">
+<td>Galileo E1</td>
+<td><code>GalileoE1</code></td>
+<td>1575.42 MHz</td>
+<td>1.023 Mchip/s</td>
+<td>4092 chips</td>
+<td>CBOC</td>
+</tr>
+</tbody>
+</table>
+<p>Each waveform supports <code>modulate()</code>,
+<code>demodulate()</code>, and <code>constellation_points()</code> via
+the standard <code>Waveform</code> trait.</p>
+<h3 id="prn-code-generators">PRN Code Generators</h3>
+<p>Each constellation has a dedicated PRN code generator:</p>
+<ul>
+<li><strong><code>GpsCaCodeGenerator</code></strong> - Gold codes for
+PRN 1-32. Call <code>generate_code()</code> to produce a 1023-chip
+code.</li>
+<li><strong><code>GpsL5CodeGenerator</code></strong> - I5/Q5 codes
+(10230 chips). Construct with <code>new_i5(prn)</code> or
+<code>new_q5(prn)</code>.</li>
+<li><strong><code>GlonassCodeGenerator</code></strong> - Maximal-length
+sequence (511 chips). Takes a <code>frequency_channel: i8</code>
+parameter for FDMA slot assignment.</li>
+<li><strong><code>GalileoE1CodeGenerator</code></strong> - Memory codes
+(4092 chips) via <code>PnSequence</code>.</li>
+</ul>
+<h3 id="transmit-power">Transmit Power</h3>
+<p>Typical space vehicle transmit power levels used in scenario
+generation:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Signal</th>
+<th>TX Power</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>GPS L1 C/A</td>
+<td>14.3 dBW</td>
+</tr>
+<tr class="even">
+<td>GPS L5</td>
+<td>15.5 dBW</td>
+</tr>
+<tr class="odd">
+<td>GLONASS L1OF</td>
+<td>14.7 dBW</td>
+</tr>
+<tr class="even">
+<td>Galileo E1</td>
+<td>15.0 dBW</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="signal-acquisition-and-tracking">Signal Acquisition and
+Tracking</h2>
+<h3 id="pcps-acquisition">PCPS Acquisition</h3>
+<p><code>PcpsAcquisition</code> implements FFT-based Parallel Code Phase
+Search:</p>
+<ul>
+<li>Searches across configurable Doppler frequency bins</li>
+<li>Returns code phase and Doppler estimate for detected satellites</li>
+<li>Works with any GNSS waveform that produces a PRN code</li>
+</ul>
+<h3 id="tracking-channels">Tracking Channels</h3>
+<p><code>TrackingChannel</code> provides DLL/PLL tracking loops:</p>
+<ul>
+<li><strong>DLL (Delay Lock Loop)</strong> - Code phase tracking with
+early/prompt/late correlators</li>
+<li><strong>PLL (Phase Lock Loop)</strong> - Carrier phase and frequency
+tracking</li>
+</ul>
+<hr />
+<h2 id="coordinate-library">Coordinate Library</h2>
+<p><code>r4w-core/src/coordinates.rs</code> provides geodetic types and
+conversions used throughout the GNSS subsystem.</p>
+<h3 id="types">Types</h3>
+<table>
+<colgroup>
+<col style="width: 31%" />
+<col style="width: 68%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>EcefPosition</code></td>
+<td>Earth-Centered Earth-Fixed position (x, y, z in meters)</td>
+</tr>
+<tr class="even">
+<td><code>EcefVelocity</code></td>
+<td>ECEF velocity (vx, vy, vz in m/s)</td>
+</tr>
+<tr class="odd">
+<td><code>LlaPosition</code></td>
+<td>Geodetic latitude/longitude/altitude (WGS-84)</td>
+</tr>
+<tr class="even">
+<td><code>LookAngle</code></td>
+<td>Elevation, azimuth, and slant range from observer to target</td>
+</tr>
+</tbody>
+</table>
+<h3 id="functions">Functions</h3>
+<table>
+<colgroup>
+<col style="width: 43%" />
+<col style="width: 56%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>lla_to_ecef(lla)</code></td>
+<td>Convert geodetic to ECEF using WGS-84 ellipsoid</td>
+</tr>
+<tr class="even">
+<td><code>ecef_to_lla(ecef)</code></td>
+<td>Convert ECEF to geodetic (Bowring iterative method)</td>
+</tr>
+<tr class="odd">
+<td><code>look_angle(observer, observer_lla, target)</code></td>
+<td>Compute elevation, azimuth, range via ENU rotation</td>
+</tr>
+<tr class="even">
+<td><code>range_rate(obs_pos, obs_vel, tgt_pos, tgt_vel)</code></td>
+<td>Radial velocity between observer and target</td>
+</tr>
+<tr class="odd">
+<td><code>fspl_db(distance_m, frequency_hz)</code></td>
+<td>Free-space path loss in dB</td>
+</tr>
+</tbody>
+</table>
+<h3 id="constants">Constants</h3>
+<ul>
+<li><code>WGS84_A</code> = 6,378,137.0 m (semi-major axis)</li>
+<li><code>WGS84_F</code> = 1/298.257223563 (flattening)</li>
+<li><code>SPEED_OF_LIGHT</code> = 299,792,458.0 m/s</li>
+</ul>
+<hr />
+<h2 id="environment-models">Environment Models</h2>
+<p>Located in <code>r4w-core/src/waveform/gnss/environment/</code>.
+These models add realistic propagation effects to scenario
+generation.</p>
+<h3 id="keplerian-orbits-orbit.rs">Keplerian Orbits
+(<code>orbit.rs</code>)</h3>
+<p><code>KeplerianOrbit</code> propagates satellite positions using
+classical orbital mechanics.</p>
+<p><strong>Orbital elements:</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>a</code></td>
+<td>Semi-major axis (meters)</td>
+</tr>
+<tr class="even">
+<td><code>e</code></td>
+<td>Eccentricity (0 = circular)</td>
+</tr>
+<tr class="odd">
+<td><code>i</code></td>
+<td>Inclination (radians)</td>
+</tr>
+<tr class="even">
+<td><code>omega_0</code></td>
+<td>Right ascension of ascending node (radians)</td>
+</tr>
+<tr class="odd">
+<td><code>omega</code></td>
+<td>Argument of perigee (radians)</td>
+</tr>
+<tr class="even">
+<td><code>m0</code></td>
+<td>Mean anomaly at epoch (radians)</td>
+</tr>
+<tr class="odd">
+<td><code>t_epoch</code></td>
+<td>Epoch time (seconds)</td>
+</tr>
+<tr class="even">
+<td><code>omega_dot</code></td>
+<td>RAAN precession rate (rad/s, J2 perturbation)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Nominal orbit constructors:</strong></p>
+<table>
+<thead>
+<tr class="header">
+<th>Constructor</th>
+<th>Altitude</th>
+<th>Inclination</th>
+<th>Planes</th>
+<th>Period</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>gps_nominal(plane, slot)</code></td>
+<td>26,559.7 km</td>
+<td>55.0 deg</td>
+<td>6</td>
+<td>~11h 58m</td>
+</tr>
+<tr class="even">
+<td><code>galileo_nominal(plane, slot)</code></td>
+<td>29,600 km</td>
+<td>56.0 deg</td>
+<td>3</td>
+<td>~14h 5m</td>
+</tr>
+<tr class="odd">
+<td><code>glonass_nominal(plane, slot)</code></td>
+<td>25,508 km</td>
+<td>64.8 deg</td>
+<td>3</td>
+<td>~11h 16m</td>
+</tr>
+</tbody>
+</table>
+<p>The Kepler equation is solved with Newton-Raphson iteration (20
+iterations, 1e-14 tolerance). Positions are transformed from ECI to ECEF
+accounting for Earth rotation.</p>
+<h3 id="klobuchar-ionospheric-model-ionosphere.rs">Klobuchar Ionospheric
+Model (<code>ionosphere.rs</code>)</h3>
+<p><code>KlobucharModel</code> implements the GPS broadcast ionospheric
+correction using 8 coefficients (alpha[4] + beta[4]).</p>
+<p><strong>Key characteristics:</strong> - Computes group delay at L1
+frequency as a function of elevation, azimuth, user position, and GPS
+time of day - Scales to other frequencies via 1/f^2 relationship:
+<code>scale_to_frequency(delay_l1, freq_hz)</code> - Typical L1 delay:
+5-15 meters (higher at low elevations) -
+<code>default_broadcast()</code> provides typical mid-latitude
+coefficients</p>
+<h3 id="saastamoinen-tropospheric-model-troposphere.rs">Saastamoinen
+Tropospheric Model (<code>troposphere.rs</code>)</h3>
+<p><code>SaastamoinenModel</code> computes tropospheric delay from
+meteorological parameters.</p>
+<p><strong>Components:</strong> - <strong>Hydrostatic (dry)</strong>:
+~2.3 m zenith delay at sea level, depends on pressure -
+<strong>Wet</strong>: ~0.1-0.3 m zenith delay, depends on temperature
+and humidity - <strong>Mapping function</strong>: Elevation-dependent
+scaling using 1/sin(el) with Chao correction</p>
+<p><strong>Constructors:</strong> - <code>standard_atmosphere()</code> -
+ISA at sea level (15 C, 1013.25 hPa, 50% humidity) -
+<code>at_altitude(height_m)</code> - Standard atmosphere scaled to
+altitude using lapse rate</p>
+<h3 id="multipath-presets-multipath.rs">Multipath Presets
+(<code>multipath.rs</code>)</h3>
+<p><code>GnssMultipathPreset</code> maps environment types to tapped
+delay line configurations:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Preset</th>
+<th>Taps</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>OpenSky</code></td>
+<td>1</td>
+<td>Direct path only, minimal reflections</td>
+</tr>
+<tr class="even">
+<td><code>Suburban</code></td>
+<td>3</td>
+<td>Direct + 2 reflections (50/120 ns, -6/-12 dB)</td>
+</tr>
+<tr class="odd">
+<td><code>UrbanCanyon</code></td>
+<td>5</td>
+<td>Direct + 4 reflections (30-500 ns, -3 to -14 dB)</td>
+</tr>
+<tr class="even">
+<td><code>Indoor</code></td>
+<td>6</td>
+<td>Attenuated direct (-3 dB) + 5 reflections (20-400 ns)</td>
+</tr>
+</tbody>
+</table>
+<p>Each tap is a
+<code>MultipathTap { delay_s, power_db, phase_rad }</code>.</p>
+<h3 id="antenna-patterns-antenna.rs">Antenna Patterns
+(<code>antenna.rs</code>)</h3>
+<p><code>AntennaPattern</code> models receiver antenna gain as a
+function of elevation:</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 37%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Pattern</th>
+<th>Description</th>
+<th>Typical Use</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Isotropic</code></td>
+<td>0 dBi uniform gain</td>
+<td>Reference/testing</td>
+</tr>
+<tr class="even">
+<td><code>Hemispherical { peak_gain_dbi }</code></td>
+<td>Uniform above horizon</td>
+<td>Simple simulations</td>
+</tr>
+<tr class="odd">
+<td><code>Patch { peak_gain_dbi, beamwidth_deg }</code></td>
+<td>cos^n roll-off pattern</td>
+<td>Consumer GNSS receivers</td>
+</tr>
+<tr class="even">
+<td><code>ChokeRing { peak_gain_dbi }</code></td>
+<td>Sharp cutoff, multipath rejection</td>
+<td>Geodetic/survey receivers</td>
+</tr>
+</tbody>
+</table>
+<p><code>default_patch()</code> returns a 5 dBi patch with 150 deg
+beamwidth.</p>
+<p><code>BodyAttitude { roll_deg, pitch_deg, yaw_deg }</code> accounts
+for platform tilt effects on effective elevation.</p>
+<hr />
+<h2 id="scenario-engine">Scenario Engine</h2>
+<p>The generic scenario engine in <code>r4w-sim/src/scenario/</code>
+composes multiple emitters into a single IQ stream. It is not
+GNSS-specific and can be used for any multi-emitter simulation.</p>
+<h3 id="emitter-trait">Emitter Trait</h3>
+<p>Any signal source implements this trait:</p>
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">pub</span> <span class="kw">trait</span> Emitter<span class="op">:</span> <span class="bu">Send</span> <span class="op">+</span> <span class="bu">Sync</span> <span class="op">{</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> state_at(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> t<span class="op">:</span> <span class="dt">f64</span>) <span class="op">-&gt;</span> EmitterState<span class="op">;</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> generate_iq(<span class="op">&amp;</span><span class="kw">self</span><span class="op">,</span> t<span class="op">:</span> <span class="dt">f64</span><span class="op">,</span> num_samples<span class="op">:</span> <span class="dt">usize</span><span class="op">,</span> sample_rate<span class="op">:</span> <span class="dt">f64</span>) <span class="op">-&gt;</span> <span class="dt">Vec</span><span class="op">&lt;</span>IQSample<span class="op">&gt;;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> carrier_frequency_hz(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">f64</span><span class="op">;</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> nominal_power_dbm(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">f64</span><span class="op">;</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">fn</span> id(<span class="op">&amp;</span><span class="kw">self</span>) <span class="op">-&gt;</span> <span class="dt">String</span><span class="op">;</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<p><code>EmitterState</code> provides position
+(<code>EcefPosition</code>), velocity (<code>EcefVelocity</code>), power
+(dBm), and active flag.</p>
+<h3 id="trajectory">Trajectory</h3>
+<p>Receiver motion profiles:</p>
+<table>
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 35%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Variant</th>
+<th>Parameters</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>Static</code></td>
+<td><code>position: LlaPosition</code></td>
+<td>Fixed location</td>
+</tr>
+<tr class="even">
+<td><code>Linear</code></td>
+<td><code>start: LlaPosition, velocity_enu: [f64; 3]</code></td>
+<td>Constant velocity (East/North/Up m/s)</td>
+</tr>
+<tr class="odd">
+<td><code>Waypoints</code></td>
+<td><code>points: Vec&lt;(f64, LlaPosition)&gt;</code></td>
+<td>Timed waypoint sequence with interpolation</td>
+</tr>
+<tr class="even">
+<td><code>Circular</code></td>
+<td><code>center, radius_m, omega_rad_s, initial_bearing_deg</code></td>
+<td>Circular orbit around a point</td>
+</tr>
+</tbody>
+</table>
+<p>All variants return
+<code>TrajectoryState { position, velocity, time_s }</code> via
+<code>state_at(t)</code>.</p>
+<h3 id="scenarioengine">ScenarioEngine</h3>
+<p><code>ScenarioEngine::new(config, emitters, trajectory)</code>
+creates the compositor. Per block:</p>
+<ol type="1">
+<li>Compute receiver position from trajectory</li>
+<li>For each emitter: compute geometry (range, Doppler, FSPL,
+elevation/azimuth)</li>
+<li>Generate per-emitter baseband IQ</li>
+<li>Apply Doppler shift with continuous phase accumulation</li>
+<li>Scale amplitude by FSPL and transmit power</li>
+<li>Sum all emitter contributions</li>
+<li>Add composite AWGN noise</li>
+</ol>
+<p><code>ScenarioConfig</code> fields: <code>duration_s</code>,
+<code>sample_rate</code>, <code>center_frequency_hz</code>,
+<code>block_size</code>, <code>noise_floor_dbw_hz</code>,
+<code>seed</code>.</p>
+<hr />
+<h2 id="gnss-scenario-generator">GNSS Scenario Generator</h2>
+<p>The GNSS-specific layer in <code>r4w-core/src/waveform/gnss/</code>
+wraps the generic engine with constellation knowledge.</p>
+<h3 id="gnssscenario">GnssScenario</h3>
+<p>Top-level API:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co">// From a preset</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> scenario <span class="op">=</span> <span class="pp">GnssScenario::</span>from_preset(<span class="pp">GnssScenarioPreset::</span>OpenSky)<span class="op">;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="co">// Generate all samples</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> iq <span class="op">=</span> scenario<span class="op">.</span>generate()<span class="op">;</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="co">// Or block by block</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="cf">while</span> <span class="op">!</span>scenario<span class="op">.</span>is_done() <span class="op">{</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">let</span> block <span class="op">=</span> scenario<span class="op">.</span>generate_block(<span class="dv">2046</span>)<span class="op">;</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    <span class="co">// process block...</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="co">// Check satellite visibility</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> sv <span class="kw">in</span> scenario<span class="op">.</span>satellite_status() <span class="op">{</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    <span class="pp">println!</span>(<span class="st">&quot;PRN {} el={:.1} az={:.1} C/N0={:.1}&quot;</span><span class="op">,</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>        sv<span class="op">.</span>prn<span class="op">,</span> sv<span class="op">.</span>elevation_deg<span class="op">,</span> sv<span class="op">.</span>azimuth_deg<span class="op">,</span> sv<span class="op">.</span>cn0_dbhz)<span class="op">;</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="co">// Write to file</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>scenario<span class="op">.</span>write_output(<span class="op">&amp;</span>iq<span class="op">,</span> <span class="dt">Path</span><span class="pp">::</span>new(<span class="st">&quot;output.iq&quot;</span>))<span class="op">?;</span></span></code></pre></div>
+<h3 id="scenario-presets">Scenario Presets</h3>
+<table>
+<colgroup>
+<col style="width: 19%" />
+<col style="width: 26%" />
+<col style="width: 23%" />
+<col style="width: 30%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Preset</th>
+<th>Satellites</th>
+<th>Receiver</th>
+<th>Environment</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>OpenSky</code></td>
+<td>4 GPS L1 C/A (PRN 1,7,13,23)</td>
+<td>Static, Philadelphia</td>
+<td>Iono + tropo, no multipath</td>
+</tr>
+<tr class="even">
+<td><code>UrbanCanyon</code></td>
+<td>6 GPS L1 C/A (PRN 1,3,7,13,17,23)</td>
+<td>Static</td>
+<td>Iono + tropo + urban multipath, 15 deg mask</td>
+</tr>
+<tr class="odd">
+<td><code>MultiConstellation</code></td>
+<td>3 GPS + 3 Galileo</td>
+<td>Static</td>
+<td>Iono + tropo, no multipath</td>
+</tr>
+<tr class="even">
+<td><code>Driving</code></td>
+<td>5 GPS L1 C/A</td>
+<td>Linear, 15 m/s East</td>
+<td>Iono + tropo + suburban multipath</td>
+</tr>
+<tr class="odd">
+<td><code>Walking</code></td>
+<td>4 GPS L1 C/A</td>
+<td>Linear, 1.5 m/s East</td>
+<td>Iono + tropo, no multipath</td>
+</tr>
+<tr class="even">
+<td><code>HighDynamics</code></td>
+<td>6 GPS L1 C/A</td>
+<td>Linear, 300 m/s East</td>
+<td>Iono + tropo, no multipath</td>
+</tr>
+</tbody>
+</table>
+<h3 id="satelliteemitter">SatelliteEmitter</h3>
+<p>Wraps a <code>Waveform</code> with orbital mechanics and atmospheric
+models:</p>
+<ul>
+<li>Computes satellite ECEF position/velocity from
+<code>KeplerianOrbit</code> at any time</li>
+<li>Generates code-phase-aligned baseband IQ from geometric pseudorange
+(no generate-then-delay waste)</li>
+<li>Applies ionospheric and tropospheric delays as carrier phase
+shifts</li>
+<li>Reports <code>SatelliteStatus</code> with elevation, azimuth, range,
+Doppler, C/N0, delay breakdowns</li>
+</ul>
+<h3 id="configuration">Configuration</h3>
+<p><code>GnssScenarioConfig</code> has four sections:</p>
+<p><strong><code>satellites: Vec&lt;SatelliteConfig&gt;</code></strong>
+- <code>signal</code> - GpsL1Ca, GpsL5, GlonassL1of, or GalileoE1 -
+<code>prn</code> - PRN number - <code>plane</code>, <code>slot</code> -
+Orbital plane and slot indices - <code>tx_power_dbw</code> - Transmit
+power - <code>nav_data</code> - Enable navigation data modulation</p>
+<p><strong><code>receiver: ReceiverConfig</code></strong> -
+<code>position: LlaPosition</code> - Receiver location -
+<code>antenna: AntennaPattern</code> - Antenna type -
+<code>elevation_mask_deg</code> - Minimum elevation (default 5 deg) -
+<code>noise_figure_db</code> - Receiver noise figure (default 2 dB) -
+<code>bandwidth_hz</code> - Front-end bandwidth (default 2.046 MHz)</p>
+<p><strong><code>environment: EnvironmentConfig</code></strong> -
+<code>ionosphere_enabled</code> / <code>ionosphere_model</code> -
+Klobuchar on/off and custom coefficients -
+<code>troposphere_enabled</code> / <code>troposphere_model</code> -
+Saastamoinen on/off and custom parameters -
+<code>multipath_enabled</code> / <code>multipath_preset</code> -
+Multipath environment type</p>
+<p><strong><code>output: OutputConfig</code></strong> -
+<code>sample_rate</code> - Output sample rate (default 2.046 MHz) -
+<code>duration_s</code> - Scenario duration (default 0.001 s) -
+<code>block_size</code> - Processing block size (0 = auto) -
+<code>seed</code> - PRNG seed for reproducibility</p>
+<hr />
+<h2 id="cli-reference">CLI Reference</h2>
+<p>All GNSS commands are under <code>r4w gnss</code>:</p>
+<h3 id="signal-exploration">Signal Exploration</h3>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Show all signal parameters</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss info <span class="at">--signal</span> all</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Side-by-side comparison table</span></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss compare</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="co"># PRN code analysis with cross-correlation</span></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss code <span class="at">--prn</span> 1 <span class="at">--cross-prn</span> 7</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Single-satellite simulation</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss simulate <span class="at">--prn</span> 1 <span class="at">--cn0</span> 40 <span class="at">--doppler</span> 1000</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate baseband IQ with nav data</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss generate <span class="at">--signal</span> GPS-L1CA <span class="at">--prn</span> 1 <span class="at">--bits</span> 10</span></code></pre></div>
+<h3 id="scenario-generation">Scenario Generation</h3>
+<div class="sourceCode" id="cb5"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># List available presets</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss scenario <span class="at">--list-presets</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># Generate open-sky scenario (default 1ms, 2.046 MHz)</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss scenario <span class="at">--preset</span> open-sky <span class="at">-o</span> output.iq</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Custom duration and sample rate</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss scenario <span class="at">--preset</span> urban-canyon <span class="at">--duration</span> 0.01 <span class="at">--sample-rate</span> 4092000 <span class="at">-o</span> urban.iq</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># From YAML configuration file</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="ex">r4w</span> gnss scenario <span class="at">--config</span> my_scenario.yaml <span class="at">-o</span> custom.iq</span></code></pre></div>
+<p><strong>Output format:</strong> Raw interleaved f64 I/Q pairs
+(little-endian binary). File size = <code>num_samples * 2 * 8</code>
+bytes.</p>
+<p>The CLI displays a satellite status table and signal statistics after
+generation:</p>
+<pre><code>PRN  Signal      Elev    Azim    Range(km)    Doppler(Hz)  C/N0(dB-Hz)  Iono(m)  Tropo(m)
+  1  GPS-L1CA    45.2    120.3    22,145.7       1,234.5      42.3        8.2      4.1
+  7  GPS-L1CA    67.8     45.1    20,890.2        -567.2      45.1        6.1      3.2
+ 13  GPS-L1CA    23.4    245.6    24,102.8       2,891.0      38.7       12.4      6.8
+ 23  GPS-L1CA    78.1    310.2    20,456.3        -123.4      46.8        5.3      2.9</code></pre>
+<hr />
+<h2 id="gui-simulator">GUI Simulator</h2>
+<p>The <code>GnssSimulatorView</code> in r4w-explorer provides
+interactive scenario visualization:</p>
+<ul>
+<li><strong>Sky plot</strong> - Polar projection showing satellite
+positions with elevation rings and cardinal labels, color-coded by
+constellation</li>
+<li><strong>C/N0 bars</strong> - Bar chart of carrier-to-noise density
+per visible satellite</li>
+<li><strong>IQ waveform</strong> - Time-domain display of composite I
+and Q channels</li>
+<li><strong>Controls</strong> - Preset selector, duration/sample-rate
+sliders, environment toggles (ionosphere, troposphere, multipath)</li>
+</ul>
+<p>Launch with:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="ex">cargo</span> run <span class="at">--bin</span> r4w-explorer</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Navigate to GNSS Simulator view</span></span></code></pre></div>
+<hr />
+<h2 id="jupyter-workshops">Jupyter Workshops</h2>
+<p>Two notebooks in <code>notebooks/</code> provide hands-on GNSS
+learning:</p>
+<h3 id="gnss-scenario-generation">09: GNSS Scenario Generation</h3>
+<ul>
+<li>GNSS signal basics (frequency, chipping rate, code length,
+modulation)</li>
+<li>Generating multi-satellite scenarios via CLI</li>
+<li>Comparing open-sky vs multi-constellation spectra</li>
+<li>Urban canyon multipath effects on IQ signals</li>
+<li>Exercises: PCPS acquisition on composite IQ, per-satellite C/N0
+estimation</li>
+</ul>
+<h3 id="gnss-environment-models">10: GNSS Environment Models</h3>
+<ul>
+<li>3D orbital visualization with Keplerian propagation</li>
+<li>Klobuchar ionospheric delay vs elevation and time of day</li>
+<li>Saastamoinen tropospheric delay vs elevation and altitude</li>
+<li>Multipath tap profiles for different environments</li>
+<li>Antenna gain patterns (patch, choke ring, hemispherical)</li>
+<li>Complete link budget calculation from SV to receiver</li>
+</ul>
+<hr />
+<h2 id="api-reference">API Reference</h2>
+<h3 id="key-types-r4w-core">Key Types (r4w-core)</h3>
+<pre><code>r4w_core::coordinates::{EcefPosition, EcefVelocity, LlaPosition, LookAngle}
+r4w_core::coordinates::{lla_to_ecef, ecef_to_lla, look_angle, range_rate, fspl_db}
+
+r4w_core::waveform::gnss::{GpsL1Ca, GpsL5, GlonassL1of, GalileoE1}
+r4w_core::waveform::gnss::{GpsCaCodeGenerator, GpsL5CodeGenerator,
+                            GlonassCodeGenerator, GalileoE1CodeGenerator}
+r4w_core::waveform::gnss::{PcpsAcquisition, TrackingChannel, LnavMessage}
+
+r4w_core::waveform::gnss::{GnssScenario, GnssScenarioConfig, GnssScenarioPreset}
+r4w_core::waveform::gnss::{SatelliteEmitter, SatelliteConfig, ReceiverConfig,
+                            EnvironmentConfig, OutputConfig}
+
+r4w_core::waveform::gnss::{KeplerianOrbit, KlobucharModel, SaastamoinenModel,
+                            GnssMultipathPreset, AntennaPattern, BodyAttitude}</code></pre>
+<h3 id="key-types-r4w-sim">Key Types (r4w-sim)</h3>
+<pre><code>r4w_sim::scenario::{Emitter, EmitterState, EmitterStatus}
+r4w_sim::scenario::{ScenarioEngine, ScenarioConfig}
+r4w_sim::scenario::{Trajectory, TrajectoryState}</code></pre>
+<hr />
+<h2 id="examples">Examples</h2>
+<h3 id="generate-and-analyze-a-scenario-in-rust">Generate and analyze a
+scenario in Rust</h3>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::gnss::</span><span class="op">{</span>GnssScenario<span class="op">,</span> GnssScenarioPreset<span class="op">};</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">std::path::</span><span class="dt">Path</span><span class="op">;</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> scenario <span class="op">=</span> <span class="pp">GnssScenario::</span>from_preset(<span class="pp">GnssScenarioPreset::</span>OpenSky)<span class="op">;</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">// Print visible satellites</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> sv <span class="kw">in</span> scenario<span class="op">.</span>satellite_status() <span class="op">{</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> sv<span class="op">.</span>visible <span class="op">{</span></span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>        <span class="pp">println!</span>(<span class="st">&quot;PRN {:2} | El {:5.1} | Az {:5.1} | C/N0 {:4.1} dB-Hz&quot;</span><span class="op">,</span></span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>            sv<span class="op">.</span>prn<span class="op">,</span> sv<span class="op">.</span>elevation_deg<span class="op">,</span> sv<span class="op">.</span>azimuth_deg<span class="op">,</span> sv<span class="op">.</span>cn0_dbhz)<span class="op">;</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a><span class="co">// Generate IQ and write to file</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> iq <span class="op">=</span> scenario<span class="op">.</span>generate()<span class="op">;</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>scenario<span class="op">.</span>write_output(<span class="op">&amp;</span>iq<span class="op">,</span> <span class="dt">Path</span><span class="pp">::</span>new(<span class="st">&quot;/tmp/gnss.iq&quot;</span>))<span class="op">.</span>unwrap()<span class="op">;</span></span></code></pre></div>
+<h3 id="custom-multi-constellation-configuration">Custom
+multi-constellation configuration</h3>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode rust"><code class="sourceCode rust"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::waveform::gnss::</span><span class="op">*;</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="kw">use</span> <span class="pp">r4w_core::coordinates::</span>LlaPosition<span class="op">;</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> config <span class="op">=</span> GnssScenarioConfig <span class="op">{</span></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>    satellites<span class="op">:</span> <span class="pp">vec!</span>[</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        <span class="pp">SatelliteConfig::</span>gps_l1ca(<span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">0</span>)<span class="op">,</span></span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>        <span class="pp">SatelliteConfig::</span>gps_l1ca(<span class="dv">7</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">2</span>)<span class="op">,</span></span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        <span class="pp">SatelliteConfig::</span>galileo_e1(<span class="dv">1</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="dv">0</span>)<span class="op">,</span></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>        <span class="pp">SatelliteConfig::</span>galileo_e1(<span class="dv">5</span><span class="op">,</span> <span class="dv">1</span><span class="op">,</span> <span class="dv">3</span>)<span class="op">,</span></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>    ]<span class="op">,</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>    receiver<span class="op">:</span> ReceiverConfig <span class="op">{</span></span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a>        position<span class="op">:</span> <span class="pp">LlaPosition::</span>new(<span class="dv">51.5</span><span class="op">,</span> <span class="op">-</span><span class="dv">0.1</span><span class="op">,</span> <span class="dv">30.0</span>)<span class="op">,</span> <span class="co">// London</span></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>        antenna<span class="op">:</span> <span class="pp">AntennaPattern::</span>default_patch()<span class="op">,</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>        elevation_mask_deg<span class="op">:</span> <span class="dv">10.0</span><span class="op">,</span></span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>        noise_figure_db<span class="op">:</span> <span class="dv">2.0</span><span class="op">,</span></span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>        bandwidth_hz<span class="op">:</span> <span class="dv">2_046_000.0</span><span class="op">,</span></span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>    <span class="op">},</span></span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>    environment<span class="op">:</span> EnvironmentConfig <span class="op">{</span></span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>        ionosphere_enabled<span class="op">:</span> <span class="cn">true</span><span class="op">,</span></span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a>        troposphere_enabled<span class="op">:</span> <span class="cn">true</span><span class="op">,</span></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>        multipath_enabled<span class="op">:</span> <span class="cn">true</span><span class="op">,</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>        multipath_preset<span class="op">:</span> <span class="pp">GnssMultipathPreset::</span>Suburban<span class="op">,</span></span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a>        <span class="op">..</span><span class="bu">Default</span><span class="pp">::</span><span class="kw">default</span>()</span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>    <span class="op">},</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>    output<span class="op">:</span> OutputConfig <span class="op">{</span></span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>        sample_rate<span class="op">:</span> <span class="dv">4_092_000.0</span><span class="op">,</span> <span class="co">// 4x chipping rate</span></span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>        duration_s<span class="op">:</span> <span class="dv">0.010</span><span class="op">,</span>        <span class="co">// 10 ms</span></span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a>        <span class="op">..</span><span class="bu">Default</span><span class="pp">::</span><span class="kw">default</span>()</span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>    <span class="op">},</span></span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> <span class="kw">mut</span> scenario <span class="op">=</span> <span class="pp">GnssScenario::</span>new(config)<span class="op">;</span></span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a><span class="kw">let</span> iq <span class="op">=</span> scenario<span class="op">.</span>generate()<span class="op">;</span></span></code></pre></div>
+<h3 id="reading-generated-iq-files-in-python">Reading generated IQ files
+in Python</h3>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> struct</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> read_iq(path):</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> <span class="bu">open</span>(path, <span class="st">&#39;rb&#39;</span>) <span class="im">as</span> f:</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>        data <span class="op">=</span> f.read()</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>    samples <span class="op">=</span> struct.unpack(<span class="ss">f&#39;&lt;</span><span class="sc">{</span><span class="bu">len</span>(data)<span class="op">//</span><span class="dv">8</span><span class="sc">}</span><span class="ss">d&#39;</span>, data)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> np.array(samples[<span class="dv">0</span>::<span class="dv">2</span>]) <span class="op">+</span> <span class="ot">1j</span> <span class="op">*</span> np.array(samples[<span class="dv">1</span>::<span class="dv">2</span>])</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>iq <span class="op">=</span> read_iq(<span class="st">&#39;/tmp/gnss.iq&#39;</span>)</span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f&quot;Samples: </span><span class="sc">{</span><span class="bu">len</span>(iq)<span class="sc">}</span><span class="ss">, Mean power: </span><span class="sc">{</span><span class="dv">10</span><span class="op">*</span>np<span class="sc">.</span>log10(np.mean(np.<span class="bu">abs</span>(iq)<span class="op">**</span><span class="dv">2</span>))<span class="sc">:.1f}</span><span class="ss"> dB&quot;</span>)</span></code></pre></div>
+<hr />
+<h2 id="requirements-traceability">Requirements Traceability</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Requirement</th>
+<th>Title</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>FR-032</td>
+<td>GPS L1 C/A Waveform</td>
+<td>Completed</td>
+</tr>
+<tr class="even">
+<td>FR-033</td>
+<td>GPS L5 Waveform</td>
+<td>Completed</td>
+</tr>
+<tr class="odd">
+<td>FR-034</td>
+<td>GLONASS L1OF Waveform</td>
+<td>Completed</td>
+</tr>
+<tr class="even">
+<td>FR-035</td>
+<td>Galileo E1 Waveform</td>
+<td>Completed</td>
+</tr>
+<tr class="odd">
+<td>FR-036</td>
+<td>GNSS PRN Code Generation</td>
+<td>Completed</td>
+</tr>
+<tr class="even">
+<td>FR-037</td>
+<td>GNSS Acquisition and Tracking</td>
+<td>Completed</td>
+</tr>
+<tr class="odd">
+<td>FR-038</td>
+<td>GNSS CLI Subcommand</td>
+<td>Completed</td>
+</tr>
+<tr class="even">
+<td>FR-039</td>
+<td>GNSS Scenario Engine</td>
+<td>Completed</td>
+</tr>
+<tr class="odd">
+<td>FR-040</td>
+<td>GNSS Environment Models</td>
+<td>Completed</td>
+</tr>
+<tr class="even">
+<td>FR-041</td>
+<td>GNSS IQ Signal Generator</td>
+<td>Completed</td>
+</tr>
+<tr class="odd">
+<td>FR-042</td>
+<td>GNSS Scenario CLI and GUI</td>
+<td>Completed</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>
