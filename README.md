@@ -268,6 +268,7 @@ See [docs/FPGA_DEVELOPERS_GUIDE.md](docs/FPGA_DEVELOPERS_GUIDE.md) for IP cores,
 | **[docs/FPGA_DEVELOPERS_GUIDE.md](docs/FPGA_DEVELOPERS_GUIDE.md)** | IP cores, register maps, HW/SW integration |
 | **[docs/SECURITY_GUIDE.md](docs/SECURITY_GUIDE.md)** | Memory safety, crypto, secure deployment |
 | **[docs/ISOLATION_GUIDE.md](docs/ISOLATION_GUIDE.md)** | Waveform isolation (containers, VMs, hardware) |
+| **[docs/GNSS_GUIDE.md](docs/GNSS_GUIDE.md)** | GNSS waveforms, scenario engine, environment models |
 | **[docs/PORTING_GUIDE_MILITARY.md](docs/PORTING_GUIDE_MILITARY.md)** | Porting classified waveforms (SINCGARS, Link-16, etc.) |
 | **[docs/porting/](docs/porting/)** | Individual waveform porting guides |
 | **[CLAUDE.md](CLAUDE.md)** | Development guidelines for Claude Code |
