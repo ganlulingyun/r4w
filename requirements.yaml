@@ -15,10 +15,10 @@ requirements:
   modified_at: 2025-12-30T18:54:37.847875523Z
   req_type: Epic
   tags:
-  - meshtastic
-  - protocol
   - lora
+  - protocol
   - mesh
+  - meshtastic
   history:
   - id: b87df4b0-b8f6-47cc-bf04-604b5362c7fc
     author: CLI
@@ -40,9 +40,9 @@ requirements:
   modified_at: 2025-12-30T20:09:32.375521722Z
   req_type: Functional
   tags:
+  - encoding
   - physical-layer
   - lora
-  - encoding
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -74,9 +74,9 @@ requirements:
   modified_at: 2025-12-30T20:09:32.379972839Z
   req_type: Functional
   tags:
+  - cad
   - csma
   - physical-layer
-  - cad
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -108,8 +108,8 @@ requirements:
   modified_at: 2025-12-30T18:54:27.733209443Z
   req_type: Functional
   tags:
-  - frequency
   - physical-layer
+  - frequency
   - regulatory
   relationships:
   - rel_type: Parent
@@ -136,9 +136,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.011274770Z
   req_type: Functional
   tags:
-  - csma
-  - mac-layer
   - collision-avoidance
+  - mac-layer
+  - csma
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -171,8 +171,8 @@ requirements:
   req_type: Functional
   tags:
   - framing
-  - packet
   - mac-layer
+  - packet
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -232,8 +232,8 @@ requirements:
   modified_at: 2025-12-30T18:54:51.020338923Z
   req_type: Functional
   tags:
-  - flood
   - broadcast
+  - flood
   - routing
   relationships:
   - rel_type: Parent
@@ -266,9 +266,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.024770069Z
   req_type: Functional
   tags:
-  - unicast
-  - routing
   - next-hop
+  - routing
+  - unicast
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -300,9 +300,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.765255591Z
   req_type: Functional
   tags:
-  - cache
   - routing
   - deduplication
+  - cache
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -328,9 +328,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.770472367Z
   req_type: Functional
   tags:
-  - neighbor
   - routing
   - discovery
+  - neighbor
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -356,9 +356,9 @@ requirements:
   modified_at: 2025-12-30T18:33:56.924811543Z
   req_type: Functional
   tags:
+  - interop
   - messages
   - protobuf
-  - interop
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -377,8 +377,8 @@ requirements:
   req_type: Functional
   tags:
   - encryption
-  - aes
   - interop
+  - aes
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -396,9 +396,9 @@ requirements:
   modified_at: 2025-12-30T18:34:16.397667432Z
   req_type: Functional
   tags:
-  - interop
-  - config
   - channel
+  - config
+  - interop
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -416,9 +416,9 @@ requirements:
   modified_at: 2025-12-30T18:34:30.970516731Z
   req_type: Functional
   tags:
-  - app
   - text
   - messaging
+  - app
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -436,9 +436,9 @@ requirements:
   modified_at: 2025-12-30T18:34:41.008292847Z
   req_type: Functional
   tags:
-  - gps
-  - app
   - position
+  - app
+  - gps
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -457,8 +457,8 @@ requirements:
   req_type: Functional
   tags:
   - architecture
-  - integration
   - trait
+  - integration
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -490,8 +490,8 @@ requirements:
   modified_at: 2025-12-30T18:35:04.632283047Z
   req_type: Functional
   tags:
-  - hardware
   - radio
+  - hardware
   - sx126x
   relationships:
   - rel_type: Parent
@@ -510,9 +510,9 @@ requirements:
   modified_at: 2025-12-30T18:35:14.680235464Z
   req_type: Functional
   tags:
+  - testing
   - simulation
   - multi-node
-  - testing
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -600,8 +600,8 @@ requirements:
   modified_at: 2026-01-01T00:45:23.000655534Z
   req_type: Functional
   tags:
-  - doppler
   - fading
+  - doppler
   - channel
 - id: c83161da-58d1-47d8-b8bf-0af9b75f8607
   spec_id: FR-025
@@ -615,8 +615,8 @@ requirements:
   modified_at: 2026-01-01T00:45:26.089040868Z
   req_type: Functional
   tags:
-  - 3gpp
   - channel
+  - 3gpp
   - multipath
 - id: 3fa6715a-0464-4aed-bf9b-e50552ddf5d3
   spec_id: FR-026
@@ -630,8 +630,8 @@ requirements:
   modified_at: 2026-01-01T00:45:29.202873633Z
   req_type: Functional
   tags:
-  - fft
   - spectrum
+  - fft
   - cli
 - id: deb7cb95-87ae-49e7-9f8d-4ca65c2e8d61
   spec_id: FR-027
@@ -645,9 +645,9 @@ requirements:
   modified_at: 2026-01-01T00:45:32.061276826Z
   req_type: Functional
   tags:
+  - spectrogram
   - cli
   - waterfall
-  - spectrogram
 - id: d17f5ab3-f452-45e0-af66-7c8d481ab8fb
   spec_id: FR-028
   title: CLI Signal Statistics
@@ -675,9 +675,9 @@ requirements:
   modified_at: 2026-01-01T00:45:50.819575716Z
   req_type: Functional
   tags:
-  - cli
-  - detection
   - peaks
+  - detection
+  - cli
 - id: c743ccdf-5f80-413b-96a3-dd09dc0e7233
   spec_id: TASK-030
   title: Signal Visualization Gallery
@@ -690,9 +690,9 @@ requirements:
   modified_at: 2026-01-01T00:45:53.481069148Z
   req_type: Task
   tags:
-  - visualization
   - examples
   - gallery
+  - visualization
 - id: 96888938-b9e2-4088-9302-9c3381e7d0d7
   spec_id: TASK-031
   title: Jupyter Tutorial Notebooks
@@ -923,6 +923,23 @@ requirements:
     content: Implemented in beacon.rs with 4 beacon types (ELT, EPIRB, PLB, Military), full Waveform trait, WaveformFactory integration, 14 unit tests. Commit d65f593.
     created_at: 2026-02-04T04:46:08.737312883Z
     modified_at: 2026-02-04T04:46:08.737312883Z
+- id: 8e3e7dde-33a5-47dc-8ccd-1f89f1438912
+  spec_id: FR-044
+  title: 'GNSS Scenario Enhancements: Real Constellation Tables, Orbit Calibration, CLI'
+  description: 'Real-world PRN lookup tables for GPS (31 SVs from NAVCEN), Galileo (24 SVs from GSC), GLONASS (24 SVs). Galileo orbit calibration (Walker 24/3/1, RAAN/M0 offsets). GPS time helpers. Per-sample Doppler interpolation. CLI: --lat/--lon/--alt, --time, --signals filter, --export-preset, --config YAML. Default location Fort Wayne IN.'
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 44-Uncategorized
+  created_at: 2026-02-05T03:15:50.517031803Z
+  modified_at: 2026-02-05T03:15:55.883088739Z
+  req_type: Functional
+  comments:
+  - id: 3bb3313f-a7c8-4992-a503-dad31e77d6ea
+    author: joe
+    content: Applied from gnss_scenario_enhancements.patch. 7 files changed, 797 insertions, 76 deletions. 69 GNSS tests pass, 7 scenario tests pass, 3 calibration tests (ignored). CLI validated with open-sky and multi-constellation presets.
+    created_at: 2026-02-05T03:15:55.883082106Z
+    modified_at: 2026-02-05T03:15:55.883082106Z
 id_config:
   format: SingleLevel
   numbering: Global
@@ -968,8 +985,8 @@ id_config:
     prefix: META
     description: Database configuration and templates
 features: []
-next_feature_number: 44
-next_spec_number: 44
+next_feature_number: 45
+next_spec_number: 45
 prefix_counters: {}
 relationship_definitions:
 - name: parent

@@ -881,9 +881,36 @@ enum GnssCommand {
         #[arg(long, default_value = "2046000")]
         sample_rate: f64,
 
+        /// Receiver latitude in degrees (default: 41.08 = Fort Wayne, IN)
+        #[arg(long, allow_hyphen_values = true)]
+        lat: Option<f64>,
+
+        /// Receiver longitude in degrees (default: -85.14 = Fort Wayne, IN)
+        #[arg(long, allow_hyphen_values = true)]
+        lon: Option<f64>,
+
+        /// Receiver altitude in meters (default: 240)
+        #[arg(long)]
+        alt: Option<f64>,
+
+        /// Scenario start time as UTC string: "YYYY-MM-DD HH:MM:SS" (default: 2026-02-04 20:00:00 UTC)
+        #[arg(long)]
+        time: Option<String>,
+
         /// List available presets
         #[arg(long)]
         list_presets: bool,
+
+        /// Export a preset as YAML config to stdout (use with --preset)
+        #[arg(long)]
+        export_preset: bool,
+
+        /// Filter satellite signals (comma-separated). Accepts signal names or constellation shorthands.
+        /// Signals: gps-l1ca, gps-l5, glonass-l1of, galileo-e1
+        /// Constellations: gps (=gps-l1ca), glonass (=glonass-l1of), galileo (=galileo-e1)
+        /// Example: --signals gps,galileo or --signals gps-l1ca,gps-l5
+        #[arg(long, value_delimiter = ',')]
+        signals: Option<Vec<String>>,
     },
 }
 
@@ -3327,17 +3354,76 @@ fn cmd_gnss_compare() -> Result<()> {
     Ok(())
 }
 
+/// Parse a UTC time string into GPS seconds
+fn parse_utc_time(time_str: &str) -> Result<f64> {
+    use r4w_core::waveform::gnss::scenario_config::gps_time_from_utc;
+    let parts: Vec<&str> = time_str.split(&['-', ' ', ':', 'T'][..]).collect();
+    if parts.len() < 6 {
+        anyhow::bail!(
+            "Invalid time format '{}'. Expected: YYYY-MM-DD HH:MM:SS (UTC)",
+            time_str
+        );
+    }
+    let year: i32 = parts[0].parse().map_err(|_| anyhow::anyhow!("Invalid year"))?;
+    let month: u32 = parts[1].parse().map_err(|_| anyhow::anyhow!("Invalid month"))?;
+    let day: u32 = parts[2].parse().map_err(|_| anyhow::anyhow!("Invalid day"))?;
+    let hour: u32 = parts[3].parse().map_err(|_| anyhow::anyhow!("Invalid hour"))?;
+    let min: u32 = parts[4].parse().map_err(|_| anyhow::anyhow!("Invalid minute"))?;
+    let sec: u32 = parts[5].parse().map_err(|_| anyhow::anyhow!("Invalid second"))?;
+    Ok(gps_time_from_utc(year, month, day, hour, min, sec))
+}
+
+/// Parse a signal filter string into GnssSignal values
+fn parse_signal_filter(signals: &[String]) -> Result<Vec<r4w_core::waveform::gnss::GnssSignal>> {
+    use r4w_core::waveform::gnss::GnssSignal;
+    let mut result = Vec::new();
+    for s in signals {
+        match s.to_lowercase().replace('_', "-").as_str() {
+            "gps" | "gps-l1ca" | "gps-l1" => result.push(GnssSignal::GpsL1Ca),
+            "gps-l5" => result.push(GnssSignal::GpsL5),
+            "gps-all" => {
+                result.push(GnssSignal::GpsL1Ca);
+                result.push(GnssSignal::GpsL5);
+            }
+            "glonass" | "glonass-l1of" | "glonass-l1" => result.push(GnssSignal::GlonassL1of),
+            "galileo" | "galileo-e1" | "gal" | "gal-e1" => result.push(GnssSignal::GalileoE1),
+            other => anyhow::bail!(
+                "Unknown signal '{}'. Options: gps, gps-l1ca, gps-l5, gps-all, glonass, glonass-l1of, galileo, galileo-e1",
+                other
+            ),
+        }
+    }
+    // Deduplicate
+    result.dedup();
+    Ok(result)
+}
+
 // trace:FR-042 | ai:claude
 fn cmd_gnss_scenario(
     preset: Option<String>,
-    _config: Option<PathBuf>,
+    config_path: Option<PathBuf>,
     output: PathBuf,
     duration: f64,
     sample_rate: f64,
+    lat: Option<f64>,
+    lon: Option<f64>,
+    alt: Option<f64>,
+    time: Option<String>,
     list_presets: bool,
+    export_preset: bool,
+    signals: Option<Vec<String>>,
 ) -> Result<()> {
+    use r4w_core::coordinates::LlaPosition;
     use r4w_core::waveform::gnss::scenario::GnssScenario;
-    use r4w_core::waveform::gnss::scenario_config::GnssScenarioPreset;
+    use r4w_core::waveform::gnss::scenario_config::{GnssScenarioConfig, GnssScenarioPreset};
+    use r4w_core::waveform::gnss::GnssSignal;
+
+    // Parse signal filter if provided
+    let signal_filter: Option<Vec<GnssSignal>> = if let Some(ref sigs) = signals {
+        Some(parse_signal_filter(sigs)?)
+    } else {
+        None
+    };
 
     if list_presets {
         println!("Available GNSS scenario presets:");
@@ -3365,17 +3451,126 @@ fn cmd_gnss_scenario(
         }
     };
 
-    println!("GNSS Scenario Generator");
-    println!("=======================");
-    println!("Preset:      {}", preset_enum);
-    println!("Duration:    {} ms", duration * 1000.0);
-    println!("Sample rate: {} MHz", sample_rate / 1e6);
-    println!("Output:      {}", output.display());
-    println!();
+    // Export preset as YAML and exit
+    if export_preset {
+        use r4w_core::waveform::gnss::scenario_config::discover_satellites_for_config;
 
-    let mut config = preset_enum.to_config();
+        let mut cfg = preset_enum.to_config();
+
+        // Apply coordinate overrides before discovery
+        if lat.is_some() || lon.is_some() || alt.is_some() {
+            let pos = &cfg.receiver.position;
+            cfg.receiver.position = LlaPosition::new(
+                lat.unwrap_or(pos.lat_deg),
+                lon.unwrap_or(pos.lon_deg),
+                alt.unwrap_or(pos.alt_m),
+            );
+        }
+
+        // Apply time override before discovery
+        if let Some(ref time_str) = time {
+            cfg.output.start_time_gps_s = parse_utc_time(time_str)?;
+        }
+
+        // Apply other CLI overrides
+        cfg.output.duration_s = duration;
+        cfg.output.sample_rate = sample_rate;
+
+        // Override signal types if --signals was provided
+        if let Some(ref filter) = signal_filter {
+            use r4w_core::waveform::gnss::scenario_config::SatelliteConfig;
+            // Replace satellite list with one dummy per signal type (discovery will replace them)
+            cfg.satellites = filter.iter().map(|sig| {
+                SatelliteConfig {
+                    signal: *sig,
+                    prn: 1,
+                    plane: 0,
+                    slot: 0,
+                    tx_power_dbw: match sig {
+                        GnssSignal::GpsL1Ca => 14.3,
+                        GnssSignal::GpsL5 => 15.5,
+                        GnssSignal::GlonassL1of => 14.7,
+                        GnssSignal::GalileoE1 => 15.0,
+                    },
+                    nav_data: true,
+                }
+            }).collect();
+        }
+
+        // If position, time, or signals was customized, auto-discover visible satellites
+        if lat.is_some() || lon.is_some() || alt.is_some() || time.is_some() || signal_filter.is_some() {
+            discover_satellites_for_config(&mut cfg);
+            eprintln!("Discovered {} visible satellites from {:.2}°N, {:.2}°W at GPS {:.0} s",
+                cfg.satellites.len(),
+                cfg.receiver.position.lat_deg,
+                -cfg.receiver.position.lon_deg,
+                cfg.output.start_time_gps_s,
+            );
+            for sat in &cfg.satellites {
+                eprintln!("  PRN {:>2}  {}  plane={} slot={}", sat.prn, sat.signal, sat.plane, sat.slot);
+            }
+        }
+
+        let yaml = serde_yaml::to_string(&cfg)
+            .map_err(|e| anyhow::anyhow!("Failed to serialize config: {}", e))?;
+        print!("{}", yaml);
+        return Ok(());
+    }
+
+    // Load config: from YAML file or from preset
+    let mut config = if let Some(ref path) = config_path {
+        let contents = std::fs::read_to_string(path)
+            .map_err(|e| anyhow::anyhow!("Failed to read config file '{}': {}", path.display(), e))?;
+        let cfg: GnssScenarioConfig = serde_yaml::from_str(&contents)
+            .map_err(|e| anyhow::anyhow!("Failed to parse config file '{}': {}", path.display(), e))?;
+        cfg
+    } else {
+        preset_enum.to_config()
+    };
+
+    // CLI overrides
     config.output.duration_s = duration;
     config.output.sample_rate = sample_rate;
+
+    // Override receiver position if any coordinate is provided
+    if lat.is_some() || lon.is_some() || alt.is_some() {
+        let pos = &config.receiver.position;
+        config.receiver.position = LlaPosition::new(
+            lat.unwrap_or(pos.lat_deg),
+            lon.unwrap_or(pos.lon_deg),
+            alt.unwrap_or(pos.alt_m),
+        );
+    }
+
+    // Override start time if provided (format: "YYYY-MM-DD HH:MM:SS" UTC)
+    if let Some(ref time_str) = time {
+        config.output.start_time_gps_s = parse_utc_time(time_str)?;
+    }
+
+    // Filter satellites by signal type if --signals was provided
+    if let Some(ref filter) = signal_filter {
+        config.satellites.retain(|sat| filter.contains(&sat.signal));
+        if config.satellites.is_empty() {
+            anyhow::bail!("No satellites match the signal filter. Check --signals value.");
+        }
+    }
+
+    let source = if config_path.is_some() {
+        format!("{}", config_path.as_ref().unwrap().display())
+    } else {
+        format!("{}", preset_enum)
+    };
+
+    let pos = &config.receiver.position;
+    println!("GNSS Scenario Generator");
+    println!("=======================");
+    println!("Config:      {}", source);
+    println!("Receiver:    {:.4}°N, {:.4}°W, {:.0}m", pos.lat_deg, -pos.lon_deg, pos.alt_m);
+    println!("Start time:  GPS {:.0} s", config.output.start_time_gps_s);
+    println!("Duration:    {} ms", config.output.duration_s * 1000.0);
+    println!("Sample rate: {} MHz", config.output.sample_rate / 1e6);
+    println!("Output:      {}", output.display());
+    println!();
 
     let mut scenario = GnssScenario::new(config);
 
@@ -4429,8 +4624,8 @@ fn main() -> Result<()> {
             GnssCommand::Simulate { prn, cn0, doppler, duration } =>
                 cmd_gnss_simulate(prn, cn0, doppler, duration),
             GnssCommand::Compare => cmd_gnss_compare(),
-            GnssCommand::Scenario { preset, config, output, duration, sample_rate, list_presets } =>
-                cmd_gnss_scenario(preset, config, output, duration, sample_rate, list_presets),
+            GnssCommand::Scenario { preset, config, output, duration, sample_rate, lat, lon, alt, time, list_presets, export_preset, signals } =>
+                cmd_gnss_scenario(preset, config, output, duration, sample_rate, lat, lon, alt, time, list_presets, export_preset, signals),
         },
 
         Commands::Completions { shell } => {

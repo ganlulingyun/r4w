@@ -49,4 +49,4 @@ pub use gps_l5::GpsL5;
 pub use environment::{AntennaPattern, BodyAttitude, GnssMultipathPreset, KeplerianOrbit, KlobucharModel, SaastamoinenModel};
 pub use satellite_emitter::SatelliteEmitter;
 pub use scenario::GnssScenario;
-pub use scenario_config::{GnssScenarioConfig, GnssScenarioPreset, SatelliteConfig, ReceiverConfig, EnvironmentConfig, OutputConfig};
+pub use scenario_config::{GnssScenarioConfig, GnssScenarioPreset, SatelliteConfig, ReceiverConfig, EnvironmentConfig, OutputConfig, gps_time_from_utc, discover_visible_satellites, discover_satellites_for_config};

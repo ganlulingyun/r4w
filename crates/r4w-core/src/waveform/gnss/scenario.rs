@@ -86,30 +86,37 @@ impl GnssScenario {
             return vec![];
         }
 
-        let t_start = self.current_sample as f64 / self.sample_rate;
+        let t_offset = self.config.output.start_time_gps_s;
+        let t_start = t_offset + self.current_sample as f64 / self.sample_rate;
         let rx_lla = &self.config.receiver.position;
         let rx_ecef = lla_to_ecef(rx_lla);
 
         let mut composite = vec![Complex64::new(0.0, 0.0); n];
 
-        for emitter in &self.emitters {
-            let (sat_pos, sat_vel) = emitter.position_velocity_at(t_start);
+        let t_end = t_start + n as f64 / self.sample_rate;
 
-            // Geometry
-            let la = look_angle(&rx_ecef, rx_lla, &sat_pos);
+        for emitter in &self.emitters {
+            // Compute geometry at block start and end for per-sample Doppler interpolation
+            let (sat_pos_start, sat_vel_start) = emitter.position_velocity_at(t_start);
+            let (sat_pos_end, sat_vel_end) = emitter.position_velocity_at(t_end);
+
+            // Elevation check at block start
+            let la = look_angle(&rx_ecef, rx_lla, &sat_pos_start);
             if la.elevation_deg < self.config.receiver.elevation_mask_deg {
                 continue;
             }
 
             let range_m = la.range_m;
 
-            // Range rate and Doppler
+            // Doppler at block start and end for linear interpolation
             let rx_vel = EcefVelocity::zero();
-            let rr = range_rate(&rx_ecef, &rx_vel, &sat_pos, &sat_vel);
             let carrier_hz = emitter.signal.carrier_frequency_hz();
-            let doppler_hz = -rr * carrier_hz / SPEED_OF_LIGHT;
+            let rr_start = range_rate(&rx_ecef, &rx_vel, &sat_pos_start, &sat_vel_start);
+            let rr_end = range_rate(&rx_ecef, &rx_vel, &sat_pos_end, &sat_vel_end);
+            let doppler_start_hz = -rr_start * carrier_hz / SPEED_OF_LIGHT;
+            let doppler_end_hz = -rr_end * carrier_hz / SPEED_OF_LIGHT;
 
-            // Atmospheric delays
+            // Atmospheric delays (computed once per block — vary slowly)
             let status = emitter.status_at(t_start, &rx_ecef, rx_lla, &self.config.receiver.antenna);
             let iono_delay_s = status.iono_delay_m / SPEED_OF_LIGHT;
             let tropo_delay_s = status.tropo_delay_m / SPEED_OF_LIGHT;
@@ -125,10 +132,13 @@ impl GnssScenario {
                 range_m, iono_delay_s, tropo_delay_s,
             );
 
-            // Apply Doppler shift and add to composite
+            // Apply per-sample Doppler shift (linearly interpolated across block)
+            let n_f64 = n as f64;
             let mut phase = 0.0_f64;
-            let phase_inc = 2.0 * PI * doppler_hz / self.sample_rate;
             for (i, &sample) in baseband.iter().enumerate() {
+                let frac = i as f64 / n_f64;
+                let doppler_hz = doppler_start_hz + frac * (doppler_end_hz - doppler_start_hz);
+                let phase_inc = 2.0 * PI * doppler_hz / self.sample_rate;
                 phase += phase_inc;
                 let doppler_shift = Complex64::new(phase.cos(), phase.sin());
                 composite[i] += sample * doppler_shift * rx_amplitude;
@@ -167,7 +177,7 @@ impl GnssScenario {
 
     /// Get status of all satellites at current time
     pub fn satellite_status(&self) -> Vec<SatelliteStatus> {
-        let t = self.current_sample as f64 / self.sample_rate;
+        let t = self.config.output.start_time_gps_s + self.current_sample as f64 / self.sample_rate;
         let rx_lla = &self.config.receiver.position;
         let rx_ecef = lla_to_ecef(rx_lla);
         let antenna = &self.config.receiver.antenna;
@@ -280,7 +290,7 @@ mod tests {
     fn test_satellite_status() {
         let scenario = GnssScenario::from_preset(GnssScenarioPreset::OpenSky);
         let statuses = scenario.satellite_status();
-        assert_eq!(statuses.len(), 4);
+        assert_eq!(statuses.len(), 8);
         for status in &statuses {
             assert!(status.range_m > 20_000_000.0, "PRN {} range: {}", status.prn, status.range_m);
         }

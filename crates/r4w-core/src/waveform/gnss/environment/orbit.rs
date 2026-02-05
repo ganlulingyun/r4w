@@ -144,23 +144,31 @@ impl KeplerianOrbit {
 
     /// Create a nominal Galileo orbit for a given orbital plane and slot
     ///
-    /// Galileo constellation: 3 planes, 8-10 satellites per plane
-    /// Semi-major axis: ~29,600 km, inclination: 56 deg
+    /// Galileo constellation: Walker 24/3/1 — 3 planes, 8 nominal slots per plane.
+    /// Semi-major axis: ~29,600 km, inclination: 56 deg.
+    /// Slot spacing: 45 deg (360/8). Inter-plane phasing: 15 deg (Walker F=1: 360/24).
+    /// RAAN and M0 offsets calibrated against real constellation positions (2026 epoch).
     pub fn galileo_nominal(plane: u8, slot: u8) -> Self {
         assert!(plane < 3, "Galileo has 3 orbital planes (0-2)");
-        assert!(slot < 10, "Use slot 0-9");
+        assert!(slot < 10, "Use slot 0-9 (8 nominal + auxiliary)");
 
         let a = 29_600_318.0;
         let raan_spacing = 120.0_f64.to_radians();
-        let slot_spacing = 36.0_f64.to_radians();
+        let slot_spacing = 45.0_f64.to_radians(); // 360/8 = 45 deg
+        let walker_phase = 15.0_f64.to_radians(); // Walker F=1: 360/24 = 15 deg
+
+        // Calibration offsets determined by matching visibility against
+        // real Galileo almanac data at multiple epochs (2026-02-04).
+        let raan_cal = 118.0_f64.to_radians();
+        let m0_cal = 176.0_f64.to_radians();
 
         Self {
             a,
             e: 0.0,
             i: 56.0_f64.to_radians(),
-            omega_0: plane as f64 * raan_spacing,
+            omega_0: plane as f64 * raan_spacing + raan_cal,
             omega: 0.0,
-            m0: slot as f64 * slot_spacing,
+            m0: slot as f64 * slot_spacing + plane as f64 * walker_phase + m0_cal,
             t_epoch: 0.0,
             omega_dot: 0.0,
         }
@@ -271,4 +279,5 @@ mod tests {
         let m_check = e - ecc * e.sin();
         assert!((m_check - m).abs() < 1e-12);
     }
+
 }

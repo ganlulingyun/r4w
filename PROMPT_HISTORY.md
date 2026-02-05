@@ -6652,3 +6652,41 @@ Implement GNSS (Global Navigation Satellite System) waveforms for R4W, covering 
 
 ### Git Operations
 - Commit d65f593: `[AI:claude] feat(waveform): add 121.5/243 MHz emergency distress beacon (FR-043)`
+
+---
+
+## Session 23 — GNSS Scenario Enhancements
+**Date**: 2026-02-04
+
+### User Request
+- Apply GNSS scenario enhancements from external patch (gnss_scenario_enhancements.patch + gnss_scenario_enhancements_prompt.md)
+
+### Changes Applied (from patch)
+1. **Real-world constellation lookup tables** — GPS (31 SVs from NAVCEN), Galileo (24 SVs from GSC), GLONASS (24 SVs from IAC). `lookup_prn()` function replaces synthetic PRN numbering.
+2. **Galileo orbit correction** — Walker 24/3/1 geometry (8 slots/plane at 45° spacing, 15° inter-plane phasing). RAAN offset 118°, M0 offset 176° calibrated against real positions at 2026 epoch.
+3. **Satellite discovery** — `discover_visible_satellites()` and `discover_satellites_for_config()` iterate real constellation tables.
+4. **GPS time helpers** — `gps_time_from_utc()` converting UTC datetime to GPS seconds (18 leap seconds).
+5. **Per-sample Doppler interpolation** — Linear interpolation of Doppler shift across each processing block for smooth phase continuity.
+6. **Start time threading** — `start_time_gps_s` in OutputConfig, threaded through scenario generator.
+7. **CLI enhancements** — `--lat`, `--lon`, `--alt`, `--time`, `--signals`, `--export-preset`, `--config` YAML.
+8. **Default location** — Changed from Philadelphia to Fort Wayne, IN (41.08°N, 85.14°W, 240m).
+
+### Files Changed (7 files, +797 -76)
+
+| File | Change |
+|------|--------|
+| `Cargo.lock` | Added serde_yaml for r4w-cli |
+| `crates/r4w-cli/Cargo.toml` | Added `serde_yaml.workspace = true` |
+| `crates/r4w-cli/src/main.rs` | CLI args, parse_utc_time, parse_signal_filter, export_preset, config loading |
+| `crates/r4w-core/src/waveform/gnss/environment/orbit.rs` | Galileo Walker 24/3/1 + RAAN/M0 calibration |
+| `crates/r4w-core/src/waveform/gnss/mod.rs` | Re-export new public functions |
+| `crates/r4w-core/src/waveform/gnss/scenario.rs` | Start time threading, per-sample Doppler, test updates |
+| `crates/r4w-core/src/waveform/gnss/scenario_config.rs` | Constellation tables, PRN lookup, discovery, GPS time, presets with real PRNs |
+| `CLAUDE.md` | Added GNSS Scenario Enhancements to Recent Updates |
+| `PROMPT_HISTORY.md` | Added Session 23 |
+| `requirements.yaml` | Added FR-044 (Completed) |
+
+### Test Results
+- 69 GNSS tests pass, 7 scenario tests pass, 3 calibration tests (ignored)
+- 766 total workspace tests pass (excluding r4w-sandbox Wasm issues)
+- CLI validated: open-sky (8 GPS SVs), multi-constellation (5 GPS + 6 Galileo)
