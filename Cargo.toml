@@ -76,6 +76,15 @@ rayon = "1.10"
 # Testing
 criterion = "0.5"
 
+# GNSS ephemeris (RINEX parsing)
+rinex = { version = "0.21", default-features = false, features = ["nav", "flate2", "serde"] }
+
+# HTTP client for CDDIS downloads
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "cookies"] }
+
+# Gzip decompression for RINEX files
+flate2 = "1.0"
+
 [profile.release]
 lto = true
 codegen-units = 1

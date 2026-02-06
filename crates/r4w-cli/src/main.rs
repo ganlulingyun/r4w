@@ -13,6 +13,7 @@ use clap::{CommandFactory, Parser, Subcommand};
 use clap_complete::{generate, Shell};
 use r4w_core::agent::{AgentClient, AgentServer, DEFAULT_AGENT_PORT};
 use r4w_core::benchmark::{BenchmarkMetrics, BenchmarkReceiver, BenchmarkReport, SampleFormat, WaveformRunner};
+use r4w_core::io::IqFormat;
 use r4w_core::demodulation::Demodulator;
 use r4w_core::mesh::{LoRaMesh, LoRaMeshConfig, MeshPhy, ModemPreset, NodeId, Region};
 use r4w_core::modulation::Modulator;
@@ -859,6 +860,13 @@ enum GnssCommand {
     /// Compare signals across constellations
     Compare,
 
+    /// Manage broadcast ephemeris data from NASA CDDIS
+    #[cfg(feature = "ephemeris")]
+    Ephemeris {
+        #[command(subcommand)]
+        command: EphemerisCommand,
+    },
+
     /// Generate multi-satellite GNSS IQ scenario with realistic channel effects
     Scenario {
         /// Scenario preset (open-sky, urban-canyon, driving, walking, high-dynamics, multi-constellation)
@@ -873,13 +881,13 @@ enum GnssCommand {
         #[arg(short, long, default_value = "gnss_scenario.iq")]
         output: PathBuf,
 
-        /// Scenario duration in seconds
-        #[arg(short, long, default_value = "0.001")]
-        duration: f64,
+        /// Scenario duration in seconds (default: from preset/config, typically 0.001)
+        #[arg(short, long)]
+        duration: Option<f64>,
 
-        /// Sample rate in Hz
-        #[arg(long, default_value = "2046000")]
-        sample_rate: f64,
+        /// Sample rate in Hz (default: from preset/config, typically 5000000)
+        #[arg(long)]
+        sample_rate: Option<f64>,
 
         /// Receiver latitude in degrees (default: 41.08 = Fort Wayne, IN)
         #[arg(long, allow_hyphen_values = true)]
@@ -901,9 +909,10 @@ enum GnssCommand {
         #[arg(long)]
         list_presets: bool,
 
-        /// Export a preset as YAML config to stdout (use with --preset)
-        #[arg(long)]
-        export_preset: bool,
+        /// Export a preset as YAML config. Prints to stdout if no path given, or writes to file.
+        /// Example: --export-preset  OR  --export-preset scenario.yaml
+        #[arg(long, num_args = 0..=1, default_missing_value = "-")]
+        export_preset: Option<String>,
 
         /// Filter satellite signals (comma-separated). Accepts signal names or constellation shorthands.
         /// Signals: gps-l1ca, gps-l5, glonass-l1of, galileo-e1
@@ -911,6 +920,104 @@ enum GnssCommand {
         /// Example: --signals gps,galileo or --signals gps-l1ca,gps-l5
         #[arg(long, value_delimiter = ',')]
         signals: Option<Vec<String>>,
+
+        /// Ephemeris source: 'nominal' (Keplerian), 'auto' (fetch from CDDIS), 'cached' (use cached),
+        /// or a path to a RINEX file. Default: nominal
+        #[cfg(feature = "ephemeris")]
+        #[arg(long, default_value = "nominal")]
+        ephemeris: String,
+
+        /// SP3 precise ephemeris file (cm-level accuracy, overrides --ephemeris)
+        #[cfg(feature = "ephemeris")]
+        #[arg(long)]
+        sp3: Option<PathBuf>,
+
+        /// IONEX ionospheric TEC map file (overrides Klobuchar model)
+        #[cfg(feature = "ephemeris")]
+        #[arg(long)]
+        ionex: Option<PathBuf>,
+
+        /// Output sample format: f64 (default), f32/ettus (USRP compatible), sc16 (signed 16-bit)
+        #[arg(long, default_value = "f64")]
+        format: String,
+
+        /// Elevation mask in degrees. Satellites below this elevation are excluded. (default: 5.0)
+        #[arg(long, default_value = "5.0")]
+        elevation_mask: f64,
+
+        /// Lowpass filter cutoff frequency in Hz. Applies anti-aliasing filter to output.
+        /// Recommended: set to ~0.4 * sample_rate (e.g., 2e6 for 5 MHz sample rate).
+        /// If not specified, no filtering is applied.
+        #[arg(long)]
+        lpf_cutoff: Option<f64>,
+
+        /// Limit output to specific PRN(s). Comma-separated list.
+        /// Accepts: 3, prn3, PRN3, prn 3 (all equivalent)
+        /// Example: --limit-prns prn3 (single), --limit-prns PRN3,PRN8,PRN25 (multiple)
+        #[arg(long, value_delimiter = ',')]
+        limit_prns: Option<Vec<String>>,
+    },
+}
+
+/// Ephemeris management subcommands
+#[cfg(feature = "ephemeris")]
+#[derive(Subcommand)]
+enum EphemerisCommand {
+    /// Fetch ephemeris from NASA CDDIS for a specific date
+    Fetch {
+        /// Date to fetch (YYYY-MM-DD). Defaults to today.
+        #[arg(short, long)]
+        date: Option<String>,
+
+        /// Force re-download even if cached
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// List cached ephemeris files
+    List,
+
+    /// Show information about a RINEX ephemeris file
+    Info {
+        /// Path to RINEX file, or 'cached:YYYY-MM-DD' for cached file
+        file: String,
+    },
+
+    /// Clear ephemeris cache
+    Clear {
+        /// Clear all cached files (default: only files older than 30 days)
+        #[arg(long)]
+        all: bool,
+    },
+
+    /// Fetch SP3 precise ephemeris from CODE for a specific date
+    Sp3 {
+        /// Date to fetch (YYYY-MM-DD). Defaults to 7 days ago (SP3 data has 2-week latency).
+        #[arg(short, long)]
+        date: Option<String>,
+
+        /// Force re-download even if cached
+        #[arg(short, long)]
+        force: bool,
+
+        /// Show info about cached SP3 file instead of downloading
+        #[arg(long)]
+        info: bool,
+    },
+
+    /// Fetch IONEX ionospheric TEC maps from CODE for a specific date
+    Ionex {
+        /// Date to fetch (YYYY-MM-DD). Defaults to 2 days ago (IONEX has ~1 day latency).
+        #[arg(short, long)]
+        date: Option<String>,
+
+        /// Force re-download even if cached
+        #[arg(short, long)]
+        force: bool,
+
+        /// Show info about cached IONEX file instead of downloading
+        #[arg(long)]
+        info: bool,
     },
 }
 
@@ -979,6 +1086,19 @@ fn parse_region(region: &str) -> Result<Region> {
             region
         ),
     }
+}
+
+/// Parse a PRN identifier from various formats: "3", "prn3", "PRN3", "prn 3", "PRN 3"
+fn parse_prn(s: &str) -> Result<u8> {
+    let s = s.trim().to_lowercase();
+    // Strip "prn" prefix if present (case-insensitive)
+    let num_str = if s.starts_with("prn") {
+        s[3..].trim()
+    } else {
+        &s
+    };
+    num_str.parse::<u8>()
+        .with_context(|| format!("Invalid PRN '{}': expected number like '3' or 'prn3'", s))
 }
 
 fn parse_node_id(id: &Option<String>) -> Result<Option<NodeId>> {
@@ -3354,13 +3474,368 @@ fn cmd_gnss_compare() -> Result<()> {
     Ok(())
 }
 
-/// Parse a UTC time string into GPS seconds
+// ---------------------------------------------------------------------------
+// Ephemeris management commands (feature-gated)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "ephemeris")]
+fn cmd_gnss_ephemeris_fetch(date: Option<String>, force: bool) -> Result<()> {
+    use chrono::{Datelike, Utc};
+    use r4w_core::waveform::gnss::{cddis, EarthdataCredentials};
+
+    // Parse date or use today
+    let (year, month, day) = if let Some(ref date_str) = date {
+        cddis::parse_date(date_str)
+            .map_err(|e| anyhow::anyhow!("Invalid date: {}", e))?
+    } else {
+        // Today's date
+        let now = Utc::now();
+        (now.year(), now.month(), now.day())
+    };
+
+    println!("Fetching ephemeris for {}-{:02}-{:02}...", year, month, day);
+
+    // Check if already cached
+    if !force && cddis::is_cached(year, month, day) {
+        let cached_path = cddis::cache_path(year, month, day);
+        println!("Already cached: {}", cached_path.display());
+        return Ok(());
+    }
+
+    // Check credentials
+    if EarthdataCredentials::load().is_none() {
+        eprintln!("Warning: No NASA Earthdata credentials found.");
+        eprintln!("Set EARTHDATA_USERNAME/EARTHDATA_PASSWORD or add to ~/.netrc:");
+        eprintln!("  machine urs.earthdata.nasa.gov login <user> password <pass>");
+        eprintln!();
+    }
+
+    // Fetch
+    match cddis::fetch_ephemeris(year, month, day, force) {
+        Ok(path) => {
+            println!("Downloaded: {}", path.display());
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Failed to fetch ephemeris: {}", e);
+        }
+    }
+}
+
+#[cfg(feature = "ephemeris")]
+fn cmd_gnss_ephemeris_list() -> Result<()> {
+    use r4w_core::waveform::gnss::cddis;
+
+    let files = cddis::list_cached();
+
+    if files.is_empty() {
+        println!("No cached ephemeris files.");
+        println!();
+        println!("Cache directory: {}", cddis::cache_dir().display());
+        println!("Use 'r4w gnss ephemeris fetch' to download ephemeris data.");
+        return Ok(());
+    }
+
+    println!("Cached ephemeris files:");
+    println!();
+    println!("  {:>4} {:>3}  {:40} {:>10}", "Year", "DoY", "File", "Size");
+    println!("  {}", "-".repeat(60));
+
+    for (year, doy, path) in &files {
+        let size = std::fs::metadata(path)
+            .map(|m| m.len())
+            .unwrap_or(0);
+        let size_str = if size > 1_000_000 {
+            format!("{:.1} MB", size as f64 / 1_000_000.0)
+        } else if size > 1_000 {
+            format!("{:.1} KB", size as f64 / 1_000.0)
+        } else {
+            format!("{} B", size)
+        };
+        println!("  {:>4} {:>3}  {:40} {:>10}",
+            year, doy,
+            path.file_name().and_then(|n| n.to_str()).unwrap_or("?"),
+            size_str);
+    }
+
+    println!();
+    println!("Cache directory: {}", cddis::cache_dir().display());
+    Ok(())
+}
+
+#[cfg(feature = "ephemeris")]
+fn cmd_gnss_ephemeris_info(file: String) -> Result<()> {
+    use r4w_core::waveform::gnss::{RinexEphemeris, cddis};
+
+    // Check if it's a cached:YYYY-MM-DD reference
+    let path = if file.starts_with("cached:") {
+        let date_str = file.strip_prefix("cached:").unwrap();
+        let (year, month, day) = cddis::parse_date(date_str)
+            .map_err(|e| anyhow::anyhow!("Invalid date: {}", e))?;
+        cddis::cache_path(year, month, day)
+    } else {
+        std::path::PathBuf::from(&file)
+    };
+
+    if !path.exists() {
+        anyhow::bail!("File not found: {}", path.display());
+    }
+
+    println!("Loading RINEX file: {}", path.display());
+
+    let eph = RinexEphemeris::from_file(&path)
+        .map_err(|e| anyhow::anyhow!("Failed to load RINEX: {}", e))?;
+
+    println!();
+    println!("=== RINEX Ephemeris Summary ===");
+
+    // Time span
+    if let Some((start, end)) = eph.time_span() {
+        let duration_hours = (end - start) / 3600.0;
+        println!("Time span:    GPS {:.0} - {:.0} ({:.1} hours)", start, end, duration_hours);
+    }
+
+    // Satellite counts
+    let summary = eph.summary();
+    println!();
+    println!("Constellation  Satellites");
+    println!("-----------    ----------");
+    for (constellation, count) in &summary {
+        println!("{:11}    {:>10}", format!("{}", constellation), count);
+    }
+
+    println!();
+    Ok(())
+}
+
+#[cfg(feature = "ephemeris")]
+fn cmd_gnss_ephemeris_clear(all: bool) -> Result<()> {
+    use chrono::{NaiveDate, TimeZone, Utc};
+    use r4w_core::waveform::gnss::cddis;
+
+    let files = cddis::list_cached();
+
+    if files.is_empty() {
+        println!("No cached ephemeris files to clear.");
+        return Ok(());
+    }
+
+    let now = Utc::now();
+    let threshold_days = 30;
+
+    let mut cleared = 0;
+    let mut kept = 0;
+
+    for (year, doy, path) in &files {
+        let file_date = NaiveDate::from_yo_opt(*year, *doy)
+            .map(|d| d.and_hms_opt(0, 0, 0).unwrap())
+            .map(|dt| Utc.from_utc_datetime(&dt));
+
+        let should_delete = all || file_date.map_or(true, |fd| {
+            (now - fd).num_days() > threshold_days
+        });
+
+        if should_delete {
+            if std::fs::remove_file(path).is_ok() {
+                println!("Deleted: {}", path.display());
+                cleared += 1;
+            }
+        } else {
+            kept += 1;
+        }
+    }
+
+    println!();
+    println!("Cleared {} files, kept {} recent files.", cleared, kept);
+    Ok(())
+}
+
+#[cfg(feature = "ephemeris")]
+fn cmd_gnss_sp3(date: Option<String>, force: bool, info_only: bool) -> Result<()> {
+    use chrono::{Datelike, Duration, Utc};
+    use r4w_core::waveform::gnss::{cddis, Sp3Ephemeris};
+
+    // Parse date or use 7 days ago (SP3 has ~2 week latency for final products)
+    let (year, month, day) = if let Some(ref date_str) = date {
+        cddis::parse_date(date_str)
+            .map_err(|e| anyhow::anyhow!("Invalid date: {}", e))?
+    } else {
+        let target = Utc::now() - Duration::days(7);
+        (target.year(), target.month(), target.day())
+    };
+
+    if info_only {
+        // Show info about cached file
+        let cache_path = cddis::sp3_cache_path(year, month, day);
+        if !cache_path.exists() {
+            anyhow::bail!("No cached SP3 file for {}-{:02}-{:02}. Run without --info to download.", year, month, day);
+        }
+
+        println!("Loading SP3 file: {}", cache_path.display());
+        let sp3 = Sp3Ephemeris::from_file(&cache_path)
+            .map_err(|e| anyhow::anyhow!("Failed to load SP3: {}", e))?;
+
+        println!();
+        println!("=== SP3 Precise Ephemeris Summary ===");
+        println!("Version:       {}", sp3.header.version);
+        println!("Epoch count:   {}", sp3.header.num_epochs);
+        println!("Interval:      {} seconds", sp3.header.interval_s);
+
+        if let Some((start, end)) = sp3.time_span() {
+            let duration_hours = (end - start) / 3600.0;
+            println!("Time span:     GPS {:.0} - {:.0} ({:.1} hours)", start, end, duration_hours);
+        }
+
+        println!();
+        println!("Satellites: {} total", sp3.records.len());
+        let mut by_constellation: std::collections::HashMap<char, usize> = std::collections::HashMap::new();
+        for sv_id in sp3.records.keys() {
+            let prefix = sv_id.chars().next().unwrap_or('?');
+            *by_constellation.entry(prefix).or_insert(0) += 1;
+        }
+        for (prefix, count) in &by_constellation {
+            let name = match prefix {
+                'G' => "GPS",
+                'R' => "GLONASS",
+                'E' => "Galileo",
+                'C' => "BeiDou",
+                'J' => "QZSS",
+                'I' => "IRNSS/NavIC",
+                _ => "Unknown",
+            };
+            println!("  {} ({}): {}", name, prefix, count);
+        }
+
+        return Ok(());
+    }
+
+    println!("Fetching SP3 for {}-{:02}-{:02}...", year, month, day);
+
+    // Check if already cached
+    if !force && cddis::sp3_is_cached(year, month, day) {
+        let cached_path = cddis::sp3_cache_path(year, month, day);
+        println!("Already cached: {}", cached_path.display());
+        println!("Use --info to show file details, or --force to re-download.");
+        return Ok(());
+    }
+
+    match cddis::fetch_sp3(year, month, day, force) {
+        Ok(path) => {
+            println!("Downloaded: {}", path.display());
+
+            // Show quick summary
+            if let Ok(sp3) = Sp3Ephemeris::from_file(&path) {
+                println!("  {} satellites, {} epochs", sp3.records.len(), sp3.header.num_epochs);
+            }
+
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Failed to fetch SP3: {}", e);
+        }
+    }
+}
+
+#[cfg(feature = "ephemeris")]
+fn cmd_gnss_ionex(date: Option<String>, force: bool, info_only: bool) -> Result<()> {
+    use chrono::{Datelike, Duration, Utc};
+    use r4w_core::waveform::gnss::{cddis, IonexTec};
+
+    // Parse date or use 2 days ago (IONEX has ~1 day latency)
+    let (year, month, day) = if let Some(ref date_str) = date {
+        cddis::parse_date(date_str)
+            .map_err(|e| anyhow::anyhow!("Invalid date: {}", e))?
+    } else {
+        let target = Utc::now() - Duration::days(2);
+        (target.year(), target.month(), target.day())
+    };
+
+    if info_only {
+        // Show info about cached file
+        let cache_path = cddis::ionex_cache_path(year, month, day);
+        if !cache_path.exists() {
+            anyhow::bail!("No cached IONEX file for {}-{:02}-{:02}. Run without --info to download.", year, month, day);
+        }
+
+        println!("Loading IONEX file: {}", cache_path.display());
+        let ionex = IonexTec::from_file(&cache_path)
+            .map_err(|e| anyhow::anyhow!("Failed to load IONEX: {}", e))?;
+
+        println!();
+        println!("=== IONEX TEC Map Summary ===");
+        println!("Version:       {}", ionex.header.version);
+        println!("Mapping:       {}", ionex.header.mapping_function);
+        println!("Map count:     {}", ionex.num_maps());
+        println!("Interval:      {} seconds", ionex.header.interval_s);
+        println!("Layer height:  {} km", ionex.header.hgt1);
+
+        if let Some((start, end)) = ionex.time_span() {
+            let duration_hours = (end - start) / 3600.0;
+            println!("Time span:     GPS {:.0} - {:.0} ({:.1} hours)", start, end, duration_hours);
+        }
+
+        println!();
+        println!("Grid parameters:");
+        println!("  Latitude:   {} to {} (step {})", ionex.header.lat1, ionex.header.lat2, ionex.header.dlat);
+        println!("  Longitude:  {} to {} (step {})", ionex.header.lon1, ionex.header.lon2, ionex.header.dlon);
+
+        // Sample TEC values
+        if !ionex.maps.is_empty() {
+            let mid_map = &ionex.maps[ionex.maps.len() / 2];
+            let mid_lat = mid_map.tec.len() / 2;
+            let mid_lon = if !mid_map.tec.is_empty() { mid_map.tec[0].len() / 2 } else { 0 };
+            if mid_lat < mid_map.tec.len() && mid_lon < mid_map.tec[mid_lat].len() {
+                let sample_tec = mid_map.tec[mid_lat][mid_lon];
+                println!("  Sample TEC:  {:.1} TECU (mid-grid, mid-time)", sample_tec);
+            }
+        }
+
+        return Ok(());
+    }
+
+    println!("Fetching IONEX for {}-{:02}-{:02}...", year, month, day);
+
+    // Check if already cached
+    if !force && cddis::ionex_is_cached(year, month, day) {
+        let cached_path = cddis::ionex_cache_path(year, month, day);
+        println!("Already cached: {}", cached_path.display());
+        println!("Use --info to show file details, or --force to re-download.");
+        return Ok(());
+    }
+
+    match cddis::fetch_ionex(year, month, day, force) {
+        Ok(path) => {
+            println!("Downloaded: {}", path.display());
+
+            // Show quick summary
+            if let Ok(ionex) = IonexTec::from_file(&path) {
+                println!("  {} TEC maps covering {} hours",
+                    ionex.num_maps(),
+                    ionex.time_span().map(|(s, e)| (e - s) / 3600.0).unwrap_or(0.0));
+            }
+
+            Ok(())
+        }
+        Err(e) => {
+            anyhow::bail!("Failed to fetch IONEX: {}", e);
+        }
+    }
+}
+
+/// Parse a UTC time string into GPS seconds.
+///
+/// Accepts formats:
+/// - `YYYY-MM-DD HH:MM:SS`
+/// - `YYYY-MM-DDTHH:MM:SSZ`
+/// - `YYYY-MM-DDTHH:MM:SS.fracZ` (ISO 8601 with fractional seconds)
 fn parse_utc_time(time_str: &str) -> Result<f64> {
     use r4w_core::waveform::gnss::scenario_config::gps_time_from_utc;
-    let parts: Vec<&str> = time_str.split(&['-', ' ', ':', 'T'][..]).collect();
+    // Strip trailing 'Z' timezone indicator
+    let cleaned = time_str.trim_end_matches('Z');
+    let parts: Vec<&str> = cleaned.split(&['-', ' ', ':', 'T'][..]).collect();
     if parts.len() < 6 {
         anyhow::bail!(
-            "Invalid time format '{}'. Expected: YYYY-MM-DD HH:MM:SS (UTC)",
+            "Invalid time format '{}'. Expected: YYYY-MM-DD HH:MM:SS or YYYY-MM-DDTHH:MM:SS.fracZ",
             time_str
         );
     }
@@ -3369,7 +3844,7 @@ fn parse_utc_time(time_str: &str) -> Result<f64> {
     let day: u32 = parts[2].parse().map_err(|_| anyhow::anyhow!("Invalid day"))?;
     let hour: u32 = parts[3].parse().map_err(|_| anyhow::anyhow!("Invalid hour"))?;
     let min: u32 = parts[4].parse().map_err(|_| anyhow::anyhow!("Invalid minute"))?;
-    let sec: u32 = parts[5].parse().map_err(|_| anyhow::anyhow!("Invalid second"))?;
+    let sec: f64 = parts[5].parse().map_err(|_| anyhow::anyhow!("Invalid second"))?;
     Ok(gps_time_from_utc(year, month, day, hour, min, sec))
 }
 
@@ -3403,15 +3878,22 @@ fn cmd_gnss_scenario(
     preset: Option<String>,
     config_path: Option<PathBuf>,
     output: PathBuf,
-    duration: f64,
-    sample_rate: f64,
+    duration: Option<f64>,
+    sample_rate: Option<f64>,
     lat: Option<f64>,
     lon: Option<f64>,
     alt: Option<f64>,
     time: Option<String>,
     list_presets: bool,
-    export_preset: bool,
+    export_preset: Option<String>,
     signals: Option<Vec<String>>,
+    ephemeris: Option<String>,
+    sp3_path: Option<PathBuf>,
+    ionex_path: Option<PathBuf>,
+    format: String,
+    elevation_mask: f64,
+    lpf_cutoff: Option<f64>,
+    limit_prns: Option<Vec<String>>,
 ) -> Result<()> {
     use r4w_core::coordinates::LlaPosition;
     use r4w_core::waveform::gnss::scenario::GnssScenario;
@@ -3452,7 +3934,7 @@ fn cmd_gnss_scenario(
     };
 
     // Export preset as YAML and exit
-    if export_preset {
+    if let Some(ref export_dest) = export_preset {
         use r4w_core::waveform::gnss::scenario_config::discover_satellites_for_config;
 
         let mut cfg = preset_enum.to_config();
@@ -3467,14 +3949,17 @@ fn cmd_gnss_scenario(
             );
         }
 
+        // Apply elevation mask
+        cfg.receiver.elevation_mask_deg = elevation_mask;
+
         // Apply time override before discovery
         if let Some(ref time_str) = time {
             cfg.output.start_time_gps_s = parse_utc_time(time_str)?;
         }
 
-        // Apply other CLI overrides
-        cfg.output.duration_s = duration;
-        cfg.output.sample_rate = sample_rate;
+        // Apply other CLI overrides (only when explicitly provided)
+        if let Some(d) = duration { cfg.output.duration_s = d; }
+        if let Some(sr) = sample_rate { cfg.output.sample_rate = sr; }
 
         // Override signal types if --signals was provided
         if let Some(ref filter) = signal_filter {
@@ -3493,6 +3978,14 @@ fn cmd_gnss_scenario(
                         GnssSignal::GalileoE1 => 15.0,
                     },
                     nav_data: true,
+                    elevation_deg: None,
+                    azimuth_deg: None,
+                    range_m: None,
+                    range_rate_mps: None,
+                    doppler_hz: None,
+                    cn0_dbhz: None,
+                    iono_delay_m: None,
+                    tropo_delay_m: None,
                 }
             }).collect();
         }
@@ -3500,20 +3993,60 @@ fn cmd_gnss_scenario(
         // If position, time, or signals was customized, auto-discover visible satellites
         if lat.is_some() || lon.is_some() || alt.is_some() || time.is_some() || signal_filter.is_some() {
             discover_satellites_for_config(&mut cfg);
-            eprintln!("Discovered {} visible satellites from {:.2}°N, {:.2}°W at GPS {:.0} s",
-                cfg.satellites.len(),
-                cfg.receiver.position.lat_deg,
-                -cfg.receiver.position.lon_deg,
+        }
+
+        // Compute satellite status at start time and store snapshot in config
+        {
+            use r4w_core::waveform::gnss::scenario::GnssScenario;
+            let scenario = GnssScenario::new(cfg.clone());
+            let statuses = scenario.satellite_status();
+
+            // Store snapshot fields in each SatelliteConfig for YAML export
+            for (sat, status) in cfg.satellites.iter_mut().zip(statuses.iter()) {
+                sat.elevation_deg = Some(status.elevation_deg);
+                sat.azimuth_deg = Some(status.azimuth_deg);
+                sat.range_m = Some(status.range_m);
+                sat.range_rate_mps = Some(status.range_rate_mps);
+                sat.doppler_hz = Some(status.doppler_hz);
+                sat.cn0_dbhz = Some(status.cn0_dbhz);
+                sat.iono_delay_m = Some(status.iono_delay_m);
+                sat.tropo_delay_m = Some(status.tropo_delay_m);
+            }
+
+            eprintln!("Satellite status at GPS {:.3} s  ({} satellites, {:.4}°N {:.4}°E, {:.1}m)",
                 cfg.output.start_time_gps_s,
+                statuses.len(),
+                cfg.receiver.position.lat_deg,
+                cfg.receiver.position.lon_deg,
+                cfg.receiver.position.alt_m,
             );
-            for sat in &cfg.satellites {
-                eprintln!("  PRN {:>2}  {}  plane={} slot={}", sat.prn, sat.signal, sat.plane, sat.slot);
+            eprintln!("  {:>4} {:>10} {:>7} {:>7} {:>11} {:>10} {:>10} {:>7} {:>7} {:>7}",
+                "PRN", "Signal", "El(°)", "Az(°)", "Range(km)", "Rate(m/s)", "Dopp(Hz)", "C/N0", "Iono", "Tropo");
+            for s in &statuses {
+                eprintln!("  {:>4} {:>10} {:>7.2} {:>7.2} {:>11.1} {:>10.2} {:>10.1} {:>7.1} {:>7.2} {:>7.2}",
+                    s.prn,
+                    format!("{}", s.signal),
+                    s.elevation_deg,
+                    s.azimuth_deg,
+                    s.range_m / 1000.0,
+                    s.range_rate_mps,
+                    s.doppler_hz,
+                    s.cn0_dbhz,
+                    s.iono_delay_m,
+                    s.tropo_delay_m,
+                );
             }
         }
 
         let yaml = serde_yaml::to_string(&cfg)
             .map_err(|e| anyhow::anyhow!("Failed to serialize config: {}", e))?;
-        print!("{}", yaml);
+        if export_dest == "-" {
+            print!("{}", yaml);
+        } else {
+            std::fs::write(export_dest, &yaml)
+                .map_err(|e| anyhow::anyhow!("Failed to write '{}': {}", export_dest, e))?;
+            eprintln!("Wrote config to {}", export_dest);
+        }
         return Ok(());
     }
 
@@ -3528,9 +4061,9 @@ fn cmd_gnss_scenario(
         preset_enum.to_config()
     };
 
-    // CLI overrides
-    config.output.duration_s = duration;
-    config.output.sample_rate = sample_rate;
+    // CLI overrides (only when explicitly provided)
+    if let Some(d) = duration { config.output.duration_s = d; }
+    if let Some(sr) = sample_rate { config.output.sample_rate = sr; }
 
     // Override receiver position if any coordinate is provided
     if lat.is_some() || lon.is_some() || alt.is_some() {
@@ -3542,16 +4075,151 @@ fn cmd_gnss_scenario(
         );
     }
 
+    // Apply elevation mask
+    config.receiver.elevation_mask_deg = elevation_mask;
+
     // Override start time if provided (format: "YYYY-MM-DD HH:MM:SS" UTC)
     if let Some(ref time_str) = time {
         config.output.start_time_gps_s = parse_utc_time(time_str)?;
     }
 
-    // Filter satellites by signal type if --signals was provided
+    // If --signals was provided, override the signal types in the config
     if let Some(ref filter) = signal_filter {
-        config.satellites.retain(|sat| filter.contains(&sat.signal));
+        use r4w_core::waveform::gnss::scenario_config::SatelliteConfig;
+        config.satellites = filter.iter().map(|sig| {
+            SatelliteConfig {
+                signal: *sig,
+                prn: 1,
+                plane: 0,
+                slot: 0,
+                tx_power_dbw: match sig {
+                    GnssSignal::GpsL1Ca => 14.3,
+                    GnssSignal::GpsL5 => 15.5,
+                    GnssSignal::GlonassL1of => 14.7,
+                    GnssSignal::GalileoE1 => 15.0,
+                },
+                nav_data: true,
+                elevation_deg: None,
+                azimuth_deg: None,
+                range_m: None,
+                range_rate_mps: None,
+                doppler_hz: None,
+                cn0_dbhz: None,
+                iono_delay_m: None,
+                tropo_delay_m: None,
+            }
+        }).collect();
+    }
+
+    // Auto-discover visible satellites when position, time, or signals differ from preset
+    if lat.is_some() || lon.is_some() || alt.is_some() || time.is_some() || signal_filter.is_some() {
+        use r4w_core::waveform::gnss::scenario_config::discover_satellites_for_config;
+        discover_satellites_for_config(&mut config);
         if config.satellites.is_empty() {
-            anyhow::bail!("No satellites match the signal filter. Check --signals value.");
+            anyhow::bail!("No visible satellites found for the requested position/time/signals.");
+        }
+    }
+
+    // Configure SP3 precise ephemeris if provided (overrides --ephemeris)
+    #[cfg(feature = "ephemeris")]
+    if let Some(ref path) = sp3_path {
+        use r4w_core::waveform::gnss::scenario_config::EphemerisSource;
+        use r4w_core::waveform::gnss::Sp3Ephemeris;
+        if !path.exists() {
+            anyhow::bail!("SP3 file not found: {}", path.display());
+        }
+        config.environment.ephemeris_source = EphemerisSource::Sp3File(path.clone());
+
+        // Re-discover satellites using SP3 positions instead of Keplerian orbits
+        // This iterates over ALL satellites in the SP3 file (not just our lookup tables)
+        if let Ok(sp3) = Sp3Ephemeris::from_file(path) {
+            use r4w_core::coordinates::{lla_to_ecef, look_angle};
+            use r4w_core::waveform::gnss::SatelliteConfig;
+            use r4w_core::waveform::gnss::types::GnssConstellation;
+
+            let rx_ecef = lla_to_ecef(&config.receiver.position);
+            let t = config.output.start_time_gps_s;
+
+            // Get unique signal types from current config
+            let mut signal_types: Vec<GnssSignal> = Vec::new();
+            for sat in &config.satellites {
+                if !signal_types.contains(&sat.signal) {
+                    signal_types.push(sat.signal);
+                }
+            }
+
+            let mut visible_sats = Vec::new();
+
+            // Iterate over ALL satellites in the SP3 file
+            for sv_id in sp3.satellites() {
+                // Parse the SV ID to get constellation and PRN
+                let prefix = sv_id.chars().next().unwrap_or('G');
+                let prn: u8 = sv_id[1..].parse().unwrap_or(0);
+                if prn == 0 { continue; }
+
+                let (constellation, signal) = match prefix {
+                    'G' => (GnssConstellation::Gps, GnssSignal::GpsL1Ca),
+                    'E' => (GnssConstellation::Galileo, GnssSignal::GalileoE1),
+                    'R' => (GnssConstellation::Glonass, GnssSignal::GlonassL1of),
+                    'C' => (GnssConstellation::BeiDou, GnssSignal::GpsL1Ca), // fallback
+                    _ => continue,
+                };
+
+                // Check if this signal type is in our filter
+                if !signal_types.contains(&signal) {
+                    continue;
+                }
+
+                if let Some((pos, _vel, _clk)) = sp3.interpolate(&sv_id, t) {
+                    let la = look_angle(&rx_ecef, &config.receiver.position, &pos);
+                    if la.elevation_deg > config.receiver.elevation_mask_deg {
+                        visible_sats.push((SatelliteConfig {
+                            signal,
+                            prn,
+                            plane: 0, // Unknown from SP3
+                            slot: 0,  // Unknown from SP3
+                            tx_power_dbw: match signal {
+                                GnssSignal::GpsL1Ca => 14.3,
+                                GnssSignal::GpsL5 => 15.5,
+                                GnssSignal::GlonassL1of => 14.7,
+                                GnssSignal::GalileoE1 => 15.0,
+                            },
+                            nav_data: true,
+                            ..SatelliteConfig::empty_snapshot()
+                        }, la.elevation_deg));
+                    }
+                }
+            }
+
+            // Sort by descending elevation
+            visible_sats.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+            config.satellites = visible_sats.into_iter().map(|(s, _)| s).collect();
+
+            if config.satellites.is_empty() {
+                anyhow::bail!("No visible satellites found in SP3 file for the requested position/time.");
+            }
+        }
+    }
+
+    // Configure IONEX TEC maps if provided (overrides Klobuchar model)
+    #[cfg(feature = "ephemeris")]
+    if let Some(ref path) = ionex_path {
+        use r4w_core::waveform::gnss::scenario_config::IonosphereSource;
+        if !path.exists() {
+            anyhow::bail!("IONEX file not found: {}", path.display());
+        }
+        config.environment.ionosphere_source = IonosphereSource::IonexFile(path.clone());
+    }
+
+    // Filter satellites by PRN if --limit-prns was specified
+    if let Some(ref prn_strs) = limit_prns {
+        // Parse all PRN identifiers (supports "3", "prn3", "PRN3", etc.)
+        let prns: Vec<u8> = prn_strs.iter()
+            .map(|s| parse_prn(s))
+            .collect::<Result<Vec<_>>>()?;
+        config.satellites.retain(|sat| prns.contains(&sat.prn));
+        if config.satellites.is_empty() {
+            anyhow::bail!("No satellites match the specified PRNs: {:?}", prn_strs);
         }
     }
 
@@ -3561,10 +4229,112 @@ fn cmd_gnss_scenario(
         format!("{}", preset_enum)
     };
 
+    // Determine ephemeris source and display info
+    #[cfg(feature = "ephemeris")]
+    let ephemeris_desc = {
+        use r4w_core::waveform::gnss::{cddis, RinexEphemeris, Sp3Ephemeris};
+
+        // SP3 takes priority if specified
+        if let Some(ref path) = sp3_path {
+            match Sp3Ephemeris::from_file(path) {
+                Ok(sp3) => {
+                    let hdr = &sp3.header;
+                    format!("SP3 precise: {} ({} SVs, {} epochs)",
+                        path.display(), hdr.satellites.len(), hdr.num_epochs)
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to load SP3 file '{}': {}", path.display(), e);
+                    "Nominal Keplerian orbits (SP3 load failed)".to_string()
+                }
+            }
+        } else {
+            let eph_source = ephemeris.as_deref().unwrap_or("nominal");
+
+            match eph_source.to_lowercase().as_str() {
+                "nominal" => "Nominal Keplerian orbits".to_string(),
+                "auto" => {
+                    // Try to auto-fetch for the scenario time
+                    let (year, month, day) = cddis::gps_time_to_date(config.output.start_time_gps_s);
+                    if cddis::is_cached(year, month, day) {
+                        format!("RINEX cached ({}-{:02}-{:02})", year, month, day)
+                    } else {
+                        eprintln!("Note: Auto-fetch would download ephemeris for {}-{:02}-{:02}", year, month, day);
+                        eprintln!("      Using nominal Keplerian orbits (run 'r4w gnss ephemeris fetch' to cache data)");
+                        "Nominal Keplerian orbits (auto-fetch not available)".to_string()
+                    }
+                }
+                "cached" => {
+                    // Use cached for the scenario time
+                    let (year, month, day) = cddis::gps_time_to_date(config.output.start_time_gps_s);
+                    if cddis::is_cached(year, month, day) {
+                        let path = cddis::cache_path(year, month, day);
+                        format!("RINEX cached: {}", path.display())
+                    } else {
+                        eprintln!("Warning: No cached ephemeris for {}-{:02}-{:02}", year, month, day);
+                        eprintln!("         Run 'r4w gnss ephemeris fetch --date {}-{:02}-{:02}' to download", year, month, day);
+                        "Nominal Keplerian orbits (no cache available)".to_string()
+                    }
+                }
+                path => {
+                    // Treat as file path
+                    if std::path::Path::new(path).exists() {
+                        match RinexEphemeris::from_file(path) {
+                            Ok(eph) => {
+                                let summary = eph.summary();
+                                let sv_count: usize = summary.values().sum();
+                                format!("RINEX file: {} ({} SVs)", path, sv_count)
+                            }
+                            Err(e) => {
+                                eprintln!("Warning: Failed to load RINEX file '{}': {}", path, e);
+                                "Nominal Keplerian orbits (RINEX load failed)".to_string()
+                            }
+                        }
+                    } else {
+                        eprintln!("Warning: Ephemeris file not found: {}", path);
+                        "Nominal Keplerian orbits (file not found)".to_string()
+                    }
+                }
+            }
+        }
+    };
+    #[cfg(not(feature = "ephemeris"))]
+    let ephemeris_desc = "Nominal Keplerian orbits".to_string();
+    let _ = &ephemeris; // suppress unused warning when ephemeris feature is disabled
+    #[cfg(not(feature = "ephemeris"))]
+    let _ = &sp3_path; // suppress unused warning when ephemeris feature is disabled
+
+    // Determine ionosphere source and display info
+    #[cfg(feature = "ephemeris")]
+    let ionosphere_desc = {
+        use r4w_core::waveform::gnss::IonexTec;
+
+        if let Some(ref path) = ionex_path {
+            match IonexTec::from_file(path) {
+                Ok(ionex) => {
+                    let hdr = &ionex.header;
+                    format!("IONEX TEC: {} ({} maps, {:.1}° grid)",
+                        path.display(), hdr.num_maps, hdr.dlat.abs())
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to load IONEX file '{}': {}", path.display(), e);
+                    "Klobuchar model (IONEX load failed)".to_string()
+                }
+            }
+        } else {
+            "Klobuchar broadcast model".to_string()
+        }
+    };
+    #[cfg(not(feature = "ephemeris"))]
+    let ionosphere_desc = "Klobuchar broadcast model".to_string();
+    #[cfg(not(feature = "ephemeris"))]
+    let _ = &ionex_path; // suppress unused warning when ephemeris feature is disabled
+
     let pos = &config.receiver.position;
     println!("GNSS Scenario Generator");
     println!("=======================");
     println!("Config:      {}", source);
+    println!("Ephemeris:   {}", ephemeris_desc);
+    println!("Ionosphere:  {}", ionosphere_desc);
     println!("Receiver:    {:.4}°N, {:.4}°W, {:.0}m", pos.lat_deg, -pos.lon_deg, pos.alt_m);
     println!("Start time:  GPS {:.0} s", config.output.start_time_gps_s);
     println!("Duration:    {} ms", config.output.duration_s * 1000.0);
@@ -3577,16 +4347,21 @@ fn cmd_gnss_scenario(
     // Show satellite status
     let statuses = scenario.satellite_status();
     println!("Satellites ({} configured):", statuses.len());
-    println!("  {:>4} {:>10} {:>8} {:>8} {:>10} {:>8}",
-        "PRN", "Signal", "El (°)", "Az (°)", "Range (km)", "C/N0");
+    println!("  {:>4} {:>10} {:>7} {:>7} {:>11} {:>10} {:>10} {:>7} {:>7} {:>7} {:>10}",
+        "PRN", "Signal", "El(°)", "Az(°)", "Range(km)", "Rate(m/s)", "Dopp(Hz)", "C/N0", "Iono", "Tropo", "Clk(μs)");
     for s in &statuses {
-        println!("  {:>4} {:>10} {:>8.1} {:>8.1} {:>10.0} {:>8.1}",
+        println!("  {:>4} {:>10} {:>7.2} {:>7.2} {:>11.1} {:>10.2} {:>10.1} {:>7.1} {:>7.2} {:>7.2} {:>10.3}",
             s.prn,
             format!("{}", s.signal),
             s.elevation_deg,
             s.azimuth_deg,
             s.range_m / 1000.0,
+            s.range_rate_mps,
+            s.doppler_hz,
             s.cn0_dbhz,
+            s.iono_delay_m,
+            s.tropo_delay_m,
+            s.clock_correction_s * 1e6, // Convert seconds to microseconds
         );
     }
     println!();
@@ -3594,13 +4369,31 @@ fn cmd_gnss_scenario(
     // Generate IQ
     let total = scenario.total_samples();
     println!("Generating {} samples...", total);
-    let samples = scenario.generate();
+    let mut samples = scenario.generate();
     println!("Generated {} IQ samples", samples.len());
 
-    // Write output
-    scenario.write_output(&samples, &output)?;
-    let file_size = samples.len() * 16; // 2 x f64
-    println!("Written {} bytes to {}", file_size, output.display());
+    // Apply lowpass anti-aliasing filter if requested
+    if let Some(cutoff) = lpf_cutoff {
+        use r4w_core::filters::FirFilter;
+        let sample_rate = scenario.config().output.sample_rate;
+        // Use 63 taps for good stopband attenuation (~50 dB)
+        let num_taps = 63;
+        let mut filter = FirFilter::lowpass(cutoff, sample_rate, num_taps);
+        println!("Applying lowpass filter: {:.2} MHz cutoff, {} taps", cutoff / 1e6, num_taps);
+        filter.process_inplace(&mut samples);
+    }
+
+    // Write output in requested format using unified IqFormat
+    let iq_format = IqFormat::from_str(&format)
+        .ok_or_else(|| anyhow::anyhow!(
+            "Unknown format '{}'. Options: f64, f32/ettus, sc16/ci16, ci8, cu8/rtlsdr",
+            format
+        ))?;
+
+    let mut file = std::fs::File::create(&output)?;
+    iq_format.write_samples(&mut file, &samples)?;
+    let file_size = samples.len() * iq_format.bytes_per_sample();
+    println!("Written {} bytes to {} ({})", file_size, output.display(), iq_format.display_name());
 
     // Stats
     let avg_power: f64 = samples.iter()
@@ -4624,8 +5417,21 @@ fn main() -> Result<()> {
             GnssCommand::Simulate { prn, cn0, doppler, duration } =>
                 cmd_gnss_simulate(prn, cn0, doppler, duration),
             GnssCommand::Compare => cmd_gnss_compare(),
-            GnssCommand::Scenario { preset, config, output, duration, sample_rate, lat, lon, alt, time, list_presets, export_preset, signals } =>
-                cmd_gnss_scenario(preset, config, output, duration, sample_rate, lat, lon, alt, time, list_presets, export_preset, signals),
+            #[cfg(feature = "ephemeris")]
+            GnssCommand::Ephemeris { command: eph_cmd } => match eph_cmd {
+                EphemerisCommand::Fetch { date, force } => cmd_gnss_ephemeris_fetch(date, force),
+                EphemerisCommand::List => cmd_gnss_ephemeris_list(),
+                EphemerisCommand::Info { file } => cmd_gnss_ephemeris_info(file),
+                EphemerisCommand::Clear { all } => cmd_gnss_ephemeris_clear(all),
+                EphemerisCommand::Sp3 { date, force, info } => cmd_gnss_sp3(date, force, info),
+                EphemerisCommand::Ionex { date, force, info } => cmd_gnss_ionex(date, force, info),
+            },
+            #[cfg(feature = "ephemeris")]
+            GnssCommand::Scenario { preset, config, output, duration, sample_rate, lat, lon, alt, time, list_presets, export_preset, signals, ephemeris, sp3, ionex, format, elevation_mask, lpf_cutoff, limit_prns } =>
+                cmd_gnss_scenario(preset, config, output, duration, sample_rate, lat, lon, alt, time, list_presets, export_preset, signals, Some(ephemeris), sp3, ionex, format, elevation_mask, lpf_cutoff, limit_prns),
+            #[cfg(not(feature = "ephemeris"))]
+            GnssCommand::Scenario { preset, config, output, duration, sample_rate, lat, lon, alt, time, list_presets, export_preset, signals, format, elevation_mask, lpf_cutoff, limit_prns } =>
+                cmd_gnss_scenario(preset, config, output, duration, sample_rate, lat, lon, alt, time, list_presets, export_preset, signals, None, None, None, format, elevation_mask, lpf_cutoff, limit_prns),
         },
 
         Commands::Completions { shell } => {

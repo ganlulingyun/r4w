@@ -70,6 +70,17 @@ cargo run --bin r4w -- gnss scenario --preset open-sky --duration 0.001 --output
 cargo run --bin r4w -- gnss scenario --preset urban-canyon --duration 0.01
 cargo run --bin r4w -- gnss scenario --preset multi-constellation --sample-rate 4092000
 
+# GNSS with precise ephemeris (SP3) and ionosphere (IONEX) - requires 'ephemeris' feature
+cargo run --bin r4w --features ephemeris -- gnss scenario --preset open-sky \
+    --sp3 /path/to/COD0OPSFIN_20260050000_01D_05M_ORB.SP3 \
+    --ionex /path/to/COD0OPSFIN_20260050000_01D_01H_GIM.INX \
+    --duration 0.01 --output precise.iq
+
+# Output formats: cf64, cf32/ettus (USRP-compatible), ci16/sc16, ci8, cu8/rtlsdr
+cargo run --bin r4w -- gnss scenario --preset open-sky --format ettus --output usrp.iq
+cargo run --bin r4w -- gnss scenario --preset open-sky --format sc16 --output compact.iq
+cargo run --bin r4w -- gnss scenario --preset open-sky --format rtlsdr --output rtlsdr.iq
+
 # Signal analysis
 cargo run --bin r4w -- analyze spectrum -i file.sigmf-meta --fft-size 1024
 cargo run --bin r4w -- analyze waterfall -i file.sigmf-meta --output waterfall.png
@@ -122,13 +133,17 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Unified IqFormat Module** - New `r4w_core::io::IqFormat` enum provides single source of truth for IQ sample formats across the codebase. Supports cf64 (16 bytes), cf32/ettus (8 bytes), ci16/sc16 (4 bytes), ci8 (2 bytes), cu8/rtlsdr (2 bytes). Replaces scattered format handling in CLI, benchmark, SigMF, and GUI code. Full roundtrip I/O, SigMF datatype strings, and comprehensive string aliases.
+- **SP3 Precise Ephemeris & IONEX TEC Maps** - cm-level satellite positions from CODE FTP server SP3 files. Global ionospheric TEC grids from IONEX files for accurate ionospheric delay. Satellite clock corrections extracted from SP3 (microsecond-level biases displayed per-PRN). CLI: `--sp3 <path>`, `--ionex <path>`. Requires `--features ephemeris`.
+- **Multi-Format IQ Output** - USRP/Ettus-compatible interleaved float32 format (`--format ettus`), plus sc16 (signed 16-bit) for compact storage. Formats: cf64 (16 bytes/sample), cf32/ettus (8 bytes), ci16/sc16 (4 bytes), ci8 (2 bytes), cu8/rtlsdr (2 bytes).
+- **Corrected C/N0 Link Budget** - Fixed C/N0 calculation: EIRP(dBW) - FSPL + Gr + 204 dBW/Hz. Realistic 30-45 dB-Hz values for GPS L1 at varying elevations.
 - **GNSS Scenario Enhancements** - Real-world PRN lookup tables (GPS 31 SVs from NAVCEN, Galileo 24 SVs from GSC, GLONASS 24 SVs). Galileo orbit calibration (Walker 24/3/1, RAAN/M0 offsets at 2026 epoch). Per-sample Doppler interpolation. GPS time conversion. CLI: `--lat/--lon/--alt`, `--time`, `--signals` filter, `--export-preset`, `--config` YAML file. Auto-discovery of visible satellites.
 - **Emergency Distress Beacons** - 121.5 MHz / 243 MHz swept-tone AM beacon waveforms per ICAO Annex 10. ELT (aircraft), EPIRB (maritime), PLB (personal), Military (243 MHz). Factory names: ELT-121.5, EPIRB-121.5, PLB-121.5, Beacon-243.
 - **GNSS IQ Scenario Generator** - Multi-satellite composite IQ generation with Keplerian orbits, Klobuchar ionosphere, Saastamoinen troposphere, multipath presets, antenna patterns, orbital Doppler, and FSPL. CLI: `r4w gnss scenario`. GUI: GNSS Simulator view with sky plot and C/N0 bars. Presets: OpenSky, UrbanCanyon, Driving, Walking, HighDynamics, MultiConstellation.
 - **Generic Scenario Engine** - Reusable multi-emitter IQ composition framework in r4w-sim with `Emitter` trait, trajectory models, per-emitter Doppler/path-loss/channel, and composite noise.
 - **Coordinate Library** - ECEF/LLA/ENU types with WGS-84 conversions, look angles, range rate, FSPL in r4w-core.
 - **GNSS Environment Models** - Keplerian orbit propagation (GPS/Galileo/GLONASS nominal orbits), Klobuchar ionospheric delay, Saastamoinen tropospheric delay, multipath presets (OpenSky/Suburban/UrbanCanyon/Indoor), antenna patterns (Isotropic/Patch/ChokeRing).
-- **Jupyter Workshops** - 10 interactive tutorials including GNSS scenario generation and environment models (`notebooks/09_*.ipynb`, `notebooks/10_*.ipynb`)
+- **Jupyter Workshops** - 11 interactive tutorials including GNSS scenario generation, environment models, and precise ephemeris (`notebooks/09_*.ipynb`, `notebooks/10_*.ipynb`, `notebooks/11_*.ipynb`)
 - **GNSS Waveforms** - GPS L1 C/A, GPS L5, GLONASS L1OF, Galileo E1 with PRN code generation, FFT-based PCPS acquisition, DLL/PLL tracking loops, navigation data encoding/decoding, and `r4w gnss` CLI subcommand
 - **Enhanced Channel Simulation** - Jake's/Clarke's Doppler model, Tapped Delay Line (TDL) multipath with 3GPP profiles (EPA, EVA, ETU)
 - **CLI Analysis Tools** - `r4w analyze` subcommands: spectrum, waterfall, stats, peaks

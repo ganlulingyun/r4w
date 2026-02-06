@@ -8,6 +8,26 @@ use super::types::{GnssConstellation, GnssSignal};
 use crate::coordinates::{lla_to_ecef, look_angle, LlaPosition};
 use serde::{Deserialize, Serialize};
 
+// Re-export ephemeris source types (these are defined in ephemeris.rs for the ephemeris feature)
+#[cfg(feature = "ephemeris")]
+pub use super::ephemeris::{EphemerisSource, IonosphereSource};
+
+// Provide stub types when ephemeris feature is not enabled
+#[cfg(not(feature = "ephemeris"))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub enum EphemerisSource {
+    #[default]
+    Nominal,
+}
+
+#[cfg(not(feature = "ephemeris"))]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub enum IonosphereSource {
+    #[default]
+    Klobuchar,
+    Disabled,
+}
+
 // ---------------------------------------------------------------------------
 // Real-world constellation PRN-to-orbital-slot lookup tables
 // ---------------------------------------------------------------------------
@@ -15,7 +35,9 @@ use serde::{Deserialize, Serialize};
 /// GPS constellation: real PRN assignments to orbital planes/slots.
 /// Each entry is (PRN, plane 0-5 = A-F, slot 0-5 = 1-6).
 /// Source: US Coast Guard Navigation Center, GPS Constellation Status (Jan 2026).
-const GPS_CONSTELLATION: &[(u8, u8, u8)] = &[
+/// GPS constellation: PRN to (plane, slot) mapping from NAVCEN.
+/// Format: (PRN, plane, slot) where plane 0-5 (A-F) and slot 0-3.
+pub const GPS_CONSTELLATION: &[(u8, u8, u8)] = &[
     // Plane A
     (24, 0, 0), // SVN 65, slot A-1
     (31, 0, 1), // SVN 52, slot A-2
@@ -59,7 +81,9 @@ const GPS_CONSTELLATION: &[(u8, u8, u8)] = &[
 /// Each entry is (SVID, plane 0-2 = A-C, slot 0-7 = 1-8).
 /// Walker 24/3/1 configuration: 8 nominal slots per plane, 45° spacing, 15° phasing.
 /// Source: European GNSS Service Centre, Orbital and Technical Parameters (Jan 2026).
-const GALILEO_CONSTELLATION: &[(u8, u8, u8)] = &[
+/// Galileo constellation: PRN to (plane, slot) mapping from GSC.
+/// Format: (PRN, plane, slot) where plane 0-2 (A-C) and slot 0-7.
+pub const GALILEO_CONSTELLATION: &[(u8, u8, u8)] = &[
     // Plane A
     (31, 0, 0), // GSAT0218, slot A01
     (23, 0, 1), // GSAT0226, slot A02
@@ -94,7 +118,9 @@ const GALILEO_CONSTELLATION: &[(u8, u8, u8)] = &[
 /// GLONASS uses frequency channel numbers, not PRN codes. The slot
 /// number (1-24) serves as a satellite identifier.
 /// Source: Information-Analytical Centre, GLONASS constellation status.
-const GLONASS_CONSTELLATION: &[(u8, u8, u8)] = &[
+/// GLONASS constellation: PRN to (plane, slot) mapping.
+/// Format: (PRN, plane, slot) where plane 0-2 and slot 0-7.
+pub const GLONASS_CONSTELLATION: &[(u8, u8, u8)] = &[
     // Plane 1
     ( 1, 0, 0), ( 2, 0, 1), ( 3, 0, 2), ( 4, 0, 3),
     ( 5, 0, 4), ( 6, 0, 5), ( 7, 0, 6), ( 8, 0, 7),
@@ -122,6 +148,33 @@ pub struct SatelliteConfig {
     pub tx_power_dbw: f64,
     /// Whether to include navigation data modulation
     pub nav_data: bool,
+
+    // --- Snapshot fields (populated at export time, informational only) ---
+
+    /// Elevation angle in degrees at scenario start time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub elevation_deg: Option<f64>,
+    /// Azimuth angle in degrees at scenario start time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub azimuth_deg: Option<f64>,
+    /// Slant range in meters at scenario start time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub range_m: Option<f64>,
+    /// Range rate in m/s at scenario start time (positive = moving apart)
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub range_rate_mps: Option<f64>,
+    /// Doppler shift in Hz at scenario start time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub doppler_hz: Option<f64>,
+    /// Carrier-to-noise density in dB-Hz at scenario start time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub cn0_dbhz: Option<f64>,
+    /// Ionospheric delay in meters at scenario start time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub iono_delay_m: Option<f64>,
+    /// Tropospheric delay in meters at scenario start time
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub tropo_delay_m: Option<f64>,
 }
 
 impl SatelliteConfig {
@@ -155,6 +208,7 @@ impl SatelliteConfig {
             slot,
             tx_power_dbw: 14.3, // Typical GPS L1 EIRP
             nav_data: true,
+            ..Self::empty_snapshot()
         }
     }
 
@@ -169,6 +223,7 @@ impl SatelliteConfig {
             slot,
             tx_power_dbw: 15.0,
             nav_data: true,
+            ..Self::empty_snapshot()
         }
     }
 
@@ -183,6 +238,7 @@ impl SatelliteConfig {
             slot,
             tx_power_dbw: 15.5,
             nav_data: true,
+            ..Self::empty_snapshot()
         }
     }
 
@@ -197,6 +253,29 @@ impl SatelliteConfig {
             slot,
             tx_power_dbw: 14.7,
             nav_data: true,
+            ..Self::empty_snapshot()
+        }
+    }
+
+    /// Helper: a SatelliteConfig with all snapshot fields set to None.
+    /// Used with struct update syntax: `Self { signal, prn, ..Self::empty_snapshot() }`
+    /// Create a SatelliteConfig with empty snapshot fields (all None)
+    pub fn empty_snapshot() -> Self {
+        Self {
+            signal: GnssSignal::GpsL1Ca,
+            prn: 0,
+            plane: 0,
+            slot: 0,
+            tx_power_dbw: 0.0,
+            nav_data: false,
+            elevation_deg: None,
+            azimuth_deg: None,
+            range_m: None,
+            range_rate_mps: None,
+            doppler_hz: None,
+            cn0_dbhz: None,
+            iono_delay_m: None,
+            tropo_delay_m: None,
         }
     }
 }
@@ -223,7 +302,7 @@ impl Default for ReceiverConfig {
             antenna: AntennaPattern::default_patch(),
             elevation_mask_deg: 5.0,
             noise_figure_db: 2.0,
-            bandwidth_hz: 2_046_000.0,
+            bandwidth_hz: 5_000_000.0,
         }
     }
 }
@@ -235,6 +314,9 @@ pub struct EnvironmentConfig {
     pub ionosphere_enabled: bool,
     /// Klobuchar model (if custom coefficients needed)
     pub ionosphere_model: Option<KlobucharModel>,
+    /// Ionosphere data source (Klobuchar, IONEX, or disabled)
+    #[serde(default)]
+    pub ionosphere_source: IonosphereSource,
     /// Enable tropospheric delay
     pub troposphere_enabled: bool,
     /// Tropospheric model
@@ -243,6 +325,9 @@ pub struct EnvironmentConfig {
     pub multipath_preset: GnssMultipathPreset,
     /// Enable multipath
     pub multipath_enabled: bool,
+    /// Ephemeris source (Keplerian or SP3 precise)
+    #[serde(default)]
+    pub ephemeris_source: EphemerisSource,
 }
 
 impl Default for EnvironmentConfig {
@@ -250,10 +335,12 @@ impl Default for EnvironmentConfig {
         Self {
             ionosphere_enabled: true,
             ionosphere_model: None,
+            ionosphere_source: IonosphereSource::Klobuchar,
             troposphere_enabled: true,
             troposphere_model: None,
             multipath_preset: GnssMultipathPreset::OpenSky,
             multipath_enabled: false,
+            ephemeris_source: EphemerisSource::default(),
         }
     }
 }
@@ -278,12 +365,13 @@ pub struct OutputConfig {
 ///
 /// GPS epoch is January 6, 1980 00:00:00 UTC. GPS time does not include
 /// leap seconds (as of 2025 there are 18 leap seconds between UTC and GPS).
-pub fn gps_time_from_utc(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> f64 {
+/// Accepts fractional seconds (f64) for sub-second precision.
+pub fn gps_time_from_utc(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: f64) -> f64 {
     // Days from GPS epoch (Jan 6, 1980) to target date
     let target_jd = julian_day(year, month, day);
     let epoch_jd = julian_day(1980, 1, 6);
     let days = (target_jd - epoch_jd) as f64;
-    let utc_seconds = days * 86400.0 + hour as f64 * 3600.0 + min as f64 * 60.0 + sec as f64;
+    let utc_seconds = days * 86400.0 + hour as f64 * 3600.0 + min as f64 * 60.0 + sec;
     // GPS time = UTC + leap seconds (18 as of 2017, no new ones through 2025)
     utc_seconds + 18.0
 }
@@ -302,9 +390,9 @@ fn julian_day(year: i32, month: u32, day: u32) -> i64 {
 impl Default for OutputConfig {
     fn default() -> Self {
         // Default: 2026-02-04 15:00 EST (20:00 UTC), Fort Wayne IN
-        let start_time = gps_time_from_utc(2026, 2, 4, 20, 0, 0);
+        let start_time = gps_time_from_utc(2026, 2, 4, 20, 0, 0.0);
         Self {
-            sample_rate: 2_046_000.0,
+            sample_rate: 5_000_000.0,
             duration_s: 0.001,
             block_size: 0, // auto
             seed: 42,
@@ -542,6 +630,7 @@ pub fn discover_visible_satellites(
                     GnssSignal::GalileoE1 => 15.0,
                 },
                 nav_data: true,
+                ..SatelliteConfig::empty_snapshot()
             };
             visible.push((sat, la.elevation_deg));
         }
@@ -631,7 +720,7 @@ mod tests {
         use crate::coordinates::{lla_to_ecef, look_angle};
         let pos = LlaPosition::new(41.08, -85.14, 240.0);
         let rx_ecef = lla_to_ecef(&pos);
-        let t = gps_time_from_utc(2026, 2, 4, 20, 1, 10);
+        let t = gps_time_from_utc(2026, 2, 4, 20, 1, 10.0);
         let el_mask = 5.0;
 
         // MATLAB shows these Galileo PRNs visible at this time/location
@@ -744,7 +833,7 @@ mod tests {
         let pos = LlaPosition::new(41.08, -85.14, 240.0);
         let rx_ecef = lla_to_ecef(&pos);
         // MATLAB GPS plot is at 22:00:10 UTC (2 hours later than Galileo)
-        let t = gps_time_from_utc(2026, 2, 4, 22, 0, 10);
+        let t = gps_time_from_utc(2026, 2, 4, 22, 0, 10.0);
         let el_mask = 5.0;
 
         // MATLAB shows these GPS PRNs visible
@@ -818,7 +907,7 @@ mod tests {
         let pos = LlaPosition::new(41.08, -85.14, 240.0);
         let rx_ecef = lla_to_ecef(&pos);
         // First MATLAB plot time: 22:00:10 UTC
-        let t = gps_time_from_utc(2026, 2, 4, 22, 0, 10);
+        let t = gps_time_from_utc(2026, 2, 4, 22, 0, 10.0);
         let el_mask = 5.0;
         let raan_offset = 118.0f64.to_radians();
         let m0_offset = 176.0f64.to_radians();

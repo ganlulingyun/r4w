@@ -32,6 +32,8 @@
 //! Used in GMSK (GSM, Bluetooth). Provides excellent spectral containment
 //! but introduces controlled ISI.
 
+pub mod fir;
 pub mod pulse_shaping;
 
+pub use fir::FirFilter;
 pub use pulse_shaping::{GaussianFilter, PulseShapingFilter, RaisedCosineFilter, RootRaisedCosineFilter};

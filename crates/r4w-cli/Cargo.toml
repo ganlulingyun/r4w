@@ -52,9 +52,14 @@ ctrlc = "3.4"
 # Random number generation for mesh simulation
 rand = "0.8"
 
+# Date/time handling
+chrono.workspace = true
+
 [features]
-default = ["image"]
+default = ["image", "ephemeris"]
 # Enable when hardware SDR support is ready
 # hardware = ["sdr-sim/soapysdr"]
 # Enable PNG image generation for waterfall/spectrum
 image = ["r4w-core/image"]
+# Enable RINEX ephemeris support (CDDIS download)
+ephemeris = ["r4w-core/ephemeris"]

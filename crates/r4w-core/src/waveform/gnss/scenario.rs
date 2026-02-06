@@ -2,19 +2,37 @@
 //!
 //! Composes satellite emitters with environment models to produce realistic
 //! composite GNSS baseband IQ signals.
+//!
+//! ## Ephemeris Sources
+//!
+//! - **Keplerian**: Uses nominal orbital elements (meter-level accuracy)
+//! - **SP3**: Uses precise ephemeris files from CODE (cm-level accuracy)
+//!
+//! ## Ionosphere Sources
+//!
+//! - **Klobuchar**: Uses broadcast ionospheric model (~50% accuracy)
+//! - **IONEX**: Uses TEC grid maps from CODE (higher accuracy)
 
 use super::environment::{KeplerianOrbit, KlobucharModel, SaastamoinenModel};
 use super::satellite_emitter::{SatelliteEmitter, SatelliteStatus};
 use super::scenario_config::{GnssScenarioConfig, GnssScenarioPreset};
+#[cfg(feature = "ephemeris")]
+use super::ephemeris::{EphemerisSource, IonosphereSource};
 use super::types::GnssSignal;
 use crate::coordinates::{
-    lla_to_ecef, look_angle, range_rate, EcefVelocity, SPEED_OF_LIGHT,
+    lla_to_ecef, look_angle, range_rate, EcefPosition, EcefVelocity, LlaPosition, SPEED_OF_LIGHT,
 };
 use crate::types::IQSample;
 use crate::waveform::gnss::{GalileoE1, GlonassL1of, GpsL1Ca, GpsL5};
 use crate::waveform::Waveform;
 use num_complex::Complex64;
 use std::f64::consts::PI;
+use std::sync::Arc;
+
+#[cfg(feature = "ephemeris")]
+use super::sp3::Sp3Ephemeris;
+#[cfg(feature = "ephemeris")]
+use super::ionex::IonexTec;
 
 /// GNSS Scenario: generates composite multi-satellite IQ signal
 // trace:FR-041 | ai:claude
@@ -26,6 +44,12 @@ pub struct GnssScenario {
     total_samples: usize,
     /// Simple PRNG state for noise generation (xorshift64)
     rng_state: u64,
+    /// SP3 precise ephemeris (optional, feature-gated)
+    #[cfg(feature = "ephemeris")]
+    sp3: Option<Arc<Sp3Ephemeris>>,
+    /// IONEX TEC maps (optional, feature-gated)
+    #[cfg(feature = "ephemeris")]
+    ionex: Option<Arc<IonexTec>>,
 }
 
 impl GnssScenario {
@@ -33,6 +57,45 @@ impl GnssScenario {
     pub fn new(config: GnssScenarioConfig) -> Self {
         let sample_rate = config.output.sample_rate;
         let total_samples = (config.output.duration_s * sample_rate).ceil() as usize;
+
+        // Load SP3 precise ephemeris if configured
+        #[cfg(feature = "ephemeris")]
+        let sp3: Option<Arc<Sp3Ephemeris>> = match &config.environment.ephemeris_source {
+            EphemerisSource::Sp3File(path) => {
+                match Sp3Ephemeris::from_file(path) {
+                    Ok(eph) => {
+                        eprintln!("Loaded SP3 ephemeris: {} satellites, {} epochs",
+                            eph.records.len(), eph.header.num_epochs);
+                        Some(Arc::new(eph))
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: Failed to load SP3 file: {}. Falling back to Keplerian.", e);
+                        None
+                    }
+                }
+            }
+            _ => None, // Nominal, RinexFile, Cached, AutoFetch all fall back to Keplerian for now
+        };
+
+        // Load IONEX TEC maps if configured
+        #[cfg(feature = "ephemeris")]
+        let ionex: Option<Arc<IonexTec>> = match &config.environment.ionosphere_source {
+            IonosphereSource::IonexFile(path) => {
+                match IonexTec::from_file(path) {
+                    Ok(tec) => {
+                        eprintln!("Loaded IONEX TEC maps: {} maps covering {:.1} hours",
+                            tec.num_maps(),
+                            tec.time_span().map(|(s, e)| (e - s) / 3600.0).unwrap_or(0.0));
+                        Some(Arc::new(tec))
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: Failed to load IONEX file: {}. Falling back to Klobuchar.", e);
+                        None
+                    }
+                }
+            }
+            IonosphereSource::Klobuchar | IonosphereSource::Disabled => None,
+        };
 
         let emitters: Vec<SatelliteEmitter> = config.satellites.iter().map(|sat| {
             let waveform = create_waveform(sat.signal, sat.prn, sample_rate);
@@ -46,7 +109,14 @@ impl GnssScenario {
                 sat.tx_power_dbw,
             ).with_nav_data(sat.nav_data);
 
-            if config.environment.ionosphere_enabled {
+            // Only add Klobuchar if NOT using IONEX (IONEX will be applied in generate_block)
+            #[cfg(feature = "ephemeris")]
+            let use_klobuchar = config.environment.ionosphere_enabled
+                && !matches!(config.environment.ionosphere_source, IonosphereSource::IonexFile(_) | IonosphereSource::Disabled);
+            #[cfg(not(feature = "ephemeris"))]
+            let use_klobuchar = config.environment.ionosphere_enabled;
+
+            if use_klobuchar {
                 let model = config.environment.ionosphere_model.clone()
                     .unwrap_or_else(KlobucharModel::default_broadcast);
                 emitter = emitter.with_ionosphere(model);
@@ -70,12 +140,79 @@ impl GnssScenario {
             sample_rate,
             total_samples,
             rng_state,
+            #[cfg(feature = "ephemeris")]
+            sp3,
+            #[cfg(feature = "ephemeris")]
+            ionex,
         }
     }
 
     /// Create a scenario from a preset
     pub fn from_preset(preset: GnssScenarioPreset) -> Self {
         Self::new(preset.to_config())
+    }
+
+    /// Get satellite position/velocity either from SP3 or Keplerian orbit
+    #[cfg(feature = "ephemeris")]
+    fn get_satellite_position(&self, emitter: &SatelliteEmitter, t: f64) -> (EcefPosition, EcefVelocity) {
+        if let Some(ref sp3) = self.sp3 {
+            // Construct SP3 satellite ID (e.g., "G01" for GPS PRN 1)
+            let sv_id = format_sv_id(emitter.signal, emitter.prn);
+            if let Some((pos, vel, _clock)) = sp3.interpolate(&sv_id, t) {
+                return (pos, vel);
+            }
+        }
+        // Fallback to Keplerian orbit
+        emitter.position_velocity_at(t)
+    }
+
+    #[cfg(not(feature = "ephemeris"))]
+    fn get_satellite_position(&self, emitter: &SatelliteEmitter, t: f64) -> (EcefPosition, EcefVelocity) {
+        emitter.position_velocity_at(t)
+    }
+
+    /// Get ionospheric delay from IONEX or Klobuchar
+    #[cfg(feature = "ephemeris")]
+    fn get_iono_delay_m(&self, emitter: &SatelliteEmitter, t: f64, rx_lla: &LlaPosition, elevation_deg: f64, _azimuth_deg: f64) -> f64 {
+        // Check if IONEX is enabled and loaded
+        if let Some(ref ionex) = self.ionex {
+            if matches!(self.config.environment.ionosphere_source, IonosphereSource::IonexFile(_)) {
+                // Compute ionospheric pierce point (simplified: use receiver location)
+                if let Some(tec) = ionex.get_tec(rx_lla.lat_deg, rx_lla.lon_deg, t) {
+                    let carrier_hz = emitter.signal.carrier_frequency_hz();
+                    return IonexTec::iono_delay_m(tec, elevation_deg, carrier_hz);
+                }
+            }
+        }
+
+        // Fallback: get from emitter's Klobuchar model (already set up in new())
+        let rx_ecef = lla_to_ecef(rx_lla);
+        let status = emitter.status_at(t, &rx_ecef, rx_lla, &self.config.receiver.antenna);
+        status.iono_delay_m
+    }
+
+    #[cfg(not(feature = "ephemeris"))]
+    fn get_iono_delay_m(&self, emitter: &SatelliteEmitter, t: f64, rx_lla: &LlaPosition, _elevation_deg: f64, _azimuth_deg: f64) -> f64 {
+        let rx_ecef = lla_to_ecef(rx_lla);
+        let status = emitter.status_at(t, &rx_ecef, rx_lla, &self.config.receiver.antenna);
+        status.iono_delay_m
+    }
+
+    /// Get satellite clock correction from SP3 (in seconds)
+    #[cfg(feature = "ephemeris")]
+    fn get_clock_correction_s(&self, emitter: &SatelliteEmitter, t: f64) -> f64 {
+        if let Some(ref sp3) = self.sp3 {
+            let sv_id = format_sv_id(emitter.signal, emitter.prn);
+            if let Some((_, _, clock_s)) = sp3.interpolate(&sv_id, t) {
+                return clock_s;
+            }
+        }
+        0.0 // No clock correction available
+    }
+
+    #[cfg(not(feature = "ephemeris"))]
+    fn get_clock_correction_s(&self, _emitter: &SatelliteEmitter, _t: f64) -> f64 {
+        0.0
     }
 
     /// Generate the next block of composite IQ samples
@@ -97,8 +234,9 @@ impl GnssScenario {
 
         for emitter in &self.emitters {
             // Compute geometry at block start and end for per-sample Doppler interpolation
-            let (sat_pos_start, sat_vel_start) = emitter.position_velocity_at(t_start);
-            let (sat_pos_end, sat_vel_end) = emitter.position_velocity_at(t_end);
+            // Use SP3 if available, otherwise Keplerian
+            let (sat_pos_start, sat_vel_start) = self.get_satellite_position(emitter, t_start);
+            let (sat_pos_end, sat_vel_end) = self.get_satellite_position(emitter, t_end);
 
             // Elevation check at block start
             let la = look_angle(&rx_ecef, rx_lla, &sat_pos_start);
@@ -117,12 +255,20 @@ impl GnssScenario {
             let doppler_end_hz = -rr_end * carrier_hz / SPEED_OF_LIGHT;
 
             // Atmospheric delays (computed once per block — vary slowly)
-            let status = emitter.status_at(t_start, &rx_ecef, rx_lla, &self.config.receiver.antenna);
-            let iono_delay_s = status.iono_delay_m / SPEED_OF_LIGHT;
-            let tropo_delay_s = status.tropo_delay_m / SPEED_OF_LIGHT;
+            // Use IONEX if available, otherwise Klobuchar
+            let iono_delay_m = self.get_iono_delay_m(emitter, t_start, rx_lla, la.elevation_deg, la.azimuth_deg);
+            let iono_delay_s = iono_delay_m / SPEED_OF_LIGHT;
 
-            // Received power derived from C/N0 estimate (already includes FSPL + antenna)
-            let rx_power_dbw = status.cn0_dbhz - 204.0;
+            // Tropospheric delay from emitter model (uses elevation from SP3 position)
+            let tropo_status = emitter.status_at(t_start, &rx_ecef, rx_lla, &self.config.receiver.antenna);
+            let tropo_delay_s = tropo_status.tropo_delay_m / SPEED_OF_LIGHT;
+
+            // C/N0 calculation using SP3 range: EIRP - FSPL + Gr + 204 (in dBW/Hz)
+            let fspl = crate::coordinates::fspl_db(range_m, carrier_hz);
+            let antenna_gain_dbi = self.config.receiver.antenna.gain_dbi(la.elevation_deg);
+            let tx_power_dbw = 14.3; // GPS/Galileo EIRP
+            let cn0_dbhz = tx_power_dbw - fspl + antenna_gain_dbi + 204.0;
+            let rx_power_dbw = cn0_dbhz - 204.0;
             // Scale to reasonable baseband amplitude
             let rx_amplitude = 10.0_f64.powf((rx_power_dbw + 160.0) / 20.0); // shift to reasonable range
 
@@ -183,7 +329,54 @@ impl GnssScenario {
         let antenna = &self.config.receiver.antenna;
 
         self.emitters.iter().map(|e| {
-            e.status_at(t, &rx_ecef, rx_lla, antenna)
+            // Get satellite position from SP3 (if available) or Keplerian orbit
+            let (sat_pos, sat_vel) = self.get_satellite_position(e, t);
+
+            // Compute look angle from SP3/Keplerian position
+            let la = look_angle(&rx_ecef, rx_lla, &sat_pos);
+            let range_m = la.range_m;
+            let elevation_deg = la.elevation_deg;
+            let azimuth_deg = la.azimuth_deg;
+
+            // Range rate for Doppler
+            let rx_vel = EcefVelocity::zero();
+            let rr = range_rate(&rx_ecef, &rx_vel, &sat_pos, &sat_vel);
+            let carrier_hz = e.signal.carrier_frequency_hz();
+            let doppler_hz = -rr * carrier_hz / SPEED_OF_LIGHT;
+
+            // Antenna gain
+            let antenna_gain_dbi = antenna.gain_dbi(elevation_deg);
+
+            // C/N0 calculation: EIRP - FSPL + Gr + 204 (in dBW/Hz)
+            let fspl = crate::coordinates::fspl_db(range_m, carrier_hz);
+            let tx_power_dbw = 14.3; // GPS/Galileo EIRP
+            let cn0_dbhz = tx_power_dbw - fspl + antenna_gain_dbi + 204.0;
+
+            // Ionospheric delay from IONEX or Klobuchar
+            let iono_delay_m = self.get_iono_delay_m(e, t, rx_lla, elevation_deg, azimuth_deg);
+
+            // Tropospheric delay (from emitter's model if configured)
+            let tropo_status = e.status_at(t, &rx_ecef, rx_lla, antenna);
+            let tropo_delay_m = tropo_status.tropo_delay_m;
+
+            // Clock correction from SP3 when available
+            let clock_correction_s = self.get_clock_correction_s(e, t);
+
+            SatelliteStatus {
+                prn: e.prn,
+                signal: e.signal,
+                elevation_deg,
+                azimuth_deg,
+                range_m,
+                range_rate_mps: rr,
+                doppler_hz,
+                cn0_dbhz,
+                iono_delay_m,
+                tropo_delay_m,
+                antenna_gain_dbi,
+                visible: elevation_deg > 0.0,
+                clock_correction_s,
+            }
         }).collect()
     }
 
@@ -263,6 +456,18 @@ fn create_orbit(signal: GnssSignal, plane: u8, slot: u8) -> KeplerianOrbit {
         super::types::GnssConstellation::Glonass => KeplerianOrbit::glonass_nominal(plane, slot),
         super::types::GnssConstellation::BeiDou => KeplerianOrbit::gps_nominal(plane, slot),
     }
+}
+
+/// Format satellite ID for SP3 lookup (e.g., "G01" for GPS PRN 1)
+#[cfg(feature = "ephemeris")]
+fn format_sv_id(signal: GnssSignal, prn: u8) -> String {
+    let prefix = match signal.constellation() {
+        super::types::GnssConstellation::Gps => 'G',
+        super::types::GnssConstellation::Glonass => 'R',
+        super::types::GnssConstellation::Galileo => 'E',
+        super::types::GnssConstellation::BeiDou => 'C',
+    };
+    format!("{}{:02}", prefix, prn)
 }
 
 #[cfg(test)]

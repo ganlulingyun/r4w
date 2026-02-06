@@ -7,7 +7,7 @@ requirements:
   prefix_override: MESH
   title: Meshtastic Protocol Support
   description: Implement Meshtastic protocol for LoRa-based mesh networking with managed flood routing, CSMA/CA channel access, and interoperability with existing Meshtastic network (40,000+ nodes). This enables R4W to participate in the global off-grid mesh communication network.
-  status: InProgress
+  status: Approved
   priority: High
   owner: joe
   feature: 1-Mesh Networking
@@ -15,10 +15,10 @@ requirements:
   modified_at: 2025-12-30T18:54:37.847875523Z
   req_type: Epic
   tags:
+  - meshtastic
+  - mesh
   - lora
   - protocol
-  - mesh
-  - meshtastic
   history:
   - id: b87df4b0-b8f6-47cc-bf04-604b5362c7fc
     author: CLI
@@ -40,9 +40,9 @@ requirements:
   modified_at: 2025-12-30T20:09:32.375521722Z
   req_type: Functional
   tags:
+  - lora
   - encoding
   - physical-layer
-  - lora
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -108,9 +108,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.733209443Z
   req_type: Functional
   tags:
-  - physical-layer
   - frequency
   - regulatory
+  - physical-layer
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -136,9 +136,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.011274770Z
   req_type: Functional
   tags:
-  - collision-avoidance
-  - mac-layer
   - csma
+  - mac-layer
+  - collision-avoidance
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -204,9 +204,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.749015544Z
   req_type: Functional
   tags:
+  - utilization
   - mac-layer
   - fairness
-  - utilization
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -232,8 +232,8 @@ requirements:
   modified_at: 2025-12-30T18:54:51.020338923Z
   req_type: Functional
   tags:
-  - broadcast
   - flood
+  - broadcast
   - routing
   relationships:
   - rel_type: Parent
@@ -267,8 +267,8 @@ requirements:
   req_type: Functional
   tags:
   - next-hop
-  - routing
   - unicast
+  - routing
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -300,9 +300,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.765255591Z
   req_type: Functional
   tags:
+  - cache
   - routing
   - deduplication
-  - cache
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -328,9 +328,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.770472367Z
   req_type: Functional
   tags:
-  - routing
   - discovery
   - neighbor
+  - routing
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -356,8 +356,8 @@ requirements:
   modified_at: 2025-12-30T18:33:56.924811543Z
   req_type: Functional
   tags:
-  - interop
   - messages
+  - interop
   - protobuf
   relationships:
   - rel_type: Parent
@@ -376,9 +376,9 @@ requirements:
   modified_at: 2025-12-30T18:34:06.606337548Z
   req_type: Functional
   tags:
+  - aes
   - encryption
   - interop
-  - aes
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -396,9 +396,9 @@ requirements:
   modified_at: 2025-12-30T18:34:16.397667432Z
   req_type: Functional
   tags:
-  - channel
   - config
   - interop
+  - channel
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -416,9 +416,9 @@ requirements:
   modified_at: 2025-12-30T18:34:30.970516731Z
   req_type: Functional
   tags:
-  - text
   - messaging
   - app
+  - text
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -436,9 +436,9 @@ requirements:
   modified_at: 2025-12-30T18:34:41.008292847Z
   req_type: Functional
   tags:
-  - position
   - app
   - gps
+  - position
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -456,9 +456,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.029265252Z
   req_type: Functional
   tags:
-  - architecture
   - trait
   - integration
+  - architecture
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -510,9 +510,9 @@ requirements:
   modified_at: 2025-12-30T18:35:14.680235464Z
   req_type: Functional
   tags:
+  - multi-node
   - testing
   - simulation
-  - multi-node
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -601,8 +601,8 @@ requirements:
   req_type: Functional
   tags:
   - fading
-  - doppler
   - channel
+  - doppler
 - id: c83161da-58d1-47d8-b8bf-0af9b75f8607
   spec_id: FR-025
   title: Tapped Delay Line Multipath Channel
@@ -615,9 +615,9 @@ requirements:
   modified_at: 2026-01-01T00:45:26.089040868Z
   req_type: Functional
   tags:
-  - channel
   - 3gpp
   - multipath
+  - channel
 - id: 3fa6715a-0464-4aed-bf9b-e50552ddf5d3
   spec_id: FR-026
   title: CLI Spectrum Analysis Command
@@ -630,9 +630,9 @@ requirements:
   modified_at: 2026-01-01T00:45:29.202873633Z
   req_type: Functional
   tags:
+  - cli
   - spectrum
   - fft
-  - cli
 - id: deb7cb95-87ae-49e7-9f8d-4ca65c2e8d61
   spec_id: FR-027
   title: CLI Waterfall PNG Generation
@@ -646,8 +646,8 @@ requirements:
   req_type: Functional
   tags:
   - spectrogram
-  - cli
   - waterfall
+  - cli
 - id: d17f5ab3-f452-45e0-af66-7c8d481ab8fb
   spec_id: FR-028
   title: CLI Signal Statistics
@@ -660,9 +660,9 @@ requirements:
   modified_at: 2026-01-01T00:45:47.480602821Z
   req_type: Functional
   tags:
+  - power
   - cli
   - statistics
-  - power
 - id: 1bb45e13-5952-4b5f-83de-a1046ec7d0f8
   spec_id: FR-029
   title: CLI Peak Detection
@@ -675,8 +675,8 @@ requirements:
   modified_at: 2026-01-01T00:45:50.819575716Z
   req_type: Functional
   tags:
-  - peaks
   - detection
+  - peaks
   - cli
 - id: c743ccdf-5f80-413b-96a3-dd09dc0e7233
   spec_id: TASK-030
@@ -690,9 +690,9 @@ requirements:
   modified_at: 2026-01-01T00:45:53.481069148Z
   req_type: Task
   tags:
-  - examples
   - gallery
   - visualization
+  - examples
 - id: 96888938-b9e2-4088-9302-9c3381e7d0d7
   spec_id: TASK-031
   title: Jupyter Tutorial Notebooks
@@ -705,9 +705,9 @@ requirements:
   modified_at: 2026-01-01T00:45:56.165629168Z
   req_type: Task
   tags:
+  - notebooks
   - tutorials
   - education
-  - notebooks
 - id: 55ba297c-a183-4fe3-a616-e484cab0176f
   spec_id: FR-032
   prefix_override: FR
@@ -940,6 +940,29 @@ requirements:
     content: Applied from gnss_scenario_enhancements.patch. 7 files changed, 797 insertions, 76 deletions. 69 GNSS tests pass, 7 scenario tests pass, 3 calibration tests (ignored). CLI validated with open-sky and multi-constellation presets.
     created_at: 2026-02-05T03:15:55.883082106Z
     modified_at: 2026-02-05T03:15:55.883082106Z
+- id: ebd11694-59c4-4ee9-89ae-dd613dd46fc5
+  spec_id: FR-045
+  prefix_override: FR
+  title: Unified IqFormat for Sample Format Handling
+  description: Single source of truth for IQ sample formats (Cf64, Cf32, Ci16, Ci8, Cu8) in r4w_core::io::IqFormat. Provides SigMF datatype mapping, format aliases (ettus, sc16, rtlsdr), scaling constants, and unified read/write/parse methods. Migrated CLI GNSS scenario, benchmark receiver, GUI streaming, HAL, capture, and SigMF modules to delegate to IqFormat. Documented in docs/IQ_FORMAT_GUIDE.md.
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 45-Uncategorized
+  created_at: 2026-02-06T17:36:57.196828458Z
+  modified_at: 2026-02-06T17:37:14.161032440Z
+  req_type: Functional
+  tags:
+  - sigmf
+  - refactor
+  - formats
+  - io
+  comments:
+  - id: d26cedce-06cd-4561-a7bb-5ca9d24f4756
+    author: claude
+    content: Commit 544df1e - 10 files changed, +1280/-273 lines. New module at r4w-core/src/io/format.rs with 14 unit tests.
+    created_at: 2026-02-06T17:37:14.161023603Z
+    modified_at: 2026-02-06T17:37:14.161023603Z
 id_config:
   format: SingleLevel
   numbering: Global
@@ -985,8 +1008,8 @@ id_config:
     prefix: META
     description: Database configuration and templates
 features: []
-next_feature_number: 45
-next_spec_number: 45
+next_feature_number: 46
+next_spec_number: 46
 prefix_counters: {}
 relationship_definitions:
 - name: parent

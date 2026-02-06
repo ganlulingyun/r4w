@@ -36,6 +36,14 @@ pub mod environment;
 pub mod satellite_emitter;
 pub mod scenario;
 pub mod scenario_config;
+#[cfg(feature = "ephemeris")]
+pub mod ephemeris;
+#[cfg(feature = "ephemeris")]
+pub mod cddis;
+#[cfg(feature = "ephemeris")]
+pub mod sp3;
+#[cfg(feature = "ephemeris")]
+pub mod ionex;
 
 pub use types::*;
 pub use prn::{GpsCaCodeGenerator, GlonassCodeGenerator, GalileoE1CodeGenerator, GpsL5CodeGenerator};
@@ -49,4 +57,16 @@ pub use gps_l5::GpsL5;
 pub use environment::{AntennaPattern, BodyAttitude, GnssMultipathPreset, KeplerianOrbit, KlobucharModel, SaastamoinenModel};
 pub use satellite_emitter::SatelliteEmitter;
 pub use scenario::GnssScenario;
-pub use scenario_config::{GnssScenarioConfig, GnssScenarioPreset, SatelliteConfig, ReceiverConfig, EnvironmentConfig, OutputConfig, gps_time_from_utc, discover_visible_satellites, discover_satellites_for_config};
+pub use scenario_config::{GnssScenarioConfig, GnssScenarioPreset, SatelliteConfig, ReceiverConfig, EnvironmentConfig, OutputConfig, EphemerisSource, IonosphereSource, gps_time_from_utc, discover_visible_satellites, discover_satellites_for_config, GPS_CONSTELLATION, GALILEO_CONSTELLATION, GLONASS_CONSTELLATION};
+#[cfg(feature = "ephemeris")]
+pub use ephemeris::RinexEphemeris;
+#[cfg(feature = "ephemeris")]
+pub use cddis::{
+    fetch_ephemeris, cache_path, is_cached, list_cached, EarthdataCredentials,
+    fetch_sp3, sp3_cache_path, sp3_is_cached, list_cached_sp3,
+    fetch_ionex, ionex_cache_path, ionex_is_cached, list_cached_ionex,
+};
+#[cfg(feature = "ephemeris")]
+pub use sp3::{Sp3Ephemeris, Sp3Header, Sp3Record};
+#[cfg(feature = "ephemeris")]
+pub use ionex::{IonexTec, IonexHeader, TecMap};

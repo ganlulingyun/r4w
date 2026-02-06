@@ -4,6 +4,7 @@
 //! and atmospheric models to produce realistic satellite signals.
 //! Implements the generic `Emitter` trait from r4w-sim.
 
+use super::boc::CbocGenerator;
 use super::environment::{
     AntennaPattern, KeplerianOrbit, KlobucharModel, SaastamoinenModel,
 };
@@ -21,12 +22,15 @@ pub struct SatelliteStatus {
     pub elevation_deg: f64,
     pub azimuth_deg: f64,
     pub range_m: f64,
+    pub range_rate_mps: f64,
     pub doppler_hz: f64,
     pub cn0_dbhz: f64,
     pub iono_delay_m: f64,
     pub tropo_delay_m: f64,
     pub antenna_gain_dbi: f64,
     pub visible: bool,
+    /// Satellite clock correction in seconds (from SP3 or broadcast ephemeris)
+    pub clock_correction_s: f64,
 }
 
 /// A GNSS satellite emitter with orbit and atmospheric models
@@ -54,6 +58,8 @@ pub struct SatelliteEmitter {
     code_period_s: f64,
     /// Chipping rate
     chipping_rate: f64,
+    /// CBOC generator for Galileo E1 (None for other signals)
+    cboc: Option<CbocGenerator>,
 }
 
 impl SatelliteEmitter {
@@ -69,6 +75,12 @@ impl SatelliteEmitter {
         let code_period_s = signal.code_period_s();
         let chipping_rate = signal.chipping_rate();
 
+        // Create CBOC generator for Galileo E1 (data channel E1B)
+        let cboc = match signal {
+            GnssSignal::GalileoE1 => Some(CbocGenerator::e1b()),
+            _ => None,
+        };
+
         Self {
             prn,
             signal,
@@ -81,6 +93,7 @@ impl SatelliteEmitter {
             code,
             code_period_s,
             chipping_rate,
+            cboc,
         }
     }
 
@@ -144,12 +157,14 @@ impl SatelliteEmitter {
 
         let antenna_gain_dbi = antenna.gain_dbi(elevation_deg);
 
-        // Approximate C/N0
+        // Approximate C/N0 (carrier-to-noise density ratio)
+        // C/N0 = EIRP - FSPL + Gr - N0
+        // where N0 = kT = -228.6 dBW/K/Hz + 10*log10(290K) = -204 dBW/Hz
         let fspl = crate::coordinates::fspl_db(range_m, self.signal.carrier_frequency_hz());
-        let cn0_dbhz = self.tx_power_dbw + 30.0 // dBW to dBm
-            - fspl
-            + antenna_gain_dbi
-            + 204.0; // -kT in dBW/Hz
+        let cn0_dbhz = self.tx_power_dbw  // EIRP in dBW (includes ~13 dBi sat antenna)
+            - fspl                         // Free space path loss
+            + antenna_gain_dbi             // Receiver antenna gain
+            + 204.0;                       // -kT in dBW/Hz (adds back thermal noise floor)
 
         SatelliteStatus {
             prn: self.prn,
@@ -157,12 +172,14 @@ impl SatelliteEmitter {
             elevation_deg,
             azimuth_deg,
             range_m,
+            range_rate_mps: rr,
             doppler_hz,
             cn0_dbhz,
             iono_delay_m,
             tropo_delay_m,
             antenna_gain_dbi,
             visible: elevation_deg > 0.0,
+            clock_correction_s: 0.0, // Set by scenario when SP3 data is available
         }
     }
 
@@ -170,6 +187,9 @@ impl SatelliteEmitter {
     ///
     /// Instead of generating and then delaying, we start the PRN code at the
     /// correct phase based on the pseudorange, avoiding wasted computation.
+    ///
+    /// For Galileo E1, applies CBOC(6,1,1/11) subcarrier modulation to produce
+    /// the characteristic split-spectrum shape required for acquisition/tracking.
     pub fn generate_baseband_iq(
         &self,
         t: f64,
@@ -212,7 +232,17 @@ impl SatelliteEmitter {
                 1.0
             };
 
-            output.push(Complex64::new(code_val * nav_bit, 0.0));
+            // Apply subcarrier modulation (CBOC for Galileo E1, none for others)
+            let modulated_val = if let Some(ref cboc) = self.cboc {
+                // CBOC subcarrier phase is based on fractional chip position
+                let chip_phase = chip_idx_f - chip_idx_f.floor();
+                code_val * nav_bit * cboc.subcarrier(chip_phase)
+            } else {
+                // Plain BPSK for GPS L1 C/A, GLONASS, etc.
+                code_val * nav_bit
+            };
+
+            output.push(Complex64::new(modulated_val, 0.0));
         }
 
         output
@@ -256,7 +286,7 @@ fn generate_prn_code(signal: GnssSignal, prn: u8) -> Vec<i8> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::waveform::gnss::GpsL1Ca;
+    use crate::waveform::gnss::{GpsL1Ca, GalileoE1};
 
     #[test]
     fn test_satellite_emitter_creation() {
@@ -265,6 +295,17 @@ mod tests {
         let emitter = SatelliteEmitter::new(1, GnssSignal::GpsL1Ca, wf, orbit, 14.3);
         assert_eq!(emitter.prn, 1);
         assert_eq!(emitter.code.len(), 1023);
+        assert!(emitter.cboc.is_none()); // GPS L1 C/A has no CBOC
+    }
+
+    #[test]
+    fn test_galileo_e1_has_cboc() {
+        let wf = Box::new(GalileoE1::new(5_000_000.0, 1));
+        let orbit = KeplerianOrbit::galileo_nominal(0, 0);
+        let emitter = SatelliteEmitter::new(1, GnssSignal::GalileoE1, wf, orbit, 15.0);
+        assert_eq!(emitter.prn, 1);
+        assert_eq!(emitter.code.len(), 4092);
+        assert!(emitter.cboc.is_some()); // Galileo E1 has CBOC
     }
 
     #[test]
@@ -279,6 +320,32 @@ mod tests {
         for s in &samples {
             assert!((s.re.abs() - 1.0).abs() < 0.01 || s.re.abs() < 0.01);
         }
+    }
+
+    #[test]
+    fn test_galileo_e1_cboc_modulation() {
+        let wf = Box::new(GalileoE1::new(5_000_000.0, 1));
+        let orbit = KeplerianOrbit::galileo_nominal(0, 0);
+        let emitter = SatelliteEmitter::new(1, GnssSignal::GalileoE1, wf, orbit, 15.0);
+
+        // Generate at 5 MHz sample rate (~4.89 samples per chip)
+        let samples = emitter.generate_baseband_iq(0.0, 5000, 5_000_000.0, 20_000_000.0, 0.0, 0.0);
+        assert_eq!(samples.len(), 5000);
+
+        // CBOC samples should have more sign transitions than simple BPSK
+        // Count sign transitions
+        let mut transitions = 0;
+        for w in samples.windows(2) {
+            if w[0].re.signum() != w[1].re.signum() {
+                transitions += 1;
+            }
+        }
+        // At 5 MHz / 1.023 Mchip/s = ~4.89 samples/chip, ~1023 chips in 5000 samples
+        // BPSK would have ~1023 transitions (one per chip boundary)
+        // CBOC has BOC(1,1) subcarrier which adds ~2 transitions per chip (at Nyquist limit)
+        // Due to undersampling of BOC(6,1) component, we expect ~1.5x transitions
+        // The actual CBOC transitions should be noticeably more than pure BPSK (~1023)
+        assert!(transitions > 1200, "CBOC should have more transitions than BPSK, got {} (expected >1200)", transitions);
     }
 
     #[test]
