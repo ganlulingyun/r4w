@@ -40,6 +40,7 @@
 //! capture.trigger("packet_detected");
 //! ```
 
+use crate::io::IqFormat;
 use crate::timing::Timestamp;
 use crate::types::IQSample;
 use std::collections::VecDeque;
@@ -84,15 +85,44 @@ pub enum TriggerMode {
 }
 
 /// Capture format.
+///
+/// This enum specifies the output file format for captures.
+/// For raw formats, it provides conversion to the unified `IqFormat`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CaptureFormat {
     /// SigMF (preferred, compatible with GNU Radio)
+    /// Uses cf32 (IqFormat::Cf32) internally
     #[default]
     SigMF,
     /// Raw binary I/Q (cf32)
     RawFloat32,
     /// Raw binary I/Q (ci16)
     RawInt16,
+}
+
+impl CaptureFormat {
+    /// Get the underlying IqFormat for sample data.
+    ///
+    /// SigMF uses cf32 by default, but the actual format is stored in metadata.
+    pub fn to_iq_format(&self) -> IqFormat {
+        match self {
+            Self::SigMF | Self::RawFloat32 => IqFormat::Cf32,
+            Self::RawInt16 => IqFormat::Ci16,
+        }
+    }
+
+    /// Get the file extension for this format
+    pub fn extension(&self) -> &'static str {
+        match self {
+            Self::SigMF => ".sigmf-data",
+            Self::RawFloat32 | Self::RawInt16 => ".iq",
+        }
+    }
+
+    /// Bytes per sample for this format
+    pub fn bytes_per_sample(&self) -> usize {
+        self.to_iq_format().bytes_per_sample()
+    }
 }
 
 /// Capture configuration.

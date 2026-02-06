@@ -34,6 +34,7 @@
 //! writer.close()?;
 //! ```
 
+use r4w_core::io::IqFormat;
 use r4w_core::timing::Timestamp;
 use r4w_core::types::IQSample;
 use serde::{Deserialize, Serialize};
@@ -249,6 +250,9 @@ impl SigMfMeta {
 }
 
 /// Sample format information.
+///
+/// This struct provides metadata about SigMF sample formats.
+/// For I/O operations, convert to `IqFormat` using `to_iq_format()`.
 #[derive(Debug, Clone, Copy)]
 pub struct SampleFormat {
     /// Bytes per sample (both I and Q)
@@ -259,6 +263,8 @@ pub struct SampleFormat {
     pub is_float: bool,
     /// Bits per component
     pub bits: usize,
+    /// Corresponding IqFormat (None for real-only formats)
+    iq_format: Option<IqFormat>,
 }
 
 impl SampleFormat {
@@ -270,24 +276,28 @@ impl SampleFormat {
                 is_complex: true,
                 is_float: true,
                 bits: 32,
+                iq_format: Some(IqFormat::Cf32),
             }),
             "cf64_le" | "cf64" => Some(Self {
                 bytes_per_sample: 16,
                 is_complex: true,
                 is_float: true,
                 bits: 64,
+                iq_format: Some(IqFormat::Cf64),
             }),
             "ci16_le" | "ci16" => Some(Self {
                 bytes_per_sample: 4,
                 is_complex: true,
                 is_float: false,
                 bits: 16,
+                iq_format: Some(IqFormat::Ci16),
             }),
             "ci8" => Some(Self {
                 bytes_per_sample: 2,
                 is_complex: true,
                 is_float: false,
                 bits: 8,
+                iq_format: Some(IqFormat::Ci8),
             }),
             // Unsigned 8-bit complex (RTL-SDR native format)
             "cu8" => Some(Self {
@@ -295,20 +305,46 @@ impl SampleFormat {
                 is_complex: true,
                 is_float: false,
                 bits: 8,
+                iq_format: Some(IqFormat::Cu8),
             }),
             "ri32_le" | "ri32" => Some(Self {
                 bytes_per_sample: 4,
                 is_complex: false,
                 is_float: false,
                 bits: 32,
+                iq_format: None, // Real-only format
             }),
             "rf32_le" | "rf32" => Some(Self {
                 bytes_per_sample: 4,
                 is_complex: false,
                 is_float: true,
                 bits: 32,
+                iq_format: None, // Real-only format
             }),
             _ => None,
+        }
+    }
+
+    /// Get the unified IqFormat for complex formats.
+    ///
+    /// Returns `None` for real-only formats (ri32, rf32).
+    pub fn to_iq_format(&self) -> Option<IqFormat> {
+        self.iq_format
+    }
+
+    /// Create from IqFormat
+    pub fn from_iq_format(fmt: IqFormat) -> Self {
+        Self {
+            bytes_per_sample: fmt.bytes_per_sample(),
+            is_complex: true,
+            is_float: matches!(fmt, IqFormat::Cf32 | IqFormat::Cf64),
+            bits: match fmt {
+                IqFormat::Cf64 => 64,
+                IqFormat::Cf32 => 32,
+                IqFormat::Ci16 => 16,
+                IqFormat::Ci8 | IqFormat::Cu8 => 8,
+            },
+            iq_format: Some(fmt),
         }
     }
 }
@@ -428,91 +464,31 @@ impl SigMfReader {
     /// Read samples into buffer.
     ///
     /// Returns the number of samples actually read.
+    /// Uses the unified `IqFormat` for parsing.
     pub fn read_samples(&mut self, buffer: &mut [IQSample]) -> SdrResult<usize> {
         let to_read = buffer.len().min(self.remaining() as usize);
         if to_read == 0 {
             return Ok(0);
         }
 
-        match self.meta.global.datatype.as_str() {
-            "cf32_le" | "cf32" => {
-                // Read f32 pairs and convert to f64 (IQSample is Complex64)
-                let mut f32_buf = vec![0.0f32; to_read * 2];
-                let byte_buf = unsafe {
-                    std::slice::from_raw_parts_mut(
-                        f32_buf.as_mut_ptr() as *mut u8,
-                        to_read * 8,
-                    )
-                };
-                self.data_file.read_exact(byte_buf).map_err(|e| {
-                    SdrError::HardwareError(format!("Read failed: {}", e))
-                })?;
+        // Get IqFormat for this datatype
+        let iq_format = self.format.to_iq_format().ok_or_else(|| {
+            SdrError::Unsupported(format!(
+                "Datatype {} is not a complex format",
+                self.meta.global.datatype
+            ))
+        })?;
 
-                for (i, sample) in buffer.iter_mut().take(to_read).enumerate() {
-                    let i_val = f32_buf[i * 2] as f64;
-                    let q_val = f32_buf[i * 2 + 1] as f64;
-                    *sample = IQSample::new(i_val, q_val);
-                }
-            }
-            "ci16_le" | "ci16" => {
-                // Convert int16 to f64
-                let mut i16_buf = vec![0i16; to_read * 2];
-                let byte_buf = unsafe {
-                    std::slice::from_raw_parts_mut(
-                        i16_buf.as_mut_ptr() as *mut u8,
-                        to_read * 4,
-                    )
-                };
-                self.data_file.read_exact(byte_buf).map_err(|e| {
-                    SdrError::HardwareError(format!("Read failed: {}", e))
-                })?;
+        // Read raw bytes
+        let bytes_needed = to_read * iq_format.bytes_per_sample();
+        let mut byte_buf = vec![0u8; bytes_needed];
+        self.data_file.read_exact(&mut byte_buf).map_err(|e| {
+            SdrError::HardwareError(format!("Read failed: {}", e))
+        })?;
 
-                for (i, sample) in buffer.iter_mut().take(to_read).enumerate() {
-                    let i_val = i16_buf[i * 2] as f64 / 32768.0;
-                    let q_val = i16_buf[i * 2 + 1] as f64 / 32768.0;
-                    *sample = IQSample::new(i_val, q_val);
-                }
-            }
-            "ci8" => {
-                // Convert signed int8 to f64
-                let mut i8_buf = vec![0i8; to_read * 2];
-                let byte_buf = unsafe {
-                    std::slice::from_raw_parts_mut(
-                        i8_buf.as_mut_ptr() as *mut u8,
-                        to_read * 2,
-                    )
-                };
-                self.data_file.read_exact(byte_buf).map_err(|e| {
-                    SdrError::HardwareError(format!("Read failed: {}", e))
-                })?;
-
-                for (i, sample) in buffer.iter_mut().take(to_read).enumerate() {
-                    let i_val = i8_buf[i * 2] as f64 / 128.0;
-                    let q_val = i8_buf[i * 2 + 1] as f64 / 128.0;
-                    *sample = IQSample::new(i_val, q_val);
-                }
-            }
-            "cu8" => {
-                // Convert unsigned int8 to f64 (RTL-SDR format: 0-255 centered at 127.5)
-                let mut u8_buf = vec![0u8; to_read * 2];
-                self.data_file.read_exact(&mut u8_buf).map_err(|e| {
-                    SdrError::HardwareError(format!("Read failed: {}", e))
-                })?;
-
-                for (i, sample) in buffer.iter_mut().take(to_read).enumerate() {
-                    // RTL-SDR convention: 0-255 maps to -1.0 to +1.0
-                    let i_val = (u8_buf[i * 2] as f64 - 127.5) / 127.5;
-                    let q_val = (u8_buf[i * 2 + 1] as f64 - 127.5) / 127.5;
-                    *sample = IQSample::new(i_val, q_val);
-                }
-            }
-            _ => {
-                return Err(SdrError::Unsupported(format!(
-                    "Datatype {} not implemented for reading",
-                    self.meta.global.datatype
-                )));
-            }
-        }
+        // Parse using unified IqFormat
+        let samples = iq_format.parse_bytes(&byte_buf);
+        buffer[..to_read].copy_from_slice(&samples);
 
         self.position += to_read as u64;
         Ok(to_read)
@@ -619,78 +595,30 @@ impl SigMfWriter {
     }
 
     /// Write samples.
+    ///
+    /// Uses the unified `IqFormat` for serialization.
     pub fn write_samples(&mut self, samples: &[IQSample]) -> SdrResult<usize> {
-        match self.meta.global.datatype.as_str() {
-            "cf32_le" | "cf32" => {
-                // Convert f64 to f32 and write (IQSample is Complex64)
-                let mut f32_buf = vec![0.0f32; samples.len() * 2];
-                for (i, sample) in samples.iter().enumerate() {
-                    f32_buf[i * 2] = sample.re as f32;
-                    f32_buf[i * 2 + 1] = sample.im as f32;
-                }
-                let byte_buf = unsafe {
-                    std::slice::from_raw_parts(
-                        f32_buf.as_ptr() as *const u8,
-                        samples.len() * 8,
-                    )
-                };
-                self.data_file.write_all(byte_buf).map_err(|e| {
-                    SdrError::HardwareError(format!("Write failed: {}", e))
-                })?;
-            }
-            "ci16_le" | "ci16" => {
-                // Convert f64 to int16
-                let mut i16_buf = vec![0i16; samples.len() * 2];
-                for (i, sample) in samples.iter().enumerate() {
-                    i16_buf[i * 2] = (sample.re * 32767.0).clamp(-32768.0, 32767.0) as i16;
-                    i16_buf[i * 2 + 1] = (sample.im * 32767.0).clamp(-32768.0, 32767.0) as i16;
-                }
-                let byte_buf = unsafe {
-                    std::slice::from_raw_parts(
-                        i16_buf.as_ptr() as *const u8,
-                        samples.len() * 4,
-                    )
-                };
-                self.data_file.write_all(byte_buf).map_err(|e| {
-                    SdrError::HardwareError(format!("Write failed: {}", e))
-                })?;
-            }
-            "ci8" => {
-                // Convert f64 to signed int8
-                let mut i8_buf = vec![0i8; samples.len() * 2];
-                for (i, sample) in samples.iter().enumerate() {
-                    i8_buf[i * 2] = (sample.re * 127.0).clamp(-128.0, 127.0) as i8;
-                    i8_buf[i * 2 + 1] = (sample.im * 127.0).clamp(-128.0, 127.0) as i8;
-                }
-                let byte_buf = unsafe {
-                    std::slice::from_raw_parts(
-                        i8_buf.as_ptr() as *const u8,
-                        samples.len() * 2,
-                    )
-                };
-                self.data_file.write_all(byte_buf).map_err(|e| {
-                    SdrError::HardwareError(format!("Write failed: {}", e))
-                })?;
-            }
-            "cu8" => {
-                // Convert f64 to unsigned int8 (RTL-SDR format)
-                let mut u8_buf = vec![0u8; samples.len() * 2];
-                for (i, sample) in samples.iter().enumerate() {
-                    // Map -1.0 to +1.0 -> 0 to 255
-                    u8_buf[i * 2] = ((sample.re + 1.0) * 127.5).clamp(0.0, 255.0) as u8;
-                    u8_buf[i * 2 + 1] = ((sample.im + 1.0) * 127.5).clamp(0.0, 255.0) as u8;
-                }
-                self.data_file.write_all(&u8_buf).map_err(|e| {
-                    SdrError::HardwareError(format!("Write failed: {}", e))
-                })?;
-            }
-            _ => {
-                return Err(SdrError::Unsupported(format!(
-                    "Datatype {} not implemented for writing",
+        // Get IqFormat for this datatype
+        let format = SampleFormat::from_datatype(&self.meta.global.datatype)
+            .ok_or_else(|| {
+                SdrError::Unsupported(format!(
+                    "Datatype {} not supported",
                     self.meta.global.datatype
-                )));
-            }
-        }
+                ))
+            })?;
+
+        let iq_format = format.to_iq_format().ok_or_else(|| {
+            SdrError::Unsupported(format!(
+                "Datatype {} is not a complex format",
+                self.meta.global.datatype
+            ))
+        })?;
+
+        // Serialize using unified IqFormat
+        let bytes = iq_format.to_bytes(samples);
+        self.data_file.write_all(&bytes).map_err(|e| {
+            SdrError::HardwareError(format!("Write failed: {}", e))
+        })?;
 
         self.samples_written += samples.len() as u64;
         Ok(samples.len())

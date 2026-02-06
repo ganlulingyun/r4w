@@ -1,16 +1,22 @@
 //! UDP Sample Receiver for Benchmarking
 //!
-//! Receives I/Q samples over UDP in f32 or i16 format.
+//! Receives I/Q samples over UDP in various formats.
+//! Uses the unified `IqFormat` for actual parsing.
 
+use crate::io::IqFormat;
 use crate::types::IQSample;
 use std::io;
 use std::net::UdpSocket;
 use std::time::Duration;
 
-/// Sample format for UDP data
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Sample format for UDP data.
+///
+/// This is a simplified format enum for the benchmark module.
+/// It wraps the unified `IqFormat` for actual I/O operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SampleFormat {
     /// 32-bit float I/Q pairs (8 bytes per sample)
+    #[default]
     Float32,
     /// 16-bit signed integer I/Q pairs (4 bytes per sample)
     Int16,
@@ -19,10 +25,7 @@ pub enum SampleFormat {
 impl SampleFormat {
     /// Bytes per I/Q sample
     pub fn bytes_per_sample(&self) -> usize {
-        match self {
-            SampleFormat::Float32 => 8,
-            SampleFormat::Int16 => 4,
-        }
+        self.to_iq_format().bytes_per_sample()
     }
 
     /// Get format name
@@ -36,26 +39,46 @@ impl SampleFormat {
     /// Parse format from string
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "f32" | "float32" | "float" => Some(SampleFormat::Float32),
-            "i16" | "int16" | "short" => Some(SampleFormat::Int16),
+            "f32" | "float32" | "float" | "cf32" | "ettus" => Some(SampleFormat::Float32),
+            "i16" | "int16" | "short" | "ci16" | "sc16" => Some(SampleFormat::Int16),
             _ => None,
+        }
+    }
+
+    /// Convert to unified IqFormat
+    pub fn to_iq_format(&self) -> IqFormat {
+        match self {
+            SampleFormat::Float32 => IqFormat::Cf32,
+            SampleFormat::Int16 => IqFormat::Ci16,
+        }
+    }
+
+    /// Create from IqFormat (returns None for unsupported formats)
+    pub fn from_iq_format(fmt: IqFormat) -> Option<Self> {
+        match fmt {
+            IqFormat::Cf32 => Some(SampleFormat::Float32),
+            IqFormat::Ci16 => Some(SampleFormat::Int16),
+            _ => None, // Cf64, Ci8, Cu8 not supported in benchmark
         }
     }
 }
 
 impl std::fmt::Display for SampleFormat {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SampleFormat::Float32 => write!(f, "f32"),
-            SampleFormat::Int16 => write!(f, "i16"),
-        }
+        write!(f, "{}", self.name())
+    }
+}
+
+impl From<SampleFormat> for IqFormat {
+    fn from(fmt: SampleFormat) -> Self {
+        fmt.to_iq_format()
     }
 }
 
 /// UDP receiver for I/Q samples
 pub struct BenchmarkReceiver {
     socket: UdpSocket,
-    format: SampleFormat,
+    format: IqFormat,
     buffer: Vec<u8>,
     /// Total packets received
     pub packets_received: u64,
@@ -70,6 +93,11 @@ pub struct BenchmarkReceiver {
 impl BenchmarkReceiver {
     /// Create a new receiver bound to the specified port
     pub fn bind(port: u16, format: SampleFormat) -> io::Result<Self> {
+        Self::bind_with_iq_format(port, format.to_iq_format())
+    }
+
+    /// Create a new receiver with explicit IqFormat
+    pub fn bind_with_iq_format(port: u16, format: IqFormat) -> io::Result<Self> {
         let socket = UdpSocket::bind(format!("0.0.0.0:{}", port))?;
         // Set non-blocking for timeout support
         socket.set_nonblocking(false)?;
@@ -126,7 +154,8 @@ impl BenchmarkReceiver {
                 self.packets_received += 1;
                 self.bytes_received += len as u64;
 
-                let samples = self.parse_samples(&self.buffer[..len]);
+                // Use unified IqFormat for parsing
+                let samples = self.format.parse_bytes(&self.buffer[..len]);
                 self.samples_received += samples.len() as u64;
                 Ok(samples)
             }
@@ -139,62 +168,6 @@ impl BenchmarkReceiver {
         }
     }
 
-    fn parse_samples(&self, data: &[u8]) -> Vec<IQSample> {
-        match self.format {
-            SampleFormat::Float32 => self.parse_f32(data),
-            SampleFormat::Int16 => self.parse_i16(data),
-        }
-    }
-
-    fn parse_f32(&self, data: &[u8]) -> Vec<IQSample> {
-        let num_samples = data.len() / 8;
-        let mut samples = Vec::with_capacity(num_samples);
-
-        for i in 0..num_samples {
-            let offset = i * 8;
-            if offset + 8 <= data.len() {
-                let i_bytes: [u8; 4] = [
-                    data[offset],
-                    data[offset + 1],
-                    data[offset + 2],
-                    data[offset + 3],
-                ];
-                let q_bytes: [u8; 4] = [
-                    data[offset + 4],
-                    data[offset + 5],
-                    data[offset + 6],
-                    data[offset + 7],
-                ];
-
-                let i_val = f32::from_le_bytes(i_bytes) as f64;
-                let q_val = f32::from_le_bytes(q_bytes) as f64;
-                samples.push(IQSample::new(i_val, q_val));
-            }
-        }
-
-        samples
-    }
-
-    fn parse_i16(&self, data: &[u8]) -> Vec<IQSample> {
-        let num_samples = data.len() / 4;
-        let mut samples = Vec::with_capacity(num_samples);
-
-        for i in 0..num_samples {
-            let offset = i * 4;
-            if offset + 4 <= data.len() {
-                let i_raw = i16::from_le_bytes([data[offset], data[offset + 1]]);
-                let q_raw = i16::from_le_bytes([data[offset + 2], data[offset + 3]]);
-
-                // Scale to [-1.0, 1.0]
-                let i_val = i_raw as f64 / 32768.0;
-                let q_val = q_raw as f64 / 32768.0;
-                samples.push(IQSample::new(i_val, q_val));
-            }
-        }
-
-        samples
-    }
-
     /// Reset statistics
     pub fn reset_stats(&mut self) {
         self.packets_received = 0;
@@ -203,8 +176,13 @@ impl BenchmarkReceiver {
         self.errors = 0;
     }
 
-    /// Get sample format
+    /// Get sample format (as legacy SampleFormat)
     pub fn format(&self) -> SampleFormat {
+        SampleFormat::from_iq_format(self.format).unwrap_or(SampleFormat::Float32)
+    }
+
+    /// Get sample format as IqFormat
+    pub fn iq_format(&self) -> IqFormat {
         self.format
     }
 }
@@ -212,13 +190,18 @@ impl BenchmarkReceiver {
 /// UDP sender for I/Q samples (for testing)
 pub struct BenchmarkSender {
     socket: UdpSocket,
-    format: SampleFormat,
+    format: IqFormat,
     target: std::net::SocketAddr,
 }
 
 impl BenchmarkSender {
     /// Create a new sender
     pub fn new(target: &str, format: SampleFormat) -> io::Result<Self> {
+        Self::new_with_iq_format(target, format.to_iq_format())
+    }
+
+    /// Create a new sender with explicit IqFormat
+    pub fn new_with_iq_format(target: &str, format: IqFormat) -> io::Result<Self> {
         let socket = UdpSocket::bind("0.0.0.0:0")?;
         let target: std::net::SocketAddr = target
             .parse()
@@ -233,35 +216,19 @@ impl BenchmarkSender {
 
     /// Send samples
     pub fn send(&self, samples: &[IQSample]) -> io::Result<usize> {
-        let data = self.serialize_samples(samples);
+        // Use unified IqFormat for serialization
+        let data = self.format.to_bytes(samples);
         self.socket.send_to(&data, self.target)
     }
 
-    fn serialize_samples(&self, samples: &[IQSample]) -> Vec<u8> {
-        match self.format {
-            SampleFormat::Float32 => self.serialize_f32(samples),
-            SampleFormat::Int16 => self.serialize_i16(samples),
-        }
+    /// Get the format
+    pub fn format(&self) -> SampleFormat {
+        SampleFormat::from_iq_format(self.format).unwrap_or(SampleFormat::Float32)
     }
 
-    fn serialize_f32(&self, samples: &[IQSample]) -> Vec<u8> {
-        let mut data = Vec::with_capacity(samples.len() * 8);
-        for s in samples {
-            data.extend_from_slice(&(s.re as f32).to_le_bytes());
-            data.extend_from_slice(&(s.im as f32).to_le_bytes());
-        }
-        data
-    }
-
-    fn serialize_i16(&self, samples: &[IQSample]) -> Vec<u8> {
-        let mut data = Vec::with_capacity(samples.len() * 4);
-        for s in samples {
-            let i_raw = (s.re.clamp(-1.0, 1.0) * 32767.0) as i16;
-            let q_raw = (s.im.clamp(-1.0, 1.0) * 32767.0) as i16;
-            data.extend_from_slice(&i_raw.to_le_bytes());
-            data.extend_from_slice(&q_raw.to_le_bytes());
-        }
-        data
+    /// Get sample format as IqFormat
+    pub fn iq_format(&self) -> IqFormat {
+        self.format
     }
 }
 
@@ -273,8 +240,10 @@ mod tests {
     fn test_sample_format_parse() {
         assert_eq!(SampleFormat::from_str("f32"), Some(SampleFormat::Float32));
         assert_eq!(SampleFormat::from_str("float32"), Some(SampleFormat::Float32));
+        assert_eq!(SampleFormat::from_str("ettus"), Some(SampleFormat::Float32));
         assert_eq!(SampleFormat::from_str("i16"), Some(SampleFormat::Int16));
         assert_eq!(SampleFormat::from_str("int16"), Some(SampleFormat::Int16));
+        assert_eq!(SampleFormat::from_str("sc16"), Some(SampleFormat::Int16));
         assert_eq!(SampleFormat::from_str("invalid"), None);
     }
 
@@ -285,46 +254,78 @@ mod tests {
     }
 
     #[test]
-    fn test_f32_parsing() {
-        let receiver = BenchmarkReceiver {
-            socket: UdpSocket::bind("0.0.0.0:0").unwrap(),
-            format: SampleFormat::Float32,
-            buffer: vec![],
-            packets_received: 0,
-            samples_received: 0,
-            bytes_received: 0,
-            errors: 0,
-        };
+    fn test_sample_format_to_iq_format() {
+        assert_eq!(SampleFormat::Float32.to_iq_format(), IqFormat::Cf32);
+        assert_eq!(SampleFormat::Int16.to_iq_format(), IqFormat::Ci16);
+    }
 
+    #[test]
+    fn test_sample_format_from_iq_format() {
+        assert_eq!(SampleFormat::from_iq_format(IqFormat::Cf32), Some(SampleFormat::Float32));
+        assert_eq!(SampleFormat::from_iq_format(IqFormat::Ci16), Some(SampleFormat::Int16));
+        assert_eq!(SampleFormat::from_iq_format(IqFormat::Cf64), None);
+        assert_eq!(SampleFormat::from_iq_format(IqFormat::Cu8), None);
+    }
+
+    #[test]
+    fn test_f32_roundtrip() {
+        let samples = vec![
+            IQSample::new(0.5, -0.5),
+            IQSample::new(-1.0, 1.0),
+        ];
+
+        // Use IqFormat directly (same as what BenchmarkSender/Receiver use)
+        let format = IqFormat::Cf32;
+        let bytes = format.to_bytes(&samples);
+        let parsed = format.parse_bytes(&bytes);
+
+        assert_eq!(parsed.len(), samples.len());
+        for (orig, dec) in samples.iter().zip(parsed.iter()) {
+            assert!((orig.re - dec.re).abs() < 1e-6);
+            assert!((orig.im - dec.im).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_i16_roundtrip() {
+        let samples = vec![
+            IQSample::new(0.5, -0.5),
+            IQSample::new(-1.0, 1.0),
+        ];
+
+        let format = IqFormat::Ci16;
+        let bytes = format.to_bytes(&samples);
+        let parsed = format.parse_bytes(&bytes);
+
+        assert_eq!(parsed.len(), samples.len());
+        for (orig, dec) in samples.iter().zip(parsed.iter()) {
+            // i16 precision is ~1/32768
+            assert!((orig.re - dec.re).abs() < 1e-4);
+            assert!((orig.im - dec.im).abs() < 1e-4);
+        }
+    }
+
+    #[test]
+    fn test_f32_parsing_backward_compat() {
         // Create test data: I=0.5, Q=-0.5
         let mut data = Vec::new();
         data.extend_from_slice(&0.5f32.to_le_bytes());
         data.extend_from_slice(&(-0.5f32).to_le_bytes());
 
-        let samples = receiver.parse_f32(&data);
+        let samples = IqFormat::Cf32.parse_bytes(&data);
         assert_eq!(samples.len(), 1);
         assert!((samples[0].re - 0.5).abs() < 0.001);
         assert!((samples[0].im - (-0.5)).abs() < 0.001);
     }
 
     #[test]
-    fn test_i16_parsing() {
-        let receiver = BenchmarkReceiver {
-            socket: UdpSocket::bind("0.0.0.0:0").unwrap(),
-            format: SampleFormat::Int16,
-            buffer: vec![],
-            packets_received: 0,
-            samples_received: 0,
-            bytes_received: 0,
-            errors: 0,
-        };
-
+    fn test_i16_parsing_backward_compat() {
         // Create test data: I=16384 (0.5), Q=-16384 (-0.5)
         let mut data = Vec::new();
         data.extend_from_slice(&16384i16.to_le_bytes());
         data.extend_from_slice(&(-16384i16).to_le_bytes());
 
-        let samples = receiver.parse_i16(&data);
+        let samples = IqFormat::Ci16.parse_bytes(&data);
         assert_eq!(samples.len(), 1);
         assert!((samples[0].re - 0.5).abs() < 0.001);
         assert!((samples[0].im - (-0.5)).abs() < 0.001);

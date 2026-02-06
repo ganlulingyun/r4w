@@ -39,6 +39,7 @@
 //! stream.stop()?;
 //! ```
 
+use r4w_core::io::IqFormat;
 use r4w_core::timing::{Timestamp, TimeSource, HardwareClock};
 use r4w_core::types::IQSample;
 use std::time::Duration;
@@ -110,7 +111,10 @@ impl Default for StreamConfig {
     }
 }
 
-/// Sample format.
+/// Sample format for hardware streaming.
+///
+/// This enum is used for configuring hardware streams. It provides
+/// conversion to/from the unified `IqFormat` for actual I/O operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SampleFormat {
     /// 32-bit float I/Q (our native format)
@@ -120,6 +124,43 @@ pub enum SampleFormat {
     ComplexInt16,
     /// 8-bit signed integer I/Q
     ComplexInt8,
+}
+
+impl SampleFormat {
+    /// Convert to unified IqFormat for I/O operations
+    pub fn to_iq_format(&self) -> IqFormat {
+        match self {
+            Self::ComplexFloat32 => IqFormat::Cf32,
+            Self::ComplexInt16 => IqFormat::Ci16,
+            Self::ComplexInt8 => IqFormat::Ci8,
+        }
+    }
+
+    /// Create from IqFormat (returns None for unsupported formats)
+    pub fn from_iq_format(fmt: IqFormat) -> Option<Self> {
+        match fmt {
+            IqFormat::Cf32 => Some(Self::ComplexFloat32),
+            IqFormat::Ci16 => Some(Self::ComplexInt16),
+            IqFormat::Ci8 => Some(Self::ComplexInt8),
+            _ => None, // Cf64, Cu8 not supported in HAL
+        }
+    }
+
+    /// Bytes per I/Q sample
+    pub fn bytes_per_sample(&self) -> usize {
+        self.to_iq_format().bytes_per_sample()
+    }
+
+    /// SigMF datatype string
+    pub fn sigmf_datatype(&self) -> &'static str {
+        self.to_iq_format().sigmf_datatype()
+    }
+}
+
+impl From<SampleFormat> for IqFormat {
+    fn from(fmt: SampleFormat) -> Self {
+        fmt.to_iq_format()
+    }
 }
 
 /// Stream status information.

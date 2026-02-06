@@ -17,6 +17,8 @@ This directory contains comprehensive documentation for the R4W (Rust for Wavefo
 |----------|----------|-------------|
 | [WAVEFORM_DEVELOPERS_GUIDE.md](./WAVEFORM_DEVELOPERS_GUIDE.md) | Software Engineers | Complete guide to developing, debugging, testing, and deploying waveforms |
 | [PHYSICAL_LAYER_GUIDE.md](./PHYSICAL_LAYER_GUIDE.md) | Platform Engineers | Timing model, HAL, RT primitives, configuration, observability |
+| [IQ_FORMAT_GUIDE.md](./IQ_FORMAT_GUIDE.md) | All Developers | Unified IQ sample formats, file I/O, SigMF integration, format conversion |
+| [GNSS_GUIDE.md](./GNSS_GUIDE.md) | GNSS Developers | GPS/Galileo/GLONASS signal generation, scenario simulation, precise ephemeris |
 | [TICK_SCHEDULER_GUIDE.md](./TICK_SCHEDULER_GUIDE.md) | Platform Engineers | Discrete event simulation, time scaling, tick-based event handling |
 | [REALTIME_SCHEDULER_GUIDE.md](./REALTIME_SCHEDULER_GUIDE.md) | Platform Engineers | TX/RX coordination, FHSS, TDMA, production timing |
 | [FPGA_DEVELOPERS_GUIDE.md](./FPGA_DEVELOPERS_GUIDE.md) | FPGA Engineers | IP core library, register maps, integration procedures, collaboration with software |
@@ -102,6 +104,8 @@ This directory contains comprehensive documentation for the R4W (Rust for Wavefo
 |--------------|---------|
 | Understand R4W architecture | [OVERVIEW.md](../OVERVIEW.md) |
 | Implement a new waveform | [WAVEFORM_DEVELOPERS_GUIDE.md](./WAVEFORM_DEVELOPERS_GUIDE.md) |
+| Work with IQ sample formats | [IQ_FORMAT_GUIDE.md](./IQ_FORMAT_GUIDE.md) |
+| Generate GNSS signals | [GNSS_GUIDE.md](./GNSS_GUIDE.md) |
 | Use timing, HAL, RT primitives | [PHYSICAL_LAYER_GUIDE.md](./PHYSICAL_LAYER_GUIDE.md) |
 | Use discrete event simulation | [TICK_SCHEDULER_GUIDE.md](./TICK_SCHEDULER_GUIDE.md) |
 | Design FPGA accelerators | [FPGA_DEVELOPERS_GUIDE.md](./FPGA_DEVELOPERS_GUIDE.md) |
