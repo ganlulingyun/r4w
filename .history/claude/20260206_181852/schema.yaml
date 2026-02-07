@@ -114,23 +114,6 @@ modulation:
     enabled: false
     reference: "previous"           # previous | fixed
 
-  # Subcarrier modulation (BOC, CBOC, AltBOC)
-  # Used in GNSS, UWB, and advanced ranging/spreading signals
-  subcarrier:
-    enabled: false
-    type: "boc"                     # boc | cboc | altboc | tmboc
-    # BOC(m,n): m = subcarrier freq ratio, n = code rate ratio
-    # Freq = m * 1.023 MHz, Code = n * 1.023 Mchip/s
-    m: 1                            # Subcarrier multiplier
-    n: 1                            # Code rate multiplier
-    # Composite BOC (for CBOC, AltBOC)
-    composite:
-      enabled: false
-      components:
-        - { type: "boc", m: 1, n: 1, weight: 0.953, sign: "+" }
-        - { type: "boc", m: 6, n: 1, weight: 0.302, sign: "-" }
-      # weight^2 must sum to 1.0 for power normalization
-
   # === ANALOG MODULATION ===
   # Parameters for AM, FM, PM analog modulation
   analog:
@@ -170,36 +153,6 @@ modulation:
       dc_coupled: false             # Whether baseband includes DC component
 
 # ============================================================================
-# COMPOSITE SIGNAL STRUCTURE
-# ============================================================================
-# For waveforms with independent I and Q channel content
-# (e.g., GNSS data+pilot, CDMA, some radar)
-composite_signal:
-  enabled: false
-  architecture: "iq_multiplex"       # iq_multiplex | time_multiplex | code_multiplex
-
-  i_channel:
-    label: "data"                    # data | pilot | reference | custom
-    modulation_override: null        # Override modulation for this channel (or null = inherit)
-    code_source: "primary"           # Which PN code to use
-    nav_data: true                   # Carries navigation/user data
-    power_weight: 0.707              # 1/sqrt(2) for equal I/Q power split
-    subcarrier_sign: "-"             # For CBOC: sign of secondary BOC component
-
-  q_channel:
-    label: "pilot"
-    modulation_override: null
-    code_source: "secondary"
-    nav_data: false                  # Pilot = data-free
-    power_weight: 0.707
-    subcarrier_sign: "+"
-    secondary_code:
-      enabled: true
-      length: 25                     # Chips in secondary code
-      period_primary_epochs: 1       # Apply once per N primary code epochs
-      # Total overlay period = length * period * primary_code_period
-
-# ============================================================================
 # SPREAD SPECTRUM (Critical for LPD/LPI)
 # ============================================================================
 spread_spectrum:
@@ -214,30 +167,16 @@ spread_spectrum:
     chips_per_symbol: 127           # Spreading factor (processing gain in linear)
 
     pn_sequence:
-      type: "gold"                  # lfsr | gold | kasami | barker | memory | weil | custom
+      type: "gold"                  # lfsr | gold | kasami | barker | custom
       length: 127                   # Sequence length (often 2^n - 1)
       polynomial: "0x83"            # Generator polynomial (for LFSR-based)
       # For Gold codes: two LFSR polynomials
       poly_a: "0x83"
       poly_b: "0x8E"
       initial_state: "0x01"
-      # Memory code parameters (for pre-computed ICD codes)
-      memory:
-        source: "icd"               # icd | file | generated
-        code_length: 4092            # Chips per code period
-        num_codes: 50                # Number of available codes (PRNs)
-        storage: "bit_packed"        # bit_packed | byte_per_chip
 
     # Correlation properties
     cross_correlation_bound: -17    # dB (for multi-user)
-
-    # Secondary (overlay) code - applied at primary code epoch boundaries
-    secondary_code:
-      enabled: false
-      type: "fixed"                 # fixed | neumann_hoffman | custom
-      length: 25                    # Chips in secondary code
-      rate: "epoch"                 # epoch (once per primary period) | symbol
-      # Extends coherent integration time: total = primary_period * secondary_length
 
   # Frequency Hopping Spread Spectrum
   fhss:
@@ -517,18 +456,6 @@ channel:
 
   doppler:
     max_shift_hz: 100               # Maximum Doppler shift
-
-  # Propagation environment models (for scenario simulation)
-  propagation:
-    enabled: false
-    ionosphere:
-      model: "none"                 # none | klobuchar | ionex | nequick
-    troposphere:
-      model: "none"                 # none | saastamoinen | hopfield | nmf
-    path_loss:
-      model: "fspl"                 # fspl | hata | cost231 | itu_r_p2109
-    multipath_preset: "open_sky"    # open_sky | suburban | urban_canyon | indoor
-    antenna_pattern: "isotropic"    # isotropic | patch | choke_ring | custom
 
   jamming:
     resistance: true
