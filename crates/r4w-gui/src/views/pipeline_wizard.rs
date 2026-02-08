@@ -1607,6 +1607,40 @@ pipeline:
         false
     }
 
+    /// Check if adding a connection from `from_block` to `to_block` would create a cycle.
+    /// A cycle would be created if `to_block` can already reach `from_block` through existing connections.
+    pub fn would_create_cycle(&self, from_block: BlockId, to_block: BlockId) -> bool {
+        // Self-loops are always cycles
+        if from_block == to_block {
+            return true;
+        }
+
+        // Check if to_block can reach from_block through existing connections
+        // Using BFS to find if there's a path from to_block to from_block
+        let mut visited = HashSet::new();
+        let mut queue = vec![to_block];
+
+        while let Some(current) = queue.pop() {
+            if current == from_block {
+                return true; // Found a path from to_block to from_block
+            }
+
+            if visited.contains(&current) {
+                continue;
+            }
+            visited.insert(current);
+
+            // Add all downstream blocks from current
+            for conn in &self.connections {
+                if conn.from_block == current && !visited.contains(&conn.to_block) {
+                    queue.push(conn.to_block);
+                }
+            }
+        }
+
+        false
+    }
+
     /// Get connected port info for a block
     pub fn get_input_connections(&self, block_id: BlockId) -> Vec<(u32, BlockId, u32)> {
         self.connections.iter()
@@ -1862,6 +1896,7 @@ pub struct PipelineWizardView {
     pub show_load_menu: bool,
     pub available_specs: Vec<(String, std::path::PathBuf)>,  // (name, path)
     pub cascade_drag: bool,  // When true, dragging a block also drags all downstream blocks
+    pub status_message: Option<(String, std::time::Instant)>,  // (message, when) for temporary notifications
 }
 
 impl Default for PipelineWizardView {
@@ -1890,6 +1925,7 @@ impl Default for PipelineWizardView {
             show_load_menu: false,
             available_specs: Vec::new(),
             cascade_drag: true,  // Default to cascading drag
+            status_message: None,
         }
     }
 }
@@ -2264,6 +2300,39 @@ impl PipelineWizardView {
                 });
         }
 
+        // Bottom status bar for temporary messages
+        if self.status_message.is_some() {
+            egui::TopBottomPanel::bottom("status_bar").show(&ctx, |ui| {
+                ui.horizontal(|ui| {
+                    // Check if message has expired (3 seconds)
+                    let should_clear = if let Some((ref msg, instant)) = self.status_message {
+                        let elapsed = instant.elapsed().as_secs_f32();
+                        if elapsed > 3.0 {
+                            true
+                        } else {
+                            // Show warning icon and message
+                            ui.label(RichText::new("⚠").color(Color32::YELLOW));
+                            ui.label(RichText::new(msg).color(Color32::YELLOW));
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                    if should_clear {
+                        // Will be cleared after the borrow ends
+                    }
+                });
+            });
+
+            // Clear expired messages
+            if let Some((_, instant)) = &self.status_message {
+                if instant.elapsed().as_secs_f32() > 3.0 {
+                    self.status_message = None;
+                }
+            }
+        }
+
         // Main canvas takes the remaining central area
         egui::CentralPanel::default().show(&ctx, |ui| {
             self.render_canvas(ui);
@@ -2396,15 +2465,55 @@ impl PipelineWizardView {
                 let from_pos = self.block_output_pos(from_block, from_port, rect);
                 let to_pos = pointer_pos.unwrap_or(from_pos);
 
-                self.draw_bezier(&painter, from_pos, to_pos, Color32::from_rgb(200, 200, 100), 2.0);
+                // Check if hovering near an input port and if it would create a cycle
+                let mut would_cycle = false;
+                let mut hover_block_name = None;
+                if let Some(cursor_pos) = pointer_pos {
+                    for (id, block) in &self.pipeline.blocks {
+                        let block_rect = self.block_rect(block, rect);
+                        let num_inputs = block.block_type.num_inputs();
+                        for port in 0..num_inputs {
+                            let pos_left = self.block_input_pos(block, port, rect);
+                            let spacing = block_rect.width() / (num_inputs + 1) as f32;
+                            let pos_top = Pos2::new(block_rect.left() + spacing * (port + 1) as f32, block_rect.top());
 
-                // Show instruction
+                            if (cursor_pos - pos_left).length() < 15.0 * self.zoom
+                               || (cursor_pos - pos_top).length() < 15.0 * self.zoom {
+                                if self.pipeline.would_create_cycle(from_block_id, *id) {
+                                    would_cycle = true;
+                                    hover_block_name = Some(block.name.clone());
+                                }
+                                break;
+                            }
+                        }
+                        if would_cycle {
+                            break;
+                        }
+                    }
+                }
+
+                // Draw connection line in red if it would create a cycle
+                let connection_color = if would_cycle {
+                    Color32::from_rgb(255, 80, 80)  // Red for invalid
+                } else {
+                    Color32::from_rgb(200, 200, 100)  // Yellow for valid
+                };
+                self.draw_bezier(&painter, from_pos, to_pos, connection_color, 2.0);
+
+                // Show instruction (with cycle warning if applicable)
+                let instruction = if would_cycle {
+                    format!("Cannot connect: would create a cycle{}",
+                        hover_block_name.map(|n| format!(" with '{}'", n)).unwrap_or_default())
+                } else {
+                    "Click on an input port to complete connection, or press ESC to cancel".to_string()
+                };
+                let text_color = if would_cycle { Color32::RED } else { Color32::YELLOW };
                 painter.text(
                     rect.center_top() + Vec2::new(0.0, 30.0),
                     egui::Align2::CENTER_CENTER,
-                    "Click on an input port to complete connection, or press ESC to cancel",
+                    instruction,
                     egui::FontId::proportional(14.0),
-                    Color32::YELLOW,
+                    text_color,
                 );
             }
         }
@@ -2485,9 +2594,17 @@ impl PipelineWizardView {
                     }
                 }
 
-                // Now make the connection if needed
+                // Now make the connection if needed (with cycle prevention)
                 if let Some((from_block, from_port, to_block, to_port)) = connection_to_make {
-                    self.pipeline.connect(from_block, from_port, to_block, to_port);
+                    if self.pipeline.would_create_cycle(from_block, to_block) {
+                        // Reject connection and show warning
+                        self.status_message = Some((
+                            "Cannot create connection: would form a cycle".to_string(),
+                            std::time::Instant::now(),
+                        ));
+                    } else {
+                        self.pipeline.connect(from_block, from_port, to_block, to_port);
+                    }
                 }
 
                 if !port_clicked {
@@ -3970,5 +4087,92 @@ impl PipelineWizardView {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use egui::Pos2;
+
+    #[test]
+    fn test_cycle_detection_no_cycle() {
+        let mut pipeline = Pipeline::new();
+
+        // Create A -> B -> C (linear, no cycle)
+        let a = pipeline.add_block(BlockType::BitSource { pattern: "random".to_string() }, Pos2::ZERO);
+        let b = pipeline.add_block(BlockType::Scrambler { polynomial: 0x1D, seed: 0xFF }, Pos2::new(100.0, 0.0));
+        let c = pipeline.add_block(BlockType::PskModulator { order: 2 }, Pos2::new(200.0, 0.0));
+
+        pipeline.connect(a, 0, b, 0);
+        pipeline.connect(b, 0, c, 0);
+
+        // Adding C -> D should not create a cycle
+        let d = pipeline.add_block(BlockType::PskModulator { order: 4 }, Pos2::new(300.0, 0.0));
+        assert!(!pipeline.would_create_cycle(c, d));
+
+        // Pipeline has no cycle
+        assert!(!pipeline.has_cycle());
+    }
+
+    #[test]
+    fn test_cycle_detection_simple_cycle() {
+        let mut pipeline = Pipeline::new();
+
+        // Create A -> B -> C
+        let a = pipeline.add_block(BlockType::BitSource { pattern: "random".to_string() }, Pos2::ZERO);
+        let b = pipeline.add_block(BlockType::Scrambler { polynomial: 0x1D, seed: 0xFF }, Pos2::new(100.0, 0.0));
+        let c = pipeline.add_block(BlockType::PskModulator { order: 2 }, Pos2::new(200.0, 0.0));
+
+        pipeline.connect(a, 0, b, 0);
+        pipeline.connect(b, 0, c, 0);
+
+        // Adding C -> A would create a cycle
+        assert!(pipeline.would_create_cycle(c, a));
+
+        // Adding C -> B would create a cycle
+        assert!(pipeline.would_create_cycle(c, b));
+    }
+
+    #[test]
+    fn test_cycle_detection_self_loop() {
+        let mut pipeline = Pipeline::new();
+
+        let a = pipeline.add_block(BlockType::BitSource { pattern: "random".to_string() }, Pos2::ZERO);
+
+        // Self-loop is always a cycle
+        assert!(pipeline.would_create_cycle(a, a));
+    }
+
+    #[test]
+    fn test_cycle_detection_complex_graph() {
+        let mut pipeline = Pipeline::new();
+
+        // Create diamond pattern: A -> B, A -> C, B -> D, C -> D
+        let a = pipeline.add_block(BlockType::BitSource { pattern: "random".to_string() }, Pos2::ZERO);
+        let b = pipeline.add_block(BlockType::Scrambler { polynomial: 0x1D, seed: 0xFF }, Pos2::new(100.0, -50.0));
+        let c = pipeline.add_block(BlockType::Scrambler { polynomial: 0x1D, seed: 0xAA }, Pos2::new(100.0, 50.0));
+        let d = pipeline.add_block(BlockType::PskModulator { order: 2 }, Pos2::new(200.0, 0.0));
+
+        pipeline.connect(a, 0, b, 0);
+        pipeline.connect(a, 0, c, 0);
+        pipeline.connect(b, 0, d, 0);
+        pipeline.connect(c, 0, d, 1);
+
+        // No cycle exists
+        assert!(!pipeline.has_cycle());
+
+        // D -> A would create a cycle
+        assert!(pipeline.would_create_cycle(d, a));
+
+        // D -> B would create a cycle
+        assert!(pipeline.would_create_cycle(d, b));
+
+        // D -> C would create a cycle
+        assert!(pipeline.would_create_cycle(d, c));
+
+        // New node E: D -> E should not create a cycle
+        let e = pipeline.add_block(BlockType::PskModulator { order: 4 }, Pos2::new(300.0, 0.0));
+        assert!(!pipeline.would_create_cycle(d, e));
     }
 }
