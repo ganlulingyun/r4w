@@ -6736,3 +6736,81 @@ Implement GNSS (Global Navigation Satellite System) waveforms for R4W, covering 
 ### Git Operations
 - Commit e745018: `docs(notebooks): add filter design tutorial notebook`
 - Pushed to origin/master
+
+---
+
+## Session 25 — Visual Pipeline Builder
+**Date**: 2026-02-07
+
+### User Request
+- Continue with GNSS scenario plan (already complete)
+- Add missing waveform groups (GNSS, Beacon) to GUI dropdown
+- Add filtering capabilities to waveform wizard
+- Expand wizard to be a more complete waveform specification tool
+- Implement pipeline-based architecture with multiple filters, parallel steps, and visual editing
+- "Do everything you can, I will be gone for a few hours. Think about whether we could have a graphical editor for the design."
+
+### Actions Taken
+
+1. **Added Missing Waveform Groups to GUI Dropdown**
+   - Added `Gnss` group: GPS-L1CA, GPS-L5, GLONASS-L1OF, Galileo-E1
+   - Added `Emergency` group: ELT-121.5, EPIRB-121.5, PLB-121.5, Beacon-243
+   - Added `PublicSafety` group: TETRA, DMR, P25
+
+2. **Enhanced Waveform Wizard** (`waveform_wizard.rs`)
+   - Added Filtering step with FIR/IIR options, sample rate conversion
+   - Added Synchronization step with timing/carrier recovery, AGC, equalization
+   - Added Frame Structure step with TDMA, packet formats, CRC
+   - 11 wizard steps total
+
+3. **Created Visual Pipeline Builder** (`pipeline_wizard.rs` — 1,800+ lines)
+   - **40+ block types** in 10 categories:
+     - Source (Bit, Symbol, File)
+     - Coding (Scrambler, FEC, Interleaver, CRC)
+     - Mapping (Gray, Constellation, Differential)
+     - Modulation (PSK, QAM, FSK, OFDM, DSSS, FHSS, CSS)
+     - Filtering (FIR, IIR, Pulse Shaper, Matched Filter)
+     - Rate Conversion (Upsampler, Downsampler, Rational, Polyphase)
+     - Synchronization (Preamble, Sync Word, Frame Builder, TDMA)
+     - Impairments (AWGN, Fading, CFO, IQ Imbalance)
+     - Recovery (AGC, Timing, Carrier, Equalizer)
+     - Output (IQ, Bit, File, Split, Merge, I/Q Split/Merge)
+   - **Visual canvas** with grid, zoom (0.5x-2x), and pan
+   - **Bezier curve connections** between blocks
+   - **Interactive connection creation**: Click output port → click input port
+   - **12 preset pipeline templates**:
+     - BPSK, QPSK, 16-QAM, LoRa, OFDM, FSK, DSSS, DMR/4FSK Transmitters
+     - BPSK TX→RX, QPSK TX→RX, OFDM TX→RX complete systems
+     - Parallel I/Q Demo (demonstrates I/Q split and merge)
+   - **Auto-layout** with topological sorting
+   - **Pipeline validation** (cycle detection, unconnected inputs/outputs)
+   - **Complete parameter editors** for all block types
+   - **YAML export** for pipeline specifications
+   - **Context menu** (duplicate, delete, disconnect all)
+   - **Snap-to-grid** functionality
+   - **Keyboard shortcuts**: ESC cancel, Delete remove
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `crates/r4w-gui/src/views/pipeline_wizard.rs` | Created — visual pipeline builder (1,800+ lines) |
+| `crates/r4w-gui/src/views/waveform_wizard.rs` | Enhanced — filtering, sync, frame structure steps |
+| `crates/r4w-gui/src/views/mod.rs` | Added pipeline_wizard module |
+| `crates/r4w-gui/src/app.rs` | Added GNSS, Emergency, PublicSafety waveform groups; PipelineBuilder view |
+| `notebooks/12_filter_design.ipynb` | Created — filter design tutorial |
+| `notebooks/README.md` | Updated — added notebooks 11-12 |
+
+### Key Technical Decisions
+- Used egui Canvas API with custom Painter for visual rendering
+- Topological sort for auto-layout algorithm
+- Block-based architecture with typed ports (input/output)
+- Bezier curves for connection visualization (cubic spline)
+- Preset pipelines demonstrate real-world signal processing chains
+- YAML export format compatible with future pipeline execution
+
+### Git Operations
+- Commit f0e940e: `feat(gui): add visual Pipeline Builder for waveform design`
+- Commit 6e3505f: `feat(gui): enhance Pipeline Builder with presets, validation, connection UI`
+- Commit c3015ff: `feat(gui): add more Pipeline Builder presets and auto-layout`
+

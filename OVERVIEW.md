@@ -752,6 +752,76 @@ The implementation prompt documents both registration points.
 
 ---
 
+# Pipeline Builder
+
+The Pipeline Builder is a visual signal processing pipeline designer for creating complex waveform chains with multiple blocks, parallel branches, and flexible routing.
+
+## Features
+
+- **40+ Block Types** in 10 categories:
+  - **Source**: Bit Source, Symbol Source, File Source
+  - **Coding**: Scrambler, FEC Encoder, Interleaver, CRC Generator
+  - **Mapping**: Gray Mapper, Constellation Mapper, Differential Encoder
+  - **Modulation**: PSK, QAM, FSK, OFDM, DSSS, FHSS, CSS (LoRa)
+  - **Filtering**: FIR, IIR, Pulse Shaper, Matched Filter
+  - **Rate Conversion**: Upsampler, Downsampler, Rational Resampler, Polyphase
+  - **Synchronization**: Preamble Insert, Sync Word, Frame Builder, TDMA Framer
+  - **Impairments**: AWGN Channel, Fading Channel, Frequency Offset, IQ Imbalance
+  - **Recovery**: AGC, Timing Recovery, Carrier Recovery, Equalizer
+  - **Output**: IQ Output, Bit Output, File Output, Split, Merge, I/Q Split/Merge
+
+- **Visual Canvas**: Grid background, zoom (0.5x-2x), pan, snap-to-grid
+- **Interactive Connections**: Click output port → click input port to connect
+- **12 Preset Templates**: BPSK/QPSK/16-QAM/LoRa/OFDM/FSK/DSSS/DMR transmitters, complete TX-Channel-RX systems, Parallel I/Q demo
+- **Auto-Layout**: Topological sorting arranges blocks left-to-right
+- **Pipeline Validation**: Detects cycles, unconnected inputs/outputs, disabled blocks
+- **YAML Export**: Export pipeline specification for documentation or execution
+- **Context Menu**: Right-click for duplicate, delete, disconnect all
+
+## Workflow
+
+1. **Open the Pipeline Builder**: Run `cargo run --bin r4w-explorer` and select "Pipeline Builder" view
+2. **Load a Preset** (optional): Click "Presets" and select a template (e.g., "QPSK TX → Channel → RX")
+3. **Add Blocks**: Click blocks in the library panel to add them to the canvas
+4. **Connect Blocks**: Click an output port (red circle), then click an input port (blue circle)
+5. **Configure Blocks**: Select a block and edit parameters in the Properties panel
+6. **Validate**: Click "Validate" to check for errors
+7. **Export**: Click "Export YAML" to save the pipeline specification
+
+## Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| ESC | Cancel connection or deselect |
+| Delete/Backspace | Remove selected block or connection |
+| Scroll | Zoom in/out |
+| Drag canvas | Pan view |
+| Drag block | Move block position |
+
+## Example Pipelines
+
+**QPSK Transmitter**:
+```
+Bit Source → Gray Mapper → PSK Mod → Upsampler → RRC Pulse Shaper → IQ Output
+```
+
+**Complete BPSK System**:
+```
+TX: Bit Source → PSK Mod → Upsampler → RRC
+    ↓
+    AWGN Channel
+    ↓
+RX: Matched Filter → AGC → Timing Recovery → Carrier Recovery → Downsampler → Bit Output
+```
+
+**Parallel I/Q Processing**:
+```
+PSK Mod → I/Q Split → [I Filter] → I/Q Merge → Output
+                    ↘ [Q Filter] ↗
+```
+
+---
+
 # Waveform Developer's Guide
 
 This section covers how to implement new waveforms in R4W.
