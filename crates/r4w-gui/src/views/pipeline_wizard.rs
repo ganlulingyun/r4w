@@ -1252,44 +1252,48 @@ impl PipelineWizardView {
     }
 
     pub fn render(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            ui.heading("Pipeline Waveform Builder");
-            ui.add_space(20.0);
-            ui.checkbox(&mut self.show_library, "Library");
-            ui.checkbox(&mut self.show_properties, "Properties");
-            ui.checkbox(&mut self.snap_to_grid, "Snap");
+        let ctx = ui.ctx().clone();
 
-            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("Export YAML").clicked() {
-                    self.yaml_output = self.pipeline.to_yaml();
-                }
-                if ui.button("Validate").clicked() {
-                    self.validation_result = self.pipeline.validate();
-                    self.show_validation = true;
-                }
-                if ui.button("Auto-Layout").clicked() {
-                    self.pipeline.auto_layout();
-                }
-                if ui.button("Presets").clicked() {
-                    self.show_presets = !self.show_presets;
-                }
-                if ui.button("Clear").clicked() {
-                    self.pipeline = Pipeline::new();
-                    self.selected_block = None;
-                    self.selected_connection = None;
-                    self.connecting_from = None;
-                }
+        // Top panel: Toolbar (rendered first so side panels appear below it)
+        egui::TopBottomPanel::top("pipeline_toolbar")
+            .show(&ctx, |ui| {
+                ui.horizontal(|ui| {
+                    ui.heading("Pipeline Waveform Builder");
+                    ui.add_space(20.0);
+                    ui.checkbox(&mut self.show_library, "Library");
+                    ui.checkbox(&mut self.show_properties, "Properties");
+                    ui.checkbox(&mut self.snap_to_grid, "Snap");
+
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        if ui.button("Export YAML").clicked() {
+                            self.yaml_output = self.pipeline.to_yaml();
+                        }
+                        if ui.button("Validate").clicked() {
+                            self.validation_result = self.pipeline.validate();
+                            self.show_validation = true;
+                        }
+                        if ui.button("Auto-Layout").clicked() {
+                            self.pipeline.auto_layout();
+                        }
+                        if ui.button("Presets").clicked() {
+                            self.show_presets = !self.show_presets;
+                        }
+                        if ui.button("Clear").clicked() {
+                            self.pipeline = Pipeline::new();
+                            self.selected_block = None;
+                            self.selected_connection = None;
+                            self.connecting_from = None;
+                        }
+                    });
+                });
             });
-        });
-
-        ui.separator();
 
         // Preset selection window
         if self.show_presets {
             egui::Window::new("Pipeline Presets")
                 .resizable(false)
                 .collapsible(false)
-                .show(ui.ctx(), |ui| {
+                .show(&ctx, |ui| {
                     ui.label("Load a preset pipeline template:");
                     ui.add_space(5.0);
                     for preset in PipelinePreset::all() {
@@ -1315,7 +1319,7 @@ impl PipelineWizardView {
             egui::Window::new("Pipeline Validation")
                 .resizable(true)
                 .collapsible(false)
-                .show(ui.ctx(), |ui| {
+                .show(&ctx, |ui| {
                     if self.validation_result.is_valid && self.validation_result.warnings.is_empty() {
                         ui.colored_label(Color32::GREEN, "Pipeline is valid!");
                     } else if self.validation_result.is_valid {
@@ -1353,40 +1357,45 @@ impl PipelineWizardView {
                 });
         }
 
-        // Main canvas takes the full area
-        self.render_canvas(ui);
-
-        // Library as a floating window on the left
+        // Left panel: Block Library (uses cloned ctx so it respects TopBottomPanel)
         if self.show_library {
-            egui::Window::new("Block Library")
-                .default_pos([10.0, 120.0])
-                .default_size([200.0, 500.0])
+            egui::SidePanel::left("pipeline_library_panel")
                 .resizable(true)
-                .collapsible(true)
-                .show(ui.ctx(), |ui| {
+                .default_width(200.0)
+                .min_width(150.0)
+                .max_width(350.0)
+                .show(&ctx, |ui| {
+                    ui.heading("Block Library");
+                    ui.separator();
                     self.render_library_content(ui);
                 });
         }
 
-        // Properties as a floating window on the right
+        // Right panel: Properties (uses cloned ctx so it respects TopBottomPanel)
         if self.show_properties {
-            let screen_width = ui.ctx().screen_rect().width();
-            egui::Window::new("Properties")
-                .default_pos([screen_width - 270.0, 120.0])
-                .default_size([250.0, 400.0])
+            egui::SidePanel::right("pipeline_properties_panel")
                 .resizable(true)
-                .collapsible(true)
-                .show(ui.ctx(), |ui| {
+                .default_width(250.0)
+                .min_width(200.0)
+                .max_width(400.0)
+                .show(&ctx, |ui| {
+                    ui.heading("Properties");
+                    ui.separator();
                     self.render_properties_content(ui);
                 });
         }
+
+        // Main canvas takes the remaining central area
+        egui::CentralPanel::default().show(&ctx, |ui| {
+            self.render_canvas(ui);
+        });
 
         // YAML output window
         if !self.yaml_output.is_empty() {
             egui::Window::new("Pipeline YAML")
                 .resizable(true)
                 .default_width(500.0)
-                .show(ui.ctx(), |ui| {
+                .show(&ctx, |ui| {
                     ui.horizontal(|ui| {
                         if ui.button("Copy").clicked() {
                             ui.output_mut(|o| o.copied_text = self.yaml_output.clone());

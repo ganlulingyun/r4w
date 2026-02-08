@@ -36,7 +36,52 @@ jobs:
 
       - name: Run benchmarks
         run: |
-          cargo bench --package r4w-core -- --noplot --save-baseline current 2>&1 | tee benchmark_output.txt
+          # Run benchmarks and capture output
+          cargo bench --package r4w-core -- --noplot 2>&1 | tee benchmark_output.txt
+
+          # Generate JSON output for github-action-benchmark
+          # Parse criterion output and create compatible format
+          echo '[]' > benchmark_results.json
+
+          # Extract benchmark results and create JSON
+          python3 << 'EOF'
+          import re
+          import json
+          import sys
+
+          results = []
+          current_bench = None
+
+          with open('benchmark_output.txt', 'r') as f:
+              for line in f:
+                  # Match benchmark name lines like "bench_name  time:   [1.234 µs 1.250 µs 1.267 µs]"
+                  match = re.match(r'^(\S+)\s+time:\s+\[([^\]]+)\]', line.strip())
+                  if match:
+                      bench_name = match.group(1)
+                      times = match.group(2).split()
+                      # Parse median time (middle value)
+                      if len(times) >= 3:
+                          median_str = times[1]
+                          # Parse time value and unit
+                          time_match = re.match(r'([\d.]+)\s*(\w+)', median_str)
+                          if time_match:
+                              value = float(time_match.group(1))
+                              unit = time_match.group(2)
+                              # Convert to nanoseconds for consistency
+                              multipliers = {'ns': 1, 'µs': 1000, 'us': 1000, 'ms': 1000000, 's': 1000000000}
+                              if unit in multipliers:
+                                  value_ns = value * multipliers[unit]
+                                  results.append({
+                                      'name': bench_name,
+                                      'unit': 'ns',
+                                      'value': value_ns
+                                  })
+
+          with open('benchmark_results.json', 'w') as f:
+              json.dump(results, f, indent=2)
+
+          print(f"Parsed {len(results)} benchmark results")
+          EOF
 
       - name: Extract benchmark results
         id: bench
@@ -56,13 +101,20 @@ jobs:
 
           cat benchmark_summary.md
 
+          # Check if we have benchmark results
+          if [ -s benchmark_results.json ] && [ "$(cat benchmark_results.json)" != "[]" ]; then
+            echo "has_results=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_results=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Store benchmark result
         uses: benchmark-action/github-action-benchmark@v1
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && steps.bench.outputs.has_results == 'true'
         with:
           name: R4W Benchmarks
-          tool: 'cargo'
-          output-file-path: target/criterion/**/*.json
+          tool: 'customSmallerIsBetter'
+          output-file-path: benchmark_results.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           alert-threshold: '150%'
@@ -71,12 +123,12 @@ jobs:
           alert-comment-cc-users: '@${{ github.repository_owner }}'
 
       - name: Compare PR benchmarks
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && steps.bench.outputs.has_results == 'true'
         uses: benchmark-action/github-action-benchmark@v1
         with:
           name: R4W Benchmarks
-          tool: 'cargo'
-          output-file-path: target/criterion/**/*.json
+          tool: 'customSmallerIsBetter'
+          output-file-path: benchmark_results.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: false
           alert-threshold: '130%'
