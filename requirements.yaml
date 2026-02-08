@@ -16,9 +16,9 @@ requirements:
   req_type: Epic
   tags:
   - meshtastic
-  - mesh
   - lora
   - protocol
+  - mesh
   history:
   - id: b87df4b0-b8f6-47cc-bf04-604b5362c7fc
     author: CLI
@@ -40,8 +40,8 @@ requirements:
   modified_at: 2025-12-30T20:09:32.375521722Z
   req_type: Functional
   tags:
-  - lora
   - encoding
+  - lora
   - physical-layer
   relationships:
   - rel_type: Parent
@@ -74,9 +74,9 @@ requirements:
   modified_at: 2025-12-30T20:09:32.379972839Z
   req_type: Functional
   tags:
-  - cad
-  - csma
   - physical-layer
+  - csma
+  - cad
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -204,9 +204,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.749015544Z
   req_type: Functional
   tags:
-  - utilization
   - mac-layer
   - fairness
+  - utilization
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -267,8 +267,8 @@ requirements:
   req_type: Functional
   tags:
   - next-hop
-  - unicast
   - routing
+  - unicast
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -300,9 +300,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.765255591Z
   req_type: Functional
   tags:
+  - deduplication
   - cache
   - routing
-  - deduplication
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -328,9 +328,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.770472367Z
   req_type: Functional
   tags:
-  - discovery
-  - neighbor
   - routing
+  - neighbor
+  - discovery
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -396,8 +396,8 @@ requirements:
   modified_at: 2025-12-30T18:34:16.397667432Z
   req_type: Functional
   tags:
-  - config
   - interop
+  - config
   - channel
   relationships:
   - rel_type: Parent
@@ -456,9 +456,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.029265252Z
   req_type: Functional
   tags:
-  - trait
-  - integration
   - architecture
+  - integration
+  - trait
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -490,9 +490,9 @@ requirements:
   modified_at: 2025-12-30T18:35:04.632283047Z
   req_type: Functional
   tags:
-  - radio
   - hardware
   - sx126x
+  - radio
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -510,9 +510,9 @@ requirements:
   modified_at: 2025-12-30T18:35:14.680235464Z
   req_type: Functional
   tags:
-  - multi-node
   - testing
   - simulation
+  - multi-node
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -530,9 +530,9 @@ requirements:
   modified_at: 2025-12-30T18:35:26.159312602Z
   req_type: NonFunctional
   tags:
+  - power
   - battery
   - nfr
-  - power
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -600,8 +600,8 @@ requirements:
   modified_at: 2026-01-01T00:45:23.000655534Z
   req_type: Functional
   tags:
-  - fading
   - channel
+  - fading
   - doppler
 - id: c83161da-58d1-47d8-b8bf-0af9b75f8607
   spec_id: FR-025
@@ -616,8 +616,8 @@ requirements:
   req_type: Functional
   tags:
   - 3gpp
-  - multipath
   - channel
+  - multipath
 - id: 3fa6715a-0464-4aed-bf9b-e50552ddf5d3
   spec_id: FR-026
   title: CLI Spectrum Analysis Command
@@ -630,9 +630,9 @@ requirements:
   modified_at: 2026-01-01T00:45:29.202873633Z
   req_type: Functional
   tags:
-  - cli
   - spectrum
   - fft
+  - cli
 - id: deb7cb95-87ae-49e7-9f8d-4ca65c2e8d61
   spec_id: FR-027
   title: CLI Waterfall PNG Generation
@@ -645,9 +645,9 @@ requirements:
   modified_at: 2026-01-01T00:45:32.061276826Z
   req_type: Functional
   tags:
-  - spectrogram
-  - waterfall
   - cli
+  - waterfall
+  - spectrogram
 - id: d17f5ab3-f452-45e0-af66-7c8d481ab8fb
   spec_id: FR-028
   title: CLI Signal Statistics
@@ -660,9 +660,9 @@ requirements:
   modified_at: 2026-01-01T00:45:47.480602821Z
   req_type: Functional
   tags:
-  - power
   - cli
   - statistics
+  - power
 - id: 1bb45e13-5952-4b5f-83de-a1046ec7d0f8
   spec_id: FR-029
   title: CLI Peak Detection
@@ -675,8 +675,8 @@ requirements:
   modified_at: 2026-01-01T00:45:50.819575716Z
   req_type: Functional
   tags:
-  - detection
   - peaks
+  - detection
   - cli
 - id: c743ccdf-5f80-413b-96a3-dd09dc0e7233
   spec_id: TASK-030
@@ -690,9 +690,9 @@ requirements:
   modified_at: 2026-01-01T00:45:53.481069148Z
   req_type: Task
   tags:
+  - examples
   - gallery
   - visualization
-  - examples
 - id: 96888938-b9e2-4088-9302-9c3381e7d0d7
   spec_id: TASK-031
   title: Jupyter Tutorial Notebooks
@@ -705,9 +705,9 @@ requirements:
   modified_at: 2026-01-01T00:45:56.165629168Z
   req_type: Task
   tags:
+  - education
   - notebooks
   - tutorials
-  - education
 - id: 55ba297c-a183-4fe3-a616-e484cab0176f
   spec_id: FR-032
   prefix_override: FR
@@ -953,9 +953,9 @@ requirements:
   modified_at: 2026-02-06T17:37:14.161032440Z
   req_type: Functional
   tags:
-  - sigmf
   - refactor
   - formats
+  - sigmf
   - io
   comments:
   - id: d26cedce-06cd-4561-a7bb-5ca9d24f4756
@@ -963,6 +963,50 @@ requirements:
     content: Commit 544df1e - 10 files changed, +1280/-273 lines. New module at r4w-core/src/io/format.rs with 14 unit tests.
     created_at: 2026-02-06T17:37:14.161023603Z
     modified_at: 2026-02-06T17:37:14.161023603Z
+- id: 90c4874a-2a0f-4741-b3e9-88ed3d07a4b0
+  spec_id: FR-046
+  title: Pipeline Builder Cycle Prevention
+  description: Proactive cycle detection when creating connections in the visual Pipeline Builder. Includes would_create_cycle() method that checks if adding a connection would form a cycle using BFS traversal. Visual feedback shows red connection line when hovering over a port that would create a cycle. Status bar displays warning message when cycle is rejected.
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 46-GUI Pipeline Builder
+  created_at: 2026-02-08T20:13:46.198560489Z
+  modified_at: 2026-02-08T20:13:46.198560489Z
+  req_type: Functional
+- id: 7236cfe9-305a-41b0-89ba-69dbb59e333e
+  spec_id: FR-047
+  title: Pipeline Builder Connection Styles
+  description: 'Multiple connection line routing styles for the visual Pipeline Builder. ConnectionStyle enum supports: Bezier (smooth curves), Straight (direct line), Orthogonal (right-angle/Manhattan routing), Angled (45-degree segments). Dropdown selector in toolbar allows switching styles. Improved is_vertical_connection() heuristic for better port positioning in multi-row layouts.'
+  status: Completed
+  priority: Low
+  owner: joe
+  feature: 47-GUI Pipeline Builder
+  created_at: 2026-02-08T20:13:59.940299038Z
+  modified_at: 2026-02-08T20:13:59.940299038Z
+  req_type: Functional
+- id: 87ff9983-6fb3-4d4e-83f0-ae78b6e6cf32
+  spec_id: FR-048
+  title: Pipeline Builder Multi-Selection
+  description: 'Rectangular and lasso multi-selection for pipeline blocks. Features: (1) Rectangle selection - click and drag on empty canvas to select blocks within rectangle, (2) Lasso selection - Alt+click and drag to draw freeform selection path, (3) Shift+click to add/remove from selection, (4) Ctrl+A to select all. Uses HashSet for selected_blocks. Visual feedback with blue rectangle or orange lasso path. Properties panel shows selected count and list. Context menu supports multi-block operations.'
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 48-GUI Pipeline Builder
+  created_at: 2026-02-08T20:14:08.044751093Z
+  modified_at: 2026-02-08T20:14:08.044751093Z
+  req_type: Functional
+- id: 9a5b0f5e-72bb-4139-af6b-3fcd346fc6a1
+  spec_id: FR-049
+  title: Pipeline Builder UX Improvements
+  description: 'Various UX improvements to the Pipeline Builder: (1) ScrollArea added to Properties panel for content that exceeds panel height, (2) drag_started() handler ensures block is selected before drag begins, fixing issue where fast mouse movement could lose the drag, (3) Cascade drag moves all selected blocks plus their downstream connections.'
+  status: Completed
+  priority: Low
+  owner: joe
+  feature: GUI Pipeline Builder
+  created_at: 2026-02-08T20:14:14.646656017Z
+  modified_at: 2026-02-08T20:14:14.646656017Z
+  req_type: Functional
 id_config:
   format: SingleLevel
   numbering: Global
@@ -1008,8 +1052,8 @@ id_config:
     prefix: META
     description: Database configuration and templates
 features: []
-next_feature_number: 46
-next_spec_number: 46
+next_feature_number: 49
+next_spec_number: 50
 prefix_counters: {}
 relationship_definitions:
 - name: parent
