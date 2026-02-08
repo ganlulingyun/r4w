@@ -75,6 +75,7 @@
 
 pub mod fir;
 pub mod iir;
+pub mod polyphase;
 pub mod pulse_shaping;
 pub mod traits;
 pub mod windows;
@@ -85,6 +86,7 @@ pub use traits::{Filter, FilterResponse, FilterType, FirFilterOps, FrequencyResp
 // Re-export filter implementations
 pub use fir::FirFilter;
 pub use iir::{Biquad, IirFilter};
+pub use polyphase::{HalfbandFilter, PolyphaseDecimator, PolyphaseInterpolator, Resampler};
 pub use pulse_shaping::{
     GaussianFilter, PulseShapingFilter, RaisedCosineFilter, RootRaisedCosineFilter,
 };
