@@ -2839,21 +2839,9 @@ impl PipelineWizardView {
                                 self.select_single_block(id);
                             }
                         } else {
-                            // Clicked on empty canvas - start selection
+                            // Clicked on empty canvas - just clear selection (don't start selection mode)
+                            // Selection mode only starts on drag, not click
                             let shift_held = ui.input(|i| i.modifiers.shift);
-                            let alt_held = ui.input(|i| i.modifiers.alt);
-
-                            if alt_held {
-                                // Alt+click starts lasso selection
-                                self.selection_mode = SelectionMode::Lasso;
-                                self.selection_start = Some(click_pos);
-                                self.lasso_points = vec![click_pos];
-                            } else {
-                                // Regular click starts rectangle selection
-                                self.selection_mode = SelectionMode::Rectangle;
-                                self.selection_start = Some(click_pos);
-                            }
-
                             if !shift_held {
                                 self.selected_blocks.clear();
                             }
@@ -2864,7 +2852,7 @@ impl PipelineWizardView {
             }
         }
 
-        // Handle drag start - select block under cursor if not already selected
+        // Handle drag start - select block under cursor or start selection mode
         if response.drag_started() {
             if let Some(start_pos) = pointer_pos {
                 // Check if starting drag on a block
@@ -2878,7 +2866,7 @@ impl PipelineWizardView {
                 }
 
                 if let Some(id) = block_under_cursor {
-                    // If the block isn't already selected, select it (unless shift is held)
+                    // Starting drag on a block - select it if not already selected
                     if !self.selected_blocks.contains(&id) {
                         let shift_held = ui.input(|i| i.modifiers.shift);
                         if shift_held {
@@ -2887,10 +2875,30 @@ impl PipelineWizardView {
                             self.select_single_block(id);
                         }
                     }
-                    // Cancel any selection mode - we're dragging blocks
+                    // We're dragging blocks, not doing selection
                     self.selection_mode = SelectionMode::None;
                     self.selection_start = None;
                     self.lasso_points.clear();
+                } else {
+                    // Starting drag on empty canvas - start selection mode
+                    let shift_held = ui.input(|i| i.modifiers.shift);
+                    let alt_held = ui.input(|i| i.modifiers.alt);
+
+                    if alt_held {
+                        // Alt+drag starts lasso selection
+                        self.selection_mode = SelectionMode::Lasso;
+                        self.selection_start = Some(start_pos);
+                        self.lasso_points = vec![start_pos];
+                    } else {
+                        // Regular drag starts rectangle selection
+                        self.selection_mode = SelectionMode::Rectangle;
+                        self.selection_start = Some(start_pos);
+                    }
+
+                    if !shift_held {
+                        self.selected_blocks.clear();
+                    }
+                    self.selected_connection = None;
                 }
             }
         }
