@@ -6896,3 +6896,47 @@ User noted cascade drag resulted in diagonal crossing connections. Requested:
 ### Git Operations
 - Commit e2280a3: `[AI:claude] feat(pipeline): add connection style options and improved routing`
 - Pushed to origin/master
+
+### Follow-up Request
+User requested rectangular and lasso selection for multi-selecting blocks on the canvas.
+
+### Actions Taken
+
+1. **Changed Selection Model**
+   - Changed `selected_block: Option<BlockId>` to `selected_blocks: HashSet<BlockId>`
+   - Added `SelectionMode` enum: None, Rectangle, Lasso
+   - Added `selection_start: Option<Pos2>` and `lasso_points: Vec<Pos2>` state
+
+2. **Implemented Selection Modes**
+   - **Rectangle**: Click and drag on empty canvas → selects all blocks within rectangle
+   - **Lasso**: Alt+click and drag → freeform path selection
+   - **Shift+click**: Add/remove individual blocks from selection
+   - **Ctrl+A**: Select all blocks
+
+3. **Added Helper Methods**
+   - `single_selected_block()` - get if exactly one selected
+   - `is_block_selected()` - check if block in selection
+   - `select_single_block()` - clear and select one
+   - `toggle_block_selection()` - for shift+click
+   - `clear_selection()` - clear all state
+   - `point_in_polygon()` - ray casting algorithm for lasso
+   - `blocks_in_rect()` - find blocks intersecting rectangle
+   - `blocks_in_lasso()` - find blocks with center inside polygon
+
+4. **Visual Feedback**
+   - Blue semi-transparent rectangle during rect selection
+   - Orange path during lasso selection with dashed close line
+   - Status text shows "Selected: N Blocks" when multiple selected
+
+5. **Multi-Selection Operations**
+   - Drag: moves all selected blocks (plus downstream if cascade enabled)
+   - Delete: removes all selected blocks
+   - Context menu: "Delete N Blocks", "Disconnect All" for multiple
+   - Properties panel: lists selected blocks, shows delete button
+
+6. **Updated Instructions**
+   - Help text updated to show selection shortcuts
+
+### Git Operations
+- Commit 59e60ac: `[AI:claude] feat(pipeline): add rectangular and lasso multi-selection`
+- Pushed to origin/master
