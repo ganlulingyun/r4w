@@ -34,6 +34,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 40+ blocks, TX/RX/Channel loading
+  - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
 
@@ -141,6 +143,10 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Block Metadata System** - Comprehensive documentation for pipeline blocks (`block_metadata.rs`). Each block has: implementation location (file:line with "View Code" to open in VS Code), mathematical formulas with variable explanations, unit tests with "Run" buttons, performance info (complexity, SIMD/GPU support), standards references with links. Properties panel shows collapsible Documentation/Formulas/Implementation/Tests/Performance/Standards sections.
+- **TX/RX/Channel Pipeline Separation** - Waveform specs v1.1 format with separate `tx`, `rx`, and `channel` sections. Load menu offers TX/RX/Loopback options. Block ID conventions: TX(1-99), RX(100-199), Channel(200-299). Loopback mode auto-connects TX → Channel → RX.
+- **Demodulator Blocks** - Added PskDemodulator, QamDemodulator, FskDemodulator block types with property editors and YAML serialization.
+- **Updated Waveform Specs** - All specs (bpsk, qpsk, fsk, lora, cw) updated to v1.1 format with complete TX, RX, and Channel pipeline definitions.
 - **Visual Pipeline Builder** - Graphical signal processing pipeline designer (`r4w-gui/views/pipeline_wizard.rs`). 40+ block types in 10 categories (Source, Coding, Mapping, Modulation, Filtering, Rate Conversion, Synchronization, Impairments, Recovery, Output). Interactive canvas with zoom/pan, Bezier curve connections, click-to-connect ports. 12 preset templates (BPSK/QPSK/16-QAM/LoRa/OFDM/FSK/DSSS/DMR transmitters, TX-Channel-RX systems, Parallel I/Q demo). Auto-layout with topological sorting, pipeline validation (cycle detection, unconnected ports), YAML export, snap-to-grid, keyboard shortcuts.
 - **Enhanced Waveform Wizard** - Filtering step (FIR/IIR options, sample rate conversion), Synchronization step (timing/carrier recovery, AGC, equalization), Frame Structure step (TDMA, packet formats, CRC). 11 wizard steps total.
 - **Generic Filter Trait Architecture** - Extensible filter framework with `Filter`, `RealFilter`, `FirFilterOps`, `FrequencyResponse` traits. FirFilter supports lowpass/highpass/bandpass/bandstop with multiple window functions (Blackman, Hamming, Hann, Kaiser). Kaiser window design with auto β and order calculation. Pulse shaping filters (RRC, RC, Gaussian) now implement all traits for polymorphic usage and frequency response analysis. Special-purpose filters: `moving_average()`, `differentiator()`, `hilbert()`.
