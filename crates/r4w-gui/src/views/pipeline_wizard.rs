@@ -2443,7 +2443,11 @@ impl PipelineWizardView {
                 .show(&ctx, |ui| {
                     ui.heading("Properties");
                     ui.separator();
-                    self.render_properties_content(ui);
+                    egui::ScrollArea::vertical()
+                        .auto_shrink([false, false])
+                        .show(ui, |ui| {
+                            self.render_properties_content(ui);
+                        });
                 });
         }
 
