@@ -359,6 +359,29 @@ pub struct OutputConfig {
     /// Scenario start time as GPS seconds (seconds since Jan 6, 1980 00:00:00 UTC).
     /// Orbital positions are computed at this epoch + elapsed sample time.
     pub start_time_gps_s: f64,
+    /// Output sample format: cf32 (default), cf64, ci16/sc16, ci8, cu8/rtlsdr
+    #[serde(default = "default_format")]
+    pub format: String,
+    /// Lowpass filter cutoff frequency in Hz (0 = disabled)
+    /// Recommended: ~0.5 * sample_rate for anti-aliasing
+    #[serde(default)]
+    pub lpf_cutoff_hz: f64,
+    /// Output file path template (optional). Supports variable substitution:
+    ///   {ts}       - timestamp YYYYmmdd_HHMM (local time)
+    ///   {date}     - date YYYYmmdd
+    ///   {time}     - time HHMM
+    ///   {duration} - duration with unit, e.g. "20s" or "60s"
+    ///   {n_sats}   - number of satellites
+    ///   {signal}   - signal type lowercase, e.g. "e1c"
+    ///   {format}   - output format, e.g. "cf32"
+    ///   {sr_mhz}   - sample rate in MHz, e.g. "5"
+    /// Example: "{ts}_{signal}_{n_sats}prn_{duration}.sigmf-data"
+    #[serde(default)]
+    pub output_path: Option<String>,
+}
+
+fn default_format() -> String {
+    "cf32".to_string()
 }
 
 /// Compute GPS time in seconds for a given UTC date and time of day.
@@ -397,6 +420,9 @@ impl Default for OutputConfig {
             block_size: 0, // auto
             seed: 42,
             start_time_gps_s: start_time,
+            format: "cf32".to_string(),
+            lpf_cutoff_hz: 0.0,
+            output_path: None,
         }
     }
 }
@@ -627,7 +653,7 @@ pub fn discover_visible_satellites(
                     GnssSignal::GpsL1Ca => 14.3,
                     GnssSignal::GpsL5 => 15.5,
                     GnssSignal::GlonassL1of => 14.7,
-                    GnssSignal::GalileoE1 => 15.0,
+                    GnssSignal::GalileoE1 | GnssSignal::GalileoE1C | GnssSignal::GalileoE1OS => 15.0,
                 },
                 nav_data: true,
                 ..SatelliteConfig::empty_snapshot()

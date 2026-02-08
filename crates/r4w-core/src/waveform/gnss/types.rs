@@ -37,8 +37,13 @@ pub enum GnssSignal {
     GpsL5,
     /// GLONASS L1OF (1602 MHz + k*562.5 kHz, FDMA)
     GlonassL1of,
-    /// Galileo E1 (1575.42 MHz, CBOC(6,1,1/11))
+    /// Galileo E1 Data channel (E1B) (1575.42 MHz, CBOC(6,1,1/11))
     GalileoE1,
+    /// Galileo E1 Pilot channel (E1C) (1575.42 MHz, CBOC(6,1,1/11), data-free)
+    GalileoE1C,
+    /// Galileo E1 Open Service - composite E1B+E1C (E1B on I, E1C on Q)
+    /// This is the real Galileo E1 OS signal structure per ICD
+    GalileoE1OS,
 }
 
 impl std::fmt::Display for GnssSignal {
@@ -47,7 +52,9 @@ impl std::fmt::Display for GnssSignal {
             Self::GpsL1Ca => write!(f, "GPS-L1CA"),
             Self::GpsL5 => write!(f, "GPS-L5"),
             Self::GlonassL1of => write!(f, "GLONASS-L1OF"),
-            Self::GalileoE1 => write!(f, "Galileo-E1"),
+            Self::GalileoE1 => write!(f, "Galileo-E1B"),
+            Self::GalileoE1C => write!(f, "Galileo-E1C"),
+            Self::GalileoE1OS => write!(f, "Galileo-E1OS"),
         }
     }
 }
@@ -58,7 +65,7 @@ impl GnssSignal {
         match self {
             Self::GpsL1Ca | Self::GpsL5 => GnssConstellation::Gps,
             Self::GlonassL1of => GnssConstellation::Glonass,
-            Self::GalileoE1 => GnssConstellation::Galileo,
+            Self::GalileoE1 | Self::GalileoE1C | Self::GalileoE1OS => GnssConstellation::Galileo,
         }
     }
 
@@ -68,7 +75,7 @@ impl GnssSignal {
             Self::GpsL1Ca => 1_575_420_000.0,
             Self::GpsL5 => 1_176_450_000.0,
             Self::GlonassL1of => 1_602_000_000.0, // Center, actual = 1602 + k*0.5625 MHz
-            Self::GalileoE1 => 1_575_420_000.0,
+            Self::GalileoE1 | Self::GalileoE1C | Self::GalileoE1OS => 1_575_420_000.0,
         }
     }
 
@@ -78,7 +85,7 @@ impl GnssSignal {
             Self::GpsL1Ca => 1_023_000.0,
             Self::GpsL5 => 10_230_000.0,
             Self::GlonassL1of => 511_000.0,
-            Self::GalileoE1 => 1_023_000.0,
+            Self::GalileoE1 | Self::GalileoE1C | Self::GalileoE1OS => 1_023_000.0,
         }
     }
 
@@ -88,7 +95,7 @@ impl GnssSignal {
             Self::GpsL1Ca => 1023,
             Self::GpsL5 => 10230,
             Self::GlonassL1of => 511,
-            Self::GalileoE1 => 4092,
+            Self::GalileoE1 | Self::GalileoE1C | Self::GalileoE1OS => 4092,
         }
     }
 
@@ -97,14 +104,25 @@ impl GnssSignal {
         self.code_length() as f64 / self.chipping_rate()
     }
 
-    /// Get the navigation data rate in bps
+    /// Get the navigation data rate in bps (0 for pilot channels)
     pub fn nav_data_rate_bps(&self) -> f64 {
         match self {
             Self::GpsL1Ca => 50.0,
             Self::GpsL5 => 50.0,
             Self::GlonassL1of => 50.0,
-            Self::GalileoE1 => 250.0,
+            Self::GalileoE1 | Self::GalileoE1OS => 250.0, // E1OS has data on E1B component
+            Self::GalileoE1C => 0.0, // Pilot channel - no nav data
         }
+    }
+
+    /// Returns true if this is a pilot (data-free) channel
+    pub fn is_pilot(&self) -> bool {
+        matches!(self, Self::GalileoE1C)
+    }
+
+    /// Returns true if this is a composite signal (multiple channels)
+    pub fn is_composite(&self) -> bool {
+        matches!(self, Self::GalileoE1OS)
     }
 }
 
@@ -241,7 +259,9 @@ impl GnssSignalInfo {
             GnssSignal::GpsL1Ca => ("BPSK(1)", "CDMA"),
             GnssSignal::GpsL5 => ("QPSK(10)", "CDMA"),
             GnssSignal::GlonassL1of => ("BPSK(0.5)", "FDMA"),
-            GnssSignal::GalileoE1 => ("CBOC(6,1,1/11)", "CDMA"),
+            GnssSignal::GalileoE1 => ("CBOC(6,1,1/11) E1B", "CDMA"),
+            GnssSignal::GalileoE1C => ("CBOC(6,1,1/11) E1C Pilot", "CDMA"),
+            GnssSignal::GalileoE1OS => ("CBOC(6,1,1/11) E1B+E1C", "CDMA"),
         };
         let code_length = signal.code_length();
         Self {

@@ -24,6 +24,7 @@
 
 pub mod types;
 pub mod prn;
+pub mod galileo_e1_codes;
 pub mod acquisition;
 pub mod tracking;
 pub mod nav_message;
@@ -46,7 +47,7 @@ pub mod sp3;
 pub mod ionex;
 
 pub use types::*;
-pub use prn::{GpsCaCodeGenerator, GlonassCodeGenerator, GalileoE1CodeGenerator, GpsL5CodeGenerator};
+pub use prn::{GpsCaCodeGenerator, GlonassCodeGenerator, GalileoE1CodeGenerator, GalileoE1Channel, GpsL5CodeGenerator};
 pub use acquisition::PcpsAcquisition;
 pub use tracking::TrackingChannel;
 pub use nav_message::LnavMessage;

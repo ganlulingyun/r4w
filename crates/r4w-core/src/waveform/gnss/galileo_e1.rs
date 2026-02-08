@@ -47,15 +47,16 @@ impl GalileoE1 {
     pub const CARRIER_FREQ: f64 = 1_575_420_000.0;
 
     /// Create a new Galileo E1 waveform
+    ///
+    /// Uses real ICD codes for both E1B (data) and E1C (pilot) channels.
     pub fn new(sample_rate: f64, prn: u8) -> Self {
-        let mut gen_b = GalileoE1CodeGenerator::new(prn);
+        // E1B (data channel) - uses ICD E1B code for this PRN
+        let mut gen_b = GalileoE1CodeGenerator::new_e1b(prn);
         let code_b = gen_b.generate_sequence();
 
-        // Pilot uses a different code (PRN + 50 offset for simulation)
-        let mut gen_c = GalileoE1CodeGenerator::new(((prn - 1) % 50) + 1);
-        // Shift to make it different from data code
-        let mut code_c = gen_c.generate_sequence();
-        code_c.rotate_right(prn as usize * 100 % 4092);
+        // E1C (pilot channel) - uses ICD E1C code for this PRN
+        let mut gen_c = GalileoE1CodeGenerator::new_e1c(prn);
+        let code_c = gen_c.generate_sequence();
 
         let common = CommonParams {
             sample_rate,

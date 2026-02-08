@@ -1,0 +1,168 @@
+# Galileo E1C (Pilot) - 8 visible PRNs from Fort Wayne 10-min IQ capture
+# Reference: image (8).png - Visible PRNs during Ten-minute IQ capture file
+# Time: 2025-09-15T20:29:14Z, GPS 1442003372.627 s
+# Receiver: Fort Wayne, IN (41.0712°N, 85.2268°W, 263.6m)
+# Values from precise ephemeris computation (lower CSV table)
+
+satellites:
+# PRN 3 - highest elevation (near zenith)
+- signal: GalileoE1C
+  prn: 3
+  plane: 2
+  slot: 7
+  tx_power_dbw: 15.0
+  nav_data: false
+  elevation_deg: 68.4172
+  azimuth_deg: 59.5847
+  range_m: 23646351.5
+  range_rate_mps: 87.0392
+  doppler_hz: -457.3938
+  cn0_dbhz: 70.1
+  iono_delay_m: 4.6346
+  tropo_delay_m: 2.5816
+
+# PRN 25
+- signal: GalileoE1C
+  prn: 25
+  plane: 0
+  slot: 6
+  tx_power_dbw: 15.0
+  nav_data: false
+  elevation_deg: 50.4682
+  azimuth_deg: 92.3209
+  range_m: 24405430.8
+  range_rate_mps: -76.0039
+  doppler_hz: 399.4032
+  cn0_dbhz: 69.4
+  iono_delay_m: 5.5032
+  tropo_delay_m: 3.1109
+
+# PRN 8
+- signal: GalileoE1C
+  prn: 8
+  plane: 2
+  slot: 6
+  tx_power_dbw: 15.0
+  nav_data: false
+  elevation_deg: 46.368
+  azimuth_deg: 304.2446       # original: -55.7554 -> 360 + (-55.7554)
+  range_m: 24818588.9
+  range_rate_mps: -302.7273
+  doppler_hz: 1590.8425
+  cn0_dbhz: 67.8
+  iono_delay_m: 5.6566
+  tropo_delay_m: 3.3143
+
+# PRN 2
+- signal: GalileoE1C
+  prn: 2
+  plane: 0
+  slot: 5
+  tx_power_dbw: 15.0
+  nav_data: false
+  elevation_deg: 34.0905
+  azimuth_deg: 166.7243
+  range_m: 25458771.1
+  range_rate_mps: -528.8969
+  doppler_hz: 2779.3718
+  cn0_dbhz: 67.2
+  iono_delay_m: 8.0394
+  tropo_delay_m: 4.2743
+
+# PRN 5
+- signal: GalileoE1C
+  prn: 5
+  plane: 2
+  slot: 0
+  tx_power_dbw: 15.0
+  nav_data: false
+  elevation_deg: 21.0163
+  azimuth_deg: 97.3401
+  range_m: 25248617.6
+  range_rate_mps: 387.4881
+  doppler_hz: -2036.2635
+  cn0_dbhz: 66.8
+  iono_delay_m: 9.2225
+  tropo_delay_m: 6.65
+
+# PRN 16
+- signal: GalileoE1C
+  prn: 16
+  plane: 0
+  slot: 7
+  tx_power_dbw: 15.0
+  nav_data: false
+  elevation_deg: 38.1335
+  azimuth_deg: 61.3225
+  range_m: 25274401.9
+  range_rate_mps: 173.269
+  doppler_hz: -910.535
+  cn0_dbhz: 66.2
+  iono_delay_m: 6.1437
+  tropo_delay_m: 3.882
+
+# PRN 13
+- signal: GalileoE1C
+  prn: 13
+  plane: 1
+  slot: 0
+  tx_power_dbw: 15.0
+  nav_data: false
+  elevation_deg: 22.3309
+  azimuth_deg: 281.2284       # original: -78.7716 -> 360 + (-78.7716)
+  range_m: 26605684.1
+  range_rate_mps: 237.3691
+  doppler_hz: -1247.3831
+  cn0_dbhz: 64.5
+  iono_delay_m: 9.0493
+  tropo_delay_m: 6.2821
+
+# PRN 15
+- signal: GalileoE1C
+  prn: 15
+  plane: 1
+  slot: 1
+  tx_power_dbw: 15.0
+  nav_data: false
+  elevation_deg: 14.8103
+  azimuth_deg: 228.1284       # original: -131.8716 -> 360 + (-131.8716)
+  range_m: 27369377.8
+  range_rate_mps: 538.7175
+  doppler_hz: -2830.9795
+  cn0_dbhz: 63.4
+  iono_delay_m: 13.2317
+  tropo_delay_m: 9.2615
+
+receiver:
+  position:
+    lat_deg: 41.07115833333334
+    lon_deg: -85.22680666666665
+    alt_m: 263.6
+  antenna: !Patch
+    peak_gain_dbi: 5.0
+    beamwidth_deg: 150.0
+  elevation_mask_deg: 5.0
+  noise_figure_db: 2.0
+  bandwidth_hz: 5000000.0
+
+environment:
+  ionosphere_enabled: true
+  ionosphere_model: null
+  ionosphere_source:
+    type: Klobuchar
+  troposphere_enabled: true
+  troposphere_model: null
+  multipath_preset: OpenSky
+  multipath_enabled: false
+  ephemeris_source:
+    type: Nominal
+
+output:
+  sample_rate: 5000000.0     # 5 MHz
+  duration_s: 60.0           # 60 seconds
+  format: cf32               # cf32 | cf64 | ci16 | ci8 | cu8
+  lpf_cutoff_hz: 2500000.0    # 2.5 MHz anti-aliasing LPF
+  block_size: 0
+  seed: 42
+  start_time_gps_s: 1442003372.627
+  output_path: "{ts}_{signal}_{n_sats}prn_{duration}.sigmf-data"

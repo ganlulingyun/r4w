@@ -42,6 +42,8 @@ pub struct GnssScenario {
     current_sample: usize,
     sample_rate: f64,
     total_samples: usize,
+    /// Per-emitter Doppler phase accumulators (persisted across blocks)
+    doppler_phases: Vec<f64>,
     /// Simple PRNG state for noise generation (xorshift64)
     rng_state: u64,
     /// SP3 precise ephemeris (optional, feature-gated)
@@ -132,6 +134,7 @@ impl GnssScenario {
         }).collect();
 
         let rng_state = config.output.seed.max(1);
+        let num_emitters = emitters.len();
 
         Self {
             config,
@@ -139,6 +142,7 @@ impl GnssScenario {
             current_sample: 0,
             sample_rate,
             total_samples,
+            doppler_phases: vec![0.0; num_emitters],
             rng_state,
             #[cfg(feature = "ephemeris")]
             sp3,
@@ -232,55 +236,78 @@ impl GnssScenario {
 
         let t_end = t_start + n as f64 / self.sample_rate;
 
-        for emitter in &self.emitters {
+        for (emitter_idx, emitter) in self.emitters.iter().enumerate() {
+            // Get config overrides for this emitter
+            let sat_config = &self.config.satellites[emitter_idx];
+
             // Compute geometry at block start and end for per-sample Doppler interpolation
             // Use SP3 if available, otherwise Keplerian
             let (sat_pos_start, sat_vel_start) = self.get_satellite_position(emitter, t_start);
             let (sat_pos_end, sat_vel_end) = self.get_satellite_position(emitter, t_end);
 
-            // Elevation check at block start
+            // Elevation check at block start (use config override if present)
             let la = look_angle(&rx_ecef, rx_lla, &sat_pos_start);
-            if la.elevation_deg < self.config.receiver.elevation_mask_deg {
+            let elevation_deg = sat_config.elevation_deg.unwrap_or(la.elevation_deg);
+            if elevation_deg < self.config.receiver.elevation_mask_deg {
                 continue;
             }
 
-            let range_m = la.range_m;
+            let range_m = sat_config.range_m.unwrap_or(la.range_m);
 
             // Doppler at block start and end for linear interpolation
-            let rx_vel = EcefVelocity::zero();
+            // Priority: doppler_hz override > range_rate_mps override > orbital mechanics
             let carrier_hz = emitter.signal.carrier_frequency_hz();
-            let rr_start = range_rate(&rx_ecef, &rx_vel, &sat_pos_start, &sat_vel_start);
-            let rr_end = range_rate(&rx_ecef, &rx_vel, &sat_pos_end, &sat_vel_end);
-            let doppler_start_hz = -rr_start * carrier_hz / SPEED_OF_LIGHT;
-            let doppler_end_hz = -rr_end * carrier_hz / SPEED_OF_LIGHT;
+            let (doppler_start_hz, doppler_end_hz) = if let Some(doppler_override) = sat_config.doppler_hz {
+                (doppler_override, doppler_override) // Constant Doppler when overridden
+            } else if let Some(rr_override) = sat_config.range_rate_mps {
+                // Use configured range rate for constant Doppler
+                let doppler = -rr_override * carrier_hz / SPEED_OF_LIGHT;
+                (doppler, doppler)
+            } else {
+                // Compute from orbital mechanics (time-varying across block)
+                let rx_vel = EcefVelocity::zero();
+                let rr_start = range_rate(&rx_ecef, &rx_vel, &sat_pos_start, &sat_vel_start);
+                let rr_end = range_rate(&rx_ecef, &rx_vel, &sat_pos_end, &sat_vel_end);
+                (-rr_start * carrier_hz / SPEED_OF_LIGHT, -rr_end * carrier_hz / SPEED_OF_LIGHT)
+            };
 
             // Atmospheric delays (computed once per block — vary slowly)
-            // Use IONEX if available, otherwise Klobuchar
-            let iono_delay_m = self.get_iono_delay_m(emitter, t_start, rx_lla, la.elevation_deg, la.azimuth_deg);
+            // Use config override if present, else IONEX if available, else Klobuchar
+            let iono_delay_m = sat_config.iono_delay_m.unwrap_or_else(||
+                self.get_iono_delay_m(emitter, t_start, rx_lla, elevation_deg, la.azimuth_deg)
+            );
             let iono_delay_s = iono_delay_m / SPEED_OF_LIGHT;
 
-            // Tropospheric delay from emitter model (uses elevation from SP3 position)
-            let tropo_status = emitter.status_at(t_start, &rx_ecef, rx_lla, &self.config.receiver.antenna);
-            let tropo_delay_s = tropo_status.tropo_delay_m / SPEED_OF_LIGHT;
+            // Tropospheric delay (use config override if present)
+            let tropo_delay_m = sat_config.tropo_delay_m.unwrap_or_else(|| {
+                let tropo_status = emitter.status_at(t_start, &rx_ecef, rx_lla, &self.config.receiver.antenna);
+                tropo_status.tropo_delay_m
+            });
+            let tropo_delay_s = tropo_delay_m / SPEED_OF_LIGHT;
 
-            // C/N0 calculation using SP3 range: EIRP - FSPL + Gr + 204 (in dBW/Hz)
-            let fspl = crate::coordinates::fspl_db(range_m, carrier_hz);
-            let antenna_gain_dbi = self.config.receiver.antenna.gain_dbi(la.elevation_deg);
-            let tx_power_dbw = 14.3; // GPS/Galileo EIRP
-            let cn0_dbhz = tx_power_dbw - fspl + antenna_gain_dbi + 204.0;
+            // C/N0 calculation - use config override if present
+            let cn0_dbhz = sat_config.cn0_dbhz.unwrap_or_else(|| {
+                let fspl = crate::coordinates::fspl_db(range_m, carrier_hz);
+                let antenna_gain_dbi = self.config.receiver.antenna.gain_dbi(elevation_deg);
+                let tx_power_dbw = sat_config.tx_power_dbw;
+                tx_power_dbw - fspl + antenna_gain_dbi + 204.0
+            });
             let rx_power_dbw = cn0_dbhz - 204.0;
             // Scale to reasonable baseband amplitude
             let rx_amplitude = 10.0_f64.powf((rx_power_dbw + 160.0) / 20.0); // shift to reasonable range
 
             // Generate baseband IQ with correct code phase
+            // Pass current_sample so code phase continues across block boundaries
             let baseband = emitter.generate_baseband_iq(
                 t_start, n, self.sample_rate,
                 range_m, iono_delay_s, tropo_delay_s,
+                self.current_sample,
             );
 
             // Apply per-sample Doppler shift (linearly interpolated across block)
+            // Phase accumulator persists across blocks to avoid 1 kHz discontinuities
             let n_f64 = n as f64;
-            let mut phase = 0.0_f64;
+            let mut phase = self.doppler_phases[emitter_idx];
             for (i, &sample) in baseband.iter().enumerate() {
                 let frac = i as f64 / n_f64;
                 let doppler_hz = doppler_start_hz + frac * (doppler_end_hz - doppler_start_hz);
@@ -289,13 +316,17 @@ impl GnssScenario {
                 let doppler_shift = Complex64::new(phase.cos(), phase.sin());
                 composite[i] += sample * doppler_shift * rx_amplitude;
             }
+            self.doppler_phases[emitter_idx] = phase;
         }
 
         // Add thermal noise using Box-Muller with xorshift64 PRNG
+        // Noise spectral density: N0 = kT × NF (W/Hz)
         let noise_figure_linear = 10.0_f64.powf(self.config.receiver.noise_figure_db / 10.0);
         let n0 = 1.380_649e-23 * 290.0 * noise_figure_linear;
         let noise_power = n0 * self.sample_rate;
-        let noise_std = (noise_power / 2.0).sqrt();
+        // Apply same +160 dB baseband reference shift as signal amplitude
+        // (signal uses 10^((P_dBW + 160)/20), i.e., amplitude scaled by 10^8)
+        let noise_std = (noise_power / 2.0).sqrt() * 1e8;
 
         for sample in composite.iter_mut() {
             let (g1, g2) = self.box_muller_pair();
@@ -328,36 +359,49 @@ impl GnssScenario {
         let rx_ecef = lla_to_ecef(rx_lla);
         let antenna = &self.config.receiver.antenna;
 
-        self.emitters.iter().map(|e| {
+        self.emitters.iter().enumerate().map(|(idx, e)| {
+            // Get config overrides for this emitter
+            let sat_config = &self.config.satellites[idx];
+
             // Get satellite position from SP3 (if available) or Keplerian orbit
             let (sat_pos, sat_vel) = self.get_satellite_position(e, t);
 
             // Compute look angle from SP3/Keplerian position
             let la = look_angle(&rx_ecef, rx_lla, &sat_pos);
-            let range_m = la.range_m;
-            let elevation_deg = la.elevation_deg;
-            let azimuth_deg = la.azimuth_deg;
+
+            // Use config overrides if present
+            let range_m = sat_config.range_m.unwrap_or(la.range_m);
+            let elevation_deg = sat_config.elevation_deg.unwrap_or(la.elevation_deg);
+            let azimuth_deg = sat_config.azimuth_deg.unwrap_or(la.azimuth_deg);
 
             // Range rate for Doppler
             let rx_vel = EcefVelocity::zero();
-            let rr = range_rate(&rx_ecef, &rx_vel, &sat_pos, &sat_vel);
+            let rr = sat_config.range_rate_mps.unwrap_or_else(||
+                range_rate(&rx_ecef, &rx_vel, &sat_pos, &sat_vel)
+            );
             let carrier_hz = e.signal.carrier_frequency_hz();
-            let doppler_hz = -rr * carrier_hz / SPEED_OF_LIGHT;
+            let doppler_hz = sat_config.doppler_hz.unwrap_or(-rr * carrier_hz / SPEED_OF_LIGHT);
 
             // Antenna gain
             let antenna_gain_dbi = antenna.gain_dbi(elevation_deg);
 
-            // C/N0 calculation: EIRP - FSPL + Gr + 204 (in dBW/Hz)
-            let fspl = crate::coordinates::fspl_db(range_m, carrier_hz);
-            let tx_power_dbw = 14.3; // GPS/Galileo EIRP
-            let cn0_dbhz = tx_power_dbw - fspl + antenna_gain_dbi + 204.0;
+            // C/N0 calculation: use override if present, else EIRP - FSPL + Gr + 204 (in dBW/Hz)
+            let cn0_dbhz = sat_config.cn0_dbhz.unwrap_or_else(|| {
+                let fspl = crate::coordinates::fspl_db(range_m, carrier_hz);
+                let tx_power_dbw = sat_config.tx_power_dbw;
+                tx_power_dbw - fspl + antenna_gain_dbi + 204.0
+            });
 
-            // Ionospheric delay from IONEX or Klobuchar
-            let iono_delay_m = self.get_iono_delay_m(e, t, rx_lla, elevation_deg, azimuth_deg);
+            // Ionospheric delay - use override if present
+            let iono_delay_m = sat_config.iono_delay_m.unwrap_or_else(||
+                self.get_iono_delay_m(e, t, rx_lla, elevation_deg, azimuth_deg)
+            );
 
-            // Tropospheric delay (from emitter's model if configured)
-            let tropo_status = e.status_at(t, &rx_ecef, rx_lla, antenna);
-            let tropo_delay_m = tropo_status.tropo_delay_m;
+            // Tropospheric delay - use override if present
+            let tropo_delay_m = sat_config.tropo_delay_m.unwrap_or_else(|| {
+                let tropo_status = e.status_at(t, &rx_ecef, rx_lla, antenna);
+                tropo_status.tropo_delay_m
+            });
 
             // Clock correction from SP3 when available
             let clock_correction_s = self.get_clock_correction_s(e, t);
@@ -384,6 +428,7 @@ impl GnssScenario {
     pub fn reset(&mut self) {
         self.current_sample = 0;
         self.rng_state = self.config.output.seed.max(1);
+        self.doppler_phases.fill(0.0);
     }
 
     /// Whether generation is complete
@@ -444,7 +489,7 @@ fn create_waveform(signal: GnssSignal, prn: u8, sample_rate: f64) -> Box<dyn Wav
         GnssSignal::GpsL1Ca => Box::new(GpsL1Ca::new(sample_rate, prn)),
         GnssSignal::GpsL5 => Box::new(GpsL5::new(sample_rate, prn)),
         GnssSignal::GlonassL1of => Box::new(GlonassL1of::new(sample_rate, prn as i8)),
-        GnssSignal::GalileoE1 => Box::new(GalileoE1::new(sample_rate, prn)),
+        GnssSignal::GalileoE1 | GnssSignal::GalileoE1C | GnssSignal::GalileoE1OS => Box::new(GalileoE1::new(sample_rate, prn)),
     }
 }
 

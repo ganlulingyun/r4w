@@ -52,14 +52,18 @@ pub struct SatelliteEmitter {
     tropo_model: Option<SaastamoinenModel>,
     /// Include navigation data modulation
     nav_data: bool,
-    /// Cached code chips for direct phase generation
+    /// Cached code chips for direct phase generation (E1B for E1OS)
     code: Vec<i8>,
+    /// E1C code chips for E1OS composite signal (None for other signals)
+    code_e1c: Option<Vec<i8>>,
     /// Code period in seconds
     code_period_s: f64,
     /// Chipping rate
     chipping_rate: f64,
-    /// CBOC generator for Galileo E1 (None for other signals)
+    /// CBOC generator for Galileo E1 I-channel (E1B for E1OS)
     cboc: Option<CbocGenerator>,
+    /// CBOC generator for E1C Q-channel (only for E1OS)
+    cboc_e1c: Option<CbocGenerator>,
 }
 
 impl SatelliteEmitter {
@@ -71,15 +75,31 @@ impl SatelliteEmitter {
         orbit: KeplerianOrbit,
         tx_power_dbw: f64,
     ) -> Self {
+        use crate::spreading::PnSequence;
+
         let code = generate_prn_code(signal, prn);
         let code_period_s = signal.code_period_s();
         let chipping_rate = signal.chipping_rate();
 
-        // Create CBOC generator for Galileo E1 (data channel E1B)
-        let cboc = match signal {
-            GnssSignal::GalileoE1 => Some(CbocGenerator::e1b()),
-            _ => None,
+        // For E1OS composite signal, we need both E1B and E1C codes
+        let code_e1c = if signal == GnssSignal::GalileoE1OS {
+            let mut gen = super::prn::GalileoE1CodeGenerator::new_e1c(prn);
+            Some((0..gen.length()).map(|_| gen.next_chip()).collect())
+        } else {
+            None
         };
+
+        // Create CBOC generator(s) for Galileo E1 channels
+        // E1B (data) uses -BOC(6,1), E1C (pilot) uses +BOC(6,1)
+        let (cboc, cboc_e1c) = match signal {
+            GnssSignal::GalileoE1 => (Some(CbocGenerator::e1b()), None),
+            GnssSignal::GalileoE1C => (Some(CbocGenerator::e1c()), None),
+            GnssSignal::GalileoE1OS => (Some(CbocGenerator::e1b()), Some(CbocGenerator::e1c())),
+            _ => (None, None),
+        };
+
+        // Pilot channels have no navigation data; E1OS has nav data on E1B component
+        let nav_data = !signal.is_pilot();
 
         Self {
             prn,
@@ -89,11 +109,13 @@ impl SatelliteEmitter {
             tx_power_dbw,
             iono_model: None,
             tropo_model: None,
-            nav_data: true,
+            nav_data,
             code,
+            code_e1c,
             code_period_s,
             chipping_rate,
             cboc,
+            cboc_e1c,
         }
     }
 
@@ -190,6 +212,9 @@ impl SatelliteEmitter {
     ///
     /// For Galileo E1, applies CBOC(6,1,1/11) subcarrier modulation to produce
     /// the characteristic split-spectrum shape required for acquisition/tracking.
+    ///
+    /// For Galileo E1OS (composite), generates E1B on I-channel and E1C on Q-channel,
+    /// matching the real Galileo E1 Open Service signal structure per ICD.
     pub fn generate_baseband_iq(
         &self,
         t: f64,
@@ -198,6 +223,7 @@ impl SatelliteEmitter {
         geometric_range_m: f64,
         iono_delay_s: f64,
         tropo_delay_s: f64,
+        sample_offset: usize,
     ) -> Vec<IQSample> {
         let total_delay_s = geometric_range_m / crate::coordinates::SPEED_OF_LIGHT
             + iono_delay_s
@@ -212,37 +238,88 @@ impl SatelliteEmitter {
         let samples_per_chip = sample_rate / self.chipping_rate;
         let mut output = Vec::with_capacity(num_samples);
 
-        // Simple nav data: flip every N code periods
-        let code_periods_per_bit = (1.0 / (self.signal.nav_data_rate_bps() * self.code_period_s)) as usize;
+        // Simple nav data: flip every N code periods (only for E1B component)
+        let nav_data_rate = self.signal.nav_data_rate_bps();
+        let code_periods_per_bit = if nav_data_rate > 0.0 {
+            (1.0 / (nav_data_rate * self.code_period_s)) as usize
+        } else {
+            1 // Avoid division by zero for pilot-only
+        };
+
+        // Check if this is a composite E1OS signal or E1C-only
+        let is_composite = self.signal == GnssSignal::GalileoE1OS;
+        let is_e1c = self.signal == GnssSignal::GalileoE1C;
+
+        // E1C secondary code (25 chips, applied at each 4ms primary code epoch)
+        // Creates 100ms total period (25 × 4ms)
+        let e1c_secondary = super::prn::GalileoE1CodeGenerator::secondary_code();
 
         for i in 0..num_samples {
             let t_sample = t + i as f64 / sample_rate;
-            let chip_idx_f = initial_code_phase + i as f64 / samples_per_chip;
+            // Use global sample index (sample_offset + i) so code phase
+            // continues correctly across block boundaries
+            let global_i = sample_offset + i;
+            let chip_idx_f = initial_code_phase + global_i as f64 / samples_per_chip;
             let chip_idx = (chip_idx_f % code_length) as usize;
+            let chip_phase = chip_idx_f - chip_idx_f.floor();
 
-            let code_val = self.code[chip_idx.min(self.code.len() - 1)] as f64;
+            // Primary code epoch index based on transmit time (receive_time - delay)
+            // This keeps secondary code synchronized with the delayed primary code
+            let transmit_time = t_sample - total_delay_s;
+            let code_epoch_idx = (transmit_time / self.code_period_s) as usize;
 
-            // Navigation data bit (slow modulation)
-            let nav_bit = if self.nav_data {
-                let code_period_idx = (t_sample / self.code_period_s) as usize;
-                let bit_idx = code_period_idx / code_periods_per_bit;
+            // E1B code value (used for I-channel, or single channel for E1B-only)
+            let code_val_e1b = self.code[chip_idx.min(self.code.len() - 1)] as f64;
+
+            // Navigation data bit (slow modulation) - only on E1B component
+            let nav_bit = if self.nav_data && nav_data_rate > 0.0 {
+                let bit_idx = code_epoch_idx / code_periods_per_bit;
                 // Simple deterministic nav data from PRN
                 if (bit_idx + self.prn as usize) % 2 == 0 { 1.0 } else { -1.0 }
             } else {
                 1.0
             };
 
-            // Apply subcarrier modulation (CBOC for Galileo E1, none for others)
-            let modulated_val = if let Some(ref cboc) = self.cboc {
-                // CBOC subcarrier phase is based on fractional chip position
-                let chip_phase = chip_idx_f - chip_idx_f.floor();
-                code_val * nav_bit * cboc.subcarrier(chip_phase)
-            } else {
-                // Plain BPSK for GPS L1 C/A, GLONASS, etc.
-                code_val * nav_bit
-            };
+            // E1C secondary code chip (changes every 4ms, 25-chip period = 100ms)
+            let secondary_chip = e1c_secondary[code_epoch_idx % 25] as f64;
 
-            output.push(Complex64::new(modulated_val, 0.0));
+            if is_composite {
+                // E1OS: E1B on I-channel, E1C on Q-channel
+                // Per Galileo ICD: E1 = (1/√2) * [e_E1B(t) - e_E1C(t)]  (simplified baseband)
+                // We output: I = E1B*CBOC_B*nav, Q = E1C*CBOC_C*secondary
+
+                let cboc_e1b = self.cboc.as_ref().map(|c| c.subcarrier(chip_phase)).unwrap_or(1.0);
+                let i_val = code_val_e1b * nav_bit * cboc_e1b;
+
+                // E1C code value for Q-channel (with secondary code)
+                let code_val_e1c = self.code_e1c.as_ref()
+                    .map(|c| c[chip_idx.min(c.len() - 1)] as f64)
+                    .unwrap_or(0.0);
+                let cboc_e1c = self.cboc_e1c.as_ref().map(|c| c.subcarrier(chip_phase)).unwrap_or(1.0);
+                let q_val = code_val_e1c * cboc_e1c * secondary_chip;
+
+                // Scale each by 1/√2 to maintain total power
+                let scale = 1.0 / 2.0_f64.sqrt();
+                output.push(Complex64::new(i_val * scale, q_val * scale));
+            } else if is_e1c {
+                // E1C only: apply secondary code
+                let modulated_val = if let Some(ref cboc) = self.cboc {
+                    code_val_e1b * cboc.subcarrier(chip_phase) * secondary_chip
+                } else {
+                    code_val_e1b * secondary_chip
+                };
+                output.push(Complex64::new(modulated_val, 0.0));
+            } else {
+                // E1B or other signals (no secondary code)
+                let modulated_val = if let Some(ref cboc) = self.cboc {
+                    code_val_e1b * nav_bit * cboc.subcarrier(chip_phase)
+                } else {
+                    // Plain BPSK for GPS L1 C/A, GLONASS, etc.
+                    code_val_e1b * nav_bit
+                };
+
+                output.push(Complex64::new(modulated_val, 0.0));
+            }
         }
 
         output
@@ -277,7 +354,18 @@ fn generate_prn_code(signal: GnssSignal, prn: u8) -> Vec<i8> {
             gen.generate_code()
         }
         GnssSignal::GalileoE1 => {
-            let mut gen = super::prn::GalileoE1CodeGenerator::new(prn);
+            // E1B (data channel)
+            let mut gen = super::prn::GalileoE1CodeGenerator::new_e1b(prn);
+            (0..gen.length()).map(|_| gen.next_chip()).collect()
+        }
+        GnssSignal::GalileoE1C => {
+            // E1C (pilot channel) - different code than E1B
+            let mut gen = super::prn::GalileoE1CodeGenerator::new_e1c(prn);
+            (0..gen.length()).map(|_| gen.next_chip()).collect()
+        }
+        GnssSignal::GalileoE1OS => {
+            // E1OS composite: primary code is E1B (E1C is loaded separately in new())
+            let mut gen = super::prn::GalileoE1CodeGenerator::new_e1b(prn);
             (0..gen.length()).map(|_| gen.next_chip()).collect()
         }
     }
@@ -314,7 +402,7 @@ mod tests {
         let orbit = KeplerianOrbit::gps_nominal(0, 0);
         let emitter = SatelliteEmitter::new(1, GnssSignal::GpsL1Ca, wf, orbit, 14.3);
 
-        let samples = emitter.generate_baseband_iq(0.0, 2046, 2_046_000.0, 20_000_000.0, 0.0, 0.0);
+        let samples = emitter.generate_baseband_iq(0.0, 2046, 2_046_000.0, 20_000_000.0, 0.0, 0.0, 0);
         assert_eq!(samples.len(), 2046);
         // All samples should be +/-1 (BPSK)
         for s in &samples {
@@ -329,7 +417,7 @@ mod tests {
         let emitter = SatelliteEmitter::new(1, GnssSignal::GalileoE1, wf, orbit, 15.0);
 
         // Generate at 5 MHz sample rate (~4.89 samples per chip)
-        let samples = emitter.generate_baseband_iq(0.0, 5000, 5_000_000.0, 20_000_000.0, 0.0, 0.0);
+        let samples = emitter.generate_baseband_iq(0.0, 5000, 5_000_000.0, 20_000_000.0, 0.0, 0.0, 0);
         assert_eq!(samples.len(), 5000);
 
         // CBOC samples should have more sign transitions than simple BPSK

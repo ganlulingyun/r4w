@@ -224,30 +224,69 @@ impl PnSequence for GlonassCodeGenerator {
     }
 }
 
+/// Galileo E1 code channel type
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GalileoE1Channel {
+    /// E1B - Data channel carrying I/NAV navigation message
+    E1B,
+    /// E1C - Pilot channel (data-free) for improved tracking
+    E1C,
+}
+
 /// Galileo E1 code generator
 ///
-/// Uses memory codes (4092 chips per PRN). The codes are generated from
-/// a 14-stage LFSR and then truncated/stored. For simplicity, we generate
-/// deterministic codes based on the PRN using a seed-based approach matching
-/// the Galileo ICD structure.
+/// Uses real ICD memory codes (4092 chips per PRN) from Galileo OS SIS ICD.
+/// Supports both E1B (data) and E1C (pilot) channels.
+///
+/// Reference: Galileo OS SIS ICD v2.1, Section 5.1.3
+// trace:FR-046 | ai:claude
 #[derive(Debug, Clone)]
 pub struct GalileoE1CodeGenerator {
     /// Pre-computed code for this PRN
     code: Vec<i8>,
     /// PRN number (1-50)
     prn: u8,
+    /// Channel type (E1B or E1C)
+    channel: GalileoE1Channel,
     /// Current position in the code
     position: usize,
 }
 
 impl GalileoE1CodeGenerator {
-    /// Create a new Galileo E1 code generator
+    /// Create a new Galileo E1 code generator (defaults to E1B data channel)
+    ///
+    /// This is an alias for `new_e1b()` to maintain backward compatibility.
     pub fn new(prn: u8) -> Self {
-        assert!(prn >= 1 && prn <= 50, "Galileo PRN must be 1-50");
-        let code = Self::generate_memory_code(prn);
+        Self::new_e1b(prn)
+    }
+
+    /// Create a new Galileo E1B (data channel) code generator
+    ///
+    /// E1B carries the I/NAV navigation message at 250 bps.
+    pub fn new_e1b(prn: u8) -> Self {
+        assert!(prn >= 1 && prn <= 50, "Galileo PRN must be 1-50, got {}", prn);
+        let packed = &super::galileo_e1_codes::E1B_PACKED[(prn - 1) as usize];
+        let code_arr = super::galileo_e1_codes::unpack_code(packed);
         Self {
-            code,
+            code: code_arr.to_vec(),
             prn,
+            channel: GalileoE1Channel::E1B,
+            position: 0,
+        }
+    }
+
+    /// Create a new Galileo E1C (pilot channel) code generator
+    ///
+    /// E1C is data-free, enabling longer coherent integration for weak signal
+    /// acquisition and improved tracking performance.
+    pub fn new_e1c(prn: u8) -> Self {
+        assert!(prn >= 1 && prn <= 50, "Galileo PRN must be 1-50, got {}", prn);
+        let packed = &super::galileo_e1_codes::E1C_PACKED[(prn - 1) as usize];
+        let code_arr = super::galileo_e1_codes::unpack_code(packed);
+        Self {
+            code: code_arr.to_vec(),
+            prn,
+            channel: GalileoE1Channel::E1C,
             position: 0,
         }
     }
@@ -257,23 +296,17 @@ impl GalileoE1CodeGenerator {
         self.prn
     }
 
-    /// Generate memory code for a given PRN
-    /// Uses a deterministic LFSR-based generation matching Galileo ICD structure.
-    /// The actual Galileo codes are stored in the ICD; this generates codes with
-    /// the same statistical properties for educational/simulation purposes.
-    fn generate_memory_code(prn: u8) -> Vec<i8> {
-        // Use two 14-stage LFSRs with PRN-specific initial states
-        // This produces codes with good cross-correlation properties
-        let seed_a = 0x3FFF_u32; // All ones
-        let seed_b = (prn as u32 * 0x1234 + 0x5678) & 0x3FFF;
+    /// Get the channel type (E1B or E1C)
+    pub fn channel(&self) -> GalileoE1Channel {
+        self.channel
+    }
 
-        let mut lfsr_a = Lfsr::new(14, 0x2015, seed_a.max(1)); // x^14 + x^13 + x^5 + x^3 + 1
-        let mut lfsr_b = Lfsr::new(14, 0x2E57, seed_b.max(1)); // x^14 + x^12 + x^10 + x^7 + x^5 + x^3 + 1
-
-        (0..4092).map(|_| {
-            let bit = lfsr_a.clock() ^ lfsr_b.clock();
-            if bit == 0 { 1 } else { -1 }
-        }).collect()
+    /// Get the E1C secondary code (25 chips)
+    ///
+    /// The secondary code is applied to E1C at the primary code epoch rate
+    /// (4 ms periods), creating a 100 ms secondary code period.
+    pub fn secondary_code() -> &'static [i8; 25] {
+        &super::galileo_e1_codes::E1C_SECONDARY
     }
 }
 
@@ -471,6 +504,124 @@ mod tests {
         let code1 = gen1.generate_sequence();
         let code2 = gen2.generate_sequence();
         assert_ne!(code1, code2);
+    }
+
+    #[test]
+    fn test_galileo_e1b_e1c_different() {
+        // E1B and E1C codes for the same PRN should be different
+        let mut gen_b = GalileoE1CodeGenerator::new_e1b(1);
+        let mut gen_c = GalileoE1CodeGenerator::new_e1c(1);
+        let code_b = gen_b.generate_sequence();
+        let code_c = gen_c.generate_sequence();
+        assert_ne!(code_b, code_c);
+    }
+
+    #[test]
+    fn test_galileo_e1_new_is_e1b() {
+        // new() should be an alias for new_e1b()
+        let mut gen_new = GalileoE1CodeGenerator::new(3);
+        let mut gen_e1b = GalileoE1CodeGenerator::new_e1b(3);
+        let code_new = gen_new.generate_sequence();
+        let code_e1b = gen_e1b.generate_sequence();
+        assert_eq!(code_new, code_e1b);
+        assert_eq!(gen_new.channel(), GalileoE1Channel::E1B);
+    }
+
+    #[test]
+    fn test_galileo_e1_code_values() {
+        let mut gen = GalileoE1CodeGenerator::new_e1b(1);
+        let code = gen.generate_sequence();
+        // All chips should be +1 or -1
+        assert!(code.iter().all(|&c| c == 1 || c == -1));
+    }
+
+    #[test]
+    fn test_galileo_e1_deterministic() {
+        // Codes should be deterministic (same PRN produces same code)
+        let mut gen1 = GalileoE1CodeGenerator::new_e1b(5);
+        let mut gen2 = GalileoE1CodeGenerator::new_e1b(5);
+        let code1 = gen1.generate_sequence();
+        let code2 = gen2.generate_sequence();
+        assert_eq!(code1, code2);
+    }
+
+    #[test]
+    fn test_galileo_e1_icd_reference_e1b_prn1() {
+        // Verify first 20 chips of E1B PRN 1 match embedded reference
+        use crate::waveform::gnss::galileo_e1_codes;
+
+        let mut gen = GalileoE1CodeGenerator::new_e1b(1);
+        let code = gen.generate_sequence();
+        assert_eq!(
+            &code[0..20],
+            &galileo_e1_codes::E1B_PRN1_FIRST20[..],
+            "E1B PRN 1 first 20 chips don't match ICD reference"
+        );
+    }
+
+    #[test]
+    fn test_galileo_e1_icd_reference_e1c_prn1() {
+        // Verify first 20 chips of E1C PRN 1 match embedded reference
+        use crate::waveform::gnss::galileo_e1_codes;
+
+        let mut gen = GalileoE1CodeGenerator::new_e1c(1);
+        let code = gen.generate_sequence();
+        assert_eq!(
+            &code[0..20],
+            &galileo_e1_codes::E1C_PRN1_FIRST20[..],
+            "E1C PRN 1 first 20 chips don't match ICD reference"
+        );
+    }
+
+    #[test]
+    fn test_galileo_e1c_secondary_code() {
+        let secondary = GalileoE1CodeGenerator::secondary_code();
+        assert_eq!(secondary.len(), 25);
+        // All values should be +1 or -1
+        assert!(secondary.iter().all(|&c| c == 1 || c == -1));
+    }
+
+    #[test]
+    fn test_galileo_e1_all_prns_valid() {
+        // Verify all 50 PRNs can be generated
+        for prn in 1..=50 {
+            let mut gen_b = GalileoE1CodeGenerator::new_e1b(prn);
+            let mut gen_c = GalileoE1CodeGenerator::new_e1c(prn);
+            let code_b = gen_b.generate_sequence();
+            let code_c = gen_c.generate_sequence();
+            assert_eq!(code_b.len(), 4092, "E1B PRN {} wrong length", prn);
+            assert_eq!(code_c.len(), 4092, "E1C PRN {} wrong length", prn);
+        }
+    }
+
+    #[test]
+    fn test_galileo_e1_autocorrelation_peak() {
+        let mut gen = GalileoE1CodeGenerator::new_e1b(1);
+        let code = gen.generate_sequence();
+
+        // Peak at lag 0 should be 4092
+        let peak = autocorrelation(&code, 0);
+        assert_eq!(peak, 4092);
+    }
+
+    #[test]
+    fn test_galileo_e1_cross_correlation_bounded() {
+        let mut gen1 = GalileoE1CodeGenerator::new_e1b(1);
+        let mut gen2 = GalileoE1CodeGenerator::new_e1b(2);
+        let code1 = gen1.generate_sequence();
+        let code2 = gen2.generate_sequence();
+
+        // Galileo E1 memory codes have different cross-correlation properties
+        // than Gold codes. The ICD specifies max cross-correlation of ~300 for
+        // 4092-chip codes (vs ~65 for 1023-chip GPS Gold codes).
+        // This is expected since the longer code length provides additional
+        // processing gain that compensates for higher correlation values.
+        let max_xcorr = max_cross_correlation(&code1, &code2);
+        // Relative bound: max_xcorr / code_length should be small
+        let relative = max_xcorr as f64 / 4092.0;
+        assert!(relative < 0.1, "Relative cross-correlation {:.4} exceeds 10%", relative);
+        // Absolute bound based on ICD specifications
+        assert!(max_xcorr <= 350, "Cross-correlation {} exceeds expected bound", max_xcorr);
     }
 
     #[test]

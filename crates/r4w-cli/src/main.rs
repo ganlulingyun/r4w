@@ -877,9 +877,10 @@ enum GnssCommand {
         #[arg(short, long)]
         config: Option<PathBuf>,
 
-        /// Output file for IQ samples
-        #[arg(short, long, default_value = "gnss_scenario.iq")]
-        output: PathBuf,
+        /// Output file for IQ samples. If not specified, uses output_path template from
+        /// config YAML, or auto-generates from timestamp and scenario parameters.
+        #[arg(short, long)]
+        output: Option<PathBuf>,
 
         /// Scenario duration in seconds (default: from preset/config, typically 0.001)
         #[arg(short, long)]
@@ -937,9 +938,10 @@ enum GnssCommand {
         #[arg(long)]
         ionex: Option<PathBuf>,
 
-        /// Output sample format: f64 (default), f32/ettus (USRP compatible), sc16 (signed 16-bit)
-        #[arg(long, default_value = "f64")]
-        format: String,
+        /// Output sample format: cf32/f32 (default), cf64/f64, sc16/ci16, ci8, cu8/rtlsdr.
+        /// If a YAML config is loaded, the config's output.format is used unless overridden here.
+        #[arg(long)]
+        format: Option<String>,
 
         /// Elevation mask in degrees. Satellites below this elevation are excluded. (default: 5.0)
         #[arg(long, default_value = "5.0")]
@@ -3861,9 +3863,11 @@ fn parse_signal_filter(signals: &[String]) -> Result<Vec<r4w_core::waveform::gns
                 result.push(GnssSignal::GpsL5);
             }
             "glonass" | "glonass-l1of" | "glonass-l1" => result.push(GnssSignal::GlonassL1of),
-            "galileo" | "galileo-e1" | "gal" | "gal-e1" => result.push(GnssSignal::GalileoE1),
+            "galileo" | "galileo-e1" | "galileo-e1b" | "gal" | "gal-e1" | "gal-e1b" => result.push(GnssSignal::GalileoE1),
+            "galileo-e1c" | "gal-e1c" | "galileo-pilot" | "gal-pilot" => result.push(GnssSignal::GalileoE1C),
+            "galileo-e1os" | "gal-e1os" | "galileo-os" | "gal-os" => result.push(GnssSignal::GalileoE1OS),
             other => anyhow::bail!(
-                "Unknown signal '{}'. Options: gps, gps-l1ca, gps-l5, gps-all, glonass, glonass-l1of, galileo, galileo-e1",
+                "Unknown signal '{}'. Options: gps, gps-l1ca, gps-l5, gps-all, glonass, glonass-l1of, galileo, galileo-e1, galileo-e1c, galileo-e1os",
                 other
             ),
         }
@@ -3873,11 +3877,59 @@ fn parse_signal_filter(signals: &[String]) -> Result<Vec<r4w_core::waveform::gns
     Ok(result)
 }
 
+/// Expand template variables in output file path
+fn expand_output_template(
+    template: &str,
+    config: &r4w_core::waveform::gnss::scenario_config::GnssScenarioConfig,
+    format_str: &str,
+) -> String {
+    use chrono::Local;
+    let now = Local::now();
+
+    // Determine signal type from first satellite
+    let signal = config.satellites.first()
+        .map(|s| format!("{}", s.signal).to_lowercase().replace('-', "").replace(' ', ""))
+        .unwrap_or_else(|| "unknown".to_string());
+    // Short signal name (e.g., "galileoe1c" -> "e1c")
+    let signal_short = if signal.contains("e1c") { "e1c" }
+        else if signal.contains("e1os") { "e1os" }
+        else if signal.contains("e1") { "e1" }
+        else if signal.contains("l1ca") { "l1ca" }
+        else if signal.contains("l5") { "l5" }
+        else if signal.contains("l1of") { "l1of" }
+        else { &signal };
+
+    // Duration string
+    let dur_s = config.output.duration_s;
+    let duration_str = if dur_s >= 1.0 {
+        format!("{}s", dur_s as u64)
+    } else {
+        format!("{}ms", (dur_s * 1000.0) as u64)
+    };
+
+    let sr_mhz = config.output.sample_rate / 1e6;
+    let sr_str = if sr_mhz == sr_mhz.floor() {
+        format!("{}", sr_mhz as u64)
+    } else {
+        format!("{:.1}", sr_mhz)
+    };
+
+    template
+        .replace("{ts}", &now.format("%Y%m%d_%H%M").to_string())
+        .replace("{date}", &now.format("%Y%m%d").to_string())
+        .replace("{time}", &now.format("%H%M").to_string())
+        .replace("{duration}", &duration_str)
+        .replace("{n_sats}", &config.satellites.len().to_string())
+        .replace("{signal}", signal_short)
+        .replace("{format}", format_str)
+        .replace("{sr_mhz}", &sr_str)
+}
+
 // trace:FR-042 | ai:claude
 fn cmd_gnss_scenario(
     preset: Option<String>,
     config_path: Option<PathBuf>,
-    output: PathBuf,
+    output: Option<PathBuf>,
     duration: Option<f64>,
     sample_rate: Option<f64>,
     lat: Option<f64>,
@@ -3890,7 +3942,7 @@ fn cmd_gnss_scenario(
     ephemeris: Option<String>,
     sp3_path: Option<PathBuf>,
     ionex_path: Option<PathBuf>,
-    format: String,
+    format: Option<String>,
     elevation_mask: f64,
     lpf_cutoff: Option<f64>,
     limit_prns: Option<Vec<String>>,
@@ -3975,9 +4027,9 @@ fn cmd_gnss_scenario(
                         GnssSignal::GpsL1Ca => 14.3,
                         GnssSignal::GpsL5 => 15.5,
                         GnssSignal::GlonassL1of => 14.7,
-                        GnssSignal::GalileoE1 => 15.0,
+                        GnssSignal::GalileoE1 | GnssSignal::GalileoE1C | GnssSignal::GalileoE1OS => 15.0,
                     },
-                    nav_data: true,
+                    nav_data: !sig.is_pilot(),
                     elevation_deg: None,
                     azimuth_deg: None,
                     range_m: None,
@@ -4096,9 +4148,9 @@ fn cmd_gnss_scenario(
                     GnssSignal::GpsL1Ca => 14.3,
                     GnssSignal::GpsL5 => 15.5,
                     GnssSignal::GlonassL1of => 14.7,
-                    GnssSignal::GalileoE1 => 15.0,
+                    GnssSignal::GalileoE1 | GnssSignal::GalileoE1C | GnssSignal::GalileoE1OS => 15.0,
                 },
-                nav_data: true,
+                nav_data: !sig.is_pilot(),
                 elevation_deg: None,
                 azimuth_deg: None,
                 range_m: None,
@@ -4182,9 +4234,9 @@ fn cmd_gnss_scenario(
                                 GnssSignal::GpsL1Ca => 14.3,
                                 GnssSignal::GpsL5 => 15.5,
                                 GnssSignal::GlonassL1of => 14.7,
-                                GnssSignal::GalileoE1 => 15.0,
+                                GnssSignal::GalileoE1 | GnssSignal::GalileoE1C | GnssSignal::GalileoE1OS => 15.0,
                             },
-                            nav_data: true,
+                            nav_data: !signal.is_pilot(),
                             ..SatelliteConfig::empty_snapshot()
                         }, la.elevation_deg));
                     }
@@ -4337,8 +4389,28 @@ fn cmd_gnss_scenario(
     println!("Ionosphere:  {}", ionosphere_desc);
     println!("Receiver:    {:.4}°N, {:.4}°W, {:.0}m", pos.lat_deg, -pos.lon_deg, pos.alt_m);
     println!("Start time:  GPS {:.0} s", config.output.start_time_gps_s);
+    // Resolve format: CLI flag > config YAML > default "cf32"
+    let format_str = format.unwrap_or_else(|| config.output.format.clone());
+    let iq_format = IqFormat::from_str(&format_str)
+        .ok_or_else(|| anyhow::anyhow!(
+            "Unknown format '{}'. Options: cf32/f32/ettus, cf64/f64, sc16/ci16, ci8, cu8/rtlsdr",
+            format_str
+        ))?;
+
+    // Resolve output path: CLI --output > config output_path template > default
+    let output = if let Some(p) = output {
+        p
+    } else if let Some(ref tmpl) = config.output.output_path {
+        PathBuf::from(expand_output_template(tmpl, &config, &format_str))
+    } else {
+        // Auto-generate: {ts}_{signal}_{n_sats}prn_{duration}.sigmf-data
+        let auto_tmpl = "{ts}_{signal}_{n_sats}prn_{duration}.sigmf-data";
+        PathBuf::from(expand_output_template(auto_tmpl, &config, &format_str))
+    };
+
     println!("Duration:    {} ms", config.output.duration_s * 1000.0);
     println!("Sample rate: {} MHz", config.output.sample_rate / 1e6);
+    println!("Format:      {}", iq_format.display_name());
     println!("Output:      {}", output.display());
     println!();
 
@@ -4372,24 +4444,20 @@ fn cmd_gnss_scenario(
     let mut samples = scenario.generate();
     println!("Generated {} IQ samples", samples.len());
 
-    // Apply lowpass anti-aliasing filter if requested
-    if let Some(cutoff) = lpf_cutoff {
+    // Apply lowpass anti-aliasing filter
+    // Priority: CLI --lpf-cutoff > config YAML lpf_cutoff_hz > disabled
+    let effective_lpf = lpf_cutoff.unwrap_or(scenario.config().output.lpf_cutoff_hz);
+    if effective_lpf > 0.0 {
         use r4w_core::filters::FirFilter;
         let sample_rate = scenario.config().output.sample_rate;
         // Use 63 taps for good stopband attenuation (~50 dB)
         let num_taps = 63;
-        let mut filter = FirFilter::lowpass(cutoff, sample_rate, num_taps);
-        println!("Applying lowpass filter: {:.2} MHz cutoff, {} taps", cutoff / 1e6, num_taps);
+        let mut filter = FirFilter::lowpass(effective_lpf, sample_rate, num_taps);
+        println!("Applying lowpass filter: {:.2} MHz cutoff, {} taps", effective_lpf / 1e6, num_taps);
         filter.process_inplace(&mut samples);
     }
 
-    // Write output in requested format using unified IqFormat
-    let iq_format = IqFormat::from_str(&format)
-        .ok_or_else(|| anyhow::anyhow!(
-            "Unknown format '{}'. Options: f64, f32/ettus, sc16/ci16, ci8, cu8/rtlsdr",
-            format
-        ))?;
-
+    // Write output in requested format
     let mut file = std::fs::File::create(&output)?;
     iq_format.write_samples(&mut file, &samples)?;
     let file_size = samples.len() * iq_format.bytes_per_sample();
@@ -4400,6 +4468,28 @@ fn cmd_gnss_scenario(
         .map(|s| s.re * s.re + s.im * s.im)
         .sum::<f64>() / samples.len() as f64;
     println!("Average power: {:.2} dB", 10.0 * avg_power.log10());
+
+    // Save effective config as companion YAML alongside output file
+    // This captures all CLI overrides so the exact parameters are reproducible
+    {
+        let mut effective_config = scenario.config().clone();
+        effective_config.output.format = format_str;
+        effective_config.output.lpf_cutoff_hz = effective_lpf;
+
+        let config_path = output.with_extension("yaml");
+        match serde_yaml::to_string(&effective_config) {
+            Ok(yaml) => {
+                if let Err(e) = std::fs::write(&config_path, &yaml) {
+                    eprintln!("Warning: Failed to write config file '{}': {}", config_path.display(), e);
+                } else {
+                    println!("Config:        {}", config_path.display());
+                }
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to serialize config: {}", e);
+            }
+        }
+    }
 
     Ok(())
 }

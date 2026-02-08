@@ -1,0 +1,49 @@
+# Galileo E1C (Pilot) PRN3 - 60 seconds, realistic C/N0 + channel effects
+# C/N0 = 34 dB-Hz, Doppler from orbital motion, Klobuchar iono, Saastamoinen tropo
+
+satellites:
+- signal: GalileoE1C
+  prn: 3
+  plane: 2
+  slot: 7
+  tx_power_dbw: 15.0
+  nav_data: false            # E1C is pilot - no nav data
+  elevation_deg: 45.0
+  azimuth_deg: 180.0
+  range_m: 23200000.0
+  range_rate_mps: -800.0     # Realistic: ~800 m/s range rate -> ~4.2 kHz Doppler at L1
+  cn0_dbhz: 34.0             # Realistic weak signal C/N0
+
+receiver:
+  position:
+    lat_deg: 41.07115833333334
+    lon_deg: -85.22680666666665
+    alt_m: 263.6
+  antenna: !Patch
+    peak_gain_dbi: 5.0
+    beamwidth_deg: 150.0
+  elevation_mask_deg: 5.0
+  noise_figure_db: 2.0
+  bandwidth_hz: 5000000.0
+
+environment:
+  ionosphere_enabled: true
+  ionosphere_model: null
+  ionosphere_source:
+    type: Klobuchar
+  troposphere_enabled: true
+  troposphere_model: null
+  multipath_preset: OpenSky
+  multipath_enabled: false
+  ephemeris_source:
+    type: Nominal
+
+output:
+  sample_rate: 5000000.0     # 5 MHz
+  duration_s: 60.0           # 60 seconds
+  format: cf32               # cf32 | cf64 | ci16 | ci8 | cu8
+  lpf_cutoff_hz: 2500000.0    # 2.5 MHz anti-aliasing LPF
+  block_size: 0
+  seed: 42
+  start_time_gps_s: 1441916972.627
+  output_path: "{ts}_{signal}_{n_sats}prn_{duration}.sigmf-data"
