@@ -504,6 +504,18 @@ impl ConnectionStyle {
     }
 }
 
+/// Selection mode for multi-select on canvas
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SelectionMode {
+    /// No selection in progress
+    #[default]
+    None,
+    /// Rectangular marquee selection (click and drag)
+    Rectangle,
+    /// Freeform lasso selection (click and draw path)
+    Lasso,
+}
+
 impl Pipeline {
     pub fn new() -> Self {
         Self {
@@ -1903,7 +1915,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
 /// Pipeline wizard view state
 pub struct PipelineWizardView {
     pub pipeline: Pipeline,
-    pub selected_block: Option<BlockId>,
+    pub selected_blocks: HashSet<BlockId>,  // Multiple block selection
     pub selected_connection: Option<usize>,
     pub dragging_block: Option<BlockType>,
     pub connecting_from: Option<(BlockId, u32)>,
@@ -1927,13 +1939,17 @@ pub struct PipelineWizardView {
     pub cascade_drag: bool,  // When true, dragging a block also drags all downstream blocks
     pub status_message: Option<(String, std::time::Instant)>,  // (message, when) for temporary notifications
     pub connection_style: ConnectionStyle,  // Visual routing style for connections
+    // Multi-selection state
+    pub selection_mode: SelectionMode,
+    pub selection_start: Option<Pos2>,  // Start point of rectangle/lasso
+    pub lasso_points: Vec<Pos2>,        // Points for lasso selection
 }
 
 impl Default for PipelineWizardView {
     fn default() -> Self {
         Self {
             pipeline: Pipeline::new(),
-            selected_block: None,
+            selected_blocks: HashSet::new(),
             selected_connection: None,
             dragging_block: None,
             connecting_from: None,
@@ -1957,11 +1973,100 @@ impl Default for PipelineWizardView {
             cascade_drag: true,  // Default to cascading drag
             status_message: None,
             connection_style: ConnectionStyle::default(),
+            selection_mode: SelectionMode::None,
+            selection_start: None,
+            lasso_points: Vec::new(),
         }
     }
 }
 
 impl PipelineWizardView {
+    /// Get single selected block (if exactly one is selected)
+    fn single_selected_block(&self) -> Option<BlockId> {
+        if self.selected_blocks.len() == 1 {
+            self.selected_blocks.iter().next().copied()
+        } else {
+            None
+        }
+    }
+
+    /// Check if a block is selected
+    fn is_block_selected(&self, id: BlockId) -> bool {
+        self.selected_blocks.contains(&id)
+    }
+
+    /// Select a single block (clearing any previous selection)
+    fn select_single_block(&mut self, id: BlockId) {
+        self.selected_blocks.clear();
+        self.selected_blocks.insert(id);
+        self.selected_connection = None;
+    }
+
+    /// Toggle block selection (for shift+click)
+    fn toggle_block_selection(&mut self, id: BlockId) {
+        if self.selected_blocks.contains(&id) {
+            self.selected_blocks.remove(&id);
+        } else {
+            self.selected_blocks.insert(id);
+        }
+        self.selected_connection = None;
+    }
+
+    /// Clear all selection
+    fn clear_selection(&mut self) {
+        self.selected_blocks.clear();
+        self.selected_connection = None;
+        self.selection_mode = SelectionMode::None;
+        self.selection_start = None;
+        self.lasso_points.clear();
+    }
+
+    /// Check if point is inside a polygon (for lasso selection)
+    fn point_in_polygon(point: Pos2, polygon: &[Pos2]) -> bool {
+        if polygon.len() < 3 {
+            return false;
+        }
+        let mut inside = false;
+        let n = polygon.len();
+        let mut j = n - 1;
+        for i in 0..n {
+            let pi = polygon[i];
+            let pj = polygon[j];
+            if ((pi.y > point.y) != (pj.y > point.y))
+                && (point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y) + pi.x)
+            {
+                inside = !inside;
+            }
+            j = i;
+        }
+        inside
+    }
+
+    /// Find all blocks inside a rectangle
+    fn blocks_in_rect(&self, rect: Rect, canvas_rect: Rect) -> HashSet<BlockId> {
+        let mut result = HashSet::new();
+        for (id, block) in &self.pipeline.blocks {
+            let block_rect = self.block_rect(block, canvas_rect);
+            if rect.intersects(block_rect) {
+                result.insert(*id);
+            }
+        }
+        result
+    }
+
+    /// Find all blocks inside a lasso polygon
+    fn blocks_in_lasso(&self, polygon: &[Pos2], canvas_rect: Rect) -> HashSet<BlockId> {
+        let mut result = HashSet::new();
+        for (id, block) in &self.pipeline.blocks {
+            let block_rect = self.block_rect(block, canvas_rect);
+            // Check if block center is inside polygon
+            if Self::point_in_polygon(block_rect.center(), polygon) {
+                result.insert(*id);
+            }
+        }
+        result
+    }
+
     /// Find all blocks downstream from a given block (following output connections)
     fn get_downstream_blocks(&self, start_id: BlockId) -> HashSet<BlockId> {
         let mut downstream = HashSet::new();
@@ -2117,7 +2222,7 @@ impl PipelineWizardView {
                                                             match Pipeline::from_yaml_with_mode(&yaml, LoadMode::TxOnly) {
                                                                 Ok(pipeline) => {
                                                                     self.pipeline = pipeline;
-                                                                    self.selected_block = None;
+                                                                    self.selected_blocks.clear();
                                                                     self.selected_connection = None;
                                                                     self.last_added_block = None;
                                                                 }
@@ -2131,7 +2236,7 @@ impl PipelineWizardView {
                                                             match Pipeline::from_yaml_with_mode(&yaml, LoadMode::RxOnly) {
                                                                 Ok(pipeline) => {
                                                                     self.pipeline = pipeline;
-                                                                    self.selected_block = None;
+                                                                    self.selected_blocks.clear();
                                                                     self.selected_connection = None;
                                                                     self.last_added_block = None;
                                                                 }
@@ -2145,7 +2250,7 @@ impl PipelineWizardView {
                                                             match Pipeline::from_yaml_with_mode(&yaml, LoadMode::Loopback) {
                                                                 Ok(pipeline) => {
                                                                     self.pipeline = pipeline;
-                                                                    self.selected_block = None;
+                                                                    self.selected_blocks.clear();
                                                                     self.selected_connection = None;
                                                                     self.last_added_block = None;
                                                                 }
@@ -2160,7 +2265,7 @@ impl PipelineWizardView {
                                                             match Pipeline::from_yaml_with_mode(&yaml, LoadMode::ChannelOnly) {
                                                                 Ok(pipeline) => {
                                                                     self.pipeline = pipeline;
-                                                                    self.selected_block = None;
+                                                                    self.selected_blocks.clear();
                                                                     self.selected_connection = None;
                                                                     self.last_added_block = None;
                                                                 }
@@ -2176,7 +2281,7 @@ impl PipelineWizardView {
                                                     match Pipeline::from_yaml(&yaml) {
                                                         Ok(pipeline) => {
                                                             self.pipeline = pipeline;
-                                                            self.selected_block = None;
+                                                            self.selected_blocks.clear();
                                                             self.selected_connection = None;
                                                             self.last_added_block = None;
                                                         }
@@ -2203,7 +2308,7 @@ impl PipelineWizardView {
                                             match Pipeline::from_yaml(&yaml) {
                                                 Ok(pipeline) => {
                                                     self.pipeline = pipeline;
-                                                    self.selected_block = None;
+                                                    self.selected_blocks.clear();
                                                     self.selected_connection = None;
                                                     self.last_added_block = None;
                                                 }
@@ -2235,7 +2340,7 @@ impl PipelineWizardView {
                         }
                         if ui.button("Clear").clicked() {
                             self.pipeline = Pipeline::new();
-                            self.selected_block = None;
+                            self.selected_blocks.clear();
                             self.selected_connection = None;
                             self.connecting_from = None;
                             self.last_added_block = None;
@@ -2256,7 +2361,7 @@ impl PipelineWizardView {
                         ui.horizontal(|ui| {
                             if ui.button(preset.name()).clicked() {
                                 self.pipeline = Pipeline::from_preset(*preset);
-                                self.selected_block = None;
+                                self.selected_blocks.clear();
                                 self.selected_connection = None;
                                 self.last_added_block = None;
                                 self.show_presets = false;
@@ -2568,6 +2673,44 @@ impl PipelineWizardView {
             }
         }
 
+        // Draw selection rectangle or lasso
+        match self.selection_mode {
+            SelectionMode::Rectangle => {
+                if let (Some(start), Some(current)) = (self.selection_start, pointer_pos) {
+                    let sel_rect = Rect::from_two_pos(start, current);
+                    painter.rect_stroke(
+                        sel_rect,
+                        0.0,
+                        Stroke::new(1.5, Color32::from_rgba_unmultiplied(100, 150, 255, 200)),
+                    );
+                    painter.rect_filled(
+                        sel_rect,
+                        0.0,
+                        Color32::from_rgba_unmultiplied(100, 150, 255, 30),
+                    );
+                }
+            }
+            SelectionMode::Lasso => {
+                if self.lasso_points.len() >= 2 {
+                    // Draw the lasso path
+                    let points = self.lasso_points.clone();
+                    painter.add(PathShape::line(
+                        points.clone(),
+                        Stroke::new(2.0, Color32::from_rgba_unmultiplied(255, 150, 100, 200)),
+                    ));
+
+                    // Draw closing line to start point
+                    if let (Some(first), Some(last)) = (points.first(), points.last()) {
+                        painter.line_segment(
+                            [*last, *first],
+                            Stroke::new(1.0, Color32::from_rgba_unmultiplied(255, 150, 100, 100)),
+                        );
+                    }
+                }
+            }
+            SelectionMode::None => {}
+        }
+
         // Handle port clicks for connection creation
         if response.clicked() {
             if let Some(click_pos) = pointer_pos {
@@ -2628,7 +2771,7 @@ impl PipelineWizardView {
                     for (id, port, port_pos) in port_info {
                         if (click_pos - port_pos).length() < 10.0 * self.zoom {
                             self.connecting_from = Some((id, port));
-                            self.selected_block = None;
+                            self.selected_blocks.clear();
                             self.selected_connection = None;
                             port_clicked = true;
                             break;
@@ -2671,69 +2814,145 @@ impl PipelineWizardView {
 
                     if let Some(idx) = clicked_connection {
                         self.selected_connection = Some(idx);
-                        self.selected_block = None;
+                        self.selected_blocks.clear();
                     } else {
                         // Check if clicking on a block
-                        self.selected_block = None;
-                        self.selected_connection = None;
-
+                        let mut clicked_block = None;
                         for (id, block) in &self.pipeline.blocks {
                             let block_rect = self.block_rect(block, rect);
                             if block_rect.contains(click_pos) {
-                                self.selected_block = Some(*id);
+                                clicked_block = Some(*id);
                                 break;
                             }
+                        }
+
+                        if let Some(id) = clicked_block {
+                            // Check for shift modifier for multi-select
+                            let shift_held = ui.input(|i| i.modifiers.shift);
+                            if shift_held {
+                                self.toggle_block_selection(id);
+                            } else {
+                                self.select_single_block(id);
+                            }
+                        } else {
+                            // Clicked on empty canvas - start selection
+                            let shift_held = ui.input(|i| i.modifiers.shift);
+                            let alt_held = ui.input(|i| i.modifiers.alt);
+
+                            if alt_held {
+                                // Alt+click starts lasso selection
+                                self.selection_mode = SelectionMode::Lasso;
+                                self.selection_start = Some(click_pos);
+                                self.lasso_points = vec![click_pos];
+                            } else {
+                                // Regular click starts rectangle selection
+                                self.selection_mode = SelectionMode::Rectangle;
+                                self.selection_start = Some(click_pos);
+                            }
+
+                            if !shift_held {
+                                self.selected_blocks.clear();
+                            }
+                            self.selected_connection = None;
                         }
                     }
                 }
             }
         }
 
-        // Handle dragging
+        // Handle dragging (block movement or selection)
         if response.dragged() && response.drag_delta().length() > 0.0 {
             if self.connecting_from.is_none() {
-                if let Some(selected_id) = self.selected_block {
-                    let delta = response.drag_delta() / self.zoom;
-
-                    // Get blocks to move: selected block + downstream blocks if cascade_drag enabled
-                    let blocks_to_move: Vec<BlockId> = if self.cascade_drag {
-                        let mut blocks = self.get_downstream_blocks(selected_id);
-                        blocks.insert(selected_id);
-                        blocks.into_iter().collect()
-                    } else {
-                        vec![selected_id]
-                    };
-
-                    // Move all blocks
-                    for block_id in blocks_to_move {
-                        if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
-                            let mut new_pos = block.position + delta;
-                            if self.snap_to_grid {
-                                new_pos.x = (new_pos.x / self.grid_size).round() * self.grid_size;
-                                new_pos.y = (new_pos.y / self.grid_size).round() * self.grid_size;
-                            }
-                            block.position = new_pos;
+                match self.selection_mode {
+                    SelectionMode::Lasso => {
+                        // Add point to lasso
+                        if let Some(pos) = pointer_pos {
+                            self.lasso_points.push(pos);
                         }
                     }
-                } else {
-                    self.canvas_offset += response.drag_delta();
+                    SelectionMode::Rectangle => {
+                        // Rectangle is defined by start and current pointer - no special handling needed
+                    }
+                    SelectionMode::None => {
+                        // Move selected blocks
+                        if !self.selected_blocks.is_empty() {
+                            let delta = response.drag_delta() / self.zoom;
+
+                            // Get blocks to move: all selected + downstream if cascade_drag enabled
+                            let mut blocks_to_move: HashSet<BlockId> = self.selected_blocks.clone();
+                            if self.cascade_drag {
+                                for &id in &self.selected_blocks {
+                                    blocks_to_move.extend(self.get_downstream_blocks(id));
+                                }
+                            }
+
+                            // Move all blocks
+                            for block_id in blocks_to_move {
+                                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                                    let mut new_pos = block.position + delta;
+                                    if self.snap_to_grid {
+                                        new_pos.x = (new_pos.x / self.grid_size).round() * self.grid_size;
+                                        new_pos.y = (new_pos.y / self.grid_size).round() * self.grid_size;
+                                    }
+                                    block.position = new_pos;
+                                }
+                            }
+                        } else {
+                            self.canvas_offset += response.drag_delta();
+                        }
+                    }
                 }
+            }
+        }
+
+        // Handle drag release (finalize selection)
+        if response.drag_stopped() {
+            match self.selection_mode {
+                SelectionMode::Rectangle => {
+                    if let Some(start) = self.selection_start {
+                        if let Some(end) = pointer_pos {
+                            let sel_rect = Rect::from_two_pos(start, end);
+                            let blocks = self.blocks_in_rect(sel_rect, rect);
+                            self.selected_blocks.extend(blocks);
+                        }
+                    }
+                    self.selection_mode = SelectionMode::None;
+                    self.selection_start = None;
+                }
+                SelectionMode::Lasso => {
+                    if self.lasso_points.len() >= 3 {
+                        let blocks = self.blocks_in_lasso(&self.lasso_points, rect);
+                        self.selected_blocks.extend(blocks);
+                    }
+                    self.selection_mode = SelectionMode::None;
+                    self.selection_start = None;
+                    self.lasso_points.clear();
+                }
+                SelectionMode::None => {}
             }
         }
 
         // Keyboard shortcuts
         ui.input(|i| {
-            // ESC to cancel connection
+            // ESC to cancel connection or selection
             if i.key_pressed(egui::Key::Escape) {
                 self.connecting_from = None;
-                self.selected_block = None;
-                self.selected_connection = None;
+                self.clear_selection();
             }
 
-            // Delete selected block or connection
+            // Ctrl+A to select all
+            if i.modifiers.command && i.key_pressed(egui::Key::A) {
+                self.selected_blocks = self.pipeline.blocks.keys().copied().collect();
+            }
+
+            // Delete selected blocks or connection
             if i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace) {
-                if let Some(id) = self.selected_block.take() {
-                    self.pipeline.remove_block(id);
+                if !self.selected_blocks.is_empty() {
+                    let to_delete: Vec<_> = self.selected_blocks.iter().copied().collect();
+                    for id in to_delete {
+                        self.pipeline.remove_block(id);
+                    }
+                    self.selected_blocks.clear();
                 } else if let Some(idx) = self.selected_connection.take() {
                     if idx < self.pipeline.connections.len() {
                         self.pipeline.connections.remove(idx);
@@ -2754,23 +2973,41 @@ impl PipelineWizardView {
 
         // Context menu for right-click
         response.context_menu(|ui| {
-            if let Some(id) = self.selected_block {
-                if ui.button("Duplicate Block").clicked() {
-                    if let Some(block) = self.pipeline.blocks.get(&id) {
-                        let new_pos = block.position + Vec2::new(20.0, 20.0);
-                        let new_type = block.block_type.clone();
-                        self.pipeline.add_block(new_type, new_pos);
+            if !self.selected_blocks.is_empty() {
+                let count = self.selected_blocks.len();
+                if count == 1 {
+                    let id = *self.selected_blocks.iter().next().unwrap();
+                    if ui.button("Duplicate Block").clicked() {
+                        if let Some(block) = self.pipeline.blocks.get(&id) {
+                            let new_pos = block.position + Vec2::new(20.0, 20.0);
+                            let new_type = block.block_type.clone();
+                            self.pipeline.add_block(new_type, new_pos);
+                        }
+                        ui.close_menu();
                     }
-                    ui.close_menu();
-                }
-                if ui.button("Delete Block").clicked() {
-                    self.pipeline.remove_block(id);
-                    self.selected_block = None;
-                    ui.close_menu();
-                }
-                if ui.button("Disconnect All").clicked() {
-                    self.pipeline.connections.retain(|c| c.from_block != id && c.to_block != id);
-                    ui.close_menu();
+                    if ui.button("Delete Block").clicked() {
+                        self.pipeline.remove_block(id);
+                        self.selected_blocks.clear();
+                        ui.close_menu();
+                    }
+                    if ui.button("Disconnect All").clicked() {
+                        self.pipeline.connections.retain(|c| c.from_block != id && c.to_block != id);
+                        ui.close_menu();
+                    }
+                } else {
+                    if ui.button(format!("Delete {} Blocks", count)).clicked() {
+                        let to_delete: Vec<_> = self.selected_blocks.iter().copied().collect();
+                        for id in to_delete {
+                            self.pipeline.remove_block(id);
+                        }
+                        self.selected_blocks.clear();
+                        ui.close_menu();
+                    }
+                    if ui.button("Disconnect All").clicked() {
+                        let ids: HashSet<_> = self.selected_blocks.clone();
+                        self.pipeline.connections.retain(|c| !ids.contains(&c.from_block) && !ids.contains(&c.to_block));
+                        ui.close_menu();
+                    }
                 }
             } else if let Some(idx) = self.selected_connection {
                 if ui.button("Delete Connection").clicked() {
@@ -2787,13 +3024,19 @@ impl PipelineWizardView {
 
         // Connection mode indicator
         let mode_text = if self.connecting_from.is_some() {
-            "MODE: Connecting..."
-        } else if self.selected_block.is_some() {
-            "Selected: Block"
+            "MODE: Connecting...".to_string()
+        } else if self.selection_mode != SelectionMode::None {
+            format!("MODE: {:?} Selection", self.selection_mode)
+        } else if !self.selected_blocks.is_empty() {
+            if self.selected_blocks.len() == 1 {
+                "Selected: 1 Block".to_string()
+            } else {
+                format!("Selected: {} Blocks", self.selected_blocks.len())
+            }
         } else if self.selected_connection.is_some() {
-            "Selected: Connection"
+            "Selected: Connection".to_string()
         } else {
-            ""
+            String::new()
         };
 
         if !mode_text.is_empty() {
@@ -2810,8 +3053,8 @@ impl PipelineWizardView {
         painter.text(
             rect.left_bottom() + Vec2::new(10.0, -10.0),
             egui::Align2::LEFT_BOTTOM,
-            "Click output ports to connect | Drag blocks to move | Delete/Backspace to remove | Scroll to zoom | Right-click for menu",
-            egui::FontId::proportional(11.0),
+            "Click output ports to connect | Drag blocks to move | Delete/Backspace to remove | Scroll to zoom | Right-click for menu | Drag empty area: rect select | Alt+drag: lasso | Shift+click: multi-select | Ctrl+A: select all",
+            egui::FontId::proportional(10.0),
             Color32::GRAY,
         );
 
@@ -2876,7 +3119,7 @@ impl PipelineWizardView {
     fn draw_block(&self, painter: &egui::Painter, block: &PipelineBlock, canvas_rect: Rect) {
         let block_rect = self.block_rect(block, canvas_rect);
         let category = block.block_type.category();
-        let is_selected = self.selected_block == Some(block.id);
+        let is_selected = self.selected_blocks.contains(&block.id);
         let is_disabled = !block.enabled;
 
         // Block shadow
@@ -3206,7 +3449,11 @@ impl PipelineWizardView {
     }
 
     fn render_properties_content(&mut self, ui: &mut Ui) {
-        if let Some(id) = self.selected_block {
+        let selection_count = self.selected_blocks.len();
+
+        if selection_count == 1 {
+            // Single block selected - show full properties
+            let id = *self.selected_blocks.iter().next().unwrap();
             if let Some(block) = self.pipeline.blocks.get_mut(&id) {
                 ui.horizontal(|ui| {
                     ui.label("Name:");
@@ -3229,8 +3476,30 @@ impl PipelineWizardView {
                 ui.add_space(10.0);
                 if ui.button("Delete Block").clicked() {
                     self.pipeline.remove_block(id);
-                    self.selected_block = None;
+                    self.selected_blocks.clear();
                 }
+            }
+        } else if selection_count > 1 {
+            // Multiple blocks selected
+            ui.label(RichText::new(format!("{} Blocks Selected", selection_count)).strong());
+            ui.separator();
+
+            // List selected blocks
+            for &id in &self.selected_blocks.clone() {
+                if let Some(block) = self.pipeline.blocks.get(&id) {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("#{}: {}", id, block.name));
+                    });
+                }
+            }
+
+            ui.add_space(10.0);
+            if ui.button(format!("Delete {} Blocks", selection_count)).clicked() {
+                let to_delete: Vec<_> = self.selected_blocks.iter().copied().collect();
+                for id in to_delete {
+                    self.pipeline.remove_block(id);
+                }
+                self.selected_blocks.clear();
             }
         } else {
             // Pipeline properties
