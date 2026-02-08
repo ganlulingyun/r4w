@@ -471,6 +471,27 @@ impl Pipeline {
         id
     }
 
+    /// Find an empty position for a new block, avoiding overlap with existing blocks
+    pub fn find_empty_position(&self) -> Pos2 {
+        const BLOCK_WIDTH: f32 = 140.0;
+        const BLOCK_HEIGHT: f32 = 80.0;
+        const SPACING: f32 = 20.0;
+        const START_X: f32 = 50.0;
+        const START_Y: f32 = 50.0;
+
+        if self.blocks.is_empty() {
+            return Pos2::new(START_X, START_Y);
+        }
+
+        // Find the lowest Y position among existing blocks
+        let max_y = self.blocks.values()
+            .map(|b| b.position.y)
+            .fold(f32::NEG_INFINITY, f32::max);
+
+        // Place new block below the lowest existing block
+        Pos2::new(START_X, max_y + BLOCK_HEIGHT + SPACING)
+    }
+
     pub fn remove_block(&mut self, id: BlockId) {
         self.blocks.remove(&id);
         self.connections.retain(|c| c.from_block != id && c.to_block != id);
@@ -1432,8 +1453,8 @@ impl PipelineWizardView {
                             );
 
                             if response.clicked() {
-                                // Add block to center of canvas
-                                let pos = Pos2::new(300.0, 200.0) - self.canvas_offset;
+                                // Add block at an empty position (stacked vertically)
+                                let pos = self.pipeline.find_empty_position();
                                 self.pipeline.add_block(template.clone(), pos);
                             }
 
@@ -1473,14 +1494,15 @@ impl PipelineWizardView {
             );
         }
 
-        // Draw connections
+        // Draw connections with adaptive port positioning
         for (idx, conn) in self.pipeline.connections.iter().enumerate() {
             if let (Some(from_block), Some(to_block)) = (
                 self.pipeline.blocks.get(&conn.from_block),
                 self.pipeline.blocks.get(&conn.to_block),
             ) {
-                let from_pos = self.block_output_pos(from_block, conn.from_port, rect);
-                let to_pos = self.block_input_pos(to_block, conn.to_port, rect);
+                let is_vertical = self.is_vertical_connection(from_block, to_block, rect);
+                let from_pos = self.block_output_pos_for_connection(from_block, conn.from_port, to_block, rect);
+                let to_pos = self.block_input_pos_for_connection(to_block, conn.to_port, from_block, rect);
 
                 let is_selected = self.selected_connection == Some(idx);
                 let color = if is_selected {
@@ -1490,7 +1512,7 @@ impl PipelineWizardView {
                 };
                 let width = if is_selected { 3.0 } else { 2.0 };
 
-                self.draw_bezier(&painter, from_pos, to_pos, color, width);
+                self.draw_connection(&painter, from_pos, to_pos, is_vertical, color, width);
             }
         }
 
@@ -1530,11 +1552,20 @@ impl PipelineWizardView {
 
                 // First check if we're finishing a connection
                 if self.connecting_from.is_some() {
-                    // Collect port info first to avoid borrowing conflict
+                    // Collect port info for both left and top positions (input ports)
                     let port_info: Vec<_> = self.pipeline.blocks.iter()
                         .flat_map(|(id, block)| {
-                            (0..block.block_type.num_inputs())
-                                .map(|port| (*id, port, self.block_input_pos(block, port, rect)))
+                            let block_rect = self.block_rect(block, rect);
+                            let num_inputs = block.block_type.num_inputs();
+                            (0..num_inputs)
+                                .flat_map(|port| {
+                                    // Left side position
+                                    let pos_left = self.block_input_pos(block, port, rect);
+                                    // Top side position
+                                    let spacing = block_rect.width() / (num_inputs + 1) as f32;
+                                    let pos_top = Pos2::new(block_rect.left() + spacing * (port + 1) as f32, block_rect.top());
+                                    vec![(*id, port, pos_left), (*id, port, pos_top)]
+                                })
                                 .collect::<Vec<_>>()
                         })
                         .collect();
@@ -1551,11 +1582,20 @@ impl PipelineWizardView {
                     }
                 } else {
                     // Check if starting a connection from an output port
-                    // Collect port info first
+                    // Collect port info for both right and bottom positions (output ports)
                     let port_info: Vec<_> = self.pipeline.blocks.iter()
                         .flat_map(|(id, block)| {
-                            (0..block.block_type.num_outputs())
-                                .map(|port| (*id, port, self.block_output_pos(block, port, rect)))
+                            let block_rect = self.block_rect(block, rect);
+                            let num_outputs = block.block_type.num_outputs();
+                            (0..num_outputs)
+                                .flat_map(|port| {
+                                    // Right side position
+                                    let pos_right = self.block_output_pos(block, port, rect);
+                                    // Bottom side position
+                                    let spacing = block_rect.width() / (num_outputs + 1) as f32;
+                                    let pos_bottom = Pos2::new(block_rect.left() + spacing * (port + 1) as f32, block_rect.bottom());
+                                    vec![(*id, port, pos_right), (*id, port, pos_bottom)]
+                                })
                                 .collect::<Vec<_>>()
                         })
                         .collect();
@@ -1843,11 +1883,10 @@ impl PipelineWizardView {
             Color32::from_rgb(150, 150, 150),
         );
 
-        // Input ports with hover effect
+        // Input ports - draw on both left (horizontal) and top (vertical)
         let port_radius = 6.0 * self.zoom;
-        for i in 0..block.block_type.num_inputs() {
-            let port_pos = self.block_input_pos(block, i, canvas_rect);
-
+        let num_inputs = block.block_type.num_inputs();
+        for i in 0..num_inputs {
             // Check if this is a valid connection target
             let is_connection_target = self.connecting_from.is_some();
             let port_color = if is_connection_target {
@@ -1856,17 +1895,23 @@ impl PipelineWizardView {
                 Color32::from_rgb(80, 120, 200)
             };
 
-            // Port outer ring
-            painter.circle_stroke(port_pos, port_radius + 2.0, Stroke::new(1.0, port_color));
-            // Port fill
-            painter.circle_filled(port_pos, port_radius, port_color);
-            // Port inner highlight
-            painter.circle_filled(port_pos, port_radius * 0.4, Color32::WHITE);
+            // Left side port (horizontal connections)
+            let port_pos_left = self.block_input_pos(block, i, canvas_rect);
+            painter.circle_stroke(port_pos_left, port_radius + 2.0, Stroke::new(1.0, port_color));
+            painter.circle_filled(port_pos_left, port_radius, port_color);
+            painter.circle_filled(port_pos_left, port_radius * 0.4, Color32::WHITE);
+
+            // Top side port (vertical connections) - smaller/subtle
+            let spacing = block_rect.width() / (num_inputs + 1) as f32;
+            let port_pos_top = Pos2::new(block_rect.left() + spacing * (i + 1) as f32, block_rect.top());
+            let subtle_color = port_color.gamma_multiply(0.6);
+            painter.circle_stroke(port_pos_top, port_radius + 1.0, Stroke::new(1.0, subtle_color));
+            painter.circle_filled(port_pos_top, port_radius * 0.8, subtle_color);
         }
 
-        // Output ports
-        for i in 0..block.block_type.num_outputs() {
-            let port_pos = self.block_output_pos(block, i, canvas_rect);
+        // Output ports - draw on both right (horizontal) and bottom (vertical)
+        let num_outputs = block.block_type.num_outputs();
+        for i in 0..num_outputs {
             let is_connection_source = self.connecting_from == Some((block.id, i));
             let port_color = if is_connection_source {
                 Color32::from_rgb(255, 200, 100) // Highlight when this is source
@@ -1874,12 +1919,18 @@ impl PipelineWizardView {
                 Color32::from_rgb(200, 80, 80)
             };
 
-            // Port outer ring
-            painter.circle_stroke(port_pos, port_radius + 2.0, Stroke::new(1.0, port_color));
-            // Port fill
-            painter.circle_filled(port_pos, port_radius, port_color);
-            // Port inner highlight
-            painter.circle_filled(port_pos, port_radius * 0.4, Color32::WHITE);
+            // Right side port (horizontal connections)
+            let port_pos_right = self.block_output_pos(block, i, canvas_rect);
+            painter.circle_stroke(port_pos_right, port_radius + 2.0, Stroke::new(1.0, port_color));
+            painter.circle_filled(port_pos_right, port_radius, port_color);
+            painter.circle_filled(port_pos_right, port_radius * 0.4, Color32::WHITE);
+
+            // Bottom side port (vertical connections) - smaller/subtle
+            let spacing = block_rect.width() / (num_outputs + 1) as f32;
+            let port_pos_bottom = Pos2::new(block_rect.left() + spacing * (i + 1) as f32, block_rect.bottom());
+            let subtle_color = port_color.gamma_multiply(0.6);
+            painter.circle_stroke(port_pos_bottom, port_radius + 1.0, Stroke::new(1.0, subtle_color));
+            painter.circle_filled(port_pos_bottom, port_radius * 0.8, subtle_color);
         }
 
         // Disabled overlay
@@ -1909,6 +1960,87 @@ impl PipelineWizardView {
         let num_outputs = block.block_type.num_outputs();
         let spacing = block_rect.height() / (num_outputs + 1) as f32;
         Pos2::new(block_rect.right(), block_rect.top() + spacing * (port + 1) as f32)
+    }
+
+    /// Determine the connection orientation based on relative block positions
+    /// Returns true if blocks are arranged more vertically (use top/bottom ports)
+    fn is_vertical_connection(&self, from_block: &PipelineBlock, to_block: &PipelineBlock, canvas_rect: Rect) -> bool {
+        let from_rect = self.block_rect(from_block, canvas_rect);
+        let to_rect = self.block_rect(to_block, canvas_rect);
+
+        let dx = (to_rect.center().x - from_rect.center().x).abs();
+        let dy = (to_rect.center().y - from_rect.center().y).abs();
+
+        // Use vertical ports if vertical distance is greater than horizontal
+        // and the target is below the source
+        dy > dx && to_rect.center().y > from_rect.center().y
+    }
+
+    /// Get output port position adapted for the target block's location
+    fn block_output_pos_for_connection(&self, block: &PipelineBlock, port: u32, target_block: &PipelineBlock, canvas_rect: Rect) -> Pos2 {
+        let block_rect = self.block_rect(block, canvas_rect);
+        let num_outputs = block.block_type.num_outputs();
+
+        if self.is_vertical_connection(block, target_block, canvas_rect) {
+            // Output on bottom for vertical connections
+            let spacing = block_rect.width() / (num_outputs + 1) as f32;
+            Pos2::new(block_rect.left() + spacing * (port + 1) as f32, block_rect.bottom())
+        } else {
+            // Output on right for horizontal connections (default)
+            let spacing = block_rect.height() / (num_outputs + 1) as f32;
+            Pos2::new(block_rect.right(), block_rect.top() + spacing * (port + 1) as f32)
+        }
+    }
+
+    /// Get input port position adapted for the source block's location
+    fn block_input_pos_for_connection(&self, block: &PipelineBlock, port: u32, source_block: &PipelineBlock, canvas_rect: Rect) -> Pos2 {
+        let block_rect = self.block_rect(block, canvas_rect);
+        let num_inputs = block.block_type.num_inputs();
+
+        if self.is_vertical_connection(source_block, block, canvas_rect) {
+            // Input on top for vertical connections
+            let spacing = block_rect.width() / (num_inputs + 1) as f32;
+            Pos2::new(block_rect.left() + spacing * (port + 1) as f32, block_rect.top())
+        } else {
+            // Input on left for horizontal connections (default)
+            let spacing = block_rect.height() / (num_inputs + 1) as f32;
+            Pos2::new(block_rect.left(), block_rect.top() + spacing * (port + 1) as f32)
+        }
+    }
+
+    /// Draw a bezier curve adapted for the connection orientation
+    fn draw_connection(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, is_vertical: bool, color: Color32, width: f32) {
+        let offset = 50.0 * self.zoom;
+
+        let (ctrl1, ctrl2) = if is_vertical {
+            // Vertical connection: control points extend downward then upward
+            (
+                Pos2::new(from_pos.x, from_pos.y + offset),
+                Pos2::new(to_pos.x, to_pos.y - offset),
+            )
+        } else {
+            // Horizontal connection: control points extend right then left
+            (
+                Pos2::new(from_pos.x + offset, from_pos.y),
+                Pos2::new(to_pos.x - offset, to_pos.y),
+            )
+        };
+
+        let points: Vec<Pos2> = (0..=20).map(|i| {
+            let t = i as f32 / 20.0;
+            let t2 = t * t;
+            let t3 = t2 * t;
+            let mt = 1.0 - t;
+            let mt2 = mt * mt;
+            let mt3 = mt2 * mt;
+
+            Pos2::new(
+                mt3 * from_pos.x + 3.0 * mt2 * t * ctrl1.x + 3.0 * mt * t2 * ctrl2.x + t3 * to_pos.x,
+                mt3 * from_pos.y + 3.0 * mt2 * t * ctrl1.y + 3.0 * mt * t2 * ctrl2.y + t3 * to_pos.y,
+            )
+        }).collect();
+
+        painter.add(PathShape::line(points, Stroke::new(width, color)));
     }
 
     fn render_properties_content(&mut self, ui: &mut Ui) {
