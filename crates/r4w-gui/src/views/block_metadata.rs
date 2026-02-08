@@ -414,13 +414,7 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 consistent power level. Essential for handling varying channel conditions \
                 and receiver front-end dynamics. Modes: Fast (quick convergence), Slow \
                 (stable, less tracking), Adaptive (hybrid).",
-            implementation: Some(CodeLocation {
-                crate_name: "r4w-core",
-                file_path: "src/dsp/agc.rs",
-                line: 28,
-                symbol: "Agc::process",
-                description: "AGC gain computation and application",
-            }),
+            implementation: None, // AGC not yet implemented as standalone block
             related_code: &[],
             formulas: &[
                 BlockFormula {
@@ -465,20 +459,12 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 Mueller-Muller uses decision feedback, Early-Late uses correlation.",
             implementation: Some(CodeLocation {
                 crate_name: "r4w-core",
-                file_path: "src/dsp/timing.rs",
-                line: 65,
-                symbol: "TimingRecovery::process",
-                description: "Timing error detection and interpolation",
+                file_path: "src/sync.rs",
+                line: 1,
+                symbol: "TimingRecovery",
+                description: "Symbol timing recovery with multiple algorithms",
             }),
-            related_code: &[
-                CodeLocation {
-                    crate_name: "r4w-core",
-                    file_path: "src/dsp/interpolator.rs",
-                    line: 1,
-                    symbol: "FarrowInterpolator",
-                    description: "Fractional delay interpolator",
-                },
-            ],
+            related_code: &[],
             formulas: &[
                 BlockFormula {
                     name: "Gardner TED",
@@ -532,20 +518,12 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 for higher-order modulations, pilot-aided uses known reference symbols.",
             implementation: Some(CodeLocation {
                 crate_name: "r4w-core",
-                file_path: "src/dsp/carrier.rs",
-                line: 48,
-                symbol: "CarrierRecovery::process",
-                description: "Phase error detection and NCO control",
+                file_path: "src/sync.rs",
+                line: 1,
+                symbol: "CarrierRecovery",
+                description: "Carrier frequency/phase tracking",
             }),
-            related_code: &[
-                CodeLocation {
-                    crate_name: "r4w-core",
-                    file_path: "src/dsp/nco.rs",
-                    line: 1,
-                    symbol: "Nco",
-                    description: "Numerically controlled oscillator",
-                },
-            ],
+            related_code: &[],
             formulas: &[
                 BlockFormula {
                     name: "Costas Loop (QPSK)",
@@ -648,8 +626,8 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 Rolloff factor controls bandwidth vs. ISI tradeoff.",
             implementation: Some(CodeLocation {
                 crate_name: "r4w-core",
-                file_path: "src/filters/pulse.rs",
-                line: 35,
+                file_path: "src/filters/pulse_shaping.rs",
+                line: 48,
                 symbol: "RrcFilter::new",
                 description: "RRC filter coefficient generation",
             }),
@@ -657,7 +635,7 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 CodeLocation {
                     crate_name: "r4w-core",
                     file_path: "src/filters/fir.rs",
-                    line: 1,
+                    line: 52,
                     symbol: "FirFilter",
                     description: "FIR filter implementation",
                 },
@@ -706,9 +684,9 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             implementation: Some(CodeLocation {
                 crate_name: "r4w-sim",
                 file_path: "src/channel.rs",
-                line: 85,
-                symbol: "Channel::apply_awgn",
-                description: "AWGN noise addition",
+                line: 158,
+                symbol: "Channel::apply",
+                description: "Channel effects application including AWGN",
             }),
             related_code: &[],
             formulas: &[
@@ -763,15 +741,15 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             implementation: Some(CodeLocation {
                 crate_name: "r4w-sim",
                 file_path: "src/channel.rs",
-                line: 142,
-                symbol: "Channel::apply_fading",
-                description: "Jake's/Clarke's fading implementation",
+                line: 158,
+                symbol: "Channel::apply",
+                description: "Rayleigh/Rician fading implementation",
             }),
             related_code: &[
                 CodeLocation {
                     crate_name: "r4w-sim",
                     file_path: "src/doppler.rs",
-                    line: 1,
+                    line: 45,
                     symbol: "JakesDoppler",
                     description: "Jake's Doppler spectrum model",
                 },
@@ -851,10 +829,10 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 configurable polynomial.",
             implementation: Some(CodeLocation {
                 crate_name: "r4w-core",
-                file_path: "src/coding/scrambler.rs",
-                line: 22,
-                symbol: "Scrambler::scramble",
-                description: "LFSR-based scrambling",
+                file_path: "src/whitening.rs",
+                line: 40,
+                symbol: "Whitening",
+                description: "LFSR-based whitening/scrambling",
             }),
             related_code: &[],
             formulas: &[
@@ -899,10 +877,10 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 (Hamming, Reed-Solomon) for fixed-length data.",
             implementation: Some(CodeLocation {
                 crate_name: "r4w-core",
-                file_path: "src/coding/fec.rs",
-                line: 45,
-                symbol: "ConvEncoder::encode",
-                description: "Convolutional encoding",
+                file_path: "src/coding.rs",
+                line: 126,
+                symbol: "HammingCode",
+                description: "Hamming FEC encoding",
             }),
             related_code: &[],
             formulas: &[
@@ -946,10 +924,10 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 effectiveness. Block interleaver writes row-by-row, reads column-by-column.",
             implementation: Some(CodeLocation {
                 crate_name: "r4w-core",
-                file_path: "src/coding/interleaver.rs",
-                line: 18,
-                symbol: "BlockInterleaver::interleave",
-                description: "Block interleaving",
+                file_path: "src/coding.rs",
+                line: 244,
+                symbol: "Interleaver::interleave",
+                description: "LoRa-style diagonal interleaving",
             }),
             related_code: &[],
             formulas: &[
@@ -994,10 +972,10 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 differ by only one bit. Minimizes bit errors when symbol errors occur.",
             implementation: Some(CodeLocation {
                 crate_name: "r4w-core",
-                file_path: "src/coding/gray.rs",
-                line: 12,
-                symbol: "gray_encode",
-                description: "Gray code encoding",
+                file_path: "src/coding.rs",
+                line: 52,
+                symbol: "GrayCode",
+                description: "Gray code encoding/decoding",
             }),
             related_code: &[],
             formulas: &[
