@@ -1335,6 +1335,8 @@ pub struct PipelineWizardView {
     pub auto_connect: bool,
     pub last_added_block: Option<BlockId>,
     pub wants_exit: bool,
+    pub show_load_menu: bool,
+    pub available_specs: Vec<(String, std::path::PathBuf)>,  // (name, path)
 }
 
 impl Default for PipelineWizardView {
@@ -1360,11 +1362,59 @@ impl Default for PipelineWizardView {
             auto_connect: true,
             last_added_block: None,
             wants_exit: false,
+            show_load_menu: false,
+            available_specs: Vec::new(),
         }
     }
 }
 
 impl PipelineWizardView {
+    /// Scan the specs directory for available waveform YAML files
+    #[cfg(not(target_arch = "wasm32"))]
+    fn refresh_available_specs(&mut self) {
+        self.available_specs.clear();
+
+        // Look for specs in multiple locations
+        let spec_dirs = [
+            std::path::PathBuf::from("specs"),
+            std::path::PathBuf::from("../specs"),
+            std::env::current_exe()
+                .ok()
+                .and_then(|p| p.parent().map(|p| p.join("specs")))
+                .unwrap_or_default(),
+        ];
+
+        for dir in &spec_dirs {
+            if dir.exists() && dir.is_dir() {
+                if let Ok(entries) = std::fs::read_dir(dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        if path.extension().map(|e| e == "yaml" || e == "yml").unwrap_or(false) {
+                            let name = path.file_stem()
+                                .and_then(|s| s.to_str())
+                                .unwrap_or("unknown")
+                                .to_uppercase();
+                            // Avoid duplicates
+                            if !self.available_specs.iter().any(|(n, _)| n == &name) {
+                                self.available_specs.push((name, path));
+                            }
+                        }
+                    }
+                }
+                break; // Use first found specs directory
+            }
+        }
+
+        // Sort alphabetically
+        self.available_specs.sort_by(|a, b| a.0.cmp(&b.0));
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn refresh_available_specs(&mut self) {
+        // WASM doesn't have filesystem access
+        self.available_specs.clear();
+    }
+
     pub fn new() -> Self {
         Self::default()
     }
@@ -1412,29 +1462,76 @@ impl PipelineWizardView {
                                 }
                             }
                         }
-                        // Load pipeline from file
-                        if ui.button("Load").clicked() {
-                            #[cfg(not(target_arch = "wasm32"))]
-                            if let Some(path) = rfd::FileDialog::new()
-                                .add_filter("YAML", &["yaml", "yml"])
-                                .pick_file()
-                            {
-                                match std::fs::read_to_string(&path) {
-                                    Ok(yaml) => {
-                                        match Pipeline::from_yaml(&yaml) {
-                                            Ok(pipeline) => {
-                                                self.pipeline = pipeline;
-                                                self.selected_block = None;
-                                                self.selected_connection = None;
-                                                self.last_added_block = None;
-                                            }
-                                            Err(e) => log::error!("Failed to parse pipeline: {}", e),
-                                        }
-                                    }
-                                    Err(e) => log::error!("Failed to read file: {}", e),
-                                }
+                        // Load pipeline dropdown menu
+                        egui::menu::menu_button(ui, "Load ▼", |ui| {
+                            // Refresh specs list when menu opens
+                            if self.available_specs.is_empty() {
+                                self.refresh_available_specs();
                             }
-                        }
+
+                            ui.set_min_width(180.0);
+
+                            // List available specs
+                            if !self.available_specs.is_empty() {
+                                ui.label(RichText::new("Available Specs").strong());
+                                ui.separator();
+
+                                // Clone the specs to avoid borrow issues
+                                let specs: Vec<_> = self.available_specs.clone();
+                                for (name, path) in specs {
+                                    if ui.button(&name).clicked() {
+                                        #[cfg(not(target_arch = "wasm32"))]
+                                        match std::fs::read_to_string(&path) {
+                                            Ok(yaml) => {
+                                                match Pipeline::from_yaml(&yaml) {
+                                                    Ok(pipeline) => {
+                                                        self.pipeline = pipeline;
+                                                        self.selected_block = None;
+                                                        self.selected_connection = None;
+                                                        self.last_added_block = None;
+                                                    }
+                                                    Err(e) => log::error!("Failed to parse {}: {}", name, e),
+                                                }
+                                            }
+                                            Err(e) => log::error!("Failed to read {}: {}", name, e),
+                                        }
+                                        ui.close_menu();
+                                    }
+                                }
+                                ui.separator();
+                            }
+
+                            // Import from file option
+                            if ui.button("📁 Import from file...").clicked() {
+                                #[cfg(not(target_arch = "wasm32"))]
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .add_filter("YAML", &["yaml", "yml"])
+                                    .pick_file()
+                                {
+                                    match std::fs::read_to_string(&path) {
+                                        Ok(yaml) => {
+                                            match Pipeline::from_yaml(&yaml) {
+                                                Ok(pipeline) => {
+                                                    self.pipeline = pipeline;
+                                                    self.selected_block = None;
+                                                    self.selected_connection = None;
+                                                    self.last_added_block = None;
+                                                }
+                                                Err(e) => log::error!("Failed to parse pipeline: {}", e),
+                                            }
+                                        }
+                                        Err(e) => log::error!("Failed to read file: {}", e),
+                                    }
+                                }
+                                ui.close_menu();
+                            }
+
+                            // Refresh option
+                            ui.separator();
+                            if ui.button("🔄 Refresh list").clicked() {
+                                self.refresh_available_specs();
+                            }
+                        });
                         ui.separator();
                         if ui.button("Validate").clicked() {
                             self.validation_result = self.pipeline.validate();
