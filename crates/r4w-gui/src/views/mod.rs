@@ -24,6 +24,7 @@ mod udp_benchmark;
 mod waveform;
 mod waveform_comparison;
 mod waveform_wizard;
+mod pipeline_wizard;
 
 pub use adsb::AdsbView;
 pub use ale::AleView;
@@ -49,6 +50,7 @@ pub use udp_benchmark::UdpBenchmarkView;
 pub use waveform::{WaveformView, WaveformParams};
 pub use waveform_comparison::WaveformComparisonView;
 pub use waveform_wizard::WaveformWizardView;
+pub use pipeline_wizard::PipelineWizardView;
 
 use egui::Ui;
 use r4w_core::params::LoRaParams;

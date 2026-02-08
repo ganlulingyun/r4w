@@ -17,7 +17,7 @@ use crate::views::{
     FhssView, GenericDemodulationView, GenericModulationView, GenericPipelineView, GnssSimulatorView,
     MeshNetworkView, ModulationView, OverviewView, PerformanceView, PipelineView, RemoteLabView,
     SpectrumView, Stanag4285View, StreamingView, UdpBenchmarkView, WaveformComparisonView,
-    WaveformView, WaveformParams, WaveformWizardView,
+    WaveformView, WaveformParams, WaveformWizardView, PipelineWizardView,
 };
 
 /// Waveform group for visual organization in dropdown
@@ -121,6 +121,7 @@ pub enum ActiveView {
     Overview,
     Waveforms,
     WaveformWizard,
+    PipelineBuilder,
     FhssLab,
     Stanag4285Lab,
     AleLab,
@@ -147,6 +148,7 @@ impl ActiveView {
             Self::Overview => "Overview",
             Self::Waveforms => "Waveform Lab",
             Self::WaveformWizard => "Waveform Wizard",
+            Self::PipelineBuilder => "Pipeline Builder",
             Self::FhssLab => "FHSS Lab",
             Self::Stanag4285Lab => "STANAG 4285",
             Self::AleLab => "ALE",
@@ -173,6 +175,7 @@ impl ActiveView {
             Self::Overview => "Introduction to SDR and waveform concepts",
             Self::Waveforms => "Explore different modulation schemes",
             Self::WaveformWizard => "Create custom waveform specifications with guided wizard",
+            Self::PipelineBuilder => "Visual signal processing pipeline designer with drag-and-drop blocks",
             Self::FhssLab => "Frequency hopping spread spectrum with anti-jam demo",
             Self::Stanag4285Lab => "NATO HF data modem (75-3600 bps PSK)",
             Self::AleLab => "Automatic Link Establishment (8-FSK, Golay FEC)",
@@ -200,6 +203,7 @@ impl ActiveView {
             Self::Overview => true,
             Self::Waveforms => true,
             Self::WaveformWizard => true, // Wizard always available
+            Self::PipelineBuilder => true, // Pipeline builder always available
             Self::FhssLab => true, // FHSS Lab always available (has own FHSS instance)
             Self::Stanag4285Lab => true, // STANAG 4285 Lab always available
             Self::AleLab => true, // ALE Lab always available
@@ -272,6 +276,7 @@ pub struct WaveformExplorer {
     overview_view: OverviewView,
     waveform_view: WaveformView,
     waveform_wizard_view: WaveformWizardView,
+    pipeline_builder_view: PipelineWizardView,
     fhss_view: FhssView,
     stanag_view: Stanag4285View,
     ale_view: AleView,
@@ -434,6 +439,7 @@ impl WaveformExplorer {
             overview_view: OverviewView::new(),
             waveform_view: WaveformView::new(),
             waveform_wizard_view: WaveformWizardView::new(),
+            pipeline_builder_view: PipelineWizardView::new(),
             fhss_view: FhssView::new(),
             stanag_view: Stanag4285View::new(),
             ale_view: AleView::new(),
@@ -734,6 +740,7 @@ impl WaveformExplorer {
                     ActiveView::Overview,
                     ActiveView::Waveforms,
                     ActiveView::WaveformWizard,
+                    ActiveView::PipelineBuilder,
                     ActiveView::Streaming,
                     ActiveView::UdpBenchmark,
                     ActiveView::RemoteLab,
@@ -3999,6 +4006,9 @@ impl WaveformExplorer {
                 }
                 ActiveView::WaveformWizard => {
                     self.waveform_wizard_view.render(ui);
+                }
+                ActiveView::PipelineBuilder => {
+                    self.pipeline_builder_view.render(ui);
                 }
                 ActiveView::CodeExplorer => {
                     self.code_explorer_view.render_with_waveform(ui, Some(&self.selected_waveform));
