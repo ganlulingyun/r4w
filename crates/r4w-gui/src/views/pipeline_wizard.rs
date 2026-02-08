@@ -475,6 +475,35 @@ pub enum LoadMode {
     Legacy,    // Old format with single 'pipeline' section
 }
 
+/// Connection line style for visual routing
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum ConnectionStyle {
+    /// Smooth cubic bezier curves (default)
+    #[default]
+    Bezier,
+    /// Direct straight line
+    Straight,
+    /// Right-angle (Manhattan) routing
+    Orthogonal,
+    /// 45-degree angled routing
+    Angled,
+}
+
+impl ConnectionStyle {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Bezier => "Curved",
+            Self::Straight => "Straight",
+            Self::Orthogonal => "Right-angle",
+            Self::Angled => "Angled",
+        }
+    }
+
+    pub fn all() -> &'static [ConnectionStyle] {
+        &[Self::Bezier, Self::Straight, Self::Orthogonal, Self::Angled]
+    }
+}
+
 impl Pipeline {
     pub fn new() -> Self {
         Self {
@@ -1897,6 +1926,7 @@ pub struct PipelineWizardView {
     pub available_specs: Vec<(String, std::path::PathBuf)>,  // (name, path)
     pub cascade_drag: bool,  // When true, dragging a block also drags all downstream blocks
     pub status_message: Option<(String, std::time::Instant)>,  // (message, when) for temporary notifications
+    pub connection_style: ConnectionStyle,  // Visual routing style for connections
 }
 
 impl Default for PipelineWizardView {
@@ -1926,6 +1956,7 @@ impl Default for PipelineWizardView {
             available_specs: Vec::new(),
             cascade_drag: true,  // Default to cascading drag
             status_message: None,
+            connection_style: ConnectionStyle::default(),
         }
     }
 }
@@ -2025,6 +2056,17 @@ impl PipelineWizardView {
                     ui.checkbox(&mut self.auto_connect, "Auto-connect");
                     ui.checkbox(&mut self.cascade_drag, "Cascade drag")
                         .on_hover_text("Drag a block to also move all downstream connected blocks");
+
+                    // Connection style dropdown
+                    egui::ComboBox::from_id_salt("conn_style")
+                        .selected_text(self.connection_style.name())
+                        .width(90.0)
+                        .show_ui(ui, |ui| {
+                            for style in ConnectionStyle::all() {
+                                ui.selectable_value(&mut self.connection_style, *style, style.name());
+                            }
+                        })
+                        .response.on_hover_text("Connection line routing style");
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Export YAML").clicked() {
@@ -2967,18 +3009,44 @@ impl PipelineWizardView {
         Pos2::new(block_rect.right(), block_rect.top() + spacing * (port + 1) as f32)
     }
 
-    /// Determine the connection orientation based on relative block positions
-    /// Returns true if blocks are arranged more vertically (use top/bottom ports)
+    /// Determine the best connection orientation based on relative block positions
+    /// Returns true if vertical ports (bottom→top) should be used, false for horizontal (right→left)
     fn is_vertical_connection(&self, from_block: &PipelineBlock, to_block: &PipelineBlock, canvas_rect: Rect) -> bool {
         let from_rect = self.block_rect(from_block, canvas_rect);
         let to_rect = self.block_rect(to_block, canvas_rect);
 
-        let dx = (to_rect.center().x - from_rect.center().x).abs();
-        let dy = (to_rect.center().y - from_rect.center().y).abs();
+        let from_center = from_rect.center();
+        let to_center = to_rect.center();
 
-        // Use vertical ports if vertical distance is greater than horizontal
-        // and the target is below the source
-        dy > dx && to_rect.center().y > from_rect.center().y
+        let dx = to_center.x - from_center.x;  // positive = target is to the right
+        let dy = to_center.y - from_center.y;  // positive = target is below
+
+        // Heuristic decision:
+        // 1. If target is significantly below (large positive dy), use vertical (bottom→top)
+        // 2. If target is to the left (negative dx) AND below, prefer vertical to avoid crossing
+        // 3. If target is to the right and not much vertical difference, use horizontal
+        // 4. Consider block overlap to decide
+
+        // Target is below
+        if dy > 0.0 {
+            // If going backward (left) while going down, always use vertical
+            if dx < 0.0 {
+                return true;
+            }
+            // If vertical displacement is significant, use vertical
+            if dy > dx.abs() * 0.5 {
+                return true;
+            }
+        }
+
+        // Target is above (unusual but possible)
+        if dy < 0.0 {
+            // Going backward and up - use horizontal (right side) to avoid confusion
+            return false;
+        }
+
+        // Default: use horizontal for rightward connections, vertical for significant downward
+        dy.abs() > dx.abs() && dy > 0.0
     }
 
     /// Get output port position adapted for the target block's location
@@ -3013,8 +3081,26 @@ impl PipelineWizardView {
         }
     }
 
-    /// Draw a bezier curve adapted for the connection orientation
+    /// Draw a connection line with the current style
     fn draw_connection(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, is_vertical: bool, color: Color32, width: f32) {
+        match self.connection_style {
+            ConnectionStyle::Bezier => {
+                self.draw_bezier_connection(painter, from_pos, to_pos, is_vertical, color, width);
+            }
+            ConnectionStyle::Straight => {
+                painter.line_segment([from_pos, to_pos], Stroke::new(width, color));
+            }
+            ConnectionStyle::Orthogonal => {
+                self.draw_orthogonal_connection(painter, from_pos, to_pos, is_vertical, color, width);
+            }
+            ConnectionStyle::Angled => {
+                self.draw_angled_connection(painter, from_pos, to_pos, is_vertical, color, width);
+            }
+        }
+    }
+
+    /// Draw a smooth bezier curve connection
+    fn draw_bezier_connection(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, is_vertical: bool, color: Color32, width: f32) {
         let offset = 50.0 * self.zoom;
 
         let (ctrl1, ctrl2) = if is_vertical {
@@ -3044,6 +3130,77 @@ impl PipelineWizardView {
                 mt3 * from_pos.y + 3.0 * mt2 * t * ctrl1.y + 3.0 * mt * t2 * ctrl2.y + t3 * to_pos.y,
             )
         }).collect();
+
+        painter.add(PathShape::line(points, Stroke::new(width, color)));
+    }
+
+    /// Draw a right-angle (Manhattan) connection with two turns
+    fn draw_orthogonal_connection(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, is_vertical: bool, color: Color32, width: f32) {
+        let min_offset = 20.0 * self.zoom;
+
+        let points = if is_vertical {
+            // Vertical: go down, then horizontal, then down to target
+            let mid_y = if to_pos.y > from_pos.y {
+                from_pos.y + (to_pos.y - from_pos.y) / 2.0
+            } else {
+                from_pos.y + min_offset
+            };
+            vec![
+                from_pos,
+                Pos2::new(from_pos.x, mid_y),
+                Pos2::new(to_pos.x, mid_y),
+                to_pos,
+            ]
+        } else {
+            // Horizontal: go right, then vertical, then right to target
+            let mid_x = if to_pos.x > from_pos.x {
+                from_pos.x + (to_pos.x - from_pos.x) / 2.0
+            } else {
+                from_pos.x + min_offset
+            };
+            vec![
+                from_pos,
+                Pos2::new(mid_x, from_pos.y),
+                Pos2::new(mid_x, to_pos.y),
+                to_pos,
+            ]
+        };
+
+        painter.add(PathShape::line(points, Stroke::new(width, color)));
+    }
+
+    /// Draw a 45-degree angled connection
+    fn draw_angled_connection(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, is_vertical: bool, color: Color32, width: f32) {
+        let dx = to_pos.x - from_pos.x;
+        let dy = to_pos.y - from_pos.y;
+
+        let points = if is_vertical {
+            // Vertical: go straight down first, then 45° to target
+            let angle_dist = dx.abs().min(dy.abs() / 2.0);
+            if dy > 0.0 {
+                let mid_y = from_pos.y + (dy - angle_dist);
+                vec![
+                    from_pos,
+                    Pos2::new(from_pos.x, mid_y),
+                    to_pos,
+                ]
+            } else {
+                vec![from_pos, to_pos]
+            }
+        } else {
+            // Horizontal: go straight right first, then 45° to target
+            let angle_dist = dy.abs().min(dx.abs() / 2.0);
+            if dx > 0.0 {
+                let mid_x = from_pos.x + (dx - angle_dist);
+                vec![
+                    from_pos,
+                    Pos2::new(mid_x, from_pos.y),
+                    to_pos,
+                ]
+            } else {
+                vec![from_pos, to_pos]
+            }
+        };
 
         painter.add(PathShape::line(points, Stroke::new(width, color)));
     }
