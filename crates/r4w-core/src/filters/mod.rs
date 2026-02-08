@@ -77,6 +77,7 @@ pub mod fir;
 pub mod iir;
 pub mod polyphase;
 pub mod pulse_shaping;
+pub mod remez;
 pub mod traits;
 pub mod windows;
 
@@ -90,6 +91,9 @@ pub use polyphase::{HalfbandFilter, PolyphaseDecimator, PolyphaseInterpolator, R
 pub use pulse_shaping::{
     GaussianFilter, PulseShapingFilter, RaisedCosineFilter, RootRaisedCosineFilter,
 };
+
+// Re-export Remez/Parks-McClellan design
+pub use remez::{remez_bandpass, remez_highpass, remez_lowpass, estimate_order, RemezSpec};
 
 // Re-export window functions
 pub use windows::{kaiser_beta_from_attenuation, kaiser_order, Window};
