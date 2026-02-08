@@ -1644,13 +1644,17 @@ impl PipelineWizardView {
                     }
                 }
             }
-
-            // Zoom with scroll
-            let scroll = i.raw_scroll_delta.y;
-            if scroll != 0.0 {
-                self.zoom = (self.zoom + scroll * 0.001).clamp(0.5, 2.0);
-            }
         });
+
+        // Zoom with scroll - only when hovering over canvas (not floating windows)
+        if response.hovered() {
+            ui.input(|i| {
+                let scroll = i.raw_scroll_delta.y;
+                if scroll != 0.0 {
+                    self.zoom = (self.zoom + scroll * 0.001).clamp(0.5, 2.0);
+                }
+            });
+        }
 
         // Context menu for right-click
         response.context_menu(|ui| {
