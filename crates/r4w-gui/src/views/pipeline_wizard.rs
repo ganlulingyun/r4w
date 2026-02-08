@@ -2,12 +2,84 @@
 //!
 //! A visual signal processing pipeline builder for creating waveform specifications.
 //! Supports multiple blocks, parallel branches, and flexible routing.
+//!
+//! Features:
+//! - 40+ signal processing blocks in 10 categories
+//! - Visual canvas with grid, zoom, and pan
+//! - Bezier curve connections between blocks
+//! - Preset pipeline templates (BPSK TX, QPSK TX, LoRa TX, OFDM TX, etc.)
+//! - Interactive connection creation (click output → click input)
+//! - Block parameter editing for all block types
+//! - YAML export for pipeline specifications
+//! - Pipeline validation (unconnected inputs, cycles detection)
 
 use egui::{Ui, RichText, Color32, Pos2, Vec2, Rect, Stroke, epaint::PathShape};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// Unique identifier for a pipeline block
 pub type BlockId = u32;
+
+/// Preset pipeline templates
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PipelinePreset {
+    BpskTx,
+    QpskTx,
+    Qam16Tx,
+    LoRaTx,
+    OfdmTx,
+    FskTx,
+    BpskTxRx,
+    QpskTxRx,
+}
+
+impl PipelinePreset {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::BpskTx => "BPSK Transmitter",
+            Self::QpskTx => "QPSK Transmitter",
+            Self::Qam16Tx => "16-QAM Transmitter",
+            Self::LoRaTx => "LoRa Transmitter",
+            Self::OfdmTx => "OFDM Transmitter",
+            Self::FskTx => "FSK Transmitter",
+            Self::BpskTxRx => "BPSK TX → Channel → RX",
+            Self::QpskTxRx => "QPSK TX → Channel → RX",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::BpskTx => "Simple BPSK transmitter with pulse shaping",
+            Self::QpskTx => "QPSK transmitter with RRC pulse shaping",
+            Self::Qam16Tx => "16-QAM transmitter with coding and shaping",
+            Self::LoRaTx => "LoRa CSS modulator with whitening",
+            Self::OfdmTx => "OFDM transmitter with QPSK subcarriers",
+            Self::FskTx => "2-FSK transmitter with filtering",
+            Self::BpskTxRx => "Complete BPSK system with channel and recovery",
+            Self::QpskTxRx => "Complete QPSK system with channel and recovery",
+        }
+    }
+
+    pub fn all() -> &'static [PipelinePreset] {
+        &[
+            Self::BpskTx,
+            Self::QpskTx,
+            Self::Qam16Tx,
+            Self::LoRaTx,
+            Self::OfdmTx,
+            Self::FskTx,
+            Self::BpskTxRx,
+            Self::QpskTxRx,
+        ]
+    }
+}
+
+/// Validation result for pipeline
+#[derive(Clone, Debug, Default)]
+pub struct ValidationResult {
+    pub is_valid: bool,
+    pub warnings: Vec<String>,
+    pub errors: Vec<String>,
+}
 
 /// Block category for organization
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -450,23 +522,384 @@ pipeline:
     fn block_params_to_yaml(&self, block_type: &BlockType) -> String {
         match block_type {
             BlockType::BitSource { pattern } => format!("      pattern: \"{}\"\n", pattern),
+            BlockType::SymbolSource { alphabet_size } => format!("      alphabet_size: {}\n", alphabet_size),
+            BlockType::FileSource { path } => format!("      path: \"{}\"\n", path),
+            BlockType::Scrambler { polynomial, seed } => {
+                format!("      polynomial: 0x{:X}\n      seed: 0x{:X}\n", polynomial, seed)
+            }
             BlockType::FecEncoder { code_type, rate } => {
                 format!("      code_type: {:?}\n      rate: \"{}\"\n", code_type, rate)
             }
+            BlockType::Interleaver { rows, cols } => {
+                format!("      rows: {}\n      cols: {}\n", rows, cols)
+            }
+            BlockType::CrcGenerator { crc_type } => format!("      crc_type: {:?}\n", crc_type),
+            BlockType::GrayMapper { bits_per_symbol } => format!("      bits_per_symbol: {}\n", bits_per_symbol),
+            BlockType::ConstellationMapper { constellation } => format!("      constellation: {:?}\n", constellation),
             BlockType::PskModulator { order } => format!("      order: {}\n", order),
             BlockType::QamModulator { order } => format!("      order: {}\n", order),
+            BlockType::FskModulator { deviation_hz, order } => {
+                format!("      deviation_hz: {}\n      order: {}\n", deviation_hz, order)
+            }
+            BlockType::OfdmModulator { fft_size, cp_len, data_carriers } => {
+                format!("      fft_size: {}\n      cp_len: {}\n      data_carriers: {}\n", fft_size, cp_len, data_carriers)
+            }
+            BlockType::DsssSpread { chips_per_symbol, code_type } => {
+                format!("      chips_per_symbol: {}\n      code_type: \"{}\"\n", chips_per_symbol, code_type)
+            }
+            BlockType::FhssHop { num_channels, hop_rate } => {
+                format!("      num_channels: {}\n      hop_rate: {}\n", num_channels, hop_rate)
+            }
+            BlockType::CssModulator { sf, bw_hz } => {
+                format!("      spreading_factor: {}\n      bandwidth_hz: {}\n", sf, bw_hz)
+            }
             BlockType::FirFilter { filter_type, cutoff_hz, num_taps } => {
                 format!("      filter_type: {:?}\n      cutoff_hz: {}\n      num_taps: {}\n",
                     filter_type, cutoff_hz, num_taps)
+            }
+            BlockType::IirFilter { design, cutoff_hz, order } => {
+                format!("      design: {:?}\n      cutoff_hz: {}\n      order: {}\n", design, cutoff_hz, order)
             }
             BlockType::PulseShaper { shape, rolloff, span } => {
                 format!("      shape: {:?}\n      rolloff: {}\n      span: {}\n", shape, rolloff, span)
             }
             BlockType::Upsampler { factor } => format!("      factor: {}\n", factor),
             BlockType::Downsampler { factor } => format!("      factor: {}\n", factor),
+            BlockType::RationalResampler { up, down } => {
+                format!("      up: {}\n      down: {}\n", up, down)
+            }
+            BlockType::PolyphaseResampler { up, down, taps_per_phase } => {
+                format!("      up: {}\n      down: {}\n      taps_per_phase: {}\n", up, down, taps_per_phase)
+            }
+            BlockType::PreambleInsert { pattern, length } => {
+                format!("      pattern: \"{}\"\n      length: {}\n", pattern, length)
+            }
+            BlockType::SyncWordInsert { word } => format!("      word: \"{}\"\n", word),
+            BlockType::FrameBuilder { header_bits, payload_bits } => {
+                format!("      header_bits: {}\n      payload_bits: {}\n", header_bits, payload_bits)
+            }
+            BlockType::TdmaFramer { slots, slot_ms } => {
+                format!("      slots: {}\n      slot_ms: {}\n", slots, slot_ms)
+            }
             BlockType::AwgnChannel { snr_db } => format!("      snr_db: {}\n", snr_db),
+            BlockType::FadingChannel { model, doppler_hz } => {
+                format!("      model: {:?}\n      doppler_hz: {}\n", model, doppler_hz)
+            }
+            BlockType::FrequencyOffset { offset_hz } => format!("      offset_hz: {}\n", offset_hz),
+            BlockType::IqImbalance { gain_db, phase_deg } => {
+                format!("      gain_db: {}\n      phase_deg: {}\n", gain_db, phase_deg)
+            }
+            BlockType::Agc { mode, target_db } => {
+                format!("      mode: {:?}\n      target_db: {}\n", mode, target_db)
+            }
+            BlockType::TimingRecovery { algorithm, loop_bw } => {
+                format!("      algorithm: {:?}\n      loop_bw: {}\n", algorithm, loop_bw)
+            }
+            BlockType::CarrierRecovery { algorithm, loop_bw } => {
+                format!("      algorithm: {:?}\n      loop_bw: {}\n", algorithm, loop_bw)
+            }
+            BlockType::Equalizer { eq_type, taps, mu } => {
+                format!("      type: {:?}\n      taps: {}\n      mu: {}\n", eq_type, taps, mu)
+            }
+            BlockType::FileOutput { path, format } => {
+                format!("      path: \"{}\"\n      format: {:?}\n", path, format)
+            }
+            BlockType::Split { num_outputs } => format!("      num_outputs: {}\n", num_outputs),
+            BlockType::Merge { num_inputs } => format!("      num_inputs: {}\n", num_inputs),
             _ => String::new(),
         }
+    }
+
+    /// Create pipeline from preset template
+    pub fn from_preset(preset: PipelinePreset) -> Self {
+        let mut pipeline = Pipeline::new();
+        pipeline.name = preset.name().to_string();
+        pipeline.description = preset.description().to_string();
+
+        match preset {
+            PipelinePreset::BpskTx => {
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 150.0));
+                let mod_ = pipeline.add_block(BlockType::PskModulator { order: 2 }, Pos2::new(200.0, 150.0));
+                let up = pipeline.add_block(BlockType::Upsampler { factor: 4 }, Pos2::new(350.0, 150.0));
+                let rrc = pipeline.add_block(BlockType::PulseShaper { shape: PulseShape::RootRaisedCosine, rolloff: 0.35, span: 8 }, Pos2::new(500.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(650.0, 150.0));
+
+                pipeline.connect(src, 0, mod_, 0);
+                pipeline.connect(mod_, 0, up, 0);
+                pipeline.connect(up, 0, rrc, 0);
+                pipeline.connect(rrc, 0, out, 0);
+            }
+            PipelinePreset::QpskTx => {
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 150.0));
+                let gray = pipeline.add_block(BlockType::GrayMapper { bits_per_symbol: 2 }, Pos2::new(200.0, 150.0));
+                let mod_ = pipeline.add_block(BlockType::PskModulator { order: 4 }, Pos2::new(350.0, 150.0));
+                let up = pipeline.add_block(BlockType::Upsampler { factor: 4 }, Pos2::new(500.0, 150.0));
+                let rrc = pipeline.add_block(BlockType::PulseShaper { shape: PulseShape::RootRaisedCosine, rolloff: 0.35, span: 8 }, Pos2::new(650.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(800.0, 150.0));
+
+                pipeline.connect(src, 0, gray, 0);
+                pipeline.connect(gray, 0, mod_, 0);
+                pipeline.connect(mod_, 0, up, 0);
+                pipeline.connect(up, 0, rrc, 0);
+                pipeline.connect(rrc, 0, out, 0);
+            }
+            PipelinePreset::Qam16Tx => {
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 150.0));
+                let scram = pipeline.add_block(BlockType::Scrambler { polynomial: 0x48, seed: 0xFF }, Pos2::new(200.0, 150.0));
+                let fec = pipeline.add_block(BlockType::FecEncoder { code_type: FecType::Convolutional, rate: "1/2".into() }, Pos2::new(350.0, 150.0));
+                let gray = pipeline.add_block(BlockType::GrayMapper { bits_per_symbol: 4 }, Pos2::new(500.0, 150.0));
+                let mod_ = pipeline.add_block(BlockType::QamModulator { order: 16 }, Pos2::new(650.0, 150.0));
+                let up = pipeline.add_block(BlockType::Upsampler { factor: 4 }, Pos2::new(800.0, 150.0));
+                let rrc = pipeline.add_block(BlockType::PulseShaper { shape: PulseShape::RootRaisedCosine, rolloff: 0.25, span: 8 }, Pos2::new(950.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(1100.0, 150.0));
+
+                pipeline.connect(src, 0, scram, 0);
+                pipeline.connect(scram, 0, fec, 0);
+                pipeline.connect(fec, 0, gray, 0);
+                pipeline.connect(gray, 0, mod_, 0);
+                pipeline.connect(mod_, 0, up, 0);
+                pipeline.connect(up, 0, rrc, 0);
+                pipeline.connect(rrc, 0, out, 0);
+            }
+            PipelinePreset::LoRaTx => {
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 150.0));
+                let scram = pipeline.add_block(BlockType::Scrambler { polynomial: 0x12, seed: 0xFF }, Pos2::new(200.0, 150.0));
+                let inter = pipeline.add_block(BlockType::Interleaver { rows: 4, cols: 8 }, Pos2::new(350.0, 150.0));
+                let gray = pipeline.add_block(BlockType::GrayMapper { bits_per_symbol: 7 }, Pos2::new(500.0, 150.0));
+                let css = pipeline.add_block(BlockType::CssModulator { sf: 7, bw_hz: 125000 }, Pos2::new(650.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(800.0, 150.0));
+
+                pipeline.connect(src, 0, scram, 0);
+                pipeline.connect(scram, 0, inter, 0);
+                pipeline.connect(inter, 0, gray, 0);
+                pipeline.connect(gray, 0, css, 0);
+                pipeline.connect(css, 0, out, 0);
+            }
+            PipelinePreset::OfdmTx => {
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 150.0));
+                let scram = pipeline.add_block(BlockType::Scrambler { polynomial: 0x48, seed: 0x7F }, Pos2::new(200.0, 150.0));
+                let fec = pipeline.add_block(BlockType::FecEncoder { code_type: FecType::Convolutional, rate: "1/2".into() }, Pos2::new(350.0, 150.0));
+                let inter = pipeline.add_block(BlockType::Interleaver { rows: 16, cols: 12 }, Pos2::new(500.0, 150.0));
+                let ofdm = pipeline.add_block(BlockType::OfdmModulator { fft_size: 64, cp_len: 16, data_carriers: 48 }, Pos2::new(650.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(800.0, 150.0));
+
+                pipeline.connect(src, 0, scram, 0);
+                pipeline.connect(scram, 0, fec, 0);
+                pipeline.connect(fec, 0, inter, 0);
+                pipeline.connect(inter, 0, ofdm, 0);
+                pipeline.connect(ofdm, 0, out, 0);
+            }
+            PipelinePreset::FskTx => {
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 150.0));
+                let fsk = pipeline.add_block(BlockType::FskModulator { deviation_hz: 2500.0, order: 2 }, Pos2::new(200.0, 150.0));
+                let up = pipeline.add_block(BlockType::Upsampler { factor: 8 }, Pos2::new(350.0, 150.0));
+                let fir = pipeline.add_block(BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 5000.0, num_taps: 64 }, Pos2::new(500.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(650.0, 150.0));
+
+                pipeline.connect(src, 0, fsk, 0);
+                pipeline.connect(fsk, 0, up, 0);
+                pipeline.connect(up, 0, fir, 0);
+                pipeline.connect(fir, 0, out, 0);
+            }
+            PipelinePreset::BpskTxRx => {
+                // TX chain
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 100.0));
+                let mod_ = pipeline.add_block(BlockType::PskModulator { order: 2 }, Pos2::new(200.0, 100.0));
+                let up = pipeline.add_block(BlockType::Upsampler { factor: 4 }, Pos2::new(350.0, 100.0));
+                let rrc_tx = pipeline.add_block(BlockType::PulseShaper { shape: PulseShape::RootRaisedCosine, rolloff: 0.35, span: 8 }, Pos2::new(500.0, 100.0));
+
+                // Channel
+                let awgn = pipeline.add_block(BlockType::AwgnChannel { snr_db: 10.0 }, Pos2::new(650.0, 100.0));
+
+                // RX chain
+                let rrc_rx = pipeline.add_block(BlockType::MatchedFilter, Pos2::new(50.0, 250.0));
+                let agc = pipeline.add_block(BlockType::Agc { mode: AgcMode::Adaptive, target_db: -20.0 }, Pos2::new(200.0, 250.0));
+                let timing = pipeline.add_block(BlockType::TimingRecovery { algorithm: TimingAlgo::Gardner, loop_bw: 0.01 }, Pos2::new(350.0, 250.0));
+                let carrier = pipeline.add_block(BlockType::CarrierRecovery { algorithm: CarrierAlgo::CostasLoop, loop_bw: 0.005 }, Pos2::new(500.0, 250.0));
+                let down = pipeline.add_block(BlockType::Downsampler { factor: 4 }, Pos2::new(650.0, 250.0));
+                let out = pipeline.add_block(BlockType::BitOutput, Pos2::new(800.0, 250.0));
+
+                pipeline.connect(src, 0, mod_, 0);
+                pipeline.connect(mod_, 0, up, 0);
+                pipeline.connect(up, 0, rrc_tx, 0);
+                pipeline.connect(rrc_tx, 0, awgn, 0);
+                pipeline.connect(awgn, 0, rrc_rx, 0);
+                pipeline.connect(rrc_rx, 0, agc, 0);
+                pipeline.connect(agc, 0, timing, 0);
+                pipeline.connect(timing, 0, carrier, 0);
+                pipeline.connect(carrier, 0, down, 0);
+                pipeline.connect(down, 0, out, 0);
+            }
+            PipelinePreset::QpskTxRx => {
+                // TX chain
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 100.0));
+                let gray_tx = pipeline.add_block(BlockType::GrayMapper { bits_per_symbol: 2 }, Pos2::new(200.0, 100.0));
+                let mod_ = pipeline.add_block(BlockType::PskModulator { order: 4 }, Pos2::new(350.0, 100.0));
+                let up = pipeline.add_block(BlockType::Upsampler { factor: 4 }, Pos2::new(500.0, 100.0));
+                let rrc_tx = pipeline.add_block(BlockType::PulseShaper { shape: PulseShape::RootRaisedCosine, rolloff: 0.35, span: 8 }, Pos2::new(650.0, 100.0));
+
+                // Channel with fading
+                let fading = pipeline.add_block(BlockType::FadingChannel { model: FadingModel::Rayleigh, doppler_hz: 10.0 }, Pos2::new(800.0, 100.0));
+                let awgn = pipeline.add_block(BlockType::AwgnChannel { snr_db: 15.0 }, Pos2::new(950.0, 100.0));
+
+                // RX chain
+                let rrc_rx = pipeline.add_block(BlockType::MatchedFilter, Pos2::new(50.0, 250.0));
+                let agc = pipeline.add_block(BlockType::Agc { mode: AgcMode::Adaptive, target_db: -20.0 }, Pos2::new(200.0, 250.0));
+                let eq = pipeline.add_block(BlockType::Equalizer { eq_type: EqualizerType::Lms, taps: 11, mu: 0.01 }, Pos2::new(350.0, 250.0));
+                let timing = pipeline.add_block(BlockType::TimingRecovery { algorithm: TimingAlgo::Gardner, loop_bw: 0.01 }, Pos2::new(500.0, 250.0));
+                let carrier = pipeline.add_block(BlockType::CarrierRecovery { algorithm: CarrierAlgo::CostasLoop, loop_bw: 0.005 }, Pos2::new(650.0, 250.0));
+                let down = pipeline.add_block(BlockType::Downsampler { factor: 4 }, Pos2::new(800.0, 250.0));
+                let out = pipeline.add_block(BlockType::BitOutput, Pos2::new(950.0, 250.0));
+
+                pipeline.connect(src, 0, gray_tx, 0);
+                pipeline.connect(gray_tx, 0, mod_, 0);
+                pipeline.connect(mod_, 0, up, 0);
+                pipeline.connect(up, 0, rrc_tx, 0);
+                pipeline.connect(rrc_tx, 0, fading, 0);
+                pipeline.connect(fading, 0, awgn, 0);
+                pipeline.connect(awgn, 0, rrc_rx, 0);
+                pipeline.connect(rrc_rx, 0, agc, 0);
+                pipeline.connect(agc, 0, eq, 0);
+                pipeline.connect(eq, 0, timing, 0);
+                pipeline.connect(timing, 0, carrier, 0);
+                pipeline.connect(carrier, 0, down, 0);
+                pipeline.connect(down, 0, out, 0);
+            }
+        }
+
+        pipeline
+    }
+
+    /// Validate the pipeline and return validation result
+    pub fn validate(&self) -> ValidationResult {
+        let mut result = ValidationResult {
+            is_valid: true,
+            warnings: Vec::new(),
+            errors: Vec::new(),
+        };
+
+        if self.blocks.is_empty() {
+            result.warnings.push("Pipeline is empty".to_string());
+            return result;
+        }
+
+        // Check for source blocks
+        let source_blocks: Vec<_> = self.blocks.values()
+            .filter(|b| b.block_type.num_inputs() == 0)
+            .collect();
+        if source_blocks.is_empty() {
+            result.errors.push("No source blocks found - pipeline has no input".to_string());
+            result.is_valid = false;
+        }
+
+        // Check for output blocks
+        let output_blocks: Vec<_> = self.blocks.values()
+            .filter(|b| b.block_type.num_outputs() == 0)
+            .collect();
+        if output_blocks.is_empty() {
+            result.errors.push("No output blocks found - pipeline has no output".to_string());
+            result.is_valid = false;
+        }
+
+        // Check for unconnected inputs
+        for block in self.blocks.values() {
+            let num_inputs = block.block_type.num_inputs();
+            if num_inputs > 0 {
+                for port in 0..num_inputs {
+                    let connected = self.connections.iter()
+                        .any(|c| c.to_block == block.id && c.to_port == port);
+                    if !connected {
+                        result.warnings.push(format!(
+                            "Block '{}' (ID {}) has unconnected input port {}",
+                            block.name, block.id, port
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Check for unconnected outputs (warning only for non-output blocks)
+        for block in self.blocks.values() {
+            let num_outputs = block.block_type.num_outputs();
+            if num_outputs > 0 {
+                for port in 0..num_outputs {
+                    let connected = self.connections.iter()
+                        .any(|c| c.from_block == block.id && c.from_port == port);
+                    if !connected {
+                        result.warnings.push(format!(
+                            "Block '{}' (ID {}) has unconnected output port {}",
+                            block.name, block.id, port
+                        ));
+                    }
+                }
+            }
+        }
+
+        // Check for cycles using DFS
+        if self.has_cycle() {
+            result.errors.push("Pipeline contains a cycle".to_string());
+            result.is_valid = false;
+        }
+
+        // Check disabled blocks
+        for block in self.blocks.values() {
+            if !block.enabled {
+                result.warnings.push(format!("Block '{}' is disabled", block.name));
+            }
+        }
+
+        result
+    }
+
+    /// Check if the pipeline contains a cycle
+    fn has_cycle(&self) -> bool {
+        let mut visited = HashSet::new();
+        let mut rec_stack = HashSet::new();
+
+        for &id in self.blocks.keys() {
+            if self.dfs_cycle_check(id, &mut visited, &mut rec_stack) {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn dfs_cycle_check(&self, node: BlockId, visited: &mut HashSet<BlockId>, rec_stack: &mut HashSet<BlockId>) -> bool {
+        if rec_stack.contains(&node) {
+            return true;
+        }
+        if visited.contains(&node) {
+            return false;
+        }
+
+        visited.insert(node);
+        rec_stack.insert(node);
+
+        for conn in &self.connections {
+            if conn.from_block == node {
+                if self.dfs_cycle_check(conn.to_block, visited, rec_stack) {
+                    return true;
+                }
+            }
+        }
+
+        rec_stack.remove(&node);
+        false
+    }
+
+    /// Get connected port info for a block
+    pub fn get_input_connections(&self, block_id: BlockId) -> Vec<(u32, BlockId, u32)> {
+        self.connections.iter()
+            .filter(|c| c.to_block == block_id)
+            .map(|c| (c.to_port, c.from_block, c.from_port))
+            .collect()
+    }
+
+    pub fn get_output_connections(&self, block_id: BlockId) -> Vec<(u32, BlockId, u32)> {
+        self.connections.iter()
+            .filter(|c| c.from_block == block_id)
+            .map(|c| (c.from_port, c.to_block, c.to_port))
+            .collect()
     }
 }
 
@@ -544,13 +977,20 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
 pub struct PipelineWizardView {
     pub pipeline: Pipeline,
     pub selected_block: Option<BlockId>,
+    pub selected_connection: Option<usize>,
     pub dragging_block: Option<BlockType>,
     pub connecting_from: Option<(BlockId, u32)>,
+    pub connection_drag_pos: Option<Pos2>,
     pub canvas_offset: Vec2,
     pub zoom: f32,
     pub show_library: bool,
     pub show_properties: bool,
+    pub show_presets: bool,
+    pub show_validation: bool,
     pub yaml_output: String,
+    pub validation_result: ValidationResult,
+    pub snap_to_grid: bool,
+    pub grid_size: f32,
 }
 
 impl Default for PipelineWizardView {
@@ -558,13 +998,20 @@ impl Default for PipelineWizardView {
         Self {
             pipeline: Pipeline::new(),
             selected_block: None,
+            selected_connection: None,
             dragging_block: None,
             connecting_from: None,
+            connection_drag_pos: None,
             canvas_offset: Vec2::ZERO,
             zoom: 1.0,
             show_library: true,
             show_properties: true,
+            show_presets: false,
+            show_validation: false,
             yaml_output: String::new(),
+            validation_result: ValidationResult::default(),
+            snap_to_grid: true,
+            grid_size: 20.0,
         }
     }
 }
@@ -580,19 +1027,98 @@ impl PipelineWizardView {
             ui.add_space(20.0);
             ui.checkbox(&mut self.show_library, "Library");
             ui.checkbox(&mut self.show_properties, "Properties");
+            ui.checkbox(&mut self.snap_to_grid, "Snap");
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Export YAML").clicked() {
                     self.yaml_output = self.pipeline.to_yaml();
                 }
+                if ui.button("Validate").clicked() {
+                    self.validation_result = self.pipeline.validate();
+                    self.show_validation = true;
+                }
+                if ui.button("Presets").clicked() {
+                    self.show_presets = !self.show_presets;
+                }
                 if ui.button("Clear").clicked() {
                     self.pipeline = Pipeline::new();
                     self.selected_block = None;
+                    self.selected_connection = None;
+                    self.connecting_from = None;
                 }
             });
         });
 
         ui.separator();
+
+        // Preset selection window
+        if self.show_presets {
+            egui::Window::new("Pipeline Presets")
+                .resizable(false)
+                .collapsible(false)
+                .show(ui.ctx(), |ui| {
+                    ui.label("Load a preset pipeline template:");
+                    ui.add_space(5.0);
+                    for preset in PipelinePreset::all() {
+                        ui.horizontal(|ui| {
+                            if ui.button(preset.name()).clicked() {
+                                self.pipeline = Pipeline::from_preset(*preset);
+                                self.selected_block = None;
+                                self.selected_connection = None;
+                                self.show_presets = false;
+                            }
+                            ui.label(RichText::new(preset.description()).italics().weak());
+                        });
+                    }
+                    ui.add_space(5.0);
+                    if ui.button("Close").clicked() {
+                        self.show_presets = false;
+                    }
+                });
+        }
+
+        // Validation window
+        if self.show_validation {
+            egui::Window::new("Pipeline Validation")
+                .resizable(true)
+                .collapsible(false)
+                .show(ui.ctx(), |ui| {
+                    if self.validation_result.is_valid && self.validation_result.warnings.is_empty() {
+                        ui.colored_label(Color32::GREEN, "Pipeline is valid!");
+                    } else if self.validation_result.is_valid {
+                        ui.colored_label(Color32::YELLOW, "Pipeline is valid with warnings");
+                    } else {
+                        ui.colored_label(Color32::RED, "Pipeline has errors");
+                    }
+
+                    if !self.validation_result.errors.is_empty() {
+                        ui.add_space(5.0);
+                        ui.label(RichText::new("Errors:").strong().color(Color32::RED));
+                        for error in &self.validation_result.errors {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("  ").color(Color32::RED));
+                                ui.label(error);
+                            });
+                        }
+                    }
+
+                    if !self.validation_result.warnings.is_empty() {
+                        ui.add_space(5.0);
+                        ui.label(RichText::new("Warnings:").strong().color(Color32::YELLOW));
+                        for warning in &self.validation_result.warnings {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new("  ").color(Color32::YELLOW));
+                                ui.label(warning);
+                            });
+                        }
+                    }
+
+                    ui.add_space(10.0);
+                    if ui.button("Close").clicked() {
+                        self.show_validation = false;
+                    }
+                });
+        }
 
         // Main layout: Library | Canvas | Properties
         ui.horizontal(|ui| {
@@ -677,12 +1203,13 @@ impl PipelineWizardView {
         );
 
         let rect = response.rect;
+        let pointer_pos = response.hover_pos();
 
         // Background
         painter.rect_filled(rect, 0.0, Color32::from_rgb(30, 30, 40));
 
         // Grid
-        let grid_spacing = 20.0 * self.zoom;
+        let grid_spacing = self.grid_size * self.zoom;
         let offset = self.canvas_offset;
 
         for x in (0..((rect.width() / grid_spacing) as i32 + 1)).map(|i| rect.left() + i as f32 * grid_spacing + offset.x % grid_spacing) {
@@ -699,7 +1226,7 @@ impl PipelineWizardView {
         }
 
         // Draw connections
-        for conn in &self.pipeline.connections {
+        for (idx, conn) in self.pipeline.connections.iter().enumerate() {
             if let (Some(from_block), Some(to_block)) = (
                 self.pipeline.blocks.get(&conn.from_block),
                 self.pipeline.blocks.get(&conn.to_block),
@@ -707,25 +1234,34 @@ impl PipelineWizardView {
                 let from_pos = self.block_output_pos(from_block, conn.from_port, rect);
                 let to_pos = self.block_input_pos(to_block, conn.to_port, rect);
 
-                // Bezier curve
-                let ctrl1 = Pos2::new(from_pos.x + 50.0, from_pos.y);
-                let ctrl2 = Pos2::new(to_pos.x - 50.0, to_pos.y);
+                let is_selected = self.selected_connection == Some(idx);
+                let color = if is_selected {
+                    Color32::from_rgb(255, 200, 100)
+                } else {
+                    Color32::from_rgb(100, 200, 100)
+                };
+                let width = if is_selected { 3.0 } else { 2.0 };
 
-                let points: Vec<Pos2> = (0..=20).map(|i| {
-                    let t = i as f32 / 20.0;
-                    let t2 = t * t;
-                    let t3 = t2 * t;
-                    let mt = 1.0 - t;
-                    let mt2 = mt * mt;
-                    let mt3 = mt2 * mt;
+                self.draw_bezier(&painter, from_pos, to_pos, color, width);
+            }
+        }
 
-                    Pos2::new(
-                        mt3 * from_pos.x + 3.0 * mt2 * t * ctrl1.x + 3.0 * mt * t2 * ctrl2.x + t3 * to_pos.x,
-                        mt3 * from_pos.y + 3.0 * mt2 * t * ctrl1.y + 3.0 * mt * t2 * ctrl2.y + t3 * to_pos.y,
-                    )
-                }).collect();
+        // Draw in-progress connection
+        if let Some((from_block_id, from_port)) = self.connecting_from {
+            if let Some(from_block) = self.pipeline.blocks.get(&from_block_id) {
+                let from_pos = self.block_output_pos(from_block, from_port, rect);
+                let to_pos = pointer_pos.unwrap_or(from_pos);
 
-                painter.add(PathShape::line(points, Stroke::new(2.0, Color32::from_rgb(100, 200, 100))));
+                self.draw_bezier(&painter, from_pos, to_pos, Color32::from_rgb(200, 200, 100), 2.0);
+
+                // Show instruction
+                painter.text(
+                    rect.center_top() + Vec2::new(0.0, 30.0),
+                    egui::Align2::CENTER_CENTER,
+                    "Click on an input port to complete connection, or press ESC to cancel",
+                    egui::FontId::proportional(14.0),
+                    Color32::YELLOW,
+                );
             }
         }
 
@@ -737,67 +1273,281 @@ impl PipelineWizardView {
             }
         }
 
-        // Handle interactions
-        if response.dragged() && response.drag_delta().length() > 0.0 {
-            if let Some(selected_id) = self.selected_block {
-                if let Some(block) = self.pipeline.blocks.get_mut(&selected_id) {
-                    block.position += response.drag_delta() / self.zoom;
-                }
-            } else {
-                self.canvas_offset += response.drag_delta();
-            }
-        }
-
-        // Click to select
+        // Handle port clicks for connection creation
         if response.clicked() {
-            let click_pos = response.interact_pointer_pos().unwrap_or(Pos2::ZERO);
-            self.selected_block = None;
+            if let Some(click_pos) = pointer_pos {
+                // Check if clicking on a port
+                let mut port_clicked = false;
+                let mut connection_to_make: Option<(BlockId, u32, BlockId, u32)> = None;
 
-            for (id, block) in &self.pipeline.blocks {
-                let block_rect = self.block_rect(block, rect);
-                if block_rect.contains(click_pos) {
-                    self.selected_block = Some(*id);
-                    break;
-                }
-            }
-        }
+                // First check if we're finishing a connection
+                if self.connecting_from.is_some() {
+                    // Collect port info first to avoid borrowing conflict
+                    let port_info: Vec<_> = self.pipeline.blocks.iter()
+                        .flat_map(|(id, block)| {
+                            (0..block.block_type.num_inputs())
+                                .map(|port| (*id, port, self.block_input_pos(block, port, rect)))
+                                .collect::<Vec<_>>()
+                        })
+                        .collect();
 
-        // Delete selected block
-        if self.selected_block.is_some() {
-            ui.input(|i| {
-                if i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace) {
-                    if let Some(id) = self.selected_block.take() {
-                        self.pipeline.remove_block(id);
+                    for (id, port, port_pos) in port_info {
+                        if (click_pos - port_pos).length() < 10.0 * self.zoom {
+                            // Complete the connection
+                            if let Some((from_block, from_port)) = self.connecting_from.take() {
+                                connection_to_make = Some((from_block, from_port, id, port));
+                            }
+                            port_clicked = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // Check if starting a connection from an output port
+                    // Collect port info first
+                    let port_info: Vec<_> = self.pipeline.blocks.iter()
+                        .flat_map(|(id, block)| {
+                            (0..block.block_type.num_outputs())
+                                .map(|port| (*id, port, self.block_output_pos(block, port, rect)))
+                                .collect::<Vec<_>>()
+                        })
+                        .collect();
+
+                    for (id, port, port_pos) in port_info {
+                        if (click_pos - port_pos).length() < 10.0 * self.zoom {
+                            self.connecting_from = Some((id, port));
+                            self.selected_block = None;
+                            self.selected_connection = None;
+                            port_clicked = true;
+                            break;
+                        }
                     }
                 }
-            });
+
+                // Now make the connection if needed
+                if let Some((from_block, from_port, to_block, to_port)) = connection_to_make {
+                    self.pipeline.connect(from_block, from_port, to_block, to_port);
+                }
+
+                if !port_clicked {
+                    // Cancel connection if clicking elsewhere
+                    self.connecting_from = None;
+
+                    // Check if clicking on a connection
+                    let mut clicked_connection = None;
+                    for (idx, conn) in self.pipeline.connections.iter().enumerate() {
+                        if let (Some(from_block), Some(to_block)) = (
+                            self.pipeline.blocks.get(&conn.from_block),
+                            self.pipeline.blocks.get(&conn.to_block),
+                        ) {
+                            let from_pos = self.block_output_pos(from_block, conn.from_port, rect);
+                            let to_pos = self.block_input_pos(to_block, conn.to_port, rect);
+                            if self.point_near_bezier(click_pos, from_pos, to_pos, 8.0) {
+                                clicked_connection = Some(idx);
+                                break;
+                            }
+                        }
+                    }
+
+                    if let Some(idx) = clicked_connection {
+                        self.selected_connection = Some(idx);
+                        self.selected_block = None;
+                    } else {
+                        // Check if clicking on a block
+                        self.selected_block = None;
+                        self.selected_connection = None;
+
+                        for (id, block) in &self.pipeline.blocks {
+                            let block_rect = self.block_rect(block, rect);
+                            if block_rect.contains(click_pos) {
+                                self.selected_block = Some(*id);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
-        // Zoom with scroll
+        // Handle dragging
+        if response.dragged() && response.drag_delta().length() > 0.0 {
+            if self.connecting_from.is_none() {
+                if let Some(selected_id) = self.selected_block {
+                    if let Some(block) = self.pipeline.blocks.get_mut(&selected_id) {
+                        let mut new_pos = block.position + response.drag_delta() / self.zoom;
+                        if self.snap_to_grid {
+                            new_pos.x = (new_pos.x / self.grid_size).round() * self.grid_size;
+                            new_pos.y = (new_pos.y / self.grid_size).round() * self.grid_size;
+                        }
+                        block.position = new_pos;
+                    }
+                } else {
+                    self.canvas_offset += response.drag_delta();
+                }
+            }
+        }
+
+        // Keyboard shortcuts
         ui.input(|i| {
+            // ESC to cancel connection
+            if i.key_pressed(egui::Key::Escape) {
+                self.connecting_from = None;
+                self.selected_block = None;
+                self.selected_connection = None;
+            }
+
+            // Delete selected block or connection
+            if i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace) {
+                if let Some(id) = self.selected_block.take() {
+                    self.pipeline.remove_block(id);
+                } else if let Some(idx) = self.selected_connection.take() {
+                    if idx < self.pipeline.connections.len() {
+                        self.pipeline.connections.remove(idx);
+                    }
+                }
+            }
+
+            // Zoom with scroll
             let scroll = i.raw_scroll_delta.y;
             if scroll != 0.0 {
                 self.zoom = (self.zoom + scroll * 0.001).clamp(0.5, 2.0);
             }
         });
 
+        // Context menu for right-click
+        response.context_menu(|ui| {
+            if let Some(id) = self.selected_block {
+                if ui.button("Duplicate Block").clicked() {
+                    if let Some(block) = self.pipeline.blocks.get(&id) {
+                        let new_pos = block.position + Vec2::new(20.0, 20.0);
+                        let new_type = block.block_type.clone();
+                        self.pipeline.add_block(new_type, new_pos);
+                    }
+                    ui.close_menu();
+                }
+                if ui.button("Delete Block").clicked() {
+                    self.pipeline.remove_block(id);
+                    self.selected_block = None;
+                    ui.close_menu();
+                }
+                if ui.button("Disconnect All").clicked() {
+                    self.pipeline.connections.retain(|c| c.from_block != id && c.to_block != id);
+                    ui.close_menu();
+                }
+            } else if let Some(idx) = self.selected_connection {
+                if ui.button("Delete Connection").clicked() {
+                    if idx < self.pipeline.connections.len() {
+                        self.pipeline.connections.remove(idx);
+                    }
+                    self.selected_connection = None;
+                    ui.close_menu();
+                }
+            } else {
+                ui.label("Right-click on a block or connection for options");
+            }
+        });
+
+        // Connection mode indicator
+        let mode_text = if self.connecting_from.is_some() {
+            "MODE: Connecting..."
+        } else if self.selected_block.is_some() {
+            "Selected: Block"
+        } else if self.selected_connection.is_some() {
+            "Selected: Connection"
+        } else {
+            ""
+        };
+
+        if !mode_text.is_empty() {
+            painter.text(
+                rect.right_top() + Vec2::new(-10.0, 10.0),
+                egui::Align2::RIGHT_TOP,
+                mode_text,
+                egui::FontId::proportional(12.0),
+                Color32::YELLOW,
+            );
+        }
+
         // Instructions
         painter.text(
             rect.left_bottom() + Vec2::new(10.0, -10.0),
             egui::Align2::LEFT_BOTTOM,
-            "Click blocks in library to add | Drag to move | Delete to remove | Scroll to zoom",
-            egui::FontId::proportional(12.0),
+            "Click output ports to connect | Drag blocks to move | Delete/Backspace to remove | Scroll to zoom | Right-click for menu",
+            egui::FontId::proportional(11.0),
             Color32::GRAY,
         );
+
+        // Stats
+        painter.text(
+            rect.right_bottom() + Vec2::new(-10.0, -10.0),
+            egui::Align2::RIGHT_BOTTOM,
+            format!("Blocks: {} | Connections: {} | Zoom: {:.0}%",
+                self.pipeline.blocks.len(),
+                self.pipeline.connections.len(),
+                self.zoom * 100.0),
+            egui::FontId::proportional(11.0),
+            Color32::GRAY,
+        );
+    }
+
+    fn draw_bezier(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, color: Color32, width: f32) {
+        let ctrl1 = Pos2::new(from_pos.x + 50.0 * self.zoom, from_pos.y);
+        let ctrl2 = Pos2::new(to_pos.x - 50.0 * self.zoom, to_pos.y);
+
+        let points: Vec<Pos2> = (0..=20).map(|i| {
+            let t = i as f32 / 20.0;
+            let t2 = t * t;
+            let t3 = t2 * t;
+            let mt = 1.0 - t;
+            let mt2 = mt * mt;
+            let mt3 = mt2 * mt;
+
+            Pos2::new(
+                mt3 * from_pos.x + 3.0 * mt2 * t * ctrl1.x + 3.0 * mt * t2 * ctrl2.x + t3 * to_pos.x,
+                mt3 * from_pos.y + 3.0 * mt2 * t * ctrl1.y + 3.0 * mt * t2 * ctrl2.y + t3 * to_pos.y,
+            )
+        }).collect();
+
+        painter.add(PathShape::line(points, Stroke::new(width, color)));
+    }
+
+    fn point_near_bezier(&self, point: Pos2, from_pos: Pos2, to_pos: Pos2, threshold: f32) -> bool {
+        let ctrl1 = Pos2::new(from_pos.x + 50.0 * self.zoom, from_pos.y);
+        let ctrl2 = Pos2::new(to_pos.x - 50.0 * self.zoom, to_pos.y);
+
+        for i in 0..=20 {
+            let t = i as f32 / 20.0;
+            let t2 = t * t;
+            let t3 = t2 * t;
+            let mt = 1.0 - t;
+            let mt2 = mt * mt;
+            let mt3 = mt2 * mt;
+
+            let curve_point = Pos2::new(
+                mt3 * from_pos.x + 3.0 * mt2 * t * ctrl1.x + 3.0 * mt * t2 * ctrl2.x + t3 * to_pos.x,
+                mt3 * from_pos.y + 3.0 * mt2 * t * ctrl1.y + 3.0 * mt * t2 * ctrl2.y + t3 * to_pos.y,
+            );
+
+            if (point - curve_point).length() < threshold {
+                return true;
+            }
+        }
+        false
     }
 
     fn draw_block(&self, painter: &egui::Painter, block: &PipelineBlock, canvas_rect: Rect) {
         let block_rect = self.block_rect(block, canvas_rect);
         let category = block.block_type.category();
         let is_selected = self.selected_block == Some(block.id);
+        let is_disabled = !block.enabled;
+
+        // Block shadow
+        let shadow_rect = block_rect.translate(Vec2::new(3.0, 3.0));
+        painter.rect_filled(shadow_rect, 5.0, Color32::from_rgba_unmultiplied(0, 0, 0, 60));
 
         // Block background
-        let bg_color = if is_selected {
+        let bg_color = if is_disabled {
+            Color32::from_rgb(60, 60, 60)
+        } else if is_selected {
             category.color().gamma_multiply(0.6)
         } else {
             category.color().gamma_multiply(0.4)
@@ -807,30 +1557,85 @@ impl PipelineWizardView {
         // Border
         let border_color = if is_selected {
             Color32::WHITE
+        } else if is_disabled {
+            Color32::GRAY
         } else {
             category.color()
         };
-        painter.rect_stroke(block_rect, 5.0, Stroke::new(2.0, border_color));
+        let border_width = if is_selected { 3.0 } else { 2.0 };
+        painter.rect_stroke(block_rect, 5.0, Stroke::new(border_width, border_color));
+
+        // Category indicator bar at top
+        let indicator_rect = Rect::from_min_size(
+            block_rect.left_top(),
+            Vec2::new(block_rect.width(), 4.0 * self.zoom)
+        );
+        painter.rect_filled(indicator_rect, egui::Rounding::same(5.0), category.color());
 
         // Block name
+        let text_color = if is_disabled { Color32::GRAY } else { Color32::WHITE };
         painter.text(
             block_rect.center(),
             egui::Align2::CENTER_CENTER,
             &block.name,
-            egui::FontId::proportional(12.0 * self.zoom),
-            Color32::WHITE,
+            egui::FontId::proportional(11.0 * self.zoom),
+            text_color,
         );
 
-        // Input ports
+        // Block ID (small, in corner)
+        painter.text(
+            block_rect.right_bottom() + Vec2::new(-5.0, -3.0),
+            egui::Align2::RIGHT_BOTTOM,
+            format!("#{}", block.id),
+            egui::FontId::proportional(8.0 * self.zoom),
+            Color32::from_rgb(150, 150, 150),
+        );
+
+        // Input ports with hover effect
+        let port_radius = 6.0 * self.zoom;
         for i in 0..block.block_type.num_inputs() {
             let port_pos = self.block_input_pos(block, i, canvas_rect);
-            painter.circle_filled(port_pos, 5.0 * self.zoom, Color32::from_rgb(100, 100, 200));
+
+            // Check if this is a valid connection target
+            let is_connection_target = self.connecting_from.is_some();
+            let port_color = if is_connection_target {
+                Color32::from_rgb(100, 200, 255) // Highlight when connecting
+            } else {
+                Color32::from_rgb(80, 120, 200)
+            };
+
+            // Port outer ring
+            painter.circle_stroke(port_pos, port_radius + 2.0, Stroke::new(1.0, port_color));
+            // Port fill
+            painter.circle_filled(port_pos, port_radius, port_color);
+            // Port inner highlight
+            painter.circle_filled(port_pos, port_radius * 0.4, Color32::WHITE);
         }
 
         // Output ports
         for i in 0..block.block_type.num_outputs() {
             let port_pos = self.block_output_pos(block, i, canvas_rect);
-            painter.circle_filled(port_pos, 5.0 * self.zoom, Color32::from_rgb(200, 100, 100));
+            let is_connection_source = self.connecting_from == Some((block.id, i));
+            let port_color = if is_connection_source {
+                Color32::from_rgb(255, 200, 100) // Highlight when this is source
+            } else {
+                Color32::from_rgb(200, 80, 80)
+            };
+
+            // Port outer ring
+            painter.circle_stroke(port_pos, port_radius + 2.0, Stroke::new(1.0, port_color));
+            // Port fill
+            painter.circle_filled(port_pos, port_radius, port_color);
+            // Port inner highlight
+            painter.circle_filled(port_pos, port_radius * 0.4, Color32::WHITE);
+        }
+
+        // Disabled overlay
+        if is_disabled {
+            painter.line_segment(
+                [block_rect.left_top(), block_rect.right_bottom()],
+                Stroke::new(2.0, Color32::RED),
+            );
         }
     }
 
@@ -912,6 +1717,145 @@ impl PipelineWizardView {
         };
 
         match block_type {
+            BlockType::BitSource { pattern } => {
+                let mut new_pattern = pattern;
+                ui.horizontal(|ui| {
+                    ui.label("Pattern:");
+                    egui::ComboBox::from_id_salt("bit_pattern")
+                        .selected_text(&new_pattern)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_pattern, "random".to_string(), "Random");
+                            ui.selectable_value(&mut new_pattern, "alternating".to_string(), "Alternating");
+                            ui.selectable_value(&mut new_pattern, "ones".to_string(), "All Ones");
+                            ui.selectable_value(&mut new_pattern, "zeros".to_string(), "All Zeros");
+                            ui.selectable_value(&mut new_pattern, "prbs7".to_string(), "PRBS-7");
+                            ui.selectable_value(&mut new_pattern, "prbs15".to_string(), "PRBS-15");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::BitSource { pattern: new_pattern };
+                }
+            }
+            BlockType::SymbolSource { alphabet_size } => {
+                let mut new_size = alphabet_size;
+                ui.horizontal(|ui| {
+                    ui.label("Alphabet:");
+                    egui::ComboBox::from_id_salt("sym_alphabet")
+                        .selected_text(format!("{}", new_size))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_size, 2, "2 (Binary)");
+                            ui.selectable_value(&mut new_size, 4, "4 (Quaternary)");
+                            ui.selectable_value(&mut new_size, 8, "8");
+                            ui.selectable_value(&mut new_size, 16, "16");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SymbolSource { alphabet_size: new_size };
+                }
+            }
+            BlockType::Scrambler { polynomial, seed } => {
+                let mut new_poly = polynomial;
+                let mut new_seed = seed;
+                ui.horizontal(|ui| {
+                    ui.label("Polynomial:");
+                    ui.add(egui::DragValue::new(&mut new_poly).hexadecimal(2, false, true));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Seed:");
+                    ui.add(egui::DragValue::new(&mut new_seed).hexadecimal(2, false, true));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Scrambler { polynomial: new_poly, seed: new_seed };
+                }
+            }
+            BlockType::FecEncoder { code_type, rate } => {
+                let mut new_type = code_type;
+                let mut new_rate = rate;
+                ui.label("Code Type:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_type, FecType::Convolutional, "Conv");
+                    ui.radio_value(&mut new_type, FecType::Ldpc, "LDPC");
+                    ui.radio_value(&mut new_type, FecType::Turbo, "Turbo");
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_type, FecType::ReedSolomon, "RS");
+                    ui.radio_value(&mut new_type, FecType::Hamming, "Hamming");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Rate:");
+                    egui::ComboBox::from_id_salt("fec_rate")
+                        .selected_text(&new_rate)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_rate, "1/2".to_string(), "1/2");
+                            ui.selectable_value(&mut new_rate, "2/3".to_string(), "2/3");
+                            ui.selectable_value(&mut new_rate, "3/4".to_string(), "3/4");
+                            ui.selectable_value(&mut new_rate, "5/6".to_string(), "5/6");
+                            ui.selectable_value(&mut new_rate, "7/8".to_string(), "7/8");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FecEncoder { code_type: new_type, rate: new_rate };
+                }
+            }
+            BlockType::Interleaver { rows, cols } => {
+                let mut new_rows = rows;
+                let mut new_cols = cols;
+                ui.horizontal(|ui| {
+                    ui.label("Rows:");
+                    ui.add(egui::DragValue::new(&mut new_rows).range(2..=64));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Cols:");
+                    ui.add(egui::DragValue::new(&mut new_cols).range(2..=64));
+                });
+                ui.label(format!("Block size: {} bits", new_rows * new_cols));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Interleaver { rows: new_rows, cols: new_cols };
+                }
+            }
+            BlockType::CrcGenerator { crc_type } => {
+                let mut new_type = crc_type;
+                ui.label("CRC Type:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_type, CrcType::Crc8, "CRC-8");
+                    ui.radio_value(&mut new_type, CrcType::Crc16Ccitt, "CRC-16 CCITT");
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_type, CrcType::Crc16Ibm, "CRC-16 IBM");
+                    ui.radio_value(&mut new_type, CrcType::Crc32, "CRC-32");
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::CrcGenerator { crc_type: new_type };
+                }
+            }
+            BlockType::GrayMapper { bits_per_symbol } => {
+                let mut new_bits = bits_per_symbol;
+                ui.horizontal(|ui| {
+                    ui.label("Bits/Symbol:");
+                    ui.add(egui::DragValue::new(&mut new_bits).range(1..=8));
+                });
+                ui.label(format!("Constellation: {}-ary", 1u32 << new_bits));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::GrayMapper { bits_per_symbol: new_bits };
+                }
+            }
+            BlockType::ConstellationMapper { constellation } => {
+                let mut new_const = constellation;
+                ui.label("Constellation:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_const, ConstellationType::Bpsk, "BPSK");
+                    ui.radio_value(&mut new_const, ConstellationType::Qpsk, "QPSK");
+                    ui.radio_value(&mut new_const, ConstellationType::Psk8, "8-PSK");
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_const, ConstellationType::Qam16, "16-QAM");
+                    ui.radio_value(&mut new_const, ConstellationType::Qam64, "64-QAM");
+                    ui.radio_value(&mut new_const, ConstellationType::Qam256, "256-QAM");
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ConstellationMapper { constellation: new_const };
+                }
+            }
             BlockType::PskModulator { order } => {
                 let mut new_order = order;
                 ui.horizontal(|ui| {
@@ -922,6 +1866,7 @@ impl PipelineWizardView {
                             ui.selectable_value(&mut new_order, 2, "BPSK");
                             ui.selectable_value(&mut new_order, 4, "QPSK");
                             ui.selectable_value(&mut new_order, 8, "8-PSK");
+                            ui.selectable_value(&mut new_order, 16, "16-PSK");
                         });
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
@@ -938,10 +1883,129 @@ impl PipelineWizardView {
                             ui.selectable_value(&mut new_order, 16, "16-QAM");
                             ui.selectable_value(&mut new_order, 64, "64-QAM");
                             ui.selectable_value(&mut new_order, 256, "256-QAM");
+                            ui.selectable_value(&mut new_order, 1024, "1024-QAM");
                         });
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::QamModulator { order: new_order };
+                }
+            }
+            BlockType::FskModulator { deviation_hz, order } => {
+                let mut new_dev = deviation_hz;
+                let mut new_order = order;
+                ui.horizontal(|ui| {
+                    ui.label("Deviation (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_dev).speed(100.0).range(100.0..=50000.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Order:");
+                    egui::ComboBox::from_id_salt("fsk_order")
+                        .selected_text(format!("{}-FSK", new_order))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_order, 2, "2-FSK");
+                            ui.selectable_value(&mut new_order, 4, "4-FSK");
+                            ui.selectable_value(&mut new_order, 8, "8-FSK");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FskModulator { deviation_hz: new_dev, order: new_order };
+                }
+            }
+            BlockType::OfdmModulator { fft_size, cp_len, data_carriers } => {
+                let mut new_fft = fft_size;
+                let mut new_cp = cp_len;
+                let mut new_data = data_carriers;
+                ui.horizontal(|ui| {
+                    ui.label("FFT Size:");
+                    egui::ComboBox::from_id_salt("ofdm_fft")
+                        .selected_text(format!("{}", new_fft))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_fft, 64, "64");
+                            ui.selectable_value(&mut new_fft, 128, "128");
+                            ui.selectable_value(&mut new_fft, 256, "256");
+                            ui.selectable_value(&mut new_fft, 512, "512");
+                            ui.selectable_value(&mut new_fft, 1024, "1024");
+                            ui.selectable_value(&mut new_fft, 2048, "2048");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("CP Length:");
+                    ui.add(egui::DragValue::new(&mut new_cp).range(0..=new_fft/2));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Data Carriers:");
+                    ui.add(egui::DragValue::new(&mut new_data).range(1..=new_fft-1));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::OfdmModulator { fft_size: new_fft, cp_len: new_cp, data_carriers: new_data };
+                }
+            }
+            BlockType::DsssSpread { chips_per_symbol, code_type } => {
+                let mut new_chips = chips_per_symbol;
+                let mut new_code = code_type;
+                ui.horizontal(|ui| {
+                    ui.label("Chips/Symbol:");
+                    egui::ComboBox::from_id_salt("dsss_chips")
+                        .selected_text(format!("{}", new_chips))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_chips, 7, "7");
+                            ui.selectable_value(&mut new_chips, 15, "15");
+                            ui.selectable_value(&mut new_chips, 31, "31");
+                            ui.selectable_value(&mut new_chips, 63, "63");
+                            ui.selectable_value(&mut new_chips, 127, "127");
+                            ui.selectable_value(&mut new_chips, 255, "255");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Code Type:");
+                    egui::ComboBox::from_id_salt("dsss_code")
+                        .selected_text(&new_code)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_code, "Gold".to_string(), "Gold");
+                            ui.selectable_value(&mut new_code, "Kasami".to_string(), "Kasami");
+                            ui.selectable_value(&mut new_code, "Walsh".to_string(), "Walsh");
+                            ui.selectable_value(&mut new_code, "PN".to_string(), "PN");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DsssSpread { chips_per_symbol: new_chips, code_type: new_code };
+                }
+            }
+            BlockType::FhssHop { num_channels, hop_rate } => {
+                let mut new_channels = num_channels;
+                let mut new_rate = hop_rate;
+                ui.horizontal(|ui| {
+                    ui.label("Channels:");
+                    ui.add(egui::DragValue::new(&mut new_channels).range(2..=256));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Hop Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_rate).speed(10.0).range(1.0..=10000.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FhssHop { num_channels: new_channels, hop_rate: new_rate };
+                }
+            }
+            BlockType::CssModulator { sf, bw_hz } => {
+                let mut new_sf = sf;
+                let mut new_bw = bw_hz;
+                ui.horizontal(|ui| {
+                    ui.label("Spreading Factor:");
+                    ui.add(egui::DragValue::new(&mut new_sf).range(5..=12));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Bandwidth:");
+                    egui::ComboBox::from_id_salt("css_bw")
+                        .selected_text(format!("{} kHz", new_bw / 1000))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_bw, 125000, "125 kHz");
+                            ui.selectable_value(&mut new_bw, 250000, "250 kHz");
+                            ui.selectable_value(&mut new_bw, 500000, "500 kHz");
+                        });
+                });
+                ui.label(format!("Symbols: {} | Bits/symbol: {}", 1u32 << new_sf, new_sf));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::CssModulator { sf: new_sf, bw_hz: new_bw };
                 }
             }
             BlockType::FirFilter { filter_type, cutoff_hz, num_taps } => {
@@ -954,6 +2018,7 @@ impl PipelineWizardView {
                     ui.radio_value(&mut new_type, FilterType::Lowpass, "LP");
                     ui.radio_value(&mut new_type, FilterType::Highpass, "HP");
                     ui.radio_value(&mut new_type, FilterType::Bandpass, "BP");
+                    ui.radio_value(&mut new_type, FilterType::Bandstop, "BS");
                 });
 
                 ui.horizontal(|ui| {
@@ -963,7 +2028,7 @@ impl PipelineWizardView {
 
                 ui.horizontal(|ui| {
                     ui.label("Taps:");
-                    ui.add(egui::DragValue::new(&mut new_taps).range(8..=256));
+                    ui.add(egui::DragValue::new(&mut new_taps).range(8..=512));
                 });
 
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
@@ -971,6 +2036,39 @@ impl PipelineWizardView {
                         filter_type: new_type,
                         cutoff_hz: new_cutoff,
                         num_taps: new_taps
+                    };
+                }
+            }
+            BlockType::IirFilter { design, cutoff_hz, order } => {
+                let mut new_design = design;
+                let mut new_cutoff = cutoff_hz;
+                let mut new_order = order;
+
+                ui.label("Design:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_design, IirDesign::Butterworth, "Butter");
+                    ui.radio_value(&mut new_design, IirDesign::Chebyshev1, "Cheby I");
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_design, IirDesign::Chebyshev2, "Cheby II");
+                    ui.radio_value(&mut new_design, IirDesign::Bessel, "Bessel");
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Cutoff (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_cutoff).speed(100.0));
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Order:");
+                    ui.add(egui::DragValue::new(&mut new_order).range(1..=12));
+                });
+
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::IirFilter {
+                        design: new_design,
+                        cutoff_hz: new_cutoff,
+                        order: new_order
                     };
                 }
             }
@@ -983,17 +2081,20 @@ impl PipelineWizardView {
                 ui.horizontal(|ui| {
                     ui.radio_value(&mut new_shape, PulseShape::RootRaisedCosine, "RRC");
                     ui.radio_value(&mut new_shape, PulseShape::RaisedCosine, "RC");
+                });
+                ui.horizontal(|ui| {
                     ui.radio_value(&mut new_shape, PulseShape::Gaussian, "Gauss");
+                    ui.radio_value(&mut new_shape, PulseShape::Rectangular, "Rect");
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label("Rolloff:");
+                    ui.label("Rolloff (α):");
                     ui.add(egui::Slider::new(&mut new_rolloff, 0.0..=1.0));
                 });
 
                 ui.horizontal(|ui| {
-                    ui.label("Span:");
-                    ui.add(egui::DragValue::new(&mut new_span).range(4..=16));
+                    ui.label("Span (symbols):");
+                    ui.add(egui::DragValue::new(&mut new_span).range(2..=32));
                 });
 
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
@@ -1010,6 +2111,7 @@ impl PipelineWizardView {
                     ui.label("Factor:");
                     ui.add(egui::DragValue::new(&mut new_factor).range(1..=64));
                 });
+                ui.label(format!("Output rate: {}× input", new_factor));
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::Upsampler { factor: new_factor };
                 }
@@ -1020,8 +2122,109 @@ impl PipelineWizardView {
                     ui.label("Factor:");
                     ui.add(egui::DragValue::new(&mut new_factor).range(1..=64));
                 });
+                ui.label(format!("Output rate: 1/{} input", new_factor));
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::Downsampler { factor: new_factor };
+                }
+            }
+            BlockType::RationalResampler { up, down } => {
+                let mut new_up = up;
+                let mut new_down = down;
+                ui.horizontal(|ui| {
+                    ui.label("Up:");
+                    ui.add(egui::DragValue::new(&mut new_up).range(1..=64));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Down:");
+                    ui.add(egui::DragValue::new(&mut new_down).range(1..=64));
+                });
+                ui.label(format!("Ratio: {}/{} = {:.4}", new_up, new_down, new_up as f32 / new_down as f32));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::RationalResampler { up: new_up, down: new_down };
+                }
+            }
+            BlockType::PolyphaseResampler { up, down, taps_per_phase } => {
+                let mut new_up = up;
+                let mut new_down = down;
+                let mut new_taps = taps_per_phase;
+                ui.horizontal(|ui| {
+                    ui.label("Up:");
+                    ui.add(egui::DragValue::new(&mut new_up).range(1..=64));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Down:");
+                    ui.add(egui::DragValue::new(&mut new_down).range(1..=64));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Taps/Phase:");
+                    ui.add(egui::DragValue::new(&mut new_taps).range(4..=64));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PolyphaseResampler { up: new_up, down: new_down, taps_per_phase: new_taps };
+                }
+            }
+            BlockType::PreambleInsert { pattern, length } => {
+                let mut new_pattern = pattern;
+                let mut new_length = length;
+                ui.horizontal(|ui| {
+                    ui.label("Pattern:");
+                    egui::ComboBox::from_id_salt("preamble_pattern")
+                        .selected_text(&new_pattern)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_pattern, "alternating".to_string(), "Alternating");
+                            ui.selectable_value(&mut new_pattern, "barker13".to_string(), "Barker-13");
+                            ui.selectable_value(&mut new_pattern, "barker11".to_string(), "Barker-11");
+                            ui.selectable_value(&mut new_pattern, "ones".to_string(), "All Ones");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Length:");
+                    ui.add(egui::DragValue::new(&mut new_length).range(4..=256));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PreambleInsert { pattern: new_pattern, length: new_length };
+                }
+            }
+            BlockType::SyncWordInsert { word } => {
+                let mut new_word = word;
+                ui.horizontal(|ui| {
+                    ui.label("Sync Word:");
+                    ui.text_edit_singleline(&mut new_word);
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SyncWordInsert { word: new_word };
+                }
+            }
+            BlockType::FrameBuilder { header_bits, payload_bits } => {
+                let mut new_header = header_bits;
+                let mut new_payload = payload_bits;
+                ui.horizontal(|ui| {
+                    ui.label("Header bits:");
+                    ui.add(egui::DragValue::new(&mut new_header).range(0..=256));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Payload bits:");
+                    ui.add(egui::DragValue::new(&mut new_payload).range(1..=8192));
+                });
+                ui.label(format!("Frame: {} bits", new_header + new_payload));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FrameBuilder { header_bits: new_header, payload_bits: new_payload };
+                }
+            }
+            BlockType::TdmaFramer { slots, slot_ms } => {
+                let mut new_slots = slots;
+                let mut new_slot_ms = slot_ms;
+                ui.horizontal(|ui| {
+                    ui.label("Slots:");
+                    ui.add(egui::DragValue::new(&mut new_slots).range(1..=64));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Slot (ms):");
+                    ui.add(egui::DragValue::new(&mut new_slot_ms).speed(0.1).range(0.1..=100.0));
+                });
+                ui.label(format!("Frame: {:.1} ms", new_slots as f32 * new_slot_ms));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::TdmaFramer { slots: new_slots, slot_ms: new_slot_ms };
                 }
             }
             BlockType::AwgnChannel { snr_db } => {
@@ -1034,32 +2237,177 @@ impl PipelineWizardView {
                     block.block_type = BlockType::AwgnChannel { snr_db: new_snr };
                 }
             }
-            BlockType::CssModulator { sf, bw_hz } => {
-                let mut new_sf = sf;
-                let mut new_bw = bw_hz;
-
+            BlockType::FadingChannel { model, doppler_hz } => {
+                let mut new_model = model;
+                let mut new_doppler = doppler_hz;
+                ui.label("Fading Model:");
                 ui.horizontal(|ui| {
-                    ui.label("SF:");
-                    ui.add(egui::DragValue::new(&mut new_sf).range(5..=12));
+                    ui.radio_value(&mut new_model, FadingModel::Rayleigh, "Rayleigh");
+                    ui.radio_value(&mut new_model, FadingModel::Rician, "Rician");
+                    ui.radio_value(&mut new_model, FadingModel::Nakagami, "Nakagami");
                 });
-
                 ui.horizontal(|ui| {
-                    ui.label("BW (Hz):");
-                    egui::ComboBox::from_id_salt("css_bw")
-                        .selected_text(format!("{} kHz", new_bw / 1000))
-                        .show_ui(ui, |ui| {
-                            ui.selectable_value(&mut new_bw, 125000, "125 kHz");
-                            ui.selectable_value(&mut new_bw, 250000, "250 kHz");
-                            ui.selectable_value(&mut new_bw, 500000, "500 kHz");
-                        });
+                    ui.label("Doppler (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_doppler).speed(1.0).range(0.1..=1000.0));
                 });
-
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
-                    block.block_type = BlockType::CssModulator { sf: new_sf, bw_hz: new_bw };
+                    block.block_type = BlockType::FadingChannel { model: new_model, doppler_hz: new_doppler };
                 }
             }
-            _ => {
-                ui.label("(No editable parameters)");
+            BlockType::FrequencyOffset { offset_hz } => {
+                let mut new_offset = offset_hz;
+                ui.horizontal(|ui| {
+                    ui.label("Offset (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_offset).speed(10.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FrequencyOffset { offset_hz: new_offset };
+                }
+            }
+            BlockType::IqImbalance { gain_db, phase_deg } => {
+                let mut new_gain = gain_db;
+                let mut new_phase = phase_deg;
+                ui.horizontal(|ui| {
+                    ui.label("Gain imbalance (dB):");
+                    ui.add(egui::Slider::new(&mut new_gain, -3.0..=3.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Phase imbalance (°):");
+                    ui.add(egui::Slider::new(&mut new_phase, -10.0..=10.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::IqImbalance { gain_db: new_gain, phase_deg: new_phase };
+                }
+            }
+            BlockType::Agc { mode, target_db } => {
+                let mut new_mode = mode;
+                let mut new_target = target_db;
+                ui.label("AGC Mode:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_mode, AgcMode::Fast, "Fast");
+                    ui.radio_value(&mut new_mode, AgcMode::Slow, "Slow");
+                    ui.radio_value(&mut new_mode, AgcMode::Adaptive, "Adaptive");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Target (dB):");
+                    ui.add(egui::DragValue::new(&mut new_target).speed(0.5).range(-40.0..=0.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Agc { mode: new_mode, target_db: new_target };
+                }
+            }
+            BlockType::TimingRecovery { algorithm, loop_bw } => {
+                let mut new_algo = algorithm;
+                let mut new_bw = loop_bw;
+                ui.label("Algorithm:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_algo, TimingAlgo::EarlyLate, "Early-Late");
+                    ui.radio_value(&mut new_algo, TimingAlgo::Gardner, "Gardner");
+                });
+                ui.radio_value(&mut new_algo, TimingAlgo::MuellerMuller, "Mueller-Müller");
+                ui.horizontal(|ui| {
+                    ui.label("Loop BW:");
+                    ui.add(egui::Slider::new(&mut new_bw, 0.001..=0.1).logarithmic(true));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::TimingRecovery { algorithm: new_algo, loop_bw: new_bw };
+                }
+            }
+            BlockType::CarrierRecovery { algorithm, loop_bw } => {
+                let mut new_algo = algorithm;
+                let mut new_bw = loop_bw;
+                ui.label("Algorithm:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_algo, CarrierAlgo::CostasLoop, "Costas");
+                    ui.radio_value(&mut new_algo, CarrierAlgo::DecisionDirected, "DD");
+                });
+                ui.radio_value(&mut new_algo, CarrierAlgo::PilotAided, "Pilot-Aided");
+                ui.horizontal(|ui| {
+                    ui.label("Loop BW:");
+                    ui.add(egui::Slider::new(&mut new_bw, 0.001..=0.1).logarithmic(true));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::CarrierRecovery { algorithm: new_algo, loop_bw: new_bw };
+                }
+            }
+            BlockType::Equalizer { eq_type, taps, mu } => {
+                let mut new_type = eq_type;
+                let mut new_taps = taps;
+                let mut new_mu = mu;
+                ui.label("Type:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_type, EqualizerType::Lms, "LMS");
+                    ui.radio_value(&mut new_type, EqualizerType::Rls, "RLS");
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_type, EqualizerType::Cma, "CMA");
+                    ui.radio_value(&mut new_type, EqualizerType::Dfe, "DFE");
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Taps:");
+                    ui.add(egui::DragValue::new(&mut new_taps).range(3..=63));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Step size (μ):");
+                    ui.add(egui::Slider::new(&mut new_mu, 0.0001..=0.1).logarithmic(true));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Equalizer { eq_type: new_type, taps: new_taps, mu: new_mu };
+                }
+            }
+            BlockType::FileOutput { path, format } => {
+                let mut new_path = path;
+                let mut new_format = format;
+                ui.horizontal(|ui| {
+                    ui.label("Path:");
+                    ui.text_edit_singleline(&mut new_path);
+                });
+                ui.label("Format:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_format, OutputFormat::ComplexFloat32, "cf32");
+                    ui.radio_value(&mut new_format, OutputFormat::ComplexFloat64, "cf64");
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut new_format, OutputFormat::ComplexInt16, "ci16");
+                    ui.radio_value(&mut new_format, OutputFormat::ComplexInt8, "ci8");
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FileOutput { path: new_path, format: new_format };
+                }
+            }
+            BlockType::Split { num_outputs } => {
+                let mut new_outputs = num_outputs;
+                ui.horizontal(|ui| {
+                    ui.label("Outputs:");
+                    ui.add(egui::DragValue::new(&mut new_outputs).range(2..=8));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Split { num_outputs: new_outputs };
+                }
+            }
+            BlockType::Merge { num_inputs } => {
+                let mut new_inputs = num_inputs;
+                ui.horizontal(|ui| {
+                    ui.label("Inputs:");
+                    ui.add(egui::DragValue::new(&mut new_inputs).range(2..=8));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Merge { num_inputs: new_inputs };
+                }
+            }
+            BlockType::DifferentialEncoder | BlockType::MatchedFilter |
+            BlockType::IqOutput | BlockType::BitOutput | BlockType::IqSplit | BlockType::IqMerge => {
+                ui.label(RichText::new("No configurable parameters").italics());
+            }
+            BlockType::FileSource { path } => {
+                let mut new_path = path;
+                ui.horizontal(|ui| {
+                    ui.label("Path:");
+                    ui.text_edit_singleline(&mut new_path);
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FileSource { path: new_path };
+                }
             }
         }
     }
