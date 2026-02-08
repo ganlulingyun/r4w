@@ -70,11 +70,13 @@ implementation:     # Rust implementation hints
 
 ## Available Specs
 
-| File | Waveform | Description |
-|------|----------|-------------|
-| `cw.yaml` | CW | Continuous Wave (unmodulated carrier) |
-| `bpsk.yaml` | BPSK | Binary Phase Shift Keying |
-| `qpsk.yaml` | QPSK | Quadrature Phase Shift Keying |
+| File | Waveform | Type | Description |
+|------|----------|------|-------------|
+| `cw.yaml` | CW | Analog | Continuous Wave (unmodulated carrier) |
+| `bpsk.yaml` | BPSK | Digital | Binary Phase Shift Keying |
+| `qpsk.yaml` | QPSK | Digital | Quadrature Phase Shift Keying |
+| `fsk.yaml` | 2-FSK | Digital | Binary Frequency Shift Keying |
+| `lora.yaml` | LoRa | Spread Spectrum | Chirp Spread Spectrum (CSS) |
 
 ## Usage
 

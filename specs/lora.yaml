@@ -1,0 +1,288 @@
+# R4W Unified Waveform Specification
+# Schema: r4w-waveform-spec v1.0
+---
+waveform:
+  name: "LoRa"
+  full_name: "Long Range Chirp Spread Spectrum"
+  version: "1.0.0"
+  description: |
+    LoRa (Long Range) - proprietary CSS modulation from Semtech.
+    Uses chirp spread spectrum for exceptional range and interference immunity.
+    Symbols are represented by different starting frequencies of up-chirps.
+    Each symbol carries SF bits (SF = Spreading Factor, typically 7-12).
+
+    Key innovation: Frequency-domain symbol detection via FFT provides
+    massive processing gain without complex CDMA codes.
+
+  classification:
+    type: "digital"
+    category: "spread_spectrum"
+
+  standards:
+    - "Semtech LoRa PHY"
+    - "LoRaWAN (MAC layer)"
+    - "IEEE 802.15.4g (optional PHY)"
+
+  intellectual_property:
+    patent_holder: "Semtech Corporation"
+    note: "LoRa modulation is patented; this spec is for educational purposes"
+
+# ============================================================================
+# MODULATION
+# ============================================================================
+modulation:
+  domain: "frequency"
+  scheme: "CSS"                    # Chirp Spread Spectrum
+
+  spreading_factor: 7              # SF7-SF12; higher = longer range, slower
+  bits_per_symbol: 7               # Equal to SF
+  symbols_per_chirp: 128           # 2^SF
+
+  chirp:
+    type: "linear_up"              # Linear frequency sweep
+    bandwidth_hz: 125000           # 125 kHz, 250 kHz, or 500 kHz
+    duration_s: 0.001024           # 2^SF / BW seconds
+
+  # LoRa constellation is in time-frequency domain
+  constellation:
+    type: "cyclic_shift"
+    description: "Symbol value determines starting frequency of chirp"
+    num_symbols: 128               # 2^SF possible symbols
+
+  coding_rate:
+    enabled: true
+    rate: "4/5"                    # CR = 4/(4+CR), CR ∈ {1,2,3,4}
+    options: ["4/5", "4/6", "4/7", "4/8"]
+
+# ============================================================================
+# SPREAD SPECTRUM
+# ============================================================================
+spread_spectrum:
+  enabled: true
+  technique: "css"                 # Chirp Spread Spectrum
+
+  css:
+    bandwidth_hz: 125000
+    spreading_factor: 7
+    chips_per_symbol: 128          # 2^SF
+
+  processing_gain_db: 21           # 10*log10(2^SF) for SF7
+
+# ============================================================================
+# TIMING
+# ============================================================================
+timing:
+  symbol_rate: 976.5625            # BW / 2^SF = 125000 / 128
+  sample_rate: 125000              # Typically equal to bandwidth
+  samples_per_symbol: 128          # 2^SF
+
+  preamble:
+    num_symbols: 8                 # Standard preamble length
+    sync_word: 0x12                # Network ID (0x34 for LoRaWAN)
+
+  packet:
+    header_mode: "explicit"        # or "implicit" (fixed length)
+    crc_enabled: true
+
+# ============================================================================
+# SPECTRAL CHARACTERISTICS
+# ============================================================================
+spectral:
+  bandwidth:
+    occupied_hz: 125000            # Configurable: 125k, 250k, 500k
+    options_hz: [125000, 250000, 500000]
+
+  spectral_efficiency: 0.056       # Very low, but extreme range
+
+  duty_cycle:
+    regulatory_limit_percent: 1    # EU 868 MHz band
+
+# ============================================================================
+# LINK BUDGET
+# ============================================================================
+link_budget:
+  sensitivity_dbm:
+    sf7_125khz: -123
+    sf8_125khz: -126
+    sf9_125khz: -129
+    sf10_125khz: -132
+    sf11_125khz: -134.5
+    sf12_125khz: -137
+
+  max_range_km:
+    urban: 2-5
+    suburban: 5-10
+    rural_los: 15-20
+
+# ============================================================================
+# IMPLEMENTATION PIPELINE
+# ============================================================================
+pipeline:
+  description: |
+    LoRa TX: bits → whitening → Hamming FEC → interleaving →
+             Gray coding → chirp generation → baseband IQ
+
+    LoRa RX: baseband IQ → multiply by down-chirp → FFT →
+             peak detection → Gray decode → deinterleave → FEC decode
+
+  blocks:
+    - id: 1
+      name: "Bit Source"
+      type: "Bit Source"
+      enabled: true
+      pattern: "random"
+
+    - id: 2
+      name: "Whitening"
+      type: "Scrambler"
+      enabled: true
+      polynomial: 0x1D
+      seed: 0xFF
+
+    - id: 3
+      name: "Hamming FEC"
+      type: "FEC Encoder"
+      enabled: true
+      code_type: "Hamming"
+      rate: "4/7"
+
+    - id: 4
+      name: "Interleaver"
+      type: "Interleaver"
+      enabled: true
+      rows: 7                      # SF
+      cols: 8                      # 4 + CR
+
+    - id: 5
+      name: "Gray Mapper"
+      type: "Gray Mapper"
+      enabled: true
+      bits_per_symbol: 7           # SF
+
+    - id: 6
+      name: "LoRa Modulator"
+      type: "CSS Modulator"
+      enabled: true
+      spreading_factor: 7
+      bandwidth_hz: 125000
+
+  connections:
+    - from: [1, 0]
+      to: [2, 0]
+    - from: [2, 0]
+      to: [3, 0]
+    - from: [3, 0]
+      to: [4, 0]
+    - from: [4, 0]
+      to: [5, 0]
+    - from: [5, 0]
+      to: [6, 0]
+
+# ============================================================================
+# DEMODULATION
+# ============================================================================
+demodulation:
+  method: "FFT-based"
+  description: |
+    1. Multiply received signal by conjugate of base chirp (down-chirp)
+    2. Take FFT of result
+    3. Peak location indicates symbol value
+    4. Works even at very low SNR due to spreading gain
+
+  synchronization:
+    preamble_detection: "chirp_correlation"
+    timing_recovery: "preamble_edge"
+    frequency_offset: "preamble_fft_peak"
+
+# ============================================================================
+# SPREADING FACTOR COMPARISON
+# ============================================================================
+spreading_factors:
+  SF7:
+    chips_per_symbol: 128
+    symbol_rate: 976.5625
+    bit_rate_bps: 5469             # At CR 4/5
+    sensitivity_dbm: -123
+    time_on_air_ms: 41             # 10-byte payload
+
+  SF8:
+    chips_per_symbol: 256
+    symbol_rate: 488.28125
+    bit_rate_bps: 3125
+    sensitivity_dbm: -126
+    time_on_air_ms: 72
+
+  SF9:
+    chips_per_symbol: 512
+    symbol_rate: 244.140625
+    bit_rate_bps: 1758
+    sensitivity_dbm: -129
+    time_on_air_ms: 144
+
+  SF10:
+    chips_per_symbol: 1024
+    symbol_rate: 122.0703125
+    bit_rate_bps: 977
+    sensitivity_dbm: -132
+    time_on_air_ms: 289
+
+  SF11:
+    chips_per_symbol: 2048
+    symbol_rate: 61.03515625
+    bit_rate_bps: 537
+    sensitivity_dbm: -134.5
+    time_on_air_ms: 577
+
+  SF12:
+    chips_per_symbol: 4096
+    symbol_rate: 30.517578125
+    bit_rate_bps: 293
+    sensitivity_dbm: -137
+    time_on_air_ms: 1155
+
+# ============================================================================
+# METRICS
+# ============================================================================
+metrics:
+  processing_gain_db:
+    sf7: 21.1                      # 10*log10(128)
+    sf12: 36.1                     # 10*log10(4096)
+
+  theoretical_ber:
+    description: "Complex due to non-coherent chirp detection"
+
+  implementation:
+    complexity: "medium"
+    power_efficiency: "excellent"  # Long battery life
+    spectral_efficiency: "very_low"
+    range: "exceptional"
+
+# ============================================================================
+# RUST IMPLEMENTATION
+# ============================================================================
+implementation:
+  module: "lora"
+  struct_name: "LoRaWaveform"
+  existing: true
+  path: "crates/r4w-core/src/waveform/lora.rs"
+
+  key_functions:
+    - "generate_chirp(sf, bw, up=true)"
+    - "modulate_symbol(symbol, base_chirp)"
+    - "demodulate_fft(samples, down_chirp)"
+    - "gray_encode(symbol, sf)"
+    - "gray_decode(symbol, sf)"
+    - "hamming_encode(bits)"
+    - "hamming_decode(bits)"
+
+# ============================================================================
+# APPLICATIONS
+# ============================================================================
+applications:
+  - "IoT sensor networks"
+  - "Smart agriculture"
+  - "Asset tracking"
+  - "Smart cities/metering"
+  - "Industrial monitoring"
+  - "Building automation"
+  - "Emergency/disaster communication"

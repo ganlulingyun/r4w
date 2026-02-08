@@ -1,0 +1,193 @@
+# R4W Unified Waveform Specification
+# Schema: r4w-waveform-spec v1.0
+---
+waveform:
+  name: "2-FSK"
+  full_name: "Binary Frequency Shift Keying"
+  version: "1.0.0"
+  description: |
+    Binary Frequency Shift Keying - represents bits by shifting carrier frequency.
+    Bit 0 -> f_c - deviation, Bit 1 -> f_c + deviation.
+    Constant envelope makes it power-efficient and robust to non-linear amplifiers.
+    Widely used in simple digital radios, pagers, RFID, and IoT devices.
+
+  classification:
+    type: "digital"
+    category: "narrowband"
+
+  standards:
+    - "Bluetooth Basic Rate (GFSK)"
+    - "IEEE 802.15.4 (868/915 MHz)"
+    - "POCSAG paging"
+    - "LoRa (as underlying modulation before chirp spreading)"
+
+# ============================================================================
+# MODULATION
+# ============================================================================
+modulation:
+  domain: "frequency"
+  scheme: "2-FSK"
+  order: 2
+  bits_per_symbol: 1
+
+  frequency_deviation_hz: 2500    # ±2.5 kHz from carrier
+  modulation_index: 0.5           # h = 2*deviation/symbol_rate
+
+  # FSK doesn't have a traditional constellation, but can be viewed as:
+  constellation:
+    type: "frequency_domain"
+    points:
+      - frequency_offset_hz: -2500   # Bit 0
+      - frequency_offset_hz: 2500    # Bit 1
+
+  continuous_phase: true           # CPFSK for spectral efficiency
+
+# ============================================================================
+# PULSE SHAPING
+# ============================================================================
+pulse_shaping:
+  enabled: true
+  filter:
+    type: "gaussian"
+    bt_product: 0.5              # BT = 0.5 for GFSK
+    span_symbols: 4
+
+# ============================================================================
+# TIMING
+# ============================================================================
+timing:
+  symbol_rate: 10000             # 10 kbaud
+  sample_rate: 80000             # 8 samples per symbol
+  samples_per_symbol: 8
+  bit_rate: 10000                # Same as symbol rate for binary FSK
+
+# ============================================================================
+# SPECTRAL CHARACTERISTICS
+# ============================================================================
+spectral:
+  bandwidth:
+    carson_rule_hz: 25000        # B = 2*(deviation + symbol_rate/2)
+    occupied_99_hz: 20000
+
+  spectral_efficiency: 0.5       # bits/s/Hz (inefficient but robust)
+
+  out_of_band:
+    acp_mask_dbr: -26            # Adjacent channel power
+
+# ============================================================================
+# IMPLEMENTATION PIPELINE
+# ============================================================================
+pipeline:
+  description: |
+    FSK modulation converts bits to frequency deviations, then generates
+    the continuous-phase FM signal. Optional Gaussian filtering smooths
+    frequency transitions for better spectral efficiency (GFSK).
+
+  blocks:
+    - id: 1
+      name: "Bit Source"
+      type: "Bit Source"
+      enabled: true
+      pattern: "random"
+
+    - id: 2
+      name: "FSK Modulator"
+      type: "FSK Modulator"
+      enabled: true
+      deviation_hz: 2500
+      order: 2
+
+    - id: 3
+      name: "Gaussian Filter"
+      type: "Pulse Shaper"
+      enabled: true
+      shape: "Gaussian"
+      bt_product: 0.5
+      span_symbols: 4
+      samples_per_symbol: 8
+
+  connections:
+    - from: [1, 0]
+      to: [2, 0]
+    - from: [2, 0]
+      to: [3, 0]
+
+# ============================================================================
+# VARIANTS
+# ============================================================================
+variants:
+  - name: "GFSK"
+    description: "Gaussian FSK - smoother transitions, narrower spectrum"
+    pulse_shaping:
+      filter:
+        type: "gaussian"
+        bt_product: 0.5
+
+  - name: "MSK"
+    description: "Minimum Shift Keying - h=0.5, continuous phase"
+    modulation:
+      modulation_index: 0.5
+
+  - name: "GMSK"
+    description: "Gaussian MSK - used in GSM"
+    modulation:
+      modulation_index: 0.5
+    pulse_shaping:
+      filter:
+        type: "gaussian"
+        bt_product: 0.3
+
+  - name: "4-FSK"
+    description: "4-level FSK - 2 bits per symbol"
+    modulation:
+      order: 4
+      bits_per_symbol: 2
+
+# ============================================================================
+# METRICS
+# ============================================================================
+metrics:
+  theoretical_ber:
+    awgn_coherent: "Q(sqrt(2*Eb/N0))"         # Same as BPSK for coherent
+    awgn_noncoherent: "0.5 * exp(-Eb/(2*N0))" # Non-coherent detection
+
+  required_snr_db:
+    ber_1e-3_coherent: 6.8
+    ber_1e-3_noncoherent: 10.8
+
+  implementation:
+    complexity: "low"
+    power_efficiency: "high"      # Constant envelope
+    spectral_efficiency: "low"
+
+# ============================================================================
+# DEMODULATION
+# ============================================================================
+demodulation:
+  methods:
+    - name: "Discriminator"
+      description: "FM discriminator (frequency to voltage)"
+      complexity: "very_low"
+
+    - name: "Quadrature"
+      description: "I/Q quadrature demodulation"
+      complexity: "low"
+
+    - name: "Coherent"
+      description: "Coherent detection with carrier recovery"
+      complexity: "medium"
+      performance: "optimal"
+
+# ============================================================================
+# RUST IMPLEMENTATION
+# ============================================================================
+implementation:
+  module: "fsk"
+  struct_name: "FskWaveform"
+  existing: true
+  path: "crates/r4w-core/src/waveform/fsk.rs"
+
+  key_functions:
+    - "phase_accumulator(bits, deviation, sample_rate)"
+    - "fm_discriminator(samples)"
+    - "gaussian_filter(bt_product, span)"
