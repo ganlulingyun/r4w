@@ -467,11 +467,222 @@ impl Pipeline {
     }
 
     /// Load pipeline from YAML string
+    /// Load pipeline from YAML string
+    /// Supports both direct Pipeline format and unified waveform spec format
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
+        // First try parsing as unified waveform spec format
+        if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(yaml) {
+            // Check if this is a unified spec (has 'waveform' and 'pipeline' sections)
+            if value.get("waveform").is_some() && value.get("pipeline").is_some() {
+                return Self::from_unified_spec(&value);
+            }
+        }
+
+        // Fall back to direct Pipeline format
         let mut pipeline: Pipeline = serde_yaml::from_str(yaml)
             .map_err(|e| format!("Failed to parse YAML: {}", e))?;
         pipeline.fix_after_load();
         Ok(pipeline)
+    }
+
+    /// Parse unified waveform spec format
+    fn from_unified_spec(value: &serde_yaml::Value) -> Result<Self, String> {
+        let mut pipeline = Pipeline::new();
+
+        // Extract name and description from waveform section
+        if let Some(waveform) = value.get("waveform") {
+            if let Some(name) = waveform.get("name").and_then(|v| v.as_str()) {
+                pipeline.name = name.to_string();
+            }
+            if let Some(desc) = waveform.get("description").and_then(|v| v.as_str()) {
+                pipeline.description = desc.to_string();
+            }
+        }
+
+        // Extract blocks and connections from pipeline section
+        if let Some(pipeline_section) = value.get("pipeline") {
+            // Parse blocks
+            if let Some(blocks) = pipeline_section.get("blocks").and_then(|v| v.as_sequence()) {
+                for block_val in blocks {
+                    if let (Some(id), Some(block_type_name)) = (
+                        block_val.get("id").and_then(|v| v.as_u64()),
+                        block_val.get("type").and_then(|v| v.as_str()),
+                    ) {
+                        let name = block_val.get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or(block_type_name)
+                            .to_string();
+                        let enabled = block_val.get("enabled")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(true);
+
+                        // Create block type from name and parameters
+                        if let Some(block_type) = Self::parse_block_type(block_type_name, block_val) {
+                            let mut block = PipelineBlock::new(id as u32, block_type, Pos2::ZERO);
+                            block.name = name;
+                            block.enabled = enabled;
+                            pipeline.blocks.insert(id as u32, block);
+                        }
+                    }
+                }
+            }
+
+            // Parse connections
+            if let Some(connections) = pipeline_section.get("connections").and_then(|v| v.as_sequence()) {
+                for conn_val in connections {
+                    if let (Some(from), Some(to)) = (
+                        conn_val.get("from").and_then(|v| v.as_sequence()),
+                        conn_val.get("to").and_then(|v| v.as_sequence()),
+                    ) {
+                        if from.len() >= 2 && to.len() >= 2 {
+                            if let (Some(fb), Some(fp), Some(tb), Some(tp)) = (
+                                from[0].as_u64(),
+                                from[1].as_u64(),
+                                to[0].as_u64(),
+                                to[1].as_u64(),
+                            ) {
+                                pipeline.connections.push(Connection {
+                                    from_block: fb as u32,
+                                    from_port: fp as u32,
+                                    to_block: tb as u32,
+                                    to_port: tp as u32,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        pipeline.fix_after_load();
+        Ok(pipeline)
+    }
+
+    /// Parse a block type from YAML
+    fn parse_block_type(type_name: &str, block_val: &serde_yaml::Value) -> Option<BlockType> {
+        match type_name {
+            "Bit Source" => Some(BlockType::BitSource {
+                pattern: block_val.get("pattern")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("random")
+                    .to_string(),
+            }),
+            "Symbol Source" => Some(BlockType::SymbolSource {
+                alphabet_size: block_val.get("alphabet_size")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(4) as u32,
+            }),
+            "File Source" => Some(BlockType::FileSource {
+                path: block_val.get("path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+            }),
+            "Scrambler" => Some(BlockType::Scrambler {
+                polynomial: block_val.get("polynomial")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0x1D) as u32,
+                seed: block_val.get("seed")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0xFF) as u32,
+            }),
+            "FEC Encoder" => Some(BlockType::FecEncoder {
+                code_type: FecType::Hamming,
+                rate: block_val.get("rate")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("1/2")
+                    .to_string(),
+            }),
+            "Interleaver" => Some(BlockType::Interleaver {
+                rows: block_val.get("rows")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(8) as u32,
+                cols: block_val.get("cols")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(8) as u32,
+            }),
+            "Gray Mapper" => Some(BlockType::GrayMapper {
+                bits_per_symbol: block_val.get("bits_per_symbol")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(2) as u32,
+            }),
+            "PSK Modulator" => Some(BlockType::PskModulator {
+                order: block_val.get("order")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(2) as u32,
+            }),
+            "QAM Modulator" => Some(BlockType::QamModulator {
+                order: block_val.get("order")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(16) as u32,
+            }),
+            "FSK Modulator" => Some(BlockType::FskModulator {
+                deviation_hz: block_val.get("deviation_hz")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(2500.0) as f32,
+                order: block_val.get("order")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(2) as u32,
+            }),
+            "CSS Modulator" | "LoRa Modulator" => Some(BlockType::CssModulator {
+                sf: block_val.get("spreading_factor")
+                    .or_else(|| block_val.get("sf"))
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(7) as u8,
+                bw_hz: block_val.get("bandwidth_hz")
+                    .or_else(|| block_val.get("bw_hz"))
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(125000) as u32,
+            }),
+            "RRC Filter" | "Pulse Shaper" => Some(BlockType::PulseShaper {
+                shape: PulseShape::RootRaisedCosine,
+                rolloff: block_val.get("rolloff")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.35) as f32,
+                span: block_val.get("span_symbols")
+                    .or_else(|| block_val.get("span"))
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(8) as u32,
+            }),
+            "Gaussian Filter" => Some(BlockType::PulseShaper {
+                shape: PulseShape::Gaussian,
+                rolloff: block_val.get("bt_product")
+                    .or_else(|| block_val.get("rolloff"))
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.5) as f32,
+                span: block_val.get("span_symbols")
+                    .or_else(|| block_val.get("span"))
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(4) as u32,
+            }),
+            "Tone Generator" | "Carrier Generator" => {
+                // Use a bit source with fixed pattern as placeholder
+                // (no dedicated tone generator block)
+                log::info!("Tone Generator mapped to Bit Source placeholder");
+                Some(BlockType::BitSource { pattern: "tone".to_string() })
+            },
+            "AWGN Channel" => Some(BlockType::AwgnChannel {
+                snr_db: block_val.get("snr_db")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(20.0) as f32,
+            }),
+            "Frequency Offset" => Some(BlockType::FrequencyOffset {
+                offset_hz: block_val.get("offset_hz")
+                    .and_then(|v| v.as_f64())
+                    .unwrap_or(0.0) as f32,
+            }),
+            "File Sink" | "File Output" => Some(BlockType::FileOutput {
+                path: block_val.get("path")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("output.iq")
+                    .to_string(),
+                format: OutputFormat::ComplexFloat32,
+            }),
+            _ => {
+                log::warn!("Unknown block type: {}", type_name);
+                None
+            }
+        }
     }
 
     /// Save pipeline to YAML string (structured format for re-loading)
