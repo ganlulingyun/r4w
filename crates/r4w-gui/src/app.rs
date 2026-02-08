@@ -4162,7 +4162,10 @@ impl eframe::App for WaveformExplorer {
             ctx.request_repaint();
         }
 
-        self.render_side_panel(ctx);
+        // Hide side panel for Pipeline Builder to give it full width
+        if self.active_view != ActiveView::PipelineBuilder {
+            self.render_side_panel(ctx);
+        }
         self.render_content(ctx);
     }
 }

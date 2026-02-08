@@ -1353,31 +1353,33 @@ impl PipelineWizardView {
                 });
         }
 
-        // Main layout: Library | Canvas | Properties
-        ui.horizontal(|ui| {
-            // Block library panel
-            if self.show_library {
-                ui.vertical(|ui| {
-                    ui.set_width(180.0);
-                    self.render_library(ui);
-                });
-                ui.separator();
-            }
+        // Main canvas takes the full area
+        self.render_canvas(ui);
 
-            // Main canvas
-            ui.vertical(|ui| {
-                self.render_canvas(ui);
-            });
-
-            // Properties panel
-            if self.show_properties {
-                ui.separator();
-                ui.vertical(|ui| {
-                    ui.set_width(250.0);
-                    self.render_properties(ui);
+        // Library as a floating window on the left
+        if self.show_library {
+            egui::Window::new("Block Library")
+                .default_pos([10.0, 120.0])
+                .default_size([200.0, 500.0])
+                .resizable(true)
+                .collapsible(true)
+                .show(ui.ctx(), |ui| {
+                    self.render_library_content(ui);
                 });
-            }
-        });
+        }
+
+        // Properties as a floating window on the right
+        if self.show_properties {
+            let screen_width = ui.ctx().screen_rect().width();
+            egui::Window::new("Properties")
+                .default_pos([screen_width - 270.0, 120.0])
+                .default_size([250.0, 400.0])
+                .resizable(true)
+                .collapsible(true)
+                .show(ui.ctx(), |ui| {
+                    self.render_properties_content(ui);
+                });
+        }
 
         // YAML output window
         if !self.yaml_output.is_empty() {
@@ -1403,28 +1405,32 @@ impl PipelineWizardView {
         }
     }
 
-    fn render_library(&mut self, ui: &mut Ui) {
-        ui.label(RichText::new("Block Library").strong());
-        ui.add_space(5.0);
-
+    fn render_library_content(&mut self, ui: &mut Ui) {
         egui::ScrollArea::vertical().show(ui, |ui| {
             for (category, templates) in get_block_templates() {
-                ui.collapsing(RichText::new(category.name()).color(category.color()), |ui| {
-                    for template in templates {
-                        let response = ui.add(
-                            egui::Button::new(template.name())
-                                .fill(category.color().gamma_multiply(0.3))
-                        );
+                // Use CollapsingHeader with default_open for first few categories
+                let default_open = matches!(category,
+                    BlockCategory::Source | BlockCategory::Modulation | BlockCategory::Filtering);
 
-                        if response.clicked() {
-                            // Add block to center of canvas
-                            let pos = Pos2::new(300.0, 200.0) - self.canvas_offset;
-                            self.pipeline.add_block(template.clone(), pos);
+                egui::CollapsingHeader::new(RichText::new(category.name()).color(category.color()))
+                    .default_open(default_open)
+                    .show(ui, |ui| {
+                        for template in templates {
+                            let response = ui.add(
+                                egui::Button::new(template.name())
+                                    .fill(category.color().gamma_multiply(0.3))
+                                    .min_size(egui::vec2(170.0, 22.0))
+                            );
+
+                            if response.clicked() {
+                                // Add block to center of canvas
+                                let pos = Pos2::new(300.0, 200.0) - self.canvas_offset;
+                                self.pipeline.add_block(template.clone(), pos);
+                            }
+
+                            response.on_hover_text(format!("Click to add {}", template.name()));
                         }
-
-                        response.on_hover_text(format!("Click to add {} to pipeline", template.name()));
-                    }
-                });
+                    });
             }
         });
     }
@@ -1892,10 +1898,7 @@ impl PipelineWizardView {
         Pos2::new(block_rect.right(), block_rect.top() + spacing * (port + 1) as f32)
     }
 
-    fn render_properties(&mut self, ui: &mut Ui) {
-        ui.label(RichText::new("Properties").strong());
-        ui.add_space(5.0);
-
+    fn render_properties_content(&mut self, ui: &mut Ui) {
         if let Some(id) = self.selected_block {
             if let Some(block) = self.pipeline.blocks.get_mut(&id) {
                 ui.horizontal(|ui| {
