@@ -2864,6 +2864,37 @@ impl PipelineWizardView {
             }
         }
 
+        // Handle drag start - select block under cursor if not already selected
+        if response.drag_started() {
+            if let Some(start_pos) = pointer_pos {
+                // Check if starting drag on a block
+                let mut block_under_cursor = None;
+                for (id, block) in &self.pipeline.blocks {
+                    let block_rect = self.block_rect(block, rect);
+                    if block_rect.contains(start_pos) {
+                        block_under_cursor = Some(*id);
+                        break;
+                    }
+                }
+
+                if let Some(id) = block_under_cursor {
+                    // If the block isn't already selected, select it (unless shift is held)
+                    if !self.selected_blocks.contains(&id) {
+                        let shift_held = ui.input(|i| i.modifiers.shift);
+                        if shift_held {
+                            self.selected_blocks.insert(id);
+                        } else {
+                            self.select_single_block(id);
+                        }
+                    }
+                    // Cancel any selection mode - we're dragging blocks
+                    self.selection_mode = SelectionMode::None;
+                    self.selection_start = None;
+                    self.lasso_points.clear();
+                }
+            }
+        }
+
         // Handle dragging (block movement or selection)
         if response.dragged() && response.drag_delta().length() > 0.0 {
             if self.connecting_from.is_none() {
