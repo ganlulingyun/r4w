@@ -6865,3 +6865,34 @@ Implement GNSS (Global Navigation Satellite System) waveforms for R4W, covering 
 ### Git Operations
 - Commit cf08ac8: `[AI:claude] feat(pipeline): add proactive cycle prevention with visual feedback`
 - Pushed to origin/master
+
+### Follow-up Request
+User noted cascade drag resulted in diagonal crossing connections. Requested:
+1. Multiple connector style options (straight, curved, right-angled, angled)
+2. Smart port positioning with heuristic calculation for optimal side selection
+
+### Actions Taken
+
+1. **Added ConnectionStyle Enum**
+   - `Bezier` (default) - smooth cubic curves
+   - `Straight` - direct line
+   - `Orthogonal` - right-angle (Manhattan) routing with midpoint turns
+   - `Angled` - 45-degree routing
+
+2. **Added Toolbar Selector**
+   - ComboBox dropdown to select connection style
+   - Shows current style name, allows switching
+
+3. **Implemented Drawing Functions**
+   - `draw_bezier_connection()` - original smooth curves
+   - `draw_orthogonal_connection()` - two 90° turns at midpoint
+   - `draw_angled_connection()` - one 45° segment
+
+4. **Improved Port Positioning Heuristics**
+   - When target is to the left AND below, prefer vertical routing
+   - Better detection of when to use bottom→top vs right→left ports
+   - Reduces diagonal crossing lines in multi-row pipelines (TX→RX layouts)
+
+### Git Operations
+- Commit e2280a3: `[AI:claude] feat(pipeline): add connection style options and improved routing`
+- Pushed to origin/master
