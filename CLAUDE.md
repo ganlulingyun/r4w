@@ -17,6 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - `traits.rs`: Filter, RealFilter, FirFilterOps, FrequencyResponse traits
     - `fir.rs`: FirFilter with lowpass/highpass/bandpass/bandstop, Kaiser window design
     - `iir.rs`: IirFilter with Butterworth, Chebyshev I/II, Bessel via cascaded biquads
+    - `polyphase.rs`: PolyphaseDecimator, PolyphaseInterpolator, Resampler, HalfbandFilter
     - `pulse_shaping.rs`: RRC, RC, Gaussian filters (also implement Filter traits)
     - `windows.rs`: Hamming, Hann, Blackman, Kaiser window functions
   - `analysis/`: Spectrum analyzer, waterfall generator, signal statistics, peak detection
@@ -140,6 +141,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 ### Recent Updates
 
 - **Generic Filter Trait Architecture** - Extensible filter framework with `Filter`, `RealFilter`, `FirFilterOps`, `FrequencyResponse` traits. FirFilter supports lowpass/highpass/bandpass/bandstop with multiple window functions (Blackman, Hamming, Hann, Kaiser). Kaiser window design with auto β and order calculation. Pulse shaping filters (RRC, RC, Gaussian) now implement all traits for polymorphic usage and frequency response analysis. Special-purpose filters: `moving_average()`, `differentiator()`, `hilbert()`.
+- **Polyphase Sample Rate Conversion** - Efficient decimation and interpolation using polyphase decomposition. `PolyphaseDecimator` for M-fold downsampling, `PolyphaseInterpolator` for L-fold upsampling, `Resampler` for rational L/M conversion (e.g., 48kHz↔44.1kHz), `HalfbandFilter` for 2x with ~50% compute savings. All include built-in anti-aliasing/anti-imaging filters.
 - **IIR Filters** - IirFilter with cascaded biquad (SOS) implementation for numerical stability. Butterworth (maximally flat), Chebyshev Type I (equiripple passband), Chebyshev Type II (equiripple stopband), Bessel (maximally flat group delay). Bilinear transform with frequency pre-warping. Analysis: `frequency_response()`, `magnitude_response_db()`, `phase_response()`, `group_delay_at()`, `is_stable()`.
 - **Real Galileo E1 ICD Codes** - Replaced simulated LFSR codes with real memory codes from Galileo OS SIS ICD v2.1. E1B (data) and E1C (pilot) codes for PRN 1-50, plus E1C secondary code. New API: `GalileoE1CodeGenerator::new_e1b(prn)`, `new_e1c(prn)`, `secondary_code()`. Source: GNSS-matlab repository. Binary size: ~330 KB embedded.
 - **Unified IqFormat Module** - New `r4w_core::io::IqFormat` enum provides single source of truth for IQ sample formats across the codebase. Supports cf64 (16 bytes), cf32/ettus (8 bytes), ci16/sc16 (4 bytes), ci8 (2 bytes), cu8/rtlsdr (2 bytes). Replaces scattered format handling in CLI, benchmark, SigMF, and GUI code. Full roundtrip I/O, SigMF datatype strings, and comprehensive string aliases.
