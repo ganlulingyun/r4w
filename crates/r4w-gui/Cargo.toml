@@ -51,6 +51,7 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 tracing = { workspace = true }
 
 # For reading IQ files

@@ -1,0 +1,97 @@
+# R4W Unified Waveform Specification
+# Schema: r4w-waveform-spec v1.0
+---
+waveform:
+  name: "QPSK"
+  full_name: "Quadrature Phase Shift Keying"
+  version: "1.0.0"
+  description: |
+    Quadrature Phase Shift Keying - maps 2 bits to 4 phase states.
+    Doubles spectral efficiency vs BPSK while maintaining constant envelope.
+    Widely used in satellite, WiFi, LTE, and many other systems.
+
+  classification:
+    type: "digital"
+    category: "narrowband"
+
+  standards:
+    - "DVB-S/S2"
+    - "IEEE 802.11a/g/n (OFDM subcarriers)"
+    - "3GPP LTE"
+
+modulation:
+  domain: "phase"
+  scheme: "QPSK"
+  order: 4
+  bits_per_symbol: 2
+
+  constellation:
+    type: "psk"
+    points:
+      - [0.707, 0.707]    # 00 -> 45°
+      - [-0.707, 0.707]   # 01 -> 135°
+      - [-0.707, -0.707]  # 11 -> 225°
+      - [0.707, -0.707]   # 10 -> 315°
+    gray_coded: true
+    rotation_deg: 45
+
+pulse_shaping:
+  enabled: true
+  filter:
+    type: "root_raised_cosine"
+    rolloff: 0.35
+    span_symbols: 8
+    samples_per_symbol: 8
+
+timing:
+  symbol_rate: 1000
+  sample_rate: 8000
+  samples_per_symbol: 8
+
+spectral:
+  bandwidth:
+    null_to_null_hz: 2000
+    occupied_99_hz: 1350
+  spectral_efficiency: 2.0  # bits/s/Hz
+
+pipeline:
+  blocks:
+    - id: 1
+      name: "Bit Source"
+      type: "Bit Source"
+      enabled: true
+      pattern: "random"
+
+    - id: 2
+      name: "QPSK Mapper"
+      type: "PSK Modulator"
+      enabled: true
+      order: 4
+
+    - id: 3
+      name: "RRC Filter"
+      type: "RRC Filter"
+      enabled: true
+      rolloff: 0.35
+      span_symbols: 8
+      samples_per_symbol: 8
+
+  connections:
+    - from: [1, 0]
+      to: [2, 0]
+    - from: [2, 0]
+      to: [3, 0]
+
+metrics:
+  theoretical_ber:
+    awgn: "Q(sqrt(2*Eb/N0))"  # Same as BPSK per bit
+
+  required_snr_db:
+    ber_1e-3: 6.8
+    ber_1e-5: 9.6
+
+implementation:
+  module: "qpsk"
+  struct_name: "QpskWaveform"
+  existing: true
+  path: "crates/r4w-core/src/waveform/qpsk.rs"

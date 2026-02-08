@@ -4841,6 +4841,7 @@ dependencies = [
  "rfd",
  "serde",
  "serde_json",
+ "serde_yaml",
  "tracing",
  "tracing-subscriber",
  "wasm-bindgen",

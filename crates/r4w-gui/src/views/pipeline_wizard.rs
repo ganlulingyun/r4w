@@ -14,6 +14,7 @@
 //! - Pipeline validation (unconnected inputs, cycles detection)
 
 use egui::{Ui, RichText, Color32, Pos2, Vec2, Rect, Stroke, epaint::PathShape};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 /// Unique identifier for a pipeline block
@@ -160,7 +161,7 @@ impl BlockCategory {
 }
 
 /// Type of processing block
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum BlockType {
     // Source blocks
     BitSource { pattern: String },
@@ -315,7 +316,7 @@ impl BlockType {
 }
 
 // Supporting enums for block parameters
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FecType {
     Convolutional,
     Turbo,
@@ -324,7 +325,7 @@ pub enum FecType {
     Hamming,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CrcType {
     Crc8,
     Crc16Ccitt,
@@ -332,7 +333,7 @@ pub enum CrcType {
     Crc32,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ConstellationType {
     Bpsk,
     Qpsk,
@@ -342,7 +343,7 @@ pub enum ConstellationType {
     Qam256,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FilterType {
     Lowpass,
     Highpass,
@@ -350,7 +351,7 @@ pub enum FilterType {
     Bandstop,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IirDesign {
     Butterworth,
     Chebyshev1,
@@ -358,7 +359,7 @@ pub enum IirDesign {
     Bessel,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PulseShape {
     RootRaisedCosine,
     RaisedCosine,
@@ -366,35 +367,35 @@ pub enum PulseShape {
     Rectangular,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FadingModel {
     Rayleigh,
     Rician,
     Nakagami,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AgcMode {
     Fast,
     Slow,
     Adaptive,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum TimingAlgo {
     EarlyLate,
     Gardner,
     MuellerMuller,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CarrierAlgo {
     CostasLoop,
     DecisionDirected,
     PilotAided,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum EqualizerType {
     Lms,
     Rls,
@@ -402,7 +403,7 @@ pub enum EqualizerType {
     Dfe,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum OutputFormat {
     ComplexFloat32,
     ComplexFloat64,
@@ -411,10 +412,11 @@ pub enum OutputFormat {
 }
 
 /// A block in the pipeline
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PipelineBlock {
     pub id: BlockId,
     pub block_type: BlockType,
+    #[serde(skip)]
     pub position: Pos2,
     pub name: String,
     pub enabled: bool,
@@ -434,7 +436,7 @@ impl PipelineBlock {
 }
 
 /// Connection between two blocks
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Connection {
     pub from_block: BlockId,
     pub from_port: u32,
@@ -443,12 +445,13 @@ pub struct Connection {
 }
 
 /// The complete pipeline
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Pipeline {
     pub name: String,
     pub description: String,
     pub blocks: HashMap<BlockId, PipelineBlock>,
     pub connections: Vec<Connection>,
+    #[serde(skip)]
     next_id: BlockId,
 }
 
@@ -461,6 +464,28 @@ impl Pipeline {
             connections: Vec::new(),
             next_id: 1,
         }
+    }
+
+    /// Load pipeline from YAML string
+    pub fn from_yaml(yaml: &str) -> Result<Self, String> {
+        let mut pipeline: Pipeline = serde_yaml::from_str(yaml)
+            .map_err(|e| format!("Failed to parse YAML: {}", e))?;
+        pipeline.fix_after_load();
+        Ok(pipeline)
+    }
+
+    /// Save pipeline to YAML string (structured format for re-loading)
+    pub fn to_yaml_structured(&self) -> String {
+        serde_yaml::to_string(self).unwrap_or_else(|e| format!("# Error: {}", e))
+    }
+
+    /// Fix up the pipeline after deserialization
+    fn fix_after_load(&mut self) {
+        // Compute next_id from existing blocks
+        self.next_id = self.blocks.keys().max().map(|m| m + 1).unwrap_or(1);
+
+        // Auto-layout blocks that have default position
+        self.auto_layout();
     }
 
     pub fn add_block(&mut self, block_type: BlockType, position: Pos2) -> BlockId {
@@ -1373,6 +1398,44 @@ impl PipelineWizardView {
                         if ui.button("Export YAML").clicked() {
                             self.yaml_output = self.pipeline.to_yaml();
                         }
+                        // Save pipeline to file
+                        if ui.button("Save").clicked() {
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if let Some(path) = rfd::FileDialog::new()
+                                .set_file_name(&format!("{}.yaml", self.pipeline.name.replace(' ', "_").to_lowercase()))
+                                .add_filter("YAML", &["yaml", "yml"])
+                                .save_file()
+                            {
+                                let yaml = self.pipeline.to_yaml_structured();
+                                if let Err(e) = std::fs::write(&path, &yaml) {
+                                    log::error!("Failed to save pipeline: {}", e);
+                                }
+                            }
+                        }
+                        // Load pipeline from file
+                        if ui.button("Load").clicked() {
+                            #[cfg(not(target_arch = "wasm32"))]
+                            if let Some(path) = rfd::FileDialog::new()
+                                .add_filter("YAML", &["yaml", "yml"])
+                                .pick_file()
+                            {
+                                match std::fs::read_to_string(&path) {
+                                    Ok(yaml) => {
+                                        match Pipeline::from_yaml(&yaml) {
+                                            Ok(pipeline) => {
+                                                self.pipeline = pipeline;
+                                                self.selected_block = None;
+                                                self.selected_connection = None;
+                                                self.last_added_block = None;
+                                            }
+                                            Err(e) => log::error!("Failed to parse pipeline: {}", e),
+                                        }
+                                    }
+                                    Err(e) => log::error!("Failed to read file: {}", e),
+                                }
+                            }
+                        }
+                        ui.separator();
                         if ui.button("Validate").clicked() {
                             self.validation_result = self.pipeline.validate();
                             self.show_validation = true;

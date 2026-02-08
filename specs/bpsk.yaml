@@ -1,0 +1,149 @@
+# R4W Unified Waveform Specification
+# Schema: r4w-waveform-spec v1.0
+---
+# ============================================================================
+# WAVEFORM IDENTITY
+# ============================================================================
+waveform:
+  name: "BPSK"
+  full_name: "Binary Phase Shift Keying"
+  version: "1.0.0"
+  description: |
+    Binary Phase Shift Keying - the simplest digital modulation scheme.
+    Maps bits to two phase states: 0 -> 0°, 1 -> 180°.
+    Robust against noise but spectrally inefficient (1 bit/symbol).
+
+  classification:
+    type: "digital"
+    category: "narrowband"
+
+  standards:
+    - "IEEE 802.11b (1 Mbps mode)"
+    - "DVB-S2 (most robust mode)"
+
+# ============================================================================
+# MODULATION
+# ============================================================================
+modulation:
+  domain: "phase"
+  scheme: "BPSK"
+  order: 2
+  bits_per_symbol: 1
+
+  constellation:
+    type: "psk"
+    points:
+      - [1.0, 0.0]    # Bit 0 -> phase 0°
+      - [-1.0, 0.0]   # Bit 1 -> phase 180°
+    gray_coded: true
+    rotation_deg: 0
+
+  differential:
+    enabled: false
+
+# ============================================================================
+# PULSE SHAPING
+# ============================================================================
+pulse_shaping:
+  enabled: true
+  filter:
+    type: "root_raised_cosine"
+    rolloff: 0.35
+    span_symbols: 8
+    samples_per_symbol: 8
+
+# ============================================================================
+# TIMING
+# ============================================================================
+timing:
+  symbol_rate: 1000          # Symbols per second
+  sample_rate: 8000          # Samples per second
+  samples_per_symbol: 8
+
+# ============================================================================
+# CHANNEL CODING
+# ============================================================================
+channel_coding:
+  enabled: false
+  fec:
+    type: "none"
+  scrambling:
+    enabled: false
+
+# ============================================================================
+# SPECTRAL CHARACTERISTICS
+# ============================================================================
+spectral:
+  bandwidth:
+    null_to_null_hz: 2000     # 2 * symbol_rate
+    occupied_99_hz: 1350      # With RRC rolloff=0.35
+
+  spectral_efficiency: 1.0    # bits/s/Hz
+
+# ============================================================================
+# IMPLEMENTATION PIPELINE
+# ============================================================================
+pipeline:
+  blocks:
+    - id: 1
+      name: "Bit Source"
+      type: "Bit Source"
+      enabled: true
+      pattern: "random"
+
+    - id: 2
+      name: "BPSK Mapper"
+      type: "PSK Modulator"
+      enabled: true
+      order: 2
+
+    - id: 3
+      name: "RRC Filter"
+      type: "RRC Filter"
+      enabled: true
+      rolloff: 0.35
+      span_symbols: 8
+      samples_per_symbol: 8
+
+  connections:
+    - from: [1, 0]
+      to: [2, 0]
+    - from: [2, 0]
+      to: [3, 0]
+
+# ============================================================================
+# METRICS
+# ============================================================================
+metrics:
+  theoretical_ber:
+    awgn: "Q(sqrt(2*Eb/N0))"
+    rayleigh: "0.5 * (1 - sqrt(Eb/N0 / (1 + Eb/N0)))"
+
+  required_snr_db:
+    ber_1e-3: 6.8
+    ber_1e-5: 9.6
+
+  implementation:
+    complexity: "low"
+    power_efficiency: "high"
+    spectral_efficiency: "low"
+
+# ============================================================================
+# VISUALIZATION
+# ============================================================================
+visualization:
+  constellation:
+    type: "psk"
+    num_points: 2
+
+  eye_diagram:
+    openings: 1
+
+# ============================================================================
+# RUST IMPLEMENTATION
+# ============================================================================
+implementation:
+  module: "bpsk"
+  struct_name: "BpskWaveform"
+  existing: true
+  path: "crates/r4w-core/src/waveform/bpsk.rs"

@@ -1,0 +1,126 @@
+# R4W Unified Waveform Specification
+# Schema: r4w-waveform-spec v1.0
+#
+# This format combines waveform specification (WHAT) with
+# pipeline implementation (HOW) in a single document.
+---
+# ============================================================================
+# WAVEFORM IDENTITY
+# ============================================================================
+waveform:
+  name: "CW"
+  full_name: "Continuous Wave"
+  version: "1.0.0"
+  description: |
+    Continuous Wave (CW) - an unmodulated carrier signal.
+    The simplest possible waveform: a pure sinusoid at the carrier frequency.
+    Used for carrier recovery testing, beacon signals, and as a building block.
+
+  classification:
+    type: "analog"
+    category: "unmodulated"
+
+  standards: []
+
+  authors:
+    - name: "R4W Team"
+
+# ============================================================================
+# SIGNAL CHARACTERISTICS
+# ============================================================================
+signal:
+  carrier:
+    frequency_hz: 1000.0        # Default carrier frequency
+    amplitude: 1.0              # Normalized amplitude [0, 1]
+    phase_deg: 0.0              # Initial phase
+
+  bandwidth:
+    theoretical_hz: 0           # Ideal CW has zero bandwidth
+    practical_hz: 1             # Practical: ~1/duration due to windowing
+
+  power:
+    normalized_dbfs: 0.0        # Full scale
+
+# ============================================================================
+# TIMING
+# ============================================================================
+timing:
+  sample_rate: 8000             # Default sample rate (Hz)
+  samples_per_cycle: 8          # At default carrier freq
+  duration_s: 1.0               # Default duration
+  continuous: true              # CW is continuous by nature
+
+# ============================================================================
+# IMPLEMENTATION PIPELINE
+# ============================================================================
+pipeline:
+  description: |
+    CW generation is trivially simple: generate a complex exponential
+    at the carrier frequency. No modulation, no encoding.
+
+  blocks:
+    - id: 1
+      name: "Carrier Generator"
+      type: "Tone Generator"
+      enabled: true
+      frequency_hz: 1000.0
+      amplitude: 1.0
+      phase_deg: 0.0
+
+  connections: []  # Single block, no connections needed
+
+# ============================================================================
+# RUST IMPLEMENTATION HINTS
+# ============================================================================
+implementation:
+  module: "cw"
+  struct_name: "CwWaveform"
+
+  modulate: |
+    // CW modulation: generate carrier samples
+    // output[n] = A * exp(j * 2 * pi * f_c * n / f_s + phi)
+    let phase_increment = 2.0 * PI * self.carrier_freq / self.sample_rate;
+    samples.iter().enumerate().map(|(n, _)| {
+        let phase = self.initial_phase + phase_increment * n as f64;
+        IQSample::new(phase.cos() as f32, phase.sin() as f32) * self.amplitude
+    }).collect()
+
+  demodulate: |
+    // CW demodulation: measure carrier frequency and phase
+    // Use FFT peak detection or PLL
+
+  tests:
+    - name: "constant_envelope"
+      description: "Verify output has constant amplitude"
+    - name: "correct_frequency"
+      description: "Verify FFT peak at carrier frequency"
+    - name: "phase_continuity"
+      description: "Verify no phase discontinuities"
+
+# ============================================================================
+# VISUALIZATION
+# ============================================================================
+visualization:
+  constellation:
+    type: "single_point"
+    points: [[1.0, 0.0]]  # Single point on real axis
+
+  spectrum:
+    type: "single_tone"
+    expected_peaks:
+      - frequency_hz: 1000.0
+        relative_power_db: 0.0
+
+  time_domain:
+    type: "sinusoid"
+
+# ============================================================================
+# APPLICATIONS
+# ============================================================================
+applications:
+  - "Carrier recovery testing"
+  - "Beacon signals"
+  - "Channel sounding"
+  - "Reference signal generation"
+  - "LO leakage measurement"
+  - "Building block for complex waveforms"
