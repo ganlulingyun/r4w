@@ -1,7 +1,12 @@
 //! Pulse Shaping Filters
 //!
 //! Filters for controlling the spectral characteristics of digital signals.
+//!
+//! These filters also implement the [`FirFilterOps`](super::traits::FirFilterOps) trait,
+//! allowing them to be used with the frequency response analysis methods.
 
+use super::traits::{Filter, FirFilterOps, RealFilter};
+use num_complex::Complex64;
 use std::f64::consts::PI;
 
 /// Trait for pulse shaping filters
@@ -83,6 +88,12 @@ pub struct RaisedCosineFilter {
     /// Samples per symbol
     #[allow(dead_code)]
     samples_per_symbol: usize,
+    /// Delay line for complex samples
+    delay_line: Vec<Complex64>,
+    /// Delay line for real samples
+    delay_line_real: Vec<f64>,
+    /// Current position in delay line
+    delay_idx: usize,
 }
 
 impl RaisedCosineFilter {
@@ -129,11 +140,15 @@ impl RaisedCosineFilter {
             }
         }
 
+        let len = coefficients.len();
         Self {
             coefficients,
             rolloff,
             span_symbols,
             samples_per_symbol,
+            delay_line: vec![Complex64::new(0.0, 0.0); len],
+            delay_line_real: vec![0.0; len],
+            delay_idx: 0,
         }
     }
 
@@ -149,6 +164,58 @@ impl RaisedCosineFilter {
 }
 
 impl PulseShapingFilter for RaisedCosineFilter {
+    fn coefficients(&self) -> &[f64] {
+        &self.coefficients
+    }
+}
+
+impl Filter for RaisedCosineFilter {
+    fn process(&mut self, input: Complex64) -> Complex64 {
+        self.delay_line[self.delay_idx] = input;
+        let mut output = Complex64::new(0.0, 0.0);
+        let len = self.coefficients.len();
+        for i in 0..len {
+            let delay_pos = (self.delay_idx + len - i) % len;
+            output += self.delay_line[delay_pos] * self.coefficients[i];
+        }
+        self.delay_idx = (self.delay_idx + 1) % len;
+        output
+    }
+
+    fn reset(&mut self) {
+        for s in self.delay_line.iter_mut() {
+            *s = Complex64::new(0.0, 0.0);
+        }
+        for s in self.delay_line_real.iter_mut() {
+            *s = 0.0;
+        }
+        self.delay_idx = 0;
+    }
+
+    fn group_delay(&self) -> f64 {
+        (self.coefficients.len() - 1) as f64 / 2.0
+    }
+
+    fn order(&self) -> usize {
+        self.coefficients.len() - 1
+    }
+}
+
+impl RealFilter for RaisedCosineFilter {
+    fn process_real(&mut self, input: f64) -> f64 {
+        self.delay_line_real[self.delay_idx] = input;
+        let mut output = 0.0;
+        let len = self.coefficients.len();
+        for i in 0..len {
+            let delay_pos = (self.delay_idx + len - i) % len;
+            output += self.delay_line_real[delay_pos] * self.coefficients[i];
+        }
+        self.delay_idx = (self.delay_idx + 1) % len;
+        output
+    }
+}
+
+impl FirFilterOps for RaisedCosineFilter {
     fn coefficients(&self) -> &[f64] {
         &self.coefficients
     }
@@ -172,6 +239,12 @@ pub struct RootRaisedCosineFilter {
     /// Samples per symbol
     #[allow(dead_code)]
     samples_per_symbol: usize,
+    /// Delay line for complex samples
+    delay_line: Vec<Complex64>,
+    /// Delay line for real samples
+    delay_line_real: Vec<f64>,
+    /// Current position in delay line
+    delay_idx: usize,
 }
 
 impl RootRaisedCosineFilter {
@@ -227,11 +300,15 @@ impl RootRaisedCosineFilter {
             }
         }
 
+        let len = coefficients.len();
         Self {
             coefficients,
             rolloff,
             span_symbols,
             samples_per_symbol,
+            delay_line: vec![Complex64::new(0.0, 0.0); len],
+            delay_line_real: vec![0.0; len],
+            delay_idx: 0,
         }
     }
 
@@ -242,6 +319,58 @@ impl RootRaisedCosineFilter {
 }
 
 impl PulseShapingFilter for RootRaisedCosineFilter {
+    fn coefficients(&self) -> &[f64] {
+        &self.coefficients
+    }
+}
+
+impl Filter for RootRaisedCosineFilter {
+    fn process(&mut self, input: Complex64) -> Complex64 {
+        self.delay_line[self.delay_idx] = input;
+        let mut output = Complex64::new(0.0, 0.0);
+        let len = self.coefficients.len();
+        for i in 0..len {
+            let delay_pos = (self.delay_idx + len - i) % len;
+            output += self.delay_line[delay_pos] * self.coefficients[i];
+        }
+        self.delay_idx = (self.delay_idx + 1) % len;
+        output
+    }
+
+    fn reset(&mut self) {
+        for s in self.delay_line.iter_mut() {
+            *s = Complex64::new(0.0, 0.0);
+        }
+        for s in self.delay_line_real.iter_mut() {
+            *s = 0.0;
+        }
+        self.delay_idx = 0;
+    }
+
+    fn group_delay(&self) -> f64 {
+        (self.coefficients.len() - 1) as f64 / 2.0
+    }
+
+    fn order(&self) -> usize {
+        self.coefficients.len() - 1
+    }
+}
+
+impl RealFilter for RootRaisedCosineFilter {
+    fn process_real(&mut self, input: f64) -> f64 {
+        self.delay_line_real[self.delay_idx] = input;
+        let mut output = 0.0;
+        let len = self.coefficients.len();
+        for i in 0..len {
+            let delay_pos = (self.delay_idx + len - i) % len;
+            output += self.delay_line_real[delay_pos] * self.coefficients[i];
+        }
+        self.delay_idx = (self.delay_idx + 1) % len;
+        output
+    }
+}
+
+impl FirFilterOps for RootRaisedCosineFilter {
     fn coefficients(&self) -> &[f64] {
         &self.coefficients
     }
@@ -266,6 +395,12 @@ pub struct GaussianFilter {
     /// Samples per symbol
     #[allow(dead_code)]
     samples_per_symbol: usize,
+    /// Delay line for complex samples
+    delay_line: Vec<Complex64>,
+    /// Delay line for real samples
+    delay_line_real: Vec<f64>,
+    /// Current position in delay line
+    delay_idx: usize,
 }
 
 impl GaussianFilter {
@@ -302,11 +437,15 @@ impl GaussianFilter {
             }
         }
 
+        let len = coefficients.len();
         Self {
             coefficients,
             bt_product,
             span_symbols,
             samples_per_symbol,
+            delay_line: vec![Complex64::new(0.0, 0.0); len],
+            delay_line_real: vec![0.0; len],
+            delay_idx: 0,
         }
     }
 
@@ -332,6 +471,58 @@ impl PulseShapingFilter for GaussianFilter {
     }
 }
 
+impl Filter for GaussianFilter {
+    fn process(&mut self, input: Complex64) -> Complex64 {
+        self.delay_line[self.delay_idx] = input;
+        let mut output = Complex64::new(0.0, 0.0);
+        let len = self.coefficients.len();
+        for i in 0..len {
+            let delay_pos = (self.delay_idx + len - i) % len;
+            output += self.delay_line[delay_pos] * self.coefficients[i];
+        }
+        self.delay_idx = (self.delay_idx + 1) % len;
+        output
+    }
+
+    fn reset(&mut self) {
+        for s in self.delay_line.iter_mut() {
+            *s = Complex64::new(0.0, 0.0);
+        }
+        for s in self.delay_line_real.iter_mut() {
+            *s = 0.0;
+        }
+        self.delay_idx = 0;
+    }
+
+    fn group_delay(&self) -> f64 {
+        (self.coefficients.len() - 1) as f64 / 2.0
+    }
+
+    fn order(&self) -> usize {
+        self.coefficients.len() - 1
+    }
+}
+
+impl RealFilter for GaussianFilter {
+    fn process_real(&mut self, input: f64) -> f64 {
+        self.delay_line_real[self.delay_idx] = input;
+        let mut output = 0.0;
+        let len = self.coefficients.len();
+        for i in 0..len {
+            let delay_pos = (self.delay_idx + len - i) % len;
+            output += self.delay_line_real[delay_pos] * self.coefficients[i];
+        }
+        self.delay_idx = (self.delay_idx + 1) % len;
+        output
+    }
+}
+
+impl FirFilterOps for GaussianFilter {
+    fn coefficients(&self) -> &[f64] {
+        &self.coefficients
+    }
+}
+
 /// Sinc function: sin(πx)/(πx), with sinc(0) = 1
 fn sinc(x: f64) -> f64 {
     if x.abs() < 1e-10 {
@@ -351,7 +542,7 @@ mod tests {
         let rc = RaisedCosineFilter::new(0.35, 8, 4);
 
         assert_eq!(rc.rolloff(), 0.35);
-        assert!(!rc.coefficients().is_empty());
+        assert!(!PulseShapingFilter::coefficients(&rc).is_empty());
         assert_eq!(rc.length(), 8 * 4 + 1);
     }
 
@@ -360,7 +551,7 @@ mod tests {
         let rrc = RootRaisedCosineFilter::new(0.35, 8, 4);
 
         assert_eq!(rrc.rolloff(), 0.35);
-        assert!(!rrc.coefficients().is_empty());
+        assert!(!PulseShapingFilter::coefficients(&rrc).is_empty());
     }
 
     #[test]
@@ -368,7 +559,7 @@ mod tests {
         let gauss = GaussianFilter::new(0.3, 4, 4);
 
         assert_eq!(gauss.bt_product(), 0.3);
-        assert!(!gauss.coefficients().is_empty());
+        assert!(!PulseShapingFilter::coefficients(&gauss).is_empty());
     }
 
     #[test]
@@ -395,7 +586,7 @@ mod tests {
     #[test]
     fn test_rrc_symmetry() {
         let rrc = RootRaisedCosineFilter::new(0.35, 8, 4);
-        let coeffs = rrc.coefficients();
+        let coeffs = PulseShapingFilter::coefficients(&rrc);
         let n = coeffs.len();
 
         // RRC should be symmetric
@@ -421,5 +612,74 @@ mod tests {
 
         // Lower roll-off = higher efficiency
         assert!(rc_25.bandwidth_efficiency() > rc_50.bandwidth_efficiency());
+    }
+
+    #[test]
+    fn test_rc_filter_trait() {
+        use super::Filter;
+        let mut rc = RaisedCosineFilter::new(0.35, 4, 4);
+
+        // Process impulse
+        let output = rc.process(Complex64::new(1.0, 0.0));
+        assert!(output.norm() > 0.0);
+
+        // Reset and verify
+        rc.reset();
+        let coeffs_len = PulseShapingFilter::coefficients(&rc).len();
+        assert_eq!(rc.group_delay(), (coeffs_len - 1) as f64 / 2.0);
+    }
+
+    #[test]
+    fn test_rrc_filter_trait() {
+        use super::{Filter, RealFilter};
+        let mut rrc = RootRaisedCosineFilter::new(0.35, 4, 4);
+
+        // Process DC signal
+        for _ in 0..50 {
+            rrc.process_real(1.0);
+        }
+        let output = rrc.process_real(1.0);
+
+        // After settling, should produce non-zero output
+        assert!(output.abs() > 0.1);
+    }
+
+    #[test]
+    fn test_gaussian_filter_trait() {
+        use super::Filter;
+        let mut gauss = GaussianFilter::gsm(4);
+
+        // Process through
+        let block: Vec<Complex64> = vec![Complex64::new(1.0, 0.0); 50];
+        let output = gauss.process_block(&block);
+        assert_eq!(output.len(), 50);
+    }
+
+    #[test]
+    fn test_fir_filter_ops_on_pulse_shaping() {
+        use super::FirFilterOps;
+
+        let rrc = RootRaisedCosineFilter::new(0.35, 8, 4);
+
+        // Should have symmetric coefficients (linear phase)
+        assert!(rrc.is_linear_phase());
+
+        // Check number of taps
+        assert!(rrc.num_taps() > 0);
+    }
+
+    #[test]
+    fn test_frequency_response_on_pulse_shaping() {
+        use super::super::traits::FrequencyResponse;
+
+        let rrc = RootRaisedCosineFilter::new(0.35, 8, 4);
+
+        // Get magnitude response at DC
+        let dc_mag = rrc.magnitude_response(0.0, 1000.0);
+        assert!(dc_mag > 0.0);
+
+        // Get magnitude in dB
+        let dc_db = rrc.magnitude_response_db(0.0, 1000.0);
+        assert!(dc_db.is_finite());
     }
 }
