@@ -14,6 +14,9 @@ pub enum WizardStep {
     Modulation,
     SpreadSpectrum,
     PulseShaping,
+    Filtering,
+    Synchronization,
+    FrameStructure,
     Timing,
     Coding,
     Spectral,
@@ -27,10 +30,13 @@ impl WizardStep {
             Self::Modulation => "2. Modulation",
             Self::SpreadSpectrum => "3. Spread Spectrum",
             Self::PulseShaping => "4. Pulse Shaping",
-            Self::Timing => "5. Timing",
-            Self::Coding => "6. Channel Coding",
-            Self::Spectral => "7. Spectral",
-            Self::Review => "8. Review & Export",
+            Self::Filtering => "5. Filtering",
+            Self::Synchronization => "6. Synchronization",
+            Self::FrameStructure => "7. Frame Structure",
+            Self::Timing => "8. Timing",
+            Self::Coding => "9. Channel Coding",
+            Self::Spectral => "10. Spectral",
+            Self::Review => "11. Review & Export",
         }
     }
 
@@ -39,7 +45,10 @@ impl WizardStep {
             Self::Identity => Some(Self::Modulation),
             Self::Modulation => Some(Self::SpreadSpectrum),
             Self::SpreadSpectrum => Some(Self::PulseShaping),
-            Self::PulseShaping => Some(Self::Timing),
+            Self::PulseShaping => Some(Self::Filtering),
+            Self::Filtering => Some(Self::Synchronization),
+            Self::Synchronization => Some(Self::FrameStructure),
+            Self::FrameStructure => Some(Self::Timing),
             Self::Timing => Some(Self::Coding),
             Self::Coding => Some(Self::Spectral),
             Self::Spectral => Some(Self::Review),
@@ -53,7 +62,10 @@ impl WizardStep {
             Self::Modulation => Some(Self::Identity),
             Self::SpreadSpectrum => Some(Self::Modulation),
             Self::PulseShaping => Some(Self::SpreadSpectrum),
-            Self::Timing => Some(Self::PulseShaping),
+            Self::Filtering => Some(Self::PulseShaping),
+            Self::Synchronization => Some(Self::Filtering),
+            Self::FrameStructure => Some(Self::Synchronization),
+            Self::Timing => Some(Self::FrameStructure),
             Self::Coding => Some(Self::Timing),
             Self::Spectral => Some(Self::Coding),
             Self::Review => Some(Self::Spectral),
@@ -184,6 +196,115 @@ pub enum FilterType {
     Gaussian,
 }
 
+/// Channel filter type (for general filtering step)
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChannelFilterType {
+    None,
+    Lowpass,
+    Highpass,
+    Bandpass,
+    Bandstop,
+}
+
+/// Channel filter design method
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ChannelFilterDesign {
+    WindowedFir,
+    Remez,
+    Butterworth,
+    Chebyshev1,
+    Chebyshev2,
+    Bessel,
+}
+
+/// Window type for FIR design
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum WindowType {
+    Hamming,
+    Hann,
+    Blackman,
+    Kaiser,
+}
+
+/// Sample rate conversion type
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ResamplerType {
+    None,
+    Decimation,
+    Interpolation,
+    Rational,
+}
+
+/// Preamble type for synchronization
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PreambleType {
+    None,
+    Alternating,    // 10101010...
+    AllOnes,        // 11111111...
+    Barker,         // Barker sequence
+    Chirp,          // For CSS
+    Custom,
+}
+
+/// Timing recovery algorithm
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimingRecoveryAlgo {
+    None,
+    EarlyLate,
+    GardnerTed,
+    MuellerMuller,
+    Oerder,
+}
+
+/// Carrier recovery algorithm
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CarrierRecoveryAlgo {
+    None,
+    CostasLoop,
+    DecisionDirected,
+    PilotAided,
+    FrequencyLocked,
+}
+
+/// AGC mode
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AgcMode {
+    None,
+    Fast,
+    Slow,
+    Adaptive,
+}
+
+/// Frame format type
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum FrameFormat {
+    Continuous,
+    Burst,
+    Tdma,
+    PacketBased,
+}
+
+/// CRC polynomial
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CrcType {
+    None,
+    Crc8,
+    Crc16Ccitt,
+    Crc16Ibm,
+    Crc32,
+    Crc32C,
+}
+
+/// Equalizer type
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EqualizerType {
+    None,
+    LinearLms,
+    LinearRls,
+    Cma,
+    DecisionFeedback,
+}
+
 /// FEC type
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
@@ -295,6 +416,48 @@ pub struct WaveformSpec {
     pub span_symbols: u32,
     pub bt_product: f32,
 
+    // Filtering (channel filters and sample rate conversion)
+    pub channel_filter_type: ChannelFilterType,
+    pub channel_filter_design: ChannelFilterDesign,
+    pub channel_filter_cutoff_hz: f32,
+    pub channel_filter_cutoff2_hz: f32,  // For bandpass/bandstop
+    pub channel_filter_order: u32,
+    pub channel_filter_ripple_db: f32,   // For Chebyshev
+    pub channel_filter_atten_db: f32,    // Stopband attenuation
+    pub fir_window_type: WindowType,
+    pub kaiser_beta: f32,
+    pub resampler_type: ResamplerType,
+    pub resampler_up_factor: u32,
+    pub resampler_down_factor: u32,
+    pub matched_filter_enabled: bool,
+
+    // Synchronization
+    pub preamble_type: PreambleType,
+    pub preamble_length_symbols: u32,
+    pub sync_word: String,
+    pub sync_word_length_bits: u32,
+    pub timing_recovery_algo: TimingRecoveryAlgo,
+    pub timing_loop_bw: f32,
+    pub carrier_recovery_algo: CarrierRecoveryAlgo,
+    pub carrier_loop_bw: f32,
+    pub agc_mode: AgcMode,
+    pub agc_attack_time_ms: f32,
+    pub agc_release_time_ms: f32,
+    pub agc_target_level_db: f32,
+    pub equalizer_type: EqualizerType,
+    pub equalizer_taps: u32,
+    pub equalizer_mu: f32,
+
+    // Frame structure
+    pub frame_format: FrameFormat,
+    pub header_length_bits: u32,
+    pub payload_length_bits: u32,
+    pub crc_type: CrcType,
+    pub tdma_slots: u32,
+    pub tdma_slot_duration_ms: f32,
+    pub tdma_guard_time_us: f32,
+    pub unique_word: String,
+
     // Timing
     pub symbol_rate: u32,
     pub sample_rate: u32,
@@ -371,6 +534,48 @@ impl Default for WaveformSpec {
             rolloff: 0.35,
             span_symbols: 8,
             bt_product: 0.3,
+
+            // Filtering
+            channel_filter_type: ChannelFilterType::None,
+            channel_filter_design: ChannelFilterDesign::WindowedFir,
+            channel_filter_cutoff_hz: 10000.0,
+            channel_filter_cutoff2_hz: 20000.0,
+            channel_filter_order: 64,
+            channel_filter_ripple_db: 0.5,
+            channel_filter_atten_db: 60.0,
+            fir_window_type: WindowType::Kaiser,
+            kaiser_beta: 8.0,
+            resampler_type: ResamplerType::None,
+            resampler_up_factor: 1,
+            resampler_down_factor: 1,
+            matched_filter_enabled: false,
+
+            // Synchronization
+            preamble_type: PreambleType::Alternating,
+            preamble_length_symbols: 32,
+            sync_word: "0x7E".to_string(),
+            sync_word_length_bits: 8,
+            timing_recovery_algo: TimingRecoveryAlgo::GardnerTed,
+            timing_loop_bw: 0.01,
+            carrier_recovery_algo: CarrierRecoveryAlgo::CostasLoop,
+            carrier_loop_bw: 0.005,
+            agc_mode: AgcMode::Adaptive,
+            agc_attack_time_ms: 1.0,
+            agc_release_time_ms: 10.0,
+            agc_target_level_db: -20.0,
+            equalizer_type: EqualizerType::None,
+            equalizer_taps: 11,
+            equalizer_mu: 0.01,
+
+            // Frame structure
+            frame_format: FrameFormat::PacketBased,
+            header_length_bits: 32,
+            payload_length_bits: 256,
+            crc_type: CrcType::Crc16Ccitt,
+            tdma_slots: 1,
+            tdma_slot_duration_ms: 10.0,
+            tdma_guard_time_us: 100.0,
+            unique_word: "0xACDD".to_string(),
 
             // Timing
             symbol_rate: 1000,
@@ -992,12 +1197,15 @@ Focus on correct signal generation, clean Rust code, and educational value.
         ui.add_space(10.0);
 
         // Step indicator
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             for step in [
                 WizardStep::Identity,
                 WizardStep::Modulation,
                 WizardStep::SpreadSpectrum,
                 WizardStep::PulseShaping,
+                WizardStep::Filtering,
+                WizardStep::Synchronization,
+                WizardStep::FrameStructure,
                 WizardStep::Timing,
                 WizardStep::Coding,
                 WizardStep::Spectral,
@@ -1025,6 +1233,9 @@ Focus on correct signal generation, clean Rust code, and educational value.
                 WizardStep::Modulation => self.render_modulation(ui),
                 WizardStep::SpreadSpectrum => self.render_spread_spectrum(ui),
                 WizardStep::PulseShaping => self.render_pulse_shaping(ui),
+                WizardStep::Filtering => self.render_filtering(ui),
+                WizardStep::Synchronization => self.render_synchronization(ui),
+                WizardStep::FrameStructure => self.render_frame_structure(ui),
                 WizardStep::Timing => self.render_timing(ui),
                 WizardStep::Coding => self.render_coding(ui),
                 WizardStep::Spectral => self.render_spectral(ui),
@@ -2081,6 +2292,442 @@ Focus on correct signal generation, clean Rust code, and educational value.
                 _ => {}
             }
         }
+    }
+
+    fn render_filtering(&mut self, ui: &mut Ui) {
+        ui.heading("Filtering & Sample Rate Conversion");
+        ui.add_space(10.0);
+
+        // Channel Filtering Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Channel Filtering").strong());
+            ui.add_space(5.0);
+
+            ui.label("Filter Type:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.channel_filter_type, ChannelFilterType::None, "None");
+                ui.radio_value(&mut self.spec.channel_filter_type, ChannelFilterType::Lowpass, "Lowpass");
+                ui.radio_value(&mut self.spec.channel_filter_type, ChannelFilterType::Highpass, "Highpass");
+                ui.radio_value(&mut self.spec.channel_filter_type, ChannelFilterType::Bandpass, "Bandpass");
+                ui.radio_value(&mut self.spec.channel_filter_type, ChannelFilterType::Bandstop, "Bandstop");
+            });
+
+            if self.spec.channel_filter_type != ChannelFilterType::None {
+                ui.add_space(5.0);
+
+                ui.label("Design Method:");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut self.spec.channel_filter_design, ChannelFilterDesign::WindowedFir, "Windowed FIR");
+                    ui.radio_value(&mut self.spec.channel_filter_design, ChannelFilterDesign::Remez, "Remez/Parks-McClellan");
+                });
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut self.spec.channel_filter_design, ChannelFilterDesign::Butterworth, "Butterworth (IIR)");
+                    ui.radio_value(&mut self.spec.channel_filter_design, ChannelFilterDesign::Chebyshev1, "Chebyshev I (IIR)");
+                    ui.radio_value(&mut self.spec.channel_filter_design, ChannelFilterDesign::Chebyshev2, "Chebyshev II (IIR)");
+                    ui.radio_value(&mut self.spec.channel_filter_design, ChannelFilterDesign::Bessel, "Bessel (IIR)");
+                });
+
+                ui.add_space(5.0);
+
+                // Cutoff frequency
+                ui.horizontal(|ui| {
+                    ui.label("Cutoff Frequency (Hz):");
+                    ui.add(egui::DragValue::new(&mut self.spec.channel_filter_cutoff_hz)
+                        .speed(100.0)
+                        .range(1.0..=10_000_000.0));
+                });
+
+                // Second cutoff for bandpass/bandstop
+                if matches!(self.spec.channel_filter_type, ChannelFilterType::Bandpass | ChannelFilterType::Bandstop) {
+                    ui.horizontal(|ui| {
+                        ui.label("Upper Cutoff (Hz):");
+                        ui.add(egui::DragValue::new(&mut self.spec.channel_filter_cutoff2_hz)
+                            .speed(100.0)
+                            .range(1.0..=10_000_000.0));
+                    });
+                }
+
+                // Filter order
+                ui.horizontal(|ui| {
+                    ui.label("Filter Order/Taps:");
+                    ui.add(egui::DragValue::new(&mut self.spec.channel_filter_order)
+                        .speed(1)
+                        .range(4..=256));
+                });
+
+                // Design-specific parameters
+                match self.spec.channel_filter_design {
+                    ChannelFilterDesign::WindowedFir => {
+                        ui.label("Window Type:");
+                        ui.horizontal(|ui| {
+                            ui.radio_value(&mut self.spec.fir_window_type, WindowType::Hamming, "Hamming");
+                            ui.radio_value(&mut self.spec.fir_window_type, WindowType::Hann, "Hann");
+                            ui.radio_value(&mut self.spec.fir_window_type, WindowType::Blackman, "Blackman");
+                            ui.radio_value(&mut self.spec.fir_window_type, WindowType::Kaiser, "Kaiser");
+                        });
+
+                        if self.spec.fir_window_type == WindowType::Kaiser {
+                            ui.horizontal(|ui| {
+                                ui.label("Kaiser β:");
+                                ui.add(egui::Slider::new(&mut self.spec.kaiser_beta, 0.0..=14.0));
+                            });
+                        }
+                    }
+                    ChannelFilterDesign::Remez => {
+                        ui.horizontal(|ui| {
+                            ui.label("Stopband Attenuation (dB):");
+                            ui.add(egui::Slider::new(&mut self.spec.channel_filter_atten_db, 20.0..=100.0));
+                        });
+                    }
+                    ChannelFilterDesign::Chebyshev1 => {
+                        ui.horizontal(|ui| {
+                            ui.label("Passband Ripple (dB):");
+                            ui.add(egui::Slider::new(&mut self.spec.channel_filter_ripple_db, 0.1..=3.0));
+                        });
+                    }
+                    ChannelFilterDesign::Chebyshev2 => {
+                        ui.horizontal(|ui| {
+                            ui.label("Stopband Attenuation (dB):");
+                            ui.add(egui::Slider::new(&mut self.spec.channel_filter_atten_db, 20.0..=100.0));
+                        });
+                    }
+                    _ => {}
+                }
+            }
+        });
+
+        ui.add_space(10.0);
+
+        // Sample Rate Conversion Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Sample Rate Conversion").strong());
+            ui.add_space(5.0);
+
+            ui.label("Resampling:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.resampler_type, ResamplerType::None, "None");
+                ui.radio_value(&mut self.spec.resampler_type, ResamplerType::Decimation, "Decimation (↓M)");
+                ui.radio_value(&mut self.spec.resampler_type, ResamplerType::Interpolation, "Interpolation (↑L)");
+                ui.radio_value(&mut self.spec.resampler_type, ResamplerType::Rational, "Rational (L/M)");
+            });
+
+            match self.spec.resampler_type {
+                ResamplerType::Decimation => {
+                    ui.horizontal(|ui| {
+                        ui.label("Decimation Factor (M):");
+                        ui.add(egui::DragValue::new(&mut self.spec.resampler_down_factor)
+                            .speed(1)
+                            .range(1..=64));
+                    });
+                }
+                ResamplerType::Interpolation => {
+                    ui.horizontal(|ui| {
+                        ui.label("Interpolation Factor (L):");
+                        ui.add(egui::DragValue::new(&mut self.spec.resampler_up_factor)
+                            .speed(1)
+                            .range(1..=64));
+                    });
+                }
+                ResamplerType::Rational => {
+                    ui.horizontal(|ui| {
+                        ui.label("Interpolation (L):");
+                        ui.add(egui::DragValue::new(&mut self.spec.resampler_up_factor)
+                            .speed(1)
+                            .range(1..=64));
+                        ui.label("Decimation (M):");
+                        ui.add(egui::DragValue::new(&mut self.spec.resampler_down_factor)
+                            .speed(1)
+                            .range(1..=64));
+                    });
+                    let ratio = self.spec.resampler_up_factor as f32 / self.spec.resampler_down_factor as f32;
+                    ui.label(format!("Effective ratio: {:.4}", ratio));
+                }
+                ResamplerType::None => {}
+            }
+        });
+
+        ui.add_space(10.0);
+
+        // Receive Filtering Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Receive Processing").strong());
+            ui.add_space(5.0);
+
+            ui.checkbox(&mut self.spec.matched_filter_enabled, "Enable Matched Filter");
+            if self.spec.matched_filter_enabled {
+                ui.label(RichText::new("  ↳ Uses time-reversed pulse shaping filter for optimal SNR").italics().weak());
+            }
+        });
+    }
+
+    fn render_synchronization(&mut self, ui: &mut Ui) {
+        ui.heading("Synchronization & Recovery");
+        ui.add_space(10.0);
+
+        // Preamble Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Preamble").strong());
+            ui.add_space(5.0);
+
+            ui.label("Preamble Type:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.preamble_type, PreambleType::None, "None");
+                ui.radio_value(&mut self.spec.preamble_type, PreambleType::Alternating, "Alternating (1010...)");
+                ui.radio_value(&mut self.spec.preamble_type, PreambleType::AllOnes, "All Ones");
+                ui.radio_value(&mut self.spec.preamble_type, PreambleType::Barker, "Barker");
+                ui.radio_value(&mut self.spec.preamble_type, PreambleType::Chirp, "Chirp (CSS)");
+            });
+
+            if self.spec.preamble_type != PreambleType::None {
+                ui.horizontal(|ui| {
+                    ui.label("Preamble Length (symbols):");
+                    ui.add(egui::DragValue::new(&mut self.spec.preamble_length_symbols)
+                        .speed(1)
+                        .range(4..=256));
+                });
+            }
+        });
+
+        ui.add_space(10.0);
+
+        // Sync Word Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Sync Word / Unique Word").strong());
+            ui.add_space(5.0);
+
+            ui.horizontal(|ui| {
+                ui.label("Sync Word (hex):");
+                ui.text_edit_singleline(&mut self.spec.sync_word);
+            });
+            ui.horizontal(|ui| {
+                ui.label("Length (bits):");
+                ui.add(egui::DragValue::new(&mut self.spec.sync_word_length_bits)
+                    .speed(1)
+                    .range(0..=64));
+            });
+        });
+
+        ui.add_space(10.0);
+
+        // Timing Recovery Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Timing Recovery").strong());
+            ui.add_space(5.0);
+
+            ui.label("Algorithm:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.timing_recovery_algo, TimingRecoveryAlgo::None, "None");
+                ui.radio_value(&mut self.spec.timing_recovery_algo, TimingRecoveryAlgo::EarlyLate, "Early-Late");
+                ui.radio_value(&mut self.spec.timing_recovery_algo, TimingRecoveryAlgo::GardnerTed, "Gardner TED");
+                ui.radio_value(&mut self.spec.timing_recovery_algo, TimingRecoveryAlgo::MuellerMuller, "Mueller-Müller");
+                ui.radio_value(&mut self.spec.timing_recovery_algo, TimingRecoveryAlgo::Oerder, "Oerder-Meyr");
+            });
+
+            if self.spec.timing_recovery_algo != TimingRecoveryAlgo::None {
+                ui.horizontal(|ui| {
+                    ui.label("Loop Bandwidth (normalized):");
+                    ui.add(egui::Slider::new(&mut self.spec.timing_loop_bw, 0.001..=0.1).logarithmic(true));
+                });
+            }
+        });
+
+        ui.add_space(10.0);
+
+        // Carrier Recovery Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Carrier Recovery").strong());
+            ui.add_space(5.0);
+
+            ui.label("Algorithm:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.carrier_recovery_algo, CarrierRecoveryAlgo::None, "None");
+                ui.radio_value(&mut self.spec.carrier_recovery_algo, CarrierRecoveryAlgo::CostasLoop, "Costas Loop");
+                ui.radio_value(&mut self.spec.carrier_recovery_algo, CarrierRecoveryAlgo::DecisionDirected, "Decision-Directed");
+                ui.radio_value(&mut self.spec.carrier_recovery_algo, CarrierRecoveryAlgo::PilotAided, "Pilot-Aided");
+                ui.radio_value(&mut self.spec.carrier_recovery_algo, CarrierRecoveryAlgo::FrequencyLocked, "FLL");
+            });
+
+            if self.spec.carrier_recovery_algo != CarrierRecoveryAlgo::None {
+                ui.horizontal(|ui| {
+                    ui.label("Loop Bandwidth (normalized):");
+                    ui.add(egui::Slider::new(&mut self.spec.carrier_loop_bw, 0.0001..=0.05).logarithmic(true));
+                });
+            }
+        });
+
+        ui.add_space(10.0);
+
+        // AGC Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Automatic Gain Control (AGC)").strong());
+            ui.add_space(5.0);
+
+            ui.label("AGC Mode:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.agc_mode, AgcMode::None, "None");
+                ui.radio_value(&mut self.spec.agc_mode, AgcMode::Fast, "Fast");
+                ui.radio_value(&mut self.spec.agc_mode, AgcMode::Slow, "Slow");
+                ui.radio_value(&mut self.spec.agc_mode, AgcMode::Adaptive, "Adaptive");
+            });
+
+            if self.spec.agc_mode != AgcMode::None {
+                ui.horizontal(|ui| {
+                    ui.label("Attack Time (ms):");
+                    ui.add(egui::Slider::new(&mut self.spec.agc_attack_time_ms, 0.1..=100.0).logarithmic(true));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Release Time (ms):");
+                    ui.add(egui::Slider::new(&mut self.spec.agc_release_time_ms, 1.0..=1000.0).logarithmic(true));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Target Level (dB):");
+                    ui.add(egui::Slider::new(&mut self.spec.agc_target_level_db, -40.0..=0.0));
+                });
+            }
+        });
+
+        ui.add_space(10.0);
+
+        // Equalizer Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Equalization").strong());
+            ui.add_space(5.0);
+
+            ui.label("Equalizer Type:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.equalizer_type, EqualizerType::None, "None");
+                ui.radio_value(&mut self.spec.equalizer_type, EqualizerType::LinearLms, "Linear LMS");
+                ui.radio_value(&mut self.spec.equalizer_type, EqualizerType::LinearRls, "Linear RLS");
+                ui.radio_value(&mut self.spec.equalizer_type, EqualizerType::Cma, "CMA (blind)");
+                ui.radio_value(&mut self.spec.equalizer_type, EqualizerType::DecisionFeedback, "DFE");
+            });
+
+            if self.spec.equalizer_type != EqualizerType::None {
+                ui.horizontal(|ui| {
+                    ui.label("Number of Taps:");
+                    ui.add(egui::DragValue::new(&mut self.spec.equalizer_taps)
+                        .speed(1)
+                        .range(3..=101));
+                });
+                if matches!(self.spec.equalizer_type, EqualizerType::LinearLms | EqualizerType::Cma) {
+                    ui.horizontal(|ui| {
+                        ui.label("Step Size (μ):");
+                        ui.add(egui::Slider::new(&mut self.spec.equalizer_mu, 0.0001..=0.1).logarithmic(true));
+                    });
+                }
+            }
+        });
+    }
+
+    fn render_frame_structure(&mut self, ui: &mut Ui) {
+        ui.heading("Frame Structure");
+        ui.add_space(10.0);
+
+        // Frame Format Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Frame Format").strong());
+            ui.add_space(5.0);
+
+            ui.label("Format Type:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.frame_format, FrameFormat::Continuous, "Continuous");
+                ui.radio_value(&mut self.spec.frame_format, FrameFormat::Burst, "Burst");
+                ui.radio_value(&mut self.spec.frame_format, FrameFormat::Tdma, "TDMA");
+                ui.radio_value(&mut self.spec.frame_format, FrameFormat::PacketBased, "Packet-Based");
+            });
+        });
+
+        ui.add_space(10.0);
+
+        // Packet Structure
+        if matches!(self.spec.frame_format, FrameFormat::PacketBased | FrameFormat::Burst) {
+            ui.group(|ui| {
+                ui.label(RichText::new("Packet Structure").strong());
+                ui.add_space(5.0);
+
+                ui.horizontal(|ui| {
+                    ui.label("Header Length (bits):");
+                    ui.add(egui::DragValue::new(&mut self.spec.header_length_bits)
+                        .speed(1)
+                        .range(0..=256));
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Payload Length (bits):");
+                    ui.add(egui::DragValue::new(&mut self.spec.payload_length_bits)
+                        .speed(8)
+                        .range(8..=65536));
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Unique Word (hex):");
+                    ui.text_edit_singleline(&mut self.spec.unique_word);
+                });
+            });
+        }
+
+        ui.add_space(10.0);
+
+        // TDMA Parameters
+        if self.spec.frame_format == FrameFormat::Tdma {
+            ui.group(|ui| {
+                ui.label(RichText::new("TDMA Parameters").strong());
+                ui.add_space(5.0);
+
+                ui.horizontal(|ui| {
+                    ui.label("Number of Slots:");
+                    ui.add(egui::DragValue::new(&mut self.spec.tdma_slots)
+                        .speed(1)
+                        .range(1..=64));
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Slot Duration (ms):");
+                    ui.add(egui::DragValue::new(&mut self.spec.tdma_slot_duration_ms)
+                        .speed(0.1)
+                        .range(0.1..=1000.0));
+                });
+
+                ui.horizontal(|ui| {
+                    ui.label("Guard Time (μs):");
+                    ui.add(egui::DragValue::new(&mut self.spec.tdma_guard_time_us)
+                        .speed(1.0)
+                        .range(0.0..=10000.0));
+                });
+
+                let frame_duration = self.spec.tdma_slots as f32 * self.spec.tdma_slot_duration_ms;
+                ui.label(format!("Total Frame Duration: {:.2} ms", frame_duration));
+            });
+        }
+
+        ui.add_space(10.0);
+
+        // CRC Section
+        ui.group(|ui| {
+            ui.label(RichText::new("Error Detection (CRC)").strong());
+            ui.add_space(5.0);
+
+            ui.label("CRC Type:");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.crc_type, CrcType::None, "None");
+                ui.radio_value(&mut self.spec.crc_type, CrcType::Crc8, "CRC-8");
+                ui.radio_value(&mut self.spec.crc_type, CrcType::Crc16Ccitt, "CRC-16 CCITT");
+                ui.radio_value(&mut self.spec.crc_type, CrcType::Crc16Ibm, "CRC-16 IBM");
+            });
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut self.spec.crc_type, CrcType::Crc32, "CRC-32");
+                ui.radio_value(&mut self.spec.crc_type, CrcType::Crc32C, "CRC-32C");
+            });
+
+            match self.spec.crc_type {
+                CrcType::None => {}
+                CrcType::Crc8 => { ui.label("8-bit CRC, polynomial 0x07"); }
+                CrcType::Crc16Ccitt => { ui.label("16-bit CRC-CCITT, polynomial 0x1021"); }
+                CrcType::Crc16Ibm => { ui.label("16-bit CRC-IBM, polynomial 0x8005"); }
+                CrcType::Crc32 => { ui.label("32-bit CRC-32, polynomial 0x04C11DB7"); }
+                CrcType::Crc32C => { ui.label("32-bit CRC-32C (Castagnoli), polynomial 0x1EDC6F41"); }
+            }
+        });
     }
 
     fn render_timing(&mut self, ui: &mut Ui) {
