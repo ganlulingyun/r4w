@@ -40,3 +40,4 @@ PROMPT_HISTORY.md
 # Test WASM crate build artifacts
 crates/r4w-wasm-test-waveform/target/
 crates/r4w-wasm-test-waveform/Cargo.lock
+PROMPT_HISTORY.md
