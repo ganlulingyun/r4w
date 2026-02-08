@@ -39,6 +39,8 @@ Interactive Jupyter notebooks for learning SDR concepts with R4W.
 | 08 | Mesh Networking | Meshtastic simulation |
 | 09 | GNSS Scenario Generation | Multi-satellite IQ signals, presets, acquisition |
 | 10 | GNSS Environment Models | Orbits, ionosphere, troposphere, multipath, antennas |
+| 11 | GNSS Precise Ephemeris | SP3/CLK file parsing, precise orbit interpolation |
+| 12 | Filter Design | FIR, IIR, polyphase, Parks-McClellan, pulse shaping |
 
 ## Python API
 
@@ -79,5 +81,7 @@ notebooks/
 ├── 07_waveform_comparison.ipynb
 ├── 08_mesh_networking.ipynb
 ├── 09_gnss_scenario_generation.ipynb
-└── 10_gnss_environment_models.ipynb
+├── 10_gnss_environment_models.ipynb
+├── 11_gnss_precise_ephemeris.ipynb
+└── 12_filter_design.ipynb
 ```
