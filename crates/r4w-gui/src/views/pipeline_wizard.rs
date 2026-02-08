@@ -472,7 +472,7 @@ impl Pipeline {
     }
 
     /// Find an empty position for a new block, avoiding overlap with existing blocks
-    pub fn find_empty_position(&self) -> Pos2 {
+    pub fn find_empty_position(&self, vertical: bool) -> Pos2 {
         const BLOCK_WIDTH: f32 = 140.0;
         const BLOCK_HEIGHT: f32 = 80.0;
         const SPACING: f32 = 20.0;
@@ -483,13 +483,77 @@ impl Pipeline {
             return Pos2::new(START_X, START_Y);
         }
 
-        // Find the lowest Y position among existing blocks
-        let max_y = self.blocks.values()
-            .map(|b| b.position.y)
-            .fold(f32::NEG_INFINITY, f32::max);
+        if vertical {
+            // Find the lowest Y position among existing blocks
+            let max_y = self.blocks.values()
+                .map(|b| b.position.y)
+                .fold(f32::NEG_INFINITY, f32::max);
+            // Place new block below the lowest existing block
+            Pos2::new(START_X, max_y + BLOCK_HEIGHT + SPACING)
+        } else {
+            // Find the rightmost X position among existing blocks
+            let max_x = self.blocks.values()
+                .map(|b| b.position.x)
+                .fold(f32::NEG_INFINITY, f32::max);
+            // Place new block to the right of the rightmost existing block
+            Pos2::new(max_x + BLOCK_WIDTH + SPACING, START_Y)
+        }
+    }
 
-        // Place new block below the lowest existing block
-        Pos2::new(START_X, max_y + BLOCK_HEIGHT + SPACING)
+    /// Find the best block to auto-connect a new block to
+    /// Returns the block that has no outgoing connections and is furthest along the layout direction
+    pub fn find_auto_connect_source(&self, vertical: bool) -> Option<BlockId> {
+        // Find blocks that have outputs but no outgoing connections
+        let blocks_with_free_outputs: Vec<_> = self.blocks.iter()
+            .filter(|(id, block)| {
+                // Block must have at least one output
+                if block.block_type.num_outputs() == 0 {
+                    return false;
+                }
+                // Check if any output port is unconnected
+                let num_outputs = block.block_type.num_outputs();
+                for port in 0..num_outputs {
+                    let has_connection = self.connections.iter()
+                        .any(|c| c.from_block == **id && c.from_port == port);
+                    if !has_connection {
+                        return true;
+                    }
+                }
+                false
+            })
+            .collect();
+
+        if blocks_with_free_outputs.is_empty() {
+            return None;
+        }
+
+        // Find the block furthest along the layout direction
+        let best = if vertical {
+            // For vertical layout, find the block with highest Y (lowest on screen)
+            blocks_with_free_outputs.iter()
+                .max_by(|a, b| a.1.position.y.partial_cmp(&b.1.position.y).unwrap())
+        } else {
+            // For horizontal layout, find the block with highest X (rightmost)
+            blocks_with_free_outputs.iter()
+                .max_by(|a, b| a.1.position.x.partial_cmp(&b.1.position.x).unwrap())
+        };
+
+        best.map(|(id, _)| **id)
+    }
+
+    /// Find the first free output port on a block
+    pub fn find_free_output_port(&self, block_id: BlockId) -> Option<u32> {
+        let block = self.blocks.get(&block_id)?;
+        let num_outputs = block.block_type.num_outputs();
+
+        for port in 0..num_outputs {
+            let has_connection = self.connections.iter()
+                .any(|c| c.from_block == block_id && c.from_port == port);
+            if !has_connection {
+                return Some(port);
+            }
+        }
+        None
     }
 
     pub fn remove_block(&mut self, id: BlockId) {
@@ -1242,6 +1306,9 @@ pub struct PipelineWizardView {
     pub validation_result: ValidationResult,
     pub snap_to_grid: bool,
     pub grid_size: f32,
+    pub vertical_layout: bool,
+    pub auto_connect: bool,
+    pub last_added_block: Option<BlockId>,
 }
 
 impl Default for PipelineWizardView {
@@ -1263,6 +1330,9 @@ impl Default for PipelineWizardView {
             validation_result: ValidationResult::default(),
             snap_to_grid: true,
             grid_size: 20.0,
+            vertical_layout: true,
+            auto_connect: true,
+            last_added_block: None,
         }
     }
 }
@@ -1284,6 +1354,13 @@ impl PipelineWizardView {
                     ui.checkbox(&mut self.show_library, "Library");
                     ui.checkbox(&mut self.show_properties, "Properties");
                     ui.checkbox(&mut self.snap_to_grid, "Snap");
+                    ui.separator();
+                    // Layout orientation toggle
+                    let layout_label = if self.vertical_layout { "↓ Vertical" } else { "→ Horizontal" };
+                    if ui.selectable_label(false, layout_label).clicked() {
+                        self.vertical_layout = !self.vertical_layout;
+                    }
+                    ui.checkbox(&mut self.auto_connect, "Auto-connect");
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Export YAML").clicked() {
@@ -1304,6 +1381,7 @@ impl PipelineWizardView {
                             self.selected_block = None;
                             self.selected_connection = None;
                             self.connecting_from = None;
+                            self.last_added_block = None;
                         }
                     });
                 });
@@ -1323,6 +1401,7 @@ impl PipelineWizardView {
                                 self.pipeline = Pipeline::from_preset(*preset);
                                 self.selected_block = None;
                                 self.selected_connection = None;
+                                self.last_added_block = None;
                                 self.show_presets = false;
                             }
                             ui.label(RichText::new(preset.description()).italics().weak());
@@ -1453,9 +1532,25 @@ impl PipelineWizardView {
                             );
 
                             if response.clicked() {
-                                // Add block at an empty position (stacked vertically)
-                                let pos = self.pipeline.find_empty_position();
-                                self.pipeline.add_block(template.clone(), pos);
+                                // Find auto-connect source before adding new block
+                                let auto_connect_source = if self.auto_connect && template.num_inputs() > 0 {
+                                    self.pipeline.find_auto_connect_source(self.vertical_layout)
+                                } else {
+                                    None
+                                };
+
+                                // Add block at an empty position based on layout orientation
+                                let pos = self.pipeline.find_empty_position(self.vertical_layout);
+                                let new_block_id = self.pipeline.add_block(template.clone(), pos);
+                                self.last_added_block = Some(new_block_id);
+
+                                // Auto-connect if enabled and we found a source
+                                if let Some(source_id) = auto_connect_source {
+                                    if let Some(from_port) = self.pipeline.find_free_output_port(source_id) {
+                                        // Connect first free output to first input of new block
+                                        self.pipeline.connect(source_id, from_port, new_block_id, 0);
+                                    }
+                                }
                             }
 
                             response.on_hover_text(format!("Click to add {}", template.name()));
