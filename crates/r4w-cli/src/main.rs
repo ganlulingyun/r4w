@@ -4448,7 +4448,7 @@ fn cmd_gnss_scenario(
     // Priority: CLI --lpf-cutoff > config YAML lpf_cutoff_hz > disabled
     let effective_lpf = lpf_cutoff.unwrap_or(scenario.config().output.lpf_cutoff_hz);
     if effective_lpf > 0.0 {
-        use r4w_core::filters::FirFilter;
+        use r4w_core::filters::{FirFilter, Filter};
         let sample_rate = scenario.config().output.sample_rate;
         // Use 63 taps for good stopband attenuation (~50 dB)
         let num_taps = 63;

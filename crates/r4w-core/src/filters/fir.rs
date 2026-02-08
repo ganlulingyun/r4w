@@ -1,45 +1,168 @@
 //! FIR Filter implementations
 //!
-//! Provides lowpass, highpass, and bandpass FIR filters using windowed sinc design.
+//! Provides lowpass, highpass, bandpass, and bandstop FIR filters using windowed sinc design.
+//!
+//! ## Example
+//!
+//! ```rust,ignore
+//! use r4w_core::filters::{FirFilter, Filter};
+//! use num_complex::Complex64;
+//!
+//! // Create a lowpass filter
+//! let mut filter = FirFilter::lowpass(1e6, 5e6, 63);
+//!
+//! // Process samples
+//! let input = vec![Complex64::new(1.0, 0.0); 100];
+//! let output = filter.process_block(&input);
+//! ```
 
+use super::traits::{Filter, FirFilterOps, RealFilter};
 use num_complex::Complex64;
 use std::f64::consts::PI;
 
-/// FIR filter using direct convolution
+/// FIR filter using direct convolution.
+///
+/// Implements a finite impulse response filter with configurable coefficients.
+/// Supports lowpass, highpass, bandpass, and bandstop designs using windowed sinc.
 #[derive(Debug, Clone)]
 pub struct FirFilter {
     /// Filter coefficients (impulse response)
     coeffs: Vec<f64>,
-    /// Delay line for input samples
+    /// Delay line for input samples (complex)
     delay_line: Vec<Complex64>,
+    /// Delay line for real samples
+    delay_line_real: Vec<f64>,
     /// Current position in delay line
     delay_idx: usize,
 }
 
 impl FirFilter {
-    /// Create a new FIR filter with the given coefficients
+    /// Create a new FIR filter with the given coefficients.
     pub fn new(coeffs: Vec<f64>) -> Self {
         let len = coeffs.len();
         Self {
             coeffs,
             delay_line: vec![Complex64::new(0.0, 0.0); len],
+            delay_line_real: vec![0.0; len],
             delay_idx: 0,
         }
     }
 
-    /// Design a lowpass filter using windowed sinc method
+    /// Design a lowpass filter using windowed sinc method.
     ///
     /// # Arguments
-    /// * `cutoff_hz` - Cutoff frequency in Hz
+    /// * `cutoff_hz` - Cutoff frequency in Hz (-3dB point)
     /// * `sample_rate` - Sample rate in Hz
-    /// * `num_taps` - Number of filter taps (odd recommended)
+    /// * `num_taps` - Number of filter taps (odd recommended for linear phase)
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let lpf = FirFilter::lowpass(1000.0, 8000.0, 63);
+    /// ```
     pub fn lowpass(cutoff_hz: f64, sample_rate: f64, num_taps: usize) -> Self {
         let coeffs = design_lowpass_sinc(cutoff_hz, sample_rate, num_taps);
         Self::new(coeffs)
     }
 
-    /// Process a single sample through the filter
+    /// Design a highpass filter using spectral inversion.
+    ///
+    /// Creates a highpass filter by inverting a lowpass filter.
+    ///
+    /// # Arguments
+    /// * `cutoff_hz` - Cutoff frequency in Hz (-3dB point)
+    /// * `sample_rate` - Sample rate in Hz
+    /// * `num_taps` - Number of filter taps (odd required)
+    pub fn highpass(cutoff_hz: f64, sample_rate: f64, num_taps: usize) -> Self {
+        let mut coeffs = design_lowpass_sinc(cutoff_hz, sample_rate, num_taps);
+
+        // Spectral inversion: negate all coefficients and add 1 to center tap
+        let center = coeffs.len() / 2;
+        for c in coeffs.iter_mut() {
+            *c = -*c;
+        }
+        coeffs[center] += 1.0;
+
+        Self::new(coeffs)
+    }
+
+    /// Design a bandpass filter.
+    ///
+    /// Creates a bandpass filter by subtracting a lowpass from another lowpass.
+    ///
+    /// # Arguments
+    /// * `low_hz` - Lower cutoff frequency in Hz
+    /// * `high_hz` - Upper cutoff frequency in Hz
+    /// * `sample_rate` - Sample rate in Hz
+    /// * `num_taps` - Number of filter taps (odd required)
+    pub fn bandpass(low_hz: f64, high_hz: f64, sample_rate: f64, num_taps: usize) -> Self {
+        assert!(low_hz < high_hz, "low_hz must be less than high_hz");
+
+        let lpf_high = design_lowpass_sinc(high_hz, sample_rate, num_taps);
+        let lpf_low = design_lowpass_sinc(low_hz, sample_rate, num_taps);
+
+        // Bandpass = LPF(high) - LPF(low)
+        let coeffs: Vec<f64> = lpf_high.iter()
+            .zip(lpf_low.iter())
+            .map(|(h, l)| h - l)
+            .collect();
+
+        Self::new(coeffs)
+    }
+
+    /// Design a bandstop (notch) filter.
+    ///
+    /// Creates a bandstop filter by adding lowpass and highpass.
+    ///
+    /// # Arguments
+    /// * `low_hz` - Lower cutoff frequency in Hz
+    /// * `high_hz` - Upper cutoff frequency in Hz
+    /// * `sample_rate` - Sample rate in Hz
+    /// * `num_taps` - Number of filter taps (odd required)
+    pub fn bandstop(low_hz: f64, high_hz: f64, sample_rate: f64, num_taps: usize) -> Self {
+        assert!(low_hz < high_hz, "low_hz must be less than high_hz");
+
+        let lpf_low = design_lowpass_sinc(low_hz, sample_rate, num_taps);
+        let mut hpf_high = design_lowpass_sinc(high_hz, sample_rate, num_taps);
+
+        // Convert to highpass via spectral inversion
+        let center = hpf_high.len() / 2;
+        for c in hpf_high.iter_mut() {
+            *c = -*c;
+        }
+        hpf_high[center] += 1.0;
+
+        // Bandstop = LPF(low) + HPF(high)
+        let coeffs: Vec<f64> = lpf_low.iter()
+            .zip(hpf_high.iter())
+            .map(|(l, h)| l + h)
+            .collect();
+
+        Self::new(coeffs)
+    }
+
+    /// Process a single complex sample through the filter.
     pub fn process_sample(&mut self, input: Complex64) -> Complex64 {
+        self.process(input)
+    }
+
+    /// Get the filter coefficients.
+    pub fn coefficients(&self) -> &[f64] {
+        &self.coeffs
+    }
+
+    /// Get the number of taps.
+    pub fn num_taps(&self) -> usize {
+        self.coeffs.len()
+    }
+
+    /// Get the group delay in samples (approximately half the filter length for linear phase).
+    pub fn group_delay_samples(&self) -> usize {
+        (self.coeffs.len() - 1) / 2
+    }
+}
+
+impl Filter for FirFilter {
+    fn process(&mut self, input: Complex64) -> Complex64 {
         // Add input to delay line
         self.delay_line[self.delay_idx] = input;
 
@@ -58,43 +181,53 @@ impl FirFilter {
         output
     }
 
-    /// Process a block of samples
-    pub fn process_block(&mut self, input: &[Complex64]) -> Vec<Complex64> {
-        input.iter().map(|&s| self.process_sample(s)).collect()
-    }
-
-    /// Process samples in place
-    pub fn process_inplace(&mut self, samples: &mut [Complex64]) {
-        for sample in samples.iter_mut() {
-            *sample = self.process_sample(*sample);
-        }
-    }
-
-    /// Reset the filter state (clear delay line)
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         for s in self.delay_line.iter_mut() {
             *s = Complex64::new(0.0, 0.0);
+        }
+        for s in self.delay_line_real.iter_mut() {
+            *s = 0.0;
         }
         self.delay_idx = 0;
     }
 
-    /// Get the number of taps
-    pub fn num_taps(&self) -> usize {
-        self.coeffs.len()
+    fn group_delay(&self) -> f64 {
+        (self.coeffs.len() - 1) as f64 / 2.0
     }
 
-    /// Get the filter coefficients
-    pub fn coefficients(&self) -> &[f64] {
-        &self.coeffs
-    }
-
-    /// Get the group delay in samples (approximately half the filter length for linear phase)
-    pub fn group_delay_samples(&self) -> usize {
-        (self.coeffs.len() - 1) / 2
+    fn order(&self) -> usize {
+        self.coeffs.len() - 1
     }
 }
 
-/// Design a lowpass filter using windowed sinc method with Blackman window
+impl RealFilter for FirFilter {
+    fn process_real(&mut self, input: f64) -> f64 {
+        // Add input to real delay line
+        self.delay_line_real[self.delay_idx] = input;
+
+        // Compute output using convolution
+        let mut output = 0.0;
+        let len = self.coeffs.len();
+
+        for i in 0..len {
+            let delay_pos = (self.delay_idx + len - i) % len;
+            output += self.delay_line_real[delay_pos] * self.coeffs[i];
+        }
+
+        // Advance delay line position
+        self.delay_idx = (self.delay_idx + 1) % len;
+
+        output
+    }
+}
+
+impl FirFilterOps for FirFilter {
+    fn coefficients(&self) -> &[f64] {
+        &self.coeffs
+    }
+}
+
+/// Design a lowpass filter using windowed sinc method with Blackman window.
 fn design_lowpass_sinc(cutoff_hz: f64, sample_rate: f64, num_taps: usize) -> Vec<f64> {
     let num_taps = if num_taps % 2 == 0 { num_taps + 1 } else { num_taps };
     let fc = cutoff_hz / sample_rate; // Normalized cutoff (0 to 0.5)
@@ -183,5 +316,84 @@ mod tests {
 
         let attenuation_db = 10.0 * (output_power / input_power).log10();
         assert!(attenuation_db < -20.0, "High freq should be attenuated >20dB, got {} dB", attenuation_db);
+    }
+
+    #[test]
+    fn test_highpass_filter() {
+        let mut filter = FirFilter::highpass(1e6, 5e6, 63);
+
+        // DC should be attenuated
+        let dc_input: Vec<Complex64> = vec![Complex64::new(1.0, 0.0); 100];
+        let output = filter.process_block(&dc_input);
+        let last_10_avg: f64 = output.iter().rev().take(10).map(|c| c.re.abs()).sum::<f64>() / 10.0;
+        assert!(last_10_avg < 0.1, "DC should be attenuated, got {}", last_10_avg);
+    }
+
+    #[test]
+    fn test_bandpass_filter() {
+        let mut filter = FirFilter::bandpass(800.0, 1200.0, 8000.0, 127);
+
+        // Test that center frequency passes
+        let freq = 1000.0;
+        let sample_rate = 8000.0;
+        let input: Vec<Complex64> = (0..500)
+            .map(|i| {
+                let t = i as f64 / sample_rate;
+                Complex64::new((2.0 * PI * freq * t).cos(), 0.0)
+            })
+            .collect();
+
+        let output = filter.process_block(&input);
+        let output_power: f64 = output.iter().skip(200).map(|c| c.norm_sqr()).sum::<f64>();
+        assert!(output_power > 10.0, "Center frequency should pass");
+    }
+
+    #[test]
+    fn test_real_filter() {
+        let mut filter = FirFilter::lowpass(1e6, 5e6, 31);
+
+        // Feed DC signal
+        let mut sum = 0.0;
+        for _ in 0..100 {
+            sum = filter.process_real(1.0);
+        }
+
+        assert!((sum - 1.0).abs() < 0.01, "Real filter DC passthrough failed, got {}", sum);
+    }
+
+    #[test]
+    fn test_filter_reset() {
+        let mut filter = FirFilter::lowpass(1e6, 5e6, 31);
+
+        // Process some samples
+        for _ in 0..50 {
+            filter.process(Complex64::new(1.0, 0.0));
+        }
+
+        // Reset
+        filter.reset();
+
+        // First output should be near zero (no history)
+        let output = filter.process(Complex64::new(1.0, 0.0));
+        assert!(output.norm() < 0.5, "After reset, first output should be small");
+    }
+
+    #[test]
+    fn test_linear_phase() {
+        let filter = FirFilter::lowpass(1e6, 5e6, 63);
+        assert!(filter.is_linear_phase(), "Windowed sinc should produce linear phase filter");
+    }
+
+    #[test]
+    fn test_group_delay() {
+        let filter = FirFilter::lowpass(1e6, 5e6, 63);
+        assert_eq!(filter.group_delay(), 31.0);
+        assert_eq!(filter.group_delay_samples(), 31);
+    }
+
+    #[test]
+    fn test_filter_order() {
+        let filter = FirFilter::lowpass(1e6, 5e6, 63);
+        assert_eq!(filter.order(), 62);
     }
 }
