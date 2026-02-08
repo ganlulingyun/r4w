@@ -28,8 +28,12 @@ pub enum PipelinePreset {
     LoRaTx,
     OfdmTx,
     FskTx,
+    DsssTx,
+    DmrTx,
     BpskTxRx,
     QpskTxRx,
+    OfdmTxRx,
+    ParallelIqDemo,
 }
 
 impl PipelinePreset {
@@ -41,8 +45,12 @@ impl PipelinePreset {
             Self::LoRaTx => "LoRa Transmitter",
             Self::OfdmTx => "OFDM Transmitter",
             Self::FskTx => "FSK Transmitter",
+            Self::DsssTx => "DSSS Transmitter",
+            Self::DmrTx => "DMR/4FSK Transmitter",
             Self::BpskTxRx => "BPSK TX → Channel → RX",
             Self::QpskTxRx => "QPSK TX → Channel → RX",
+            Self::OfdmTxRx => "OFDM TX → Channel → RX",
+            Self::ParallelIqDemo => "Parallel I/Q Demo",
         }
     }
 
@@ -54,8 +62,12 @@ impl PipelinePreset {
             Self::LoRaTx => "LoRa CSS modulator with whitening",
             Self::OfdmTx => "OFDM transmitter with QPSK subcarriers",
             Self::FskTx => "2-FSK transmitter with filtering",
+            Self::DsssTx => "Direct Sequence Spread Spectrum transmitter",
+            Self::DmrTx => "DMR/P25 4-FSK transmitter with framing",
             Self::BpskTxRx => "Complete BPSK system with channel and recovery",
             Self::QpskTxRx => "Complete QPSK system with channel and recovery",
+            Self::OfdmTxRx => "Complete OFDM system with fading channel",
+            Self::ParallelIqDemo => "Demonstrates I/Q split and merge",
         }
     }
 
@@ -67,8 +79,12 @@ impl PipelinePreset {
             Self::LoRaTx,
             Self::OfdmTx,
             Self::FskTx,
+            Self::DsssTx,
+            Self::DmrTx,
             Self::BpskTxRx,
             Self::QpskTxRx,
+            Self::OfdmTxRx,
+            Self::ParallelIqDemo,
         ]
     }
 }
@@ -765,6 +781,103 @@ pipeline:
                 pipeline.connect(carrier, 0, down, 0);
                 pipeline.connect(down, 0, out, 0);
             }
+            PipelinePreset::DsssTx => {
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 150.0));
+                let scram = pipeline.add_block(BlockType::Scrambler { polynomial: 0x48, seed: 0xFF }, Pos2::new(200.0, 150.0));
+                let fec = pipeline.add_block(BlockType::FecEncoder { code_type: FecType::Convolutional, rate: "1/2".into() }, Pos2::new(350.0, 150.0));
+                let dsss = pipeline.add_block(BlockType::DsssSpread { chips_per_symbol: 127, code_type: "Gold".into() }, Pos2::new(500.0, 150.0));
+                let mod_ = pipeline.add_block(BlockType::PskModulator { order: 2 }, Pos2::new(650.0, 150.0));
+                let up = pipeline.add_block(BlockType::Upsampler { factor: 4 }, Pos2::new(800.0, 150.0));
+                let rrc = pipeline.add_block(BlockType::PulseShaper { shape: PulseShape::RootRaisedCosine, rolloff: 0.35, span: 8 }, Pos2::new(950.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(1100.0, 150.0));
+
+                pipeline.connect(src, 0, scram, 0);
+                pipeline.connect(scram, 0, fec, 0);
+                pipeline.connect(fec, 0, dsss, 0);
+                pipeline.connect(dsss, 0, mod_, 0);
+                pipeline.connect(mod_, 0, up, 0);
+                pipeline.connect(up, 0, rrc, 0);
+                pipeline.connect(rrc, 0, out, 0);
+            }
+            PipelinePreset::DmrTx => {
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 150.0));
+                let crc = pipeline.add_block(BlockType::CrcGenerator { crc_type: CrcType::Crc16Ccitt }, Pos2::new(200.0, 150.0));
+                let inter = pipeline.add_block(BlockType::Interleaver { rows: 8, cols: 16 }, Pos2::new(350.0, 150.0));
+                let frame = pipeline.add_block(BlockType::FrameBuilder { header_bits: 48, payload_bits: 196 }, Pos2::new(500.0, 150.0));
+                let gray = pipeline.add_block(BlockType::GrayMapper { bits_per_symbol: 2 }, Pos2::new(650.0, 150.0));
+                let fsk = pipeline.add_block(BlockType::FskModulator { deviation_hz: 1944.0, order: 4 }, Pos2::new(800.0, 150.0));
+                let up = pipeline.add_block(BlockType::Upsampler { factor: 8 }, Pos2::new(950.0, 150.0));
+                let rrc = pipeline.add_block(BlockType::PulseShaper { shape: PulseShape::RootRaisedCosine, rolloff: 0.2, span: 5 }, Pos2::new(1100.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(1250.0, 150.0));
+
+                pipeline.connect(src, 0, crc, 0);
+                pipeline.connect(crc, 0, inter, 0);
+                pipeline.connect(inter, 0, frame, 0);
+                pipeline.connect(frame, 0, gray, 0);
+                pipeline.connect(gray, 0, fsk, 0);
+                pipeline.connect(fsk, 0, up, 0);
+                pipeline.connect(up, 0, rrc, 0);
+                pipeline.connect(rrc, 0, out, 0);
+            }
+            PipelinePreset::OfdmTxRx => {
+                // TX chain
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 100.0));
+                let scram = pipeline.add_block(BlockType::Scrambler { polynomial: 0x48, seed: 0x7F }, Pos2::new(200.0, 100.0));
+                let fec = pipeline.add_block(BlockType::FecEncoder { code_type: FecType::Convolutional, rate: "1/2".into() }, Pos2::new(350.0, 100.0));
+                let inter = pipeline.add_block(BlockType::Interleaver { rows: 16, cols: 12 }, Pos2::new(500.0, 100.0));
+                let ofdm_tx = pipeline.add_block(BlockType::OfdmModulator { fft_size: 64, cp_len: 16, data_carriers: 48 }, Pos2::new(650.0, 100.0));
+
+                // Channel
+                let fading = pipeline.add_block(BlockType::FadingChannel { model: FadingModel::Rayleigh, doppler_hz: 50.0 }, Pos2::new(800.0, 100.0));
+                let awgn = pipeline.add_block(BlockType::AwgnChannel { snr_db: 20.0 }, Pos2::new(950.0, 100.0));
+                let cfo = pipeline.add_block(BlockType::FrequencyOffset { offset_hz: 500.0 }, Pos2::new(1100.0, 100.0));
+
+                // RX chain
+                let agc = pipeline.add_block(BlockType::Agc { mode: AgcMode::Fast, target_db: -20.0 }, Pos2::new(50.0, 250.0));
+                let timing = pipeline.add_block(BlockType::TimingRecovery { algorithm: TimingAlgo::EarlyLate, loop_bw: 0.02 }, Pos2::new(200.0, 250.0));
+                let carrier = pipeline.add_block(BlockType::CarrierRecovery { algorithm: CarrierAlgo::PilotAided, loop_bw: 0.01 }, Pos2::new(350.0, 250.0));
+                let eq = pipeline.add_block(BlockType::Equalizer { eq_type: EqualizerType::Lms, taps: 15, mu: 0.005 }, Pos2::new(500.0, 250.0));
+                let out = pipeline.add_block(BlockType::BitOutput, Pos2::new(650.0, 250.0));
+
+                pipeline.connect(src, 0, scram, 0);
+                pipeline.connect(scram, 0, fec, 0);
+                pipeline.connect(fec, 0, inter, 0);
+                pipeline.connect(inter, 0, ofdm_tx, 0);
+                pipeline.connect(ofdm_tx, 0, fading, 0);
+                pipeline.connect(fading, 0, awgn, 0);
+                pipeline.connect(awgn, 0, cfo, 0);
+                pipeline.connect(cfo, 0, agc, 0);
+                pipeline.connect(agc, 0, timing, 0);
+                pipeline.connect(timing, 0, carrier, 0);
+                pipeline.connect(carrier, 0, eq, 0);
+                pipeline.connect(eq, 0, out, 0);
+            }
+            PipelinePreset::ParallelIqDemo => {
+                // Demonstrates I/Q split and parallel processing
+                let src = pipeline.add_block(BlockType::BitSource { pattern: "random".into() }, Pos2::new(50.0, 200.0));
+                let mod_ = pipeline.add_block(BlockType::PskModulator { order: 4 }, Pos2::new(200.0, 200.0));
+
+                // Split I and Q
+                let split = pipeline.add_block(BlockType::IqSplit, Pos2::new(350.0, 200.0));
+
+                // Process I branch
+                let fir_i = pipeline.add_block(BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 5000.0, num_taps: 32 }, Pos2::new(500.0, 100.0));
+
+                // Process Q branch
+                let fir_q = pipeline.add_block(BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 5000.0, num_taps: 32 }, Pos2::new(500.0, 300.0));
+
+                // Merge back
+                let merge = pipeline.add_block(BlockType::IqMerge, Pos2::new(650.0, 200.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(800.0, 200.0));
+
+                pipeline.connect(src, 0, mod_, 0);
+                pipeline.connect(mod_, 0, split, 0);
+                pipeline.connect(split, 0, fir_i, 0);  // I output
+                pipeline.connect(split, 1, fir_q, 0);  // Q output
+                pipeline.connect(fir_i, 0, merge, 0);  // I input
+                pipeline.connect(fir_q, 0, merge, 1);  // Q input
+                pipeline.connect(merge, 0, out, 0);
+            }
         }
 
         pipeline
@@ -901,6 +1014,123 @@ pipeline:
             .map(|c| (c.from_port, c.to_block, c.to_port))
             .collect()
     }
+
+    /// Auto-layout the pipeline using topological sort
+    pub fn auto_layout(&mut self) {
+        if self.blocks.is_empty() {
+            return;
+        }
+
+        // Find source blocks (no inputs or no incoming connections)
+        let source_blocks: Vec<BlockId> = self.blocks.iter()
+            .filter(|(id, block)| {
+                block.block_type.num_inputs() == 0 ||
+                !self.connections.iter().any(|c| c.to_block == **id)
+            })
+            .map(|(id, _)| *id)
+            .collect();
+
+        if source_blocks.is_empty() {
+            // If no sources, just arrange in a grid
+            self.grid_layout();
+            return;
+        }
+
+        // Topological sort with levels
+        let mut levels: HashMap<BlockId, usize> = HashMap::new();
+        let mut visited = HashSet::new();
+        let mut queue: Vec<(BlockId, usize)> = source_blocks.iter().map(|id| (*id, 0)).collect();
+
+        while let Some((block_id, level)) = queue.pop() {
+            if visited.contains(&block_id) {
+                continue;
+            }
+            visited.insert(block_id);
+            levels.insert(block_id, level);
+
+            // Add all blocks connected from this block
+            for conn in &self.connections {
+                if conn.from_block == block_id && !visited.contains(&conn.to_block) {
+                    queue.push((conn.to_block, level + 1));
+                }
+            }
+        }
+
+        // Add any unvisited blocks
+        for id in self.blocks.keys() {
+            if !levels.contains_key(id) {
+                let max_level = levels.values().max().copied().unwrap_or(0);
+                levels.insert(*id, max_level + 1);
+            }
+        }
+
+        // Group blocks by level
+        let mut level_groups: HashMap<usize, Vec<BlockId>> = HashMap::new();
+        for (id, level) in &levels {
+            level_groups.entry(*level).or_default().push(*id);
+        }
+
+        // Position blocks
+        let block_width = 140.0;
+        let block_height = 70.0;
+        let h_spacing = 30.0;
+        let v_spacing = 20.0;
+
+        for (level, block_ids) in &level_groups {
+            let num_blocks = block_ids.len();
+            let total_height = num_blocks as f32 * block_height + (num_blocks - 1) as f32 * v_spacing;
+            let start_y = (300.0 - total_height / 2.0).max(50.0);
+
+            for (idx, block_id) in block_ids.iter().enumerate() {
+                if let Some(block) = self.blocks.get_mut(block_id) {
+                    block.position = Pos2::new(
+                        50.0 + *level as f32 * (block_width + h_spacing),
+                        start_y + idx as f32 * (block_height + v_spacing),
+                    );
+                }
+            }
+        }
+    }
+
+    /// Simple grid layout for disconnected blocks
+    fn grid_layout(&mut self) {
+        let mut block_ids: Vec<_> = self.blocks.keys().cloned().collect();
+        block_ids.sort();
+
+        let cols = 4;
+        let block_width = 150.0;
+        let block_height = 80.0;
+
+        for (idx, id) in block_ids.iter().enumerate() {
+            let col = idx % cols;
+            let row = idx / cols;
+            if let Some(block) = self.blocks.get_mut(id) {
+                block.position = Pos2::new(
+                    50.0 + col as f32 * block_width,
+                    50.0 + row as f32 * block_height,
+                );
+            }
+        }
+    }
+
+    /// Duplicate a block
+    pub fn duplicate_block(&mut self, block_id: BlockId) -> Option<BlockId> {
+        // Clone the necessary data first to avoid borrow conflicts
+        let (new_pos, new_type, orig_name) = {
+            let block = self.blocks.get(&block_id)?;
+            (
+                block.position + Vec2::new(20.0, 20.0),
+                block.block_type.clone(),
+                block.name.clone(),
+            )
+        };
+
+        let new_id = self.add_block(new_type, new_pos);
+        if let Some(new_block) = self.blocks.get_mut(&new_id) {
+            new_block.name = format!("{} (copy)", orig_name);
+        }
+        Some(new_id)
+    }
 }
 
 /// Block templates available in the library
@@ -1036,6 +1266,9 @@ impl PipelineWizardView {
                 if ui.button("Validate").clicked() {
                     self.validation_result = self.pipeline.validate();
                     self.show_validation = true;
+                }
+                if ui.button("Auto-Layout").clicked() {
+                    self.pipeline.auto_layout();
                 }
                 if ui.button("Presets").clicked() {
                     self.show_presets = !self.show_presets;
