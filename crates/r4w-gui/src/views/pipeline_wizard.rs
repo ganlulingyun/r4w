@@ -1309,6 +1309,7 @@ pub struct PipelineWizardView {
     pub vertical_layout: bool,
     pub auto_connect: bool,
     pub last_added_block: Option<BlockId>,
+    pub wants_exit: bool,
 }
 
 impl Default for PipelineWizardView {
@@ -1333,6 +1334,7 @@ impl Default for PipelineWizardView {
             vertical_layout: true,
             auto_connect: true,
             last_added_block: None,
+            wants_exit: false,
         }
     }
 }
@@ -1349,6 +1351,11 @@ impl PipelineWizardView {
         egui::TopBottomPanel::top("pipeline_toolbar")
             .show(&ctx, |ui| {
                 ui.horizontal(|ui| {
+                    // Exit button to return to main view
+                    if ui.button("← Exit").clicked() {
+                        self.wants_exit = true;
+                    }
+                    ui.separator();
                     ui.heading("Pipeline Waveform Builder");
                     ui.add_space(20.0);
                     ui.checkbox(&mut self.show_library, "Library");

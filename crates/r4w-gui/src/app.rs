@@ -4009,6 +4009,11 @@ impl WaveformExplorer {
                 }
                 ActiveView::PipelineBuilder => {
                     self.pipeline_builder_view.render(ui);
+                    // Check if user wants to exit Pipeline Builder
+                    if self.pipeline_builder_view.wants_exit {
+                        self.pipeline_builder_view.wants_exit = false;
+                        self.active_view = ActiveView::Overview;
+                    }
                 }
                 ActiveView::CodeExplorer => {
                     self.code_explorer_view.render_with_waveform(ui, Some(&self.selected_waveform));
