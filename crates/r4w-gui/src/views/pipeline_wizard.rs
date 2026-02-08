@@ -516,6 +516,43 @@ pub enum SelectionMode {
     Lasso,
 }
 
+/// Layout mode for auto-arranging blocks
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LayoutMode {
+    /// Topological flow layout (follows signal flow)
+    Flow,
+    /// Fit all blocks to visible canvas
+    FitToView,
+    /// Compact layout minimizing whitespace
+    Compact,
+    /// Simple grid arrangement
+    Grid,
+}
+
+impl LayoutMode {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Flow => "Flow (Topological)",
+            Self::FitToView => "Fit to View",
+            Self::Compact => "Compact",
+            Self::Grid => "Grid",
+        }
+    }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            Self::Flow => "Arrange blocks following signal flow",
+            Self::FitToView => "Scale and center to fit canvas",
+            Self::Compact => "Minimize spacing between blocks",
+            Self::Grid => "Simple rows and columns",
+        }
+    }
+
+    pub fn all() -> &'static [LayoutMode] {
+        &[Self::Flow, Self::FitToView, Self::Compact, Self::Grid]
+    }
+}
+
 impl Pipeline {
     pub fn new() -> Self {
         Self {
@@ -1799,24 +1836,142 @@ pipeline:
     }
 
     /// Simple grid layout for disconnected blocks
-    fn grid_layout(&mut self) {
+    pub fn grid_layout(&mut self) {
+        self.grid_layout_with_cols(4);
+    }
+
+    /// Grid layout with configurable columns
+    pub fn grid_layout_with_cols(&mut self, cols: usize) {
         let mut block_ids: Vec<_> = self.blocks.keys().cloned().collect();
         block_ids.sort();
 
-        let cols = 4;
         let block_width = 150.0;
         let block_height = 80.0;
+        let h_spacing = 20.0;
+        let v_spacing = 20.0;
 
         for (idx, id) in block_ids.iter().enumerate() {
             let col = idx % cols;
             let row = idx / cols;
             if let Some(block) = self.blocks.get_mut(id) {
                 block.position = Pos2::new(
-                    50.0 + col as f32 * block_width,
-                    50.0 + row as f32 * block_height,
+                    50.0 + col as f32 * (block_width + h_spacing),
+                    50.0 + row as f32 * (block_height + v_spacing),
                 );
             }
         }
+    }
+
+    /// Compact layout - minimize spacing while respecting signal flow
+    pub fn compact_layout(&mut self, vertical: bool) {
+        if self.blocks.is_empty() {
+            return;
+        }
+
+        // Use topological layout with tighter spacing
+        let block_width = 130.0;
+        let block_height = 60.0;
+        let h_spacing = 15.0;
+        let v_spacing = 15.0;
+
+        // Find source blocks
+        let source_blocks: Vec<BlockId> = self.blocks.iter()
+            .filter(|(id, block)| {
+                block.block_type.num_inputs() == 0 ||
+                !self.connections.iter().any(|c| c.to_block == **id)
+            })
+            .map(|(id, _)| *id)
+            .collect();
+
+        if source_blocks.is_empty() {
+            self.grid_layout_with_cols(6);
+            return;
+        }
+
+        // Topological sort with levels
+        let mut levels: HashMap<BlockId, usize> = HashMap::new();
+        let mut visited = HashSet::new();
+        let mut queue: Vec<(BlockId, usize)> = source_blocks.iter().map(|id| (*id, 0)).collect();
+
+        while let Some((block_id, level)) = queue.pop() {
+            if visited.contains(&block_id) {
+                continue;
+            }
+            visited.insert(block_id);
+            levels.insert(block_id, level);
+
+            for conn in &self.connections {
+                if conn.from_block == block_id && !visited.contains(&conn.to_block) {
+                    queue.push((conn.to_block, level + 1));
+                }
+            }
+        }
+
+        // Add unvisited blocks
+        for id in self.blocks.keys() {
+            if !levels.contains_key(id) {
+                let max_level = levels.values().max().copied().unwrap_or(0);
+                levels.insert(*id, max_level + 1);
+            }
+        }
+
+        // Group by level
+        let mut level_groups: HashMap<usize, Vec<BlockId>> = HashMap::new();
+        for (id, level) in &levels {
+            level_groups.entry(*level).or_default().push(*id);
+        }
+
+        // Position with compact spacing
+        if vertical {
+            for (level, block_ids) in &level_groups {
+                for (idx, block_id) in block_ids.iter().enumerate() {
+                    if let Some(block) = self.blocks.get_mut(block_id) {
+                        block.position = Pos2::new(
+                            30.0 + idx as f32 * (block_width + h_spacing),
+                            30.0 + *level as f32 * (block_height + v_spacing),
+                        );
+                    }
+                }
+            }
+        } else {
+            for (level, block_ids) in &level_groups {
+                for (idx, block_id) in block_ids.iter().enumerate() {
+                    if let Some(block) = self.blocks.get_mut(block_id) {
+                        block.position = Pos2::new(
+                            30.0 + *level as f32 * (block_width + h_spacing),
+                            30.0 + idx as f32 * (block_height + v_spacing),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Get bounding box of all blocks
+    pub fn get_bounds(&self) -> Option<Rect> {
+        if self.blocks.is_empty() {
+            return None;
+        }
+
+        let block_width = 140.0;
+        let block_height = 60.0;
+
+        let mut min_x = f32::MAX;
+        let mut min_y = f32::MAX;
+        let mut max_x = f32::MIN;
+        let mut max_y = f32::MIN;
+
+        for block in self.blocks.values() {
+            min_x = min_x.min(block.position.x);
+            min_y = min_y.min(block.position.y);
+            max_x = max_x.max(block.position.x + block_width);
+            max_y = max_y.max(block.position.y + block_height);
+        }
+
+        Some(Rect::from_min_max(
+            Pos2::new(min_x, min_y),
+            Pos2::new(max_x, max_y),
+        ))
     }
 
     /// Duplicate a block
@@ -2019,6 +2174,49 @@ impl PipelineWizardView {
         self.selection_mode = SelectionMode::None;
         self.selection_start = None;
         self.lasso_points.clear();
+    }
+
+    /// Fit all blocks to the visible canvas by adjusting zoom and offset
+    fn fit_to_view(&mut self, canvas_size: Vec2) {
+        if let Some(bounds) = self.pipeline.get_bounds() {
+            let padding = 50.0;
+            let content_width = bounds.width() + padding * 2.0;
+            let content_height = bounds.height() + padding * 2.0;
+
+            // Calculate zoom to fit
+            let zoom_x = canvas_size.x / content_width;
+            let zoom_y = canvas_size.y / content_height;
+            self.zoom = zoom_x.min(zoom_y).clamp(0.3, 2.0);
+
+            // Center the content
+            let scaled_width = content_width * self.zoom;
+            let scaled_height = content_height * self.zoom;
+
+            self.canvas_offset = Vec2::new(
+                (canvas_size.x - scaled_width) / 2.0 - (bounds.min.x - padding) * self.zoom,
+                (canvas_size.y - scaled_height) / 2.0 - (bounds.min.y - padding) * self.zoom,
+            );
+        }
+    }
+
+    /// Apply a layout mode
+    fn apply_layout(&mut self, mode: LayoutMode, canvas_size: Vec2) {
+        match mode {
+            LayoutMode::Flow => {
+                self.pipeline.auto_layout_with_orientation(self.vertical_layout);
+            }
+            LayoutMode::FitToView => {
+                // First do flow layout, then fit to view
+                self.pipeline.auto_layout_with_orientation(self.vertical_layout);
+                self.fit_to_view(canvas_size);
+            }
+            LayoutMode::Compact => {
+                self.pipeline.compact_layout(self.vertical_layout);
+            }
+            LayoutMode::Grid => {
+                self.pipeline.grid_layout();
+            }
+        }
     }
 
     /// Check if point is inside a polygon (for lasso selection)
@@ -2332,9 +2530,32 @@ impl PipelineWizardView {
                             self.validation_result = self.pipeline.validate();
                             self.show_validation = true;
                         }
-                        if ui.button("Auto-Layout").clicked() {
-                            self.pipeline.auto_layout_with_orientation(self.vertical_layout);
-                        }
+                        // Layout dropdown menu
+                        egui::menu::menu_button(ui, "Layout ▼", |ui| {
+                            ui.set_min_width(150.0);
+                            for mode in LayoutMode::all() {
+                                if ui.button(mode.name()).on_hover_text(mode.description()).clicked() {
+                                    // Use a reasonable default canvas size for fit-to-view
+                                    let canvas_size = Vec2::new(800.0, 600.0);
+                                    self.apply_layout(*mode, canvas_size);
+                                    ui.close_menu();
+                                }
+                            }
+                            ui.separator();
+                            if ui.button("Reset Zoom").on_hover_text("Reset zoom to 100%").clicked() {
+                                self.zoom = 1.0;
+                                ui.close_menu();
+                            }
+                            if ui.button("Center View").on_hover_text("Center blocks in view").clicked() {
+                                if let Some(bounds) = self.pipeline.get_bounds() {
+                                    self.canvas_offset = Vec2::new(
+                                        100.0 - bounds.min.x * self.zoom,
+                                        100.0 - bounds.min.y * self.zoom,
+                                    );
+                                }
+                                ui.close_menu();
+                            }
+                        });
                         if ui.button("Presets").clicked() {
                             self.show_presets = !self.show_presets;
                         }
