@@ -109,7 +109,7 @@ auto samples = waveform.modulate({1, 0, 1, 1, 0, 0, 1, 0});
 
 | Crate | Purpose | Key Features |
 |-------|---------|--------------|
-| **r4w-core** | DSP algorithms and waveform trait | FFT, chirp gen, PSK/FSK/QAM, FEC, Gray coding, benchmarking |
+| **r4w-core** | DSP algorithms and waveform trait | FFT, FIR/IIR/polyphase filters, PSK/FSK/QAM, FEC, Gray coding |
 | **r4w-sim** | Channel simulation and transport | AWGN/Rayleigh/Rician, UDP I/Q, device abstraction |
 | **r4w-fpga** | FPGA hardware acceleration | Xilinx Zynq, Lattice iCE40/ECP5, simulated backend |
 | **r4w-sandbox** | Waveform isolation | Secure memory, namespaces, seccomp, container/VM support |
@@ -223,6 +223,163 @@ r4w mesh simulate --nodes 8 --messages 20 --snr 15 --verbose
 **Presets:** LongFast, LongSlow, LongModerate, MediumFast, MediumSlow, ShortFast, ShortSlow
 
 **Regions:** US, EU, CN, JP, ANZ, KR, TW, IN
+
+## Filter Architecture
+
+R4W provides a comprehensive digital filter framework in `r4w-core::filters` with trait-based design for extensibility and polymorphic usage.
+
+### Core Traits
+
+| Trait | Description |
+|-------|-------------|
+| `Filter` | Core trait for all filters: `process()`, `process_block()`, `reset()`, `group_delay()` |
+| `RealFilter` | Efficient real-valued sample processing: `process_real()` |
+| `FirFilterOps` | FIR-specific: `coefficients()`, `num_taps()`, `is_linear_phase()` |
+| `FrequencyResponse` | Auto-implemented for FIR: `magnitude_response()`, `phase_response()` |
+
+### FIR Filters (`fir.rs`)
+
+```rust
+use r4w_core::filters::{FirFilter, Filter, Window};
+
+// Basic windowed design (Blackman window)
+let mut lpf = FirFilter::lowpass(1000.0, 8000.0, 63);
+let mut hpf = FirFilter::highpass(2000.0, 8000.0, 63);
+let mut bpf = FirFilter::bandpass(800.0, 1200.0, 8000.0, 127);
+
+// Kaiser window with attenuation spec
+let lpf_kaiser = FirFilter::lowpass_kaiser(1000.0, 8000.0, 60.0, 0.1);
+
+// Custom window
+let lpf_hann = FirFilter::lowpass_windowed(1000.0, 8000.0, 63, Window::Hann);
+
+// Special-purpose filters
+let avg = FirFilter::moving_average(5);
+let diff = FirFilter::differentiator(31, 8000.0);
+let hilbert = FirFilter::hilbert(31);
+
+// Process samples
+let output = lpf.process_block(&input_samples);
+```
+
+### IIR Filters (`iir.rs`)
+
+Cascaded biquad (second-order section) implementation for numerical stability:
+
+```rust
+use r4w_core::filters::{IirFilter, Filter};
+
+// Butterworth (maximally flat passband)
+let butter = IirFilter::butterworth_lowpass(4, 1000.0, 8000.0);
+
+// Chebyshev Type I (equiripple passband, steeper rolloff)
+let cheby1 = IirFilter::chebyshev1_lowpass(4, 1.0, 1000.0, 8000.0);
+
+// Chebyshev Type II (flat passband, equiripple stopband)
+let cheby2 = IirFilter::chebyshev2_lowpass(4, 40.0, 1500.0, 8000.0);
+
+// Bessel (maximally flat group delay / linear phase approximation)
+let bessel = IirFilter::bessel_lowpass(4, 1000.0, 8000.0);
+
+// Analysis
+let mag_db = butter.magnitude_response_db(500.0, 8000.0);
+let phase = butter.phase_response(500.0, 8000.0);
+let delay = butter.group_delay_at(500.0, 8000.0);
+assert!(butter.is_stable());
+```
+
+### Polyphase Filters (`polyphase.rs`)
+
+Efficient sample rate conversion:
+
+```rust
+use r4w_core::filters::{PolyphaseDecimator, PolyphaseInterpolator, Resampler};
+
+// Decimate by 4 (1 MHz → 250 kHz)
+let mut decimator = PolyphaseDecimator::new(4, 64);
+let downsampled = decimator.process(&input);  // 1/4 the samples
+
+// Interpolate by 3 (100 kHz → 300 kHz)
+let mut interpolator = PolyphaseInterpolator::new(3, 48);
+let upsampled = interpolator.process(&input);  // 3x the samples
+
+// Rational resampling: 3/4 (e.g., 48 kHz → 36 kHz)
+let mut resampler = Resampler::new(3, 4, 96);
+let resampled = resampler.process(&input);
+
+// Half-band filter for efficient 2x conversion
+let mut halfband = HalfbandFilter::new(15);
+let decimated = halfband.decimate(&input);
+let interpolated = halfband.interpolate(&input);
+```
+
+### Parks-McClellan/Remez Design (`remez.rs`)
+
+Optimal equiripple FIR filter design:
+
+```rust
+use r4w_core::filters::{RemezSpec, remez_lowpass, estimate_order};
+
+// Builder pattern
+let coeffs = RemezSpec::lowpass(0.2, 0.3)  // passband, stopband edges
+    .with_num_taps(63)
+    .with_weights(1.0, 10.0)  // 10x weight on stopband
+    .design();
+
+// Convenience function
+let coeffs = remez_lowpass(63, 0.2, 0.3, 1.0, 1.0);
+
+// Estimate required filter order
+let order = estimate_order(0.1, 60.0, 0.1);  // ripple, atten, transition
+
+// Other filter types
+let bp = RemezSpec::bandpass(0.1, 0.15, 0.35, 0.4).design();
+let hp = RemezSpec::highpass(0.2, 0.3).design();
+let diff = RemezSpec::differentiator(0.4).design();
+let hilbert = RemezSpec::hilbert(0.03, 0.47).design();
+```
+
+### Window Functions (`windows.rs`)
+
+```rust
+use r4w_core::filters::{Window, kaiser_beta_from_attenuation, kaiser_order};
+
+// Generate window coefficients
+let hamming = Window::Hamming.generate(64);
+let kaiser = Window::Kaiser(8.0).generate(64);
+let blackman = Window::Blackman.generate(64);
+
+// Kaiser parameter selection
+let beta = kaiser_beta_from_attenuation(60.0);  // 60 dB → β ≈ 5.65
+let order = kaiser_order(0.1, 60.0);  // transition width, attenuation
+```
+
+### Pulse Shaping Filters (`pulse_shaping.rs`)
+
+```rust
+use r4w_core::filters::{RootRaisedCosineFilter, GaussianFilter, Filter};
+
+// Root Raised Cosine (TX/RX matched filtering)
+let mut rrc = RootRaisedCosineFilter::new(0.35, 8, 4);  // α, span, sps
+
+// Gaussian (GMSK for GSM, Bluetooth)
+let mut gsm = GaussianFilter::gsm(4);      // BT=0.3
+let mut bt = GaussianFilter::bluetooth(4); // BT=0.5
+
+// All implement Filter trait
+let shaped = rrc.process_block(&symbols);
+```
+
+### Filter Comparison
+
+| Filter Type | Passband | Stopband | Group Delay | Use Case |
+|-------------|----------|----------|-------------|----------|
+| **FIR Windowed** | Good | Good | Linear (constant) | General purpose |
+| **FIR Remez** | Equiripple | Equiripple | Linear (constant) | Optimal for given length |
+| **IIR Butterworth** | Maximally flat | Monotonic | Varies | Smooth response |
+| **IIR Chebyshev I** | Equiripple | Monotonic | Varies | Steep rolloff |
+| **IIR Chebyshev II** | Flat | Equiripple | Varies | Flat passband needed |
+| **IIR Bessel** | Gradual | Gradual | Maximally flat | Phase linearity |
 
 ## Plugin System
 
@@ -446,6 +603,17 @@ Measured with `tokei`:
 ## Recent Updates
 
 ### February 2026 (Latest)
+
+- **Generic Filter Trait Architecture** (`r4w-core::filters`):
+  - Core traits: `Filter`, `RealFilter`, `FirFilterOps`, `FrequencyResponse` for polymorphic filter usage
+  - FIR filters: Lowpass/highpass/bandpass/bandstop with Blackman, Kaiser, custom windows
+  - IIR filters: Butterworth, Chebyshev I/II, Bessel via cascaded biquads (SOS)
+  - Polyphase: `PolyphaseDecimator`, `PolyphaseInterpolator`, `Resampler` for efficient rate conversion
+  - Parks-McClellan: `RemezSpec` builder for optimal equiripple FIR design
+  - Pulse shaping: RRC, RC, Gaussian now implement `Filter` trait
+  - Window functions: Hamming, Hann, Blackman, Blackman-Harris, Kaiser(β)
+  - Special filters: `moving_average()`, `differentiator()`, `hilbert()`
+  - 105 filter-specific tests
 
 - **GNSS Waveforms** (4 constellations):
   - GPS L1 C/A: BPSK(1), 1023-chip Gold codes, PCPS acquisition, DLL/PLL tracking, LNAV message
