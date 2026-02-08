@@ -74,6 +74,7 @@
 //! ```
 
 pub mod fir;
+pub mod iir;
 pub mod pulse_shaping;
 pub mod traits;
 pub mod windows;
@@ -83,9 +84,10 @@ pub use traits::{Filter, FilterResponse, FilterType, FirFilterOps, FrequencyResp
 
 // Re-export filter implementations
 pub use fir::FirFilter;
+pub use iir::{Biquad, IirFilter};
 pub use pulse_shaping::{
     GaussianFilter, PulseShapingFilter, RaisedCosineFilter, RootRaisedCosineFilter,
 };
 
 // Re-export window functions
-pub use windows::{Window, kaiser_beta_from_attenuation, kaiser_order};
+pub use windows::{kaiser_beta_from_attenuation, kaiser_order, Window};
