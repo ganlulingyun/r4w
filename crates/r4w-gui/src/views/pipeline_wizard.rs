@@ -1338,6 +1338,11 @@ pipeline:
 
     /// Auto-layout the pipeline using topological sort
     pub fn auto_layout(&mut self) {
+        // Default to horizontal layout for backward compatibility
+        self.auto_layout_with_orientation(false);
+    }
+
+    pub fn auto_layout_with_orientation(&mut self, vertical: bool) {
         if self.blocks.is_empty() {
             return;
         }
@@ -1391,23 +1396,42 @@ pipeline:
             level_groups.entry(*level).or_default().push(*id);
         }
 
-        // Position blocks
+        // Position blocks based on orientation
         let block_width = 140.0;
         let block_height = 70.0;
         let h_spacing = 30.0;
-        let v_spacing = 20.0;
+        let v_spacing = 30.0;
 
-        for (level, block_ids) in &level_groups {
-            let num_blocks = block_ids.len();
-            let total_height = num_blocks as f32 * block_height + (num_blocks - 1) as f32 * v_spacing;
-            let start_y = (300.0 - total_height / 2.0).max(50.0);
+        if vertical {
+            // Vertical layout: levels go top-to-bottom, blocks at same level go left-to-right
+            for (level, block_ids) in &level_groups {
+                let num_blocks = block_ids.len();
+                let total_width = num_blocks as f32 * block_width + (num_blocks - 1) as f32 * h_spacing;
+                let start_x = (400.0 - total_width / 2.0).max(50.0);
 
-            for (idx, block_id) in block_ids.iter().enumerate() {
-                if let Some(block) = self.blocks.get_mut(block_id) {
-                    block.position = Pos2::new(
-                        50.0 + *level as f32 * (block_width + h_spacing),
-                        start_y + idx as f32 * (block_height + v_spacing),
-                    );
+                for (idx, block_id) in block_ids.iter().enumerate() {
+                    if let Some(block) = self.blocks.get_mut(block_id) {
+                        block.position = Pos2::new(
+                            start_x + idx as f32 * (block_width + h_spacing),
+                            50.0 + *level as f32 * (block_height + v_spacing),
+                        );
+                    }
+                }
+            }
+        } else {
+            // Horizontal layout: levels go left-to-right, blocks at same level go top-to-bottom
+            for (level, block_ids) in &level_groups {
+                let num_blocks = block_ids.len();
+                let total_height = num_blocks as f32 * block_height + (num_blocks - 1) as f32 * v_spacing;
+                let start_y = (300.0 - total_height / 2.0).max(50.0);
+
+                for (idx, block_id) in block_ids.iter().enumerate() {
+                    if let Some(block) = self.blocks.get_mut(block_id) {
+                        block.position = Pos2::new(
+                            50.0 + *level as f32 * (block_width + h_spacing),
+                            start_y + idx as f32 * (block_height + v_spacing),
+                        );
+                    }
                 }
             }
         }
@@ -1749,7 +1773,7 @@ impl PipelineWizardView {
                             self.show_validation = true;
                         }
                         if ui.button("Auto-Layout").clicked() {
-                            self.pipeline.auto_layout();
+                            self.pipeline.auto_layout_with_orientation(self.vertical_layout);
                         }
                         if ui.button("Presets").clicked() {
                             self.show_presets = !self.show_presets;
