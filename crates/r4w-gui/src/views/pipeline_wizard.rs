@@ -16,6 +16,7 @@
 use egui::{Ui, RichText, Color32, Pos2, Vec2, Rect, Stroke, epaint::PathShape};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
+use super::block_metadata::{self, get_block_metadata};
 
 /// Unique identifier for a pipeline block
 pub type BlockId = u32;
@@ -212,6 +213,11 @@ pub enum BlockType {
     FrequencyOffset { offset_hz: f32 },
     IqImbalance { gain_db: f32, phase_deg: f32 },
 
+    // Demodulation blocks
+    PskDemodulator { order: u32 },
+    QamDemodulator { order: u32 },
+    FskDemodulator { order: u32 },
+
     // Recovery blocks
     Agc { mode: AgcMode, target_db: f32 },
     TimingRecovery { algorithm: TimingAlgo, loop_bw: f32 },
@@ -250,6 +256,9 @@ impl BlockType {
             Self::DsssSpread { .. } => "DSSS Spreader",
             Self::FhssHop { .. } => "FHSS Hopper",
             Self::CssModulator { .. } => "CSS Modulator",
+            Self::PskDemodulator { .. } => "PSK Demodulator",
+            Self::QamDemodulator { .. } => "QAM Demodulator",
+            Self::FskDemodulator { .. } => "FSK Demodulator",
             Self::FirFilter { .. } => "FIR Filter",
             Self::IirFilter { .. } => "IIR Filter",
             Self::PulseShaper { .. } => "Pulse Shaper",
@@ -291,6 +300,7 @@ impl BlockType {
             Self::Upsampler { .. } | Self::Downsampler { .. } | Self::RationalResampler { .. } | Self::PolyphaseResampler { .. } => BlockCategory::RateConversion,
             Self::PreambleInsert { .. } | Self::SyncWordInsert { .. } | Self::FrameBuilder { .. } | Self::TdmaFramer { .. } => BlockCategory::Synchronization,
             Self::AwgnChannel { .. } | Self::FadingChannel { .. } | Self::FrequencyOffset { .. } | Self::IqImbalance { .. } => BlockCategory::Impairments,
+            Self::PskDemodulator { .. } | Self::QamDemodulator { .. } | Self::FskDemodulator { .. } |
             Self::Agc { .. } | Self::TimingRecovery { .. } | Self::CarrierRecovery { .. } | Self::Equalizer { .. } => BlockCategory::Recovery,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
         }
@@ -455,6 +465,16 @@ pub struct Pipeline {
     next_id: BlockId,
 }
 
+/// What parts of a unified spec to load
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LoadMode {
+    TxOnly,
+    RxOnly,
+    ChannelOnly,
+    Loopback,  // TX → Channel → RX
+    Legacy,    // Old format with single 'pipeline' section
+}
+
 impl Pipeline {
     pub fn new() -> Self {
         Self {
@@ -466,7 +486,6 @@ impl Pipeline {
         }
     }
 
-    /// Load pipeline from YAML string
     /// Load pipeline from YAML string
     /// Supports both direct Pipeline format and unified waveform spec format
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
@@ -485,7 +504,206 @@ impl Pipeline {
         Ok(pipeline)
     }
 
-    /// Parse unified waveform spec format
+    /// Load pipeline from YAML with specific mode
+    pub fn from_yaml_with_mode(yaml: &str, mode: LoadMode) -> Result<Self, String> {
+        if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(yaml) {
+            // Check if this is a unified spec with tx/rx sections
+            if value.get("tx").is_some() || value.get("rx").is_some() {
+                return Self::from_unified_spec_v2(&value, mode);
+            }
+            // Check for legacy unified spec with 'pipeline' section
+            if value.get("waveform").is_some() && value.get("pipeline").is_some() {
+                return Self::from_unified_spec(&value);
+            }
+        }
+
+        // Fall back to direct Pipeline format
+        let mut pipeline: Pipeline = serde_yaml::from_str(yaml)
+            .map_err(|e| format!("Failed to parse YAML: {}", e))?;
+        pipeline.fix_after_load();
+        Ok(pipeline)
+    }
+
+    /// Detect what sections are available in a spec
+    pub fn detect_spec_sections(yaml: &str) -> (bool, bool, bool, bool) {
+        // Returns (has_tx, has_rx, has_channel, has_legacy_pipeline)
+        if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(yaml) {
+            let has_tx = value.get("tx").is_some();
+            let has_rx = value.get("rx").is_some();
+            let has_channel = value.get("channel").is_some();
+            let has_legacy = value.get("pipeline").is_some();
+            return (has_tx, has_rx, has_channel, has_legacy);
+        }
+        (false, false, false, false)
+    }
+
+    /// Parse unified waveform spec v2 format (with tx/rx/channel sections)
+    fn from_unified_spec_v2(value: &serde_yaml::Value, mode: LoadMode) -> Result<Self, String> {
+        let mut pipeline = Pipeline::new();
+
+        // Extract name and description from waveform section
+        if let Some(waveform) = value.get("waveform") {
+            if let Some(name) = waveform.get("name").and_then(|v| v.as_str()) {
+                let suffix = match mode {
+                    LoadMode::TxOnly => " TX",
+                    LoadMode::RxOnly => " RX",
+                    LoadMode::ChannelOnly => " Channel",
+                    LoadMode::Loopback => " Loopback",
+                    LoadMode::Legacy => "",
+                };
+                pipeline.name = format!("{}{}", name, suffix);
+            }
+            if let Some(desc) = waveform.get("description").and_then(|v| v.as_str()) {
+                pipeline.description = desc.to_string();
+            }
+        }
+
+        // Load sections based on mode
+        match mode {
+            LoadMode::TxOnly => {
+                if let Some(tx) = value.get("tx") {
+                    Self::parse_pipeline_section(&mut pipeline, tx)?;
+                } else {
+                    return Err("No 'tx' section found in spec".to_string());
+                }
+            }
+            LoadMode::RxOnly => {
+                if let Some(rx) = value.get("rx") {
+                    Self::parse_pipeline_section(&mut pipeline, rx)?;
+                } else {
+                    return Err("No 'rx' section found in spec".to_string());
+                }
+            }
+            LoadMode::ChannelOnly => {
+                if let Some(channel) = value.get("channel") {
+                    Self::parse_pipeline_section(&mut pipeline, channel)?;
+                } else {
+                    return Err("No 'channel' section found in spec".to_string());
+                }
+            }
+            LoadMode::Loopback => {
+                // Load TX
+                if let Some(tx) = value.get("tx") {
+                    Self::parse_pipeline_section(&mut pipeline, tx)?;
+                }
+                // Load Channel
+                if let Some(channel) = value.get("channel") {
+                    Self::parse_pipeline_section(&mut pipeline, channel)?;
+                }
+                // Load RX
+                if let Some(rx) = value.get("rx") {
+                    Self::parse_pipeline_section(&mut pipeline, rx)?;
+                }
+                // Connect TX → Channel → RX
+                // Find last TX block and first Channel block
+                let tx_last = pipeline.blocks.iter()
+                    .filter(|(id, _)| **id < 100)
+                    .max_by_key(|(id, _)| *id)
+                    .map(|(id, _)| *id);
+                let channel_first = pipeline.blocks.iter()
+                    .filter(|(id, _)| **id >= 200 && **id < 300)
+                    .min_by_key(|(id, _)| *id)
+                    .map(|(id, _)| *id);
+                let channel_last = pipeline.blocks.iter()
+                    .filter(|(id, _)| **id >= 200 && **id < 300)
+                    .max_by_key(|(id, _)| *id)
+                    .map(|(id, _)| *id);
+                let rx_first = pipeline.blocks.iter()
+                    .filter(|(id, _)| **id >= 100 && **id < 200)
+                    .min_by_key(|(id, _)| *id)
+                    .map(|(id, _)| *id);
+
+                // Connect TX → Channel
+                if let (Some(tx_id), Some(ch_id)) = (tx_last, channel_first) {
+                    pipeline.connections.push(Connection {
+                        from_block: tx_id, from_port: 0,
+                        to_block: ch_id, to_port: 0,
+                    });
+                }
+                // Connect Channel → RX
+                if let (Some(ch_id), Some(rx_id)) = (channel_last, rx_first) {
+                    pipeline.connections.push(Connection {
+                        from_block: ch_id, from_port: 0,
+                        to_block: rx_id, to_port: 0,
+                    });
+                }
+                // If no channel, connect TX → RX directly
+                if channel_first.is_none() {
+                    if let (Some(tx_id), Some(rx_id)) = (tx_last, rx_first) {
+                        pipeline.connections.push(Connection {
+                            from_block: tx_id, from_port: 0,
+                            to_block: rx_id, to_port: 0,
+                        });
+                    }
+                }
+            }
+            LoadMode::Legacy => {
+                // Handled by from_unified_spec
+                return Err("Use from_unified_spec for legacy format".to_string());
+            }
+        }
+
+        pipeline.fix_after_load();
+        Ok(pipeline)
+    }
+
+    /// Parse a pipeline section (tx, rx, or channel)
+    fn parse_pipeline_section(pipeline: &mut Pipeline, section: &serde_yaml::Value) -> Result<(), String> {
+        // Parse blocks
+        if let Some(blocks) = section.get("blocks").and_then(|v| v.as_sequence()) {
+            for block_val in blocks {
+                if let (Some(id), Some(block_type_name)) = (
+                    block_val.get("id").and_then(|v| v.as_u64()),
+                    block_val.get("type").and_then(|v| v.as_str()),
+                ) {
+                    let name = block_val.get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(block_type_name)
+                        .to_string();
+                    let enabled = block_val.get("enabled")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true);
+
+                    if let Some(block_type) = Self::parse_block_type(block_type_name, block_val) {
+                        let mut block = PipelineBlock::new(id as u32, block_type, Pos2::ZERO);
+                        block.name = name;
+                        block.enabled = enabled;
+                        pipeline.blocks.insert(id as u32, block);
+                    }
+                }
+            }
+        }
+
+        // Parse connections
+        if let Some(connections) = section.get("connections").and_then(|v| v.as_sequence()) {
+            for conn_val in connections {
+                if let (Some(from), Some(to)) = (
+                    conn_val.get("from").and_then(|v| v.as_sequence()),
+                    conn_val.get("to").and_then(|v| v.as_sequence()),
+                ) {
+                    if from.len() >= 2 && to.len() >= 2 {
+                        if let (Some(fb), Some(fp), Some(tb), Some(tp)) = (
+                            from[0].as_u64(),
+                            from[1].as_u64(),
+                            to[0].as_u64(),
+                            to[1].as_u64(),
+                        ) {
+                            pipeline.connections.push(Connection {
+                                from_block: fb as u32,
+                                from_port: fp as u32,
+                                to_block: tb as u32,
+                                to_port: tp as u32,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Parse unified waveform spec format (legacy - single pipeline section)
     fn from_unified_spec(value: &serde_yaml::Value) -> Result<Self, String> {
         let mut pipeline = Pipeline::new();
 
@@ -678,6 +896,71 @@ impl Pipeline {
                     .to_string(),
                 format: OutputFormat::ComplexFloat32,
             }),
+            "AGC" => {
+                let mode_str = block_val.get("mode")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Adaptive");
+                let mode = match mode_str {
+                    "Fast" => AgcMode::Fast,
+                    "Slow" => AgcMode::Slow,
+                    _ => AgcMode::Adaptive,
+                };
+                Some(BlockType::Agc {
+                    mode,
+                    target_db: block_val.get("target_db")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.0) as f32,
+                })
+            }
+            "Timing Recovery" => {
+                let algo_str = block_val.get("algorithm")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Gardner");
+                let algorithm = match algo_str {
+                    "EarlyLate" => TimingAlgo::EarlyLate,
+                    "MuellerMuller" => TimingAlgo::MuellerMuller,
+                    _ => TimingAlgo::Gardner,
+                };
+                Some(BlockType::TimingRecovery {
+                    algorithm,
+                    loop_bw: block_val.get("loop_bw")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.01) as f32,
+                })
+            }
+            "Carrier Recovery" => {
+                let algo_str = block_val.get("algorithm")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("CostasLoop");
+                let algorithm = match algo_str {
+                    "DecisionDirected" => CarrierAlgo::DecisionDirected,
+                    "PilotAided" => CarrierAlgo::PilotAided,
+                    _ => CarrierAlgo::CostasLoop,
+                };
+                Some(BlockType::CarrierRecovery {
+                    algorithm,
+                    loop_bw: block_val.get("loop_bw")
+                        .and_then(|v| v.as_f64())
+                        .unwrap_or(0.01) as f32,
+                })
+            }
+            "PSK Demodulator" => Some(BlockType::PskDemodulator {
+                order: block_val.get("order")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(2) as u32,
+            }),
+            "QAM Demodulator" => Some(BlockType::QamDemodulator {
+                order: block_val.get("order")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(16) as u32,
+            }),
+            "FSK Demodulator" => Some(BlockType::FskDemodulator {
+                order: block_val.get("order")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(2) as u32,
+            }),
+            "Bit Output" => Some(BlockType::BitOutput),
+            "IQ Output" => Some(BlockType::IqOutput),
             _ => {
                 log::warn!("Unknown block type: {}", type_name);
                 None
@@ -943,6 +1226,9 @@ pipeline:
             }
             BlockType::Split { num_outputs } => format!("      num_outputs: {}\n", num_outputs),
             BlockType::Merge { num_inputs } => format!("      num_inputs: {}\n", num_inputs),
+            BlockType::PskDemodulator { order } => format!("      order: {}\n", order),
+            BlockType::QamDemodulator { order } => format!("      order: {}\n", order),
+            BlockType::FskDemodulator { order } => format!("      order: {}\n", order),
             _ => String::new(),
         }
     }
@@ -1534,6 +1820,9 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::Agc { mode: AgcMode::Adaptive, target_db: -20.0 },
             BlockType::TimingRecovery { algorithm: TimingAlgo::Gardner, loop_bw: 0.01 },
             BlockType::CarrierRecovery { algorithm: CarrierAlgo::CostasLoop, loop_bw: 0.005 },
+            BlockType::PskDemodulator { order: 2 },
+            BlockType::QamDemodulator { order: 16 },
+            BlockType::FskDemodulator { order: 2 },
             BlockType::Equalizer { eq_type: EqualizerType::Lms, taps: 11, mu: 0.01 },
         ]),
         (BlockCategory::Output, vec![
@@ -1704,9 +1993,9 @@ impl PipelineWizardView {
                                 self.refresh_available_specs();
                             }
 
-                            ui.set_min_width(180.0);
+                            ui.set_min_width(200.0);
 
-                            // List available specs
+                            // List available specs with TX/RX/Loopback submenus
                             if !self.available_specs.is_empty() {
                                 ui.label(RichText::new("Available Specs").strong());
                                 ui.separator();
@@ -1714,23 +2003,89 @@ impl PipelineWizardView {
                                 // Clone the specs to avoid borrow issues
                                 let specs: Vec<_> = self.available_specs.clone();
                                 for (name, path) in specs {
-                                    if ui.button(&name).clicked() {
-                                        #[cfg(not(target_arch = "wasm32"))]
-                                        match std::fs::read_to_string(&path) {
-                                            Ok(yaml) => {
-                                                match Pipeline::from_yaml(&yaml) {
-                                                    Ok(pipeline) => {
-                                                        self.pipeline = pipeline;
-                                                        self.selected_block = None;
-                                                        self.selected_connection = None;
-                                                        self.last_added_block = None;
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    {
+                                        // Read file to detect sections
+                                        if let Ok(yaml) = std::fs::read_to_string(&path) {
+                                            let (has_tx, has_rx, has_channel, has_legacy) = Pipeline::detect_spec_sections(&yaml);
+
+                                            if has_tx || has_rx {
+                                                // Show submenu with TX/RX/Loopback options
+                                                ui.menu_button(&name, |ui| {
+                                                    if has_tx {
+                                                        if ui.button("📤 TX Pipeline").clicked() {
+                                                            match Pipeline::from_yaml_with_mode(&yaml, LoadMode::TxOnly) {
+                                                                Ok(pipeline) => {
+                                                                    self.pipeline = pipeline;
+                                                                    self.selected_block = None;
+                                                                    self.selected_connection = None;
+                                                                    self.last_added_block = None;
+                                                                }
+                                                                Err(e) => log::error!("Failed to load TX: {}", e),
+                                                            }
+                                                            ui.close_menu();
+                                                        }
                                                     }
-                                                    Err(e) => log::error!("Failed to parse {}: {}", name, e),
+                                                    if has_rx {
+                                                        if ui.button("📥 RX Pipeline").clicked() {
+                                                            match Pipeline::from_yaml_with_mode(&yaml, LoadMode::RxOnly) {
+                                                                Ok(pipeline) => {
+                                                                    self.pipeline = pipeline;
+                                                                    self.selected_block = None;
+                                                                    self.selected_connection = None;
+                                                                    self.last_added_block = None;
+                                                                }
+                                                                Err(e) => log::error!("Failed to load RX: {}", e),
+                                                            }
+                                                            ui.close_menu();
+                                                        }
+                                                    }
+                                                    if has_tx && has_rx {
+                                                        if ui.button("🔄 Loopback (TX→RX)").clicked() {
+                                                            match Pipeline::from_yaml_with_mode(&yaml, LoadMode::Loopback) {
+                                                                Ok(pipeline) => {
+                                                                    self.pipeline = pipeline;
+                                                                    self.selected_block = None;
+                                                                    self.selected_connection = None;
+                                                                    self.last_added_block = None;
+                                                                }
+                                                                Err(e) => log::error!("Failed to load Loopback: {}", e),
+                                                            }
+                                                            ui.close_menu();
+                                                        }
+                                                    }
+                                                    if has_channel {
+                                                        ui.separator();
+                                                        if ui.button("📡 Channel Only").clicked() {
+                                                            match Pipeline::from_yaml_with_mode(&yaml, LoadMode::ChannelOnly) {
+                                                                Ok(pipeline) => {
+                                                                    self.pipeline = pipeline;
+                                                                    self.selected_block = None;
+                                                                    self.selected_connection = None;
+                                                                    self.last_added_block = None;
+                                                                }
+                                                                Err(e) => log::error!("Failed to load Channel: {}", e),
+                                                            }
+                                                            ui.close_menu();
+                                                        }
+                                                    }
+                                                });
+                                            } else if has_legacy {
+                                                // Legacy format - single button
+                                                if ui.button(&name).clicked() {
+                                                    match Pipeline::from_yaml(&yaml) {
+                                                        Ok(pipeline) => {
+                                                            self.pipeline = pipeline;
+                                                            self.selected_block = None;
+                                                            self.selected_connection = None;
+                                                            self.last_added_block = None;
+                                                        }
+                                                        Err(e) => log::error!("Failed to parse {}: {}", name, e),
+                                                    }
+                                                    ui.close_menu();
                                                 }
                                             }
-                                            Err(e) => log::error!("Failed to read {}: {}", name, e),
                                         }
-                                        ui.close_menu();
                                     }
                                 }
                                 ui.separator();
@@ -2557,6 +2912,10 @@ impl PipelineWizardView {
                 // Render block-specific parameters
                 self.render_block_params(ui, id);
 
+                // Render block metadata (documentation, formulas, code links)
+                let block_type_name = self.get_block_type_name(id);
+                self.render_block_metadata(ui, &block_type_name);
+
                 ui.add_space(10.0);
                 if ui.button("Delete Block").clicked() {
                     self.pipeline.remove_block(id);
@@ -2884,6 +3243,57 @@ impl PipelineWizardView {
                 ui.label(format!("Symbols: {} | Bits/symbol: {}", 1u32 << new_sf, new_sf));
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::CssModulator { sf: new_sf, bw_hz: new_bw };
+                }
+            }
+            // Demodulator property editors
+            BlockType::PskDemodulator { order } => {
+                let mut new_order = order;
+                ui.horizontal(|ui| {
+                    ui.label("Order:");
+                    egui::ComboBox::from_id_salt("psk_demod_order")
+                        .selected_text(format!("{}-PSK", new_order))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_order, 2, "BPSK");
+                            ui.selectable_value(&mut new_order, 4, "QPSK");
+                            ui.selectable_value(&mut new_order, 8, "8-PSK");
+                            ui.selectable_value(&mut new_order, 16, "16-PSK");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PskDemodulator { order: new_order };
+                }
+            }
+            BlockType::QamDemodulator { order } => {
+                let mut new_order = order;
+                ui.horizontal(|ui| {
+                    ui.label("Order:");
+                    egui::ComboBox::from_id_salt("qam_demod_order")
+                        .selected_text(format!("{}-QAM", new_order))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_order, 16, "16-QAM");
+                            ui.selectable_value(&mut new_order, 64, "64-QAM");
+                            ui.selectable_value(&mut new_order, 256, "256-QAM");
+                            ui.selectable_value(&mut new_order, 1024, "1024-QAM");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::QamDemodulator { order: new_order };
+                }
+            }
+            BlockType::FskDemodulator { order } => {
+                let mut new_order = order;
+                ui.horizontal(|ui| {
+                    ui.label("Order:");
+                    egui::ComboBox::from_id_salt("fsk_demod_order")
+                        .selected_text(format!("{}-FSK", new_order))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_order, 2, "2-FSK");
+                            ui.selectable_value(&mut new_order, 4, "4-FSK");
+                            ui.selectable_value(&mut new_order, 8, "8-FSK");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FskDemodulator { order: new_order };
                 }
             }
             BlockType::FirFilter { filter_type, cutoff_hz, num_taps } => {
@@ -3285,6 +3695,242 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::FileSource { path: new_path };
+                }
+            }
+        }
+    }
+
+    /// Get the block type variant name for metadata lookup
+    fn get_block_type_name(&self, block_id: BlockId) -> String {
+        if let Some(block) = self.pipeline.blocks.get(&block_id) {
+            // Extract the enum variant name
+            let debug_str = format!("{:?}", block.block_type);
+            // Take everything before the first '{' or space
+            debug_str.split(['{', ' ']).next().unwrap_or("Unknown").to_string()
+        } else {
+            "Unknown".to_string()
+        }
+    }
+
+    /// Render block documentation and metadata
+    fn render_block_metadata(&mut self, ui: &mut Ui, block_type_name: &str) {
+        if let Some(meta) = get_block_metadata(block_type_name) {
+            ui.add_space(15.0);
+
+            // Collapsible documentation section
+            egui::CollapsingHeader::new(RichText::new("📚 Documentation").strong())
+                .default_open(false)
+                .show(ui, |ui| {
+                    // Description
+                    ui.label(meta.description);
+
+                    // Input/Output types
+                    ui.add_space(5.0);
+                    ui.horizontal(|ui| {
+                        ui.label("Input:");
+                        ui.label(RichText::new(meta.input_type).monospace());
+                        ui.label("→ Output:");
+                        ui.label(RichText::new(meta.output_type).monospace());
+                    });
+
+                    // Key parameters
+                    if !meta.key_parameters.is_empty() {
+                        ui.add_space(5.0);
+                        ui.label(RichText::new("Key Parameters:").strong());
+                        for param in meta.key_parameters.iter() {
+                            ui.label(format!("  • {}", param));
+                        }
+                    }
+                });
+
+            // Collapsible formulas section
+            if !meta.formulas.is_empty() {
+                egui::CollapsingHeader::new(RichText::new("📐 Formulas").strong())
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        for formula in meta.formulas.iter() {
+                            ui.add_space(5.0);
+                            ui.label(RichText::new(formula.name).strong());
+                            ui.label(RichText::new(formula.plaintext).monospace());
+
+                            // Show variables
+                            if !formula.variables.is_empty() {
+                                ui.indent("formula_vars", |ui| {
+                                    for (var, desc) in formula.variables.iter() {
+                                        ui.horizontal(|ui| {
+                                            ui.label(RichText::new(*var).monospace());
+                                            ui.label("=");
+                                            ui.label(*desc);
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                    });
+            }
+
+            // Collapsible implementation section
+            if meta.implementation.is_some() || !meta.related_code.is_empty() {
+                egui::CollapsingHeader::new(RichText::new("🔧 Implementation").strong())
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        if let Some(ref impl_loc) = meta.implementation {
+                            ui.horizontal(|ui| {
+                                ui.label("Primary:");
+                                let code_path = format!("crates/{}/{}:{}",
+                                    impl_loc.crate_name, impl_loc.file_path, impl_loc.line);
+                                if ui.link(RichText::new(&code_path).monospace()).clicked() {
+                                    self.open_code_location(impl_loc);
+                                }
+                            });
+                            ui.label(format!("  {} → {}", impl_loc.symbol, impl_loc.description));
+                        }
+
+                        for code_loc in meta.related_code.iter() {
+                            ui.horizontal(|ui| {
+                                ui.label("Related:");
+                                let code_path = format!("crates/{}/{}:{}",
+                                    code_loc.crate_name, code_loc.file_path, code_loc.line);
+                                if ui.link(RichText::new(&code_path).monospace()).clicked() {
+                                    self.open_code_location(code_loc);
+                                }
+                            });
+                        }
+                    });
+            }
+
+            // Collapsible tests section
+            if !meta.tests.is_empty() {
+                egui::CollapsingHeader::new(RichText::new("🧪 Tests").strong())
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        for test in meta.tests.iter() {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new(test.name).monospace());
+                                if ui.small_button("Run").clicked() {
+                                    self.run_test(test);
+                                }
+                            });
+                            ui.indent("test_desc", |ui| {
+                                ui.label(test.description);
+                                ui.label(format!("~{} ms", test.expected_runtime_ms));
+                            });
+                        }
+
+                        ui.add_space(5.0);
+                        if ui.button("Run All Tests").clicked() {
+                            for test in meta.tests.iter() {
+                                self.run_test(test);
+                            }
+                        }
+                    });
+            }
+
+            // Collapsible performance section
+            if let Some(ref perf) = meta.performance {
+                egui::CollapsingHeader::new(RichText::new("⚡ Performance").strong())
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Complexity:");
+                            ui.label(RichText::new(perf.complexity).monospace());
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Memory:");
+                            ui.label(perf.memory);
+                        });
+                        ui.horizontal(|ui| {
+                            if perf.simd_optimized {
+                                ui.label(RichText::new("✓ SIMD").color(Color32::GREEN));
+                            } else {
+                                ui.label(RichText::new("✗ SIMD").color(Color32::GRAY));
+                            }
+                            if perf.gpu_accelerable {
+                                ui.label(RichText::new("✓ GPU").color(Color32::GREEN));
+                            } else {
+                                ui.label(RichText::new("✗ GPU").color(Color32::GRAY));
+                            }
+                        });
+                    });
+            }
+
+            // Collapsible standards section
+            if !meta.standards.is_empty() {
+                egui::CollapsingHeader::new(RichText::new("📋 Standards").strong())
+                    .default_open(false)
+                    .show(ui, |ui| {
+                        for std_ref in meta.standards.iter() {
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new(std_ref.name).strong());
+                                if let Some(section) = std_ref.section {
+                                    ui.label(section);
+                                }
+                            });
+                            if let Some(url) = std_ref.url {
+                                if ui.link("View specification").clicked() {
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    let _ = open::that(url);
+                                }
+                            }
+                        }
+                    });
+            }
+
+            // Related blocks
+            if !meta.related_blocks.is_empty() {
+                ui.add_space(5.0);
+                ui.horizontal(|ui| {
+                    ui.label("Related:");
+                    for related in meta.related_blocks.iter() {
+                        ui.label(RichText::new(*related).small().color(Color32::LIGHT_BLUE));
+                    }
+                });
+            }
+        } else {
+            // No metadata available
+            ui.add_space(10.0);
+            ui.label(RichText::new("No documentation available for this block type.")
+                .italics().color(Color32::GRAY));
+        }
+    }
+
+    /// Open code location in editor
+    fn open_code_location(&self, loc: &block_metadata::CodeLocation) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            // Construct the file path relative to project root
+            let file_path = format!("crates/{}/{}", loc.crate_name, loc.file_path);
+
+            // Try to open with VS Code at specific line
+            let vscode_result = std::process::Command::new("code")
+                .arg("--goto")
+                .arg(format!("{}:{}", file_path, loc.line))
+                .spawn();
+
+            if vscode_result.is_err() {
+                // Fallback: try to open the file with default handler
+                log::info!("Opening file: {}:{}", file_path, loc.line);
+                let _ = open::that(&file_path);
+            }
+        }
+    }
+
+    /// Run a block test
+    fn run_test(&self, test: &block_metadata::BlockTest) {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let cmd = block_metadata::get_test_command(test);
+            log::info!("Running test: {}", cmd);
+
+            // Run the test in background
+            let parts: Vec<&str> = cmd.split_whitespace().collect();
+            if parts.len() >= 2 {
+                match std::process::Command::new(parts[0])
+                    .args(&parts[1..])
+                    .spawn()
+                {
+                    Ok(_) => log::info!("Test started: {}", test.name),
+                    Err(e) => log::error!("Failed to run test: {}", e),
                 }
             }
         }

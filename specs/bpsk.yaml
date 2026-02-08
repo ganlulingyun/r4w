@@ -1,5 +1,5 @@
 # R4W Unified Waveform Specification
-# Schema: r4w-waveform-spec v1.0
+# Schema: r4w-waveform-spec v1.1
 ---
 # ============================================================================
 # WAVEFORM IDENTITY
@@ -42,7 +42,7 @@ modulation:
     enabled: false
 
 # ============================================================================
-# PULSE SHAPING
+# PULSE SHAPING (shared between TX and RX)
 # ============================================================================
 pulse_shaping:
   enabled: true
@@ -50,25 +50,14 @@ pulse_shaping:
     type: "root_raised_cosine"
     rolloff: 0.35
     span_symbols: 8
-    samples_per_symbol: 8
 
 # ============================================================================
-# TIMING
+# TIMING (shared parameters)
 # ============================================================================
 timing:
   symbol_rate: 1000          # Symbols per second
   sample_rate: 8000          # Samples per second
   samples_per_symbol: 8
-
-# ============================================================================
-# CHANNEL CODING
-# ============================================================================
-channel_coding:
-  enabled: false
-  fec:
-    type: "none"
-  scrambling:
-    enabled: false
 
 # ============================================================================
 # SPECTRAL CHARACTERISTICS
@@ -77,13 +66,14 @@ spectral:
   bandwidth:
     null_to_null_hz: 2000     # 2 * symbol_rate
     occupied_99_hz: 1350      # With RRC rolloff=0.35
-
   spectral_efficiency: 1.0    # bits/s/Hz
 
 # ============================================================================
-# IMPLEMENTATION PIPELINE
+# TX PIPELINE
 # ============================================================================
-pipeline:
+tx:
+  description: "BPSK Transmitter: bits → modulation → pulse shaping"
+
   blocks:
     - id: 1
       name: "Bit Source"
@@ -92,24 +82,104 @@ pipeline:
       pattern: "random"
 
     - id: 2
-      name: "BPSK Mapper"
+      name: "BPSK Modulator"
       type: "PSK Modulator"
       enabled: true
       order: 2
 
     - id: 3
-      name: "RRC Filter"
+      name: "TX RRC Filter"
       type: "RRC Filter"
       enabled: true
       rolloff: 0.35
-      span_symbols: 8
-      samples_per_symbol: 8
+      span: 8
 
   connections:
     - from: [1, 0]
       to: [2, 0]
     - from: [2, 0]
       to: [3, 0]
+
+# ============================================================================
+# RX PIPELINE
+# ============================================================================
+rx:
+  description: "BPSK Receiver: matched filter → sync → demodulation"
+
+  blocks:
+    - id: 101
+      name: "RX RRC Filter"
+      type: "RRC Filter"
+      enabled: true
+      rolloff: 0.35
+      span: 8
+
+    - id: 102
+      name: "AGC"
+      type: "AGC"
+      enabled: true
+      mode: "Slow"
+      target_db: 0.0
+
+    - id: 103
+      name: "Timing Recovery"
+      type: "Timing Recovery"
+      enabled: true
+      algorithm: "Gardner"
+      loop_bw: 0.01
+
+    - id: 104
+      name: "Carrier Recovery"
+      type: "Carrier Recovery"
+      enabled: true
+      algorithm: "CostasLoop"
+      loop_bw: 0.01
+
+    - id: 105
+      name: "BPSK Demodulator"
+      type: "PSK Demodulator"
+      enabled: true
+      order: 2
+
+    - id: 106
+      name: "Bit Output"
+      type: "Bit Output"
+      enabled: true
+
+  connections:
+    - from: [101, 0]
+      to: [102, 0]
+    - from: [102, 0]
+      to: [103, 0]
+    - from: [103, 0]
+      to: [104, 0]
+    - from: [104, 0]
+      to: [105, 0]
+    - from: [105, 0]
+      to: [106, 0]
+
+# ============================================================================
+# CHANNEL MODEL (for simulation)
+# ============================================================================
+channel:
+  description: "AWGN channel for BER testing"
+
+  blocks:
+    - id: 201
+      name: "AWGN Channel"
+      type: "AWGN Channel"
+      enabled: true
+      snr_db: 10.0
+
+    - id: 202
+      name: "Frequency Offset"
+      type: "Frequency Offset"
+      enabled: false
+      offset_hz: 0.0
+
+  connections:
+    - from: [201, 0]
+      to: [202, 0]
 
 # ============================================================================
 # METRICS
@@ -122,22 +192,6 @@ metrics:
   required_snr_db:
     ber_1e-3: 6.8
     ber_1e-5: 9.6
-
-  implementation:
-    complexity: "low"
-    power_efficiency: "high"
-    spectral_efficiency: "low"
-
-# ============================================================================
-# VISUALIZATION
-# ============================================================================
-visualization:
-  constellation:
-    type: "psk"
-    num_points: 2
-
-  eye_diagram:
-    openings: 1
 
 # ============================================================================
 # RUST IMPLEMENTATION

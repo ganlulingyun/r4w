@@ -1,8 +1,5 @@
 # R4W Unified Waveform Specification
-# Schema: r4w-waveform-spec v1.0
-#
-# This format combines waveform specification (WHAT) with
-# pipeline implementation (HOW) in a single document.
+# Schema: r4w-waveform-spec v1.1
 ---
 # ============================================================================
 # WAVEFORM IDENTITY
@@ -51,9 +48,9 @@ timing:
   continuous: true              # CW is continuous by nature
 
 # ============================================================================
-# IMPLEMENTATION PIPELINE
+# TX PIPELINE
 # ============================================================================
-pipeline:
+tx:
   description: |
     CW generation is trivially simple: generate a complex exponential
     at the carrier frequency. No modulation, no encoding.
@@ -61,16 +58,41 @@ pipeline:
   blocks:
     - id: 1
       name: "Carrier Generator"
-      type: "Tone Generator"
+      type: "Bit Source"
       enabled: true
-      frequency_hz: 1000.0
-      amplitude: 1.0
-      phase_deg: 0.0
+      pattern: "tone"
 
   connections: []  # Single block, no connections needed
 
 # ============================================================================
-# RUST IMPLEMENTATION HINTS
+# RX PIPELINE
+# ============================================================================
+rx:
+  description: |
+    CW reception: measure carrier frequency, phase, and amplitude.
+    Used for calibration and carrier recovery testing.
+
+  blocks:
+    - id: 101
+      name: "AGC"
+      type: "AGC"
+      enabled: true
+      mode: "Slow"
+      target_db: 0.0
+
+    - id: 102
+      name: "Carrier Recovery"
+      type: "Carrier Recovery"
+      enabled: true
+      algorithm: "CostasLoop"
+      loop_bw: 0.001
+
+  connections:
+    - from: [101, 0]
+      to: [102, 0]
+
+# ============================================================================
+# RUST IMPLEMENTATION
 # ============================================================================
 implementation:
   module: "cw"

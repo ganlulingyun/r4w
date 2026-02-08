@@ -25,6 +25,7 @@ mod waveform;
 mod waveform_comparison;
 mod waveform_wizard;
 mod pipeline_wizard;
+pub mod block_metadata;
 
 pub use adsb::AdsbView;
 pub use ale::AleView;

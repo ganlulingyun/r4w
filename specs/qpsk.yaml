@@ -1,6 +1,9 @@
 # R4W Unified Waveform Specification
-# Schema: r4w-waveform-spec v1.0
+# Schema: r4w-waveform-spec v1.1
 ---
+# ============================================================================
+# WAVEFORM IDENTITY
+# ============================================================================
 waveform:
   name: "QPSK"
   full_name: "Quadrature Phase Shift Keying"
@@ -19,6 +22,9 @@ waveform:
     - "IEEE 802.11a/g/n (OFDM subcarriers)"
     - "3GPP LTE"
 
+# ============================================================================
+# MODULATION
+# ============================================================================
 modulation:
   domain: "phase"
   scheme: "QPSK"
@@ -35,26 +41,39 @@ modulation:
     gray_coded: true
     rotation_deg: 45
 
+# ============================================================================
+# PULSE SHAPING
+# ============================================================================
 pulse_shaping:
   enabled: true
   filter:
     type: "root_raised_cosine"
     rolloff: 0.35
     span_symbols: 8
-    samples_per_symbol: 8
 
+# ============================================================================
+# TIMING
+# ============================================================================
 timing:
   symbol_rate: 1000
   sample_rate: 8000
   samples_per_symbol: 8
 
+# ============================================================================
+# SPECTRAL CHARACTERISTICS
+# ============================================================================
 spectral:
   bandwidth:
     null_to_null_hz: 2000
     occupied_99_hz: 1350
   spectral_efficiency: 2.0  # bits/s/Hz
 
-pipeline:
+# ============================================================================
+# TX PIPELINE
+# ============================================================================
+tx:
+  description: "QPSK Transmitter: bits → Gray mapping → modulation → pulse shaping"
+
   blocks:
     - id: 1
       name: "Bit Source"
@@ -63,25 +82,116 @@ pipeline:
       pattern: "random"
 
     - id: 2
-      name: "QPSK Mapper"
+      name: "Gray Mapper"
+      type: "Gray Mapper"
+      enabled: true
+      bits_per_symbol: 2
+
+    - id: 3
+      name: "QPSK Modulator"
       type: "PSK Modulator"
       enabled: true
       order: 4
 
-    - id: 3
-      name: "RRC Filter"
+    - id: 4
+      name: "TX RRC Filter"
       type: "RRC Filter"
       enabled: true
       rolloff: 0.35
-      span_symbols: 8
-      samples_per_symbol: 8
+      span: 8
 
   connections:
     - from: [1, 0]
       to: [2, 0]
     - from: [2, 0]
       to: [3, 0]
+    - from: [3, 0]
+      to: [4, 0]
 
+# ============================================================================
+# RX PIPELINE
+# ============================================================================
+rx:
+  description: "QPSK Receiver: matched filter → sync → demodulation"
+
+  blocks:
+    - id: 101
+      name: "RX RRC Filter"
+      type: "RRC Filter"
+      enabled: true
+      rolloff: 0.35
+      span: 8
+
+    - id: 102
+      name: "AGC"
+      type: "AGC"
+      enabled: true
+      mode: "Adaptive"
+      target_db: 0.0
+
+    - id: 103
+      name: "Timing Recovery"
+      type: "Timing Recovery"
+      enabled: true
+      algorithm: "Gardner"
+      loop_bw: 0.01
+
+    - id: 104
+      name: "Carrier Recovery"
+      type: "Carrier Recovery"
+      enabled: true
+      algorithm: "CostasLoop"
+      loop_bw: 0.01
+
+    - id: 105
+      name: "QPSK Demodulator"
+      type: "PSK Demodulator"
+      enabled: true
+      order: 4
+
+    - id: 106
+      name: "Bit Output"
+      type: "Bit Output"
+      enabled: true
+
+  connections:
+    - from: [101, 0]
+      to: [102, 0]
+    - from: [102, 0]
+      to: [103, 0]
+    - from: [103, 0]
+      to: [104, 0]
+    - from: [104, 0]
+      to: [105, 0]
+    - from: [105, 0]
+      to: [106, 0]
+
+# ============================================================================
+# CHANNEL MODEL
+# ============================================================================
+channel:
+  description: "AWGN channel for BER testing"
+
+  blocks:
+    - id: 201
+      name: "AWGN Channel"
+      type: "AWGN Channel"
+      enabled: true
+      snr_db: 10.0
+
+    - id: 202
+      name: "Frequency Offset"
+      type: "Frequency Offset"
+      enabled: false
+      offset_hz: 0.0
+
+  connections:
+    - from: [201, 0]
+      to: [202, 0]
+
+# ============================================================================
+# METRICS
+# ============================================================================
 metrics:
   theoretical_ber:
     awgn: "Q(sqrt(2*Eb/N0))"  # Same as BPSK per bit
@@ -90,6 +200,9 @@ metrics:
     ber_1e-3: 6.8
     ber_1e-5: 9.6
 
+# ============================================================================
+# RUST IMPLEMENTATION
+# ============================================================================
 implementation:
   module: "qpsk"
   struct_name: "QpskWaveform"

@@ -1,6 +1,9 @@
 # R4W Unified Waveform Specification
-# Schema: r4w-waveform-spec v1.0
+# Schema: r4w-waveform-spec v1.1
 ---
+# ============================================================================
+# WAVEFORM IDENTITY
+# ============================================================================
 waveform:
   name: "LoRa"
   full_name: "Long Range Chirp Spread Spectrum"
@@ -115,15 +118,12 @@ link_budget:
     rural_los: 15-20
 
 # ============================================================================
-# IMPLEMENTATION PIPELINE
+# TX PIPELINE
 # ============================================================================
-pipeline:
+tx:
   description: |
     LoRa TX: bits → whitening → Hamming FEC → interleaving →
              Gray coding → chirp generation → baseband IQ
-
-    LoRa RX: baseband IQ → multiply by down-chirp → FFT →
-             peak detection → Gray decode → deinterleave → FEC decode
 
   blocks:
     - id: 1
@@ -163,8 +163,8 @@ pipeline:
       name: "LoRa Modulator"
       type: "CSS Modulator"
       enabled: true
-      spreading_factor: 7
-      bandwidth_hz: 125000
+      sf: 7
+      bw_hz: 125000
 
   connections:
     - from: [1, 0]
@@ -177,6 +177,63 @@ pipeline:
       to: [5, 0]
     - from: [5, 0]
       to: [6, 0]
+
+# ============================================================================
+# RX PIPELINE
+# ============================================================================
+rx:
+  description: |
+    LoRa RX: baseband IQ → multiply by down-chirp → FFT →
+             peak detection → Gray decode → deinterleave → FEC decode
+
+  blocks:
+    - id: 101
+      name: "AGC"
+      type: "AGC"
+      enabled: true
+      mode: "Fast"
+      target_db: 0.0
+
+    - id: 102
+      name: "Timing Recovery"
+      type: "Timing Recovery"
+      enabled: true
+      algorithm: "EarlyLate"
+      loop_bw: 0.01
+
+    - id: 103
+      name: "Bit Output"
+      type: "Bit Output"
+      enabled: true
+
+  connections:
+    - from: [101, 0]
+      to: [102, 0]
+    - from: [102, 0]
+      to: [103, 0]
+
+# ============================================================================
+# CHANNEL MODEL
+# ============================================================================
+channel:
+  description: "AWGN channel with fading for LoRa simulation"
+
+  blocks:
+    - id: 201
+      name: "AWGN Channel"
+      type: "AWGN Channel"
+      enabled: true
+      snr_db: -10.0                # LoRa works at very low SNR
+
+    - id: 202
+      name: "Frequency Offset"
+      type: "Frequency Offset"
+      enabled: true
+      offset_hz: 500.0             # Typical CFO
+
+  connections:
+    - from: [201, 0]
+      to: [202, 0]
 
 # ============================================================================
 # DEMODULATION

@@ -1,6 +1,9 @@
 # R4W Unified Waveform Specification
-# Schema: r4w-waveform-spec v1.0
+# Schema: r4w-waveform-spec v1.1
 ---
+# ============================================================================
+# WAVEFORM IDENTITY
+# ============================================================================
 waveform:
   name: "2-FSK"
   full_name: "Binary Frequency Shift Keying"
@@ -33,7 +36,6 @@ modulation:
   frequency_deviation_hz: 2500    # ±2.5 kHz from carrier
   modulation_index: 0.5           # h = 2*deviation/symbol_rate
 
-  # FSK doesn't have a traditional constellation, but can be viewed as:
   constellation:
     type: "frequency_domain"
     points:
@@ -75,9 +77,9 @@ spectral:
     acp_mask_dbr: -26            # Adjacent channel power
 
 # ============================================================================
-# IMPLEMENTATION PIPELINE
+# TX PIPELINE
 # ============================================================================
-pipeline:
+tx:
   description: |
     FSK modulation converts bits to frequency deviations, then generates
     the continuous-phase FM signal. Optional Gaussian filtering smooths
@@ -103,14 +105,68 @@ pipeline:
       enabled: true
       shape: "Gaussian"
       bt_product: 0.5
-      span_symbols: 4
-      samples_per_symbol: 8
+      span: 4
 
   connections:
     - from: [1, 0]
       to: [2, 0]
     - from: [2, 0]
       to: [3, 0]
+
+# ============================================================================
+# RX PIPELINE
+# ============================================================================
+rx:
+  description: "FSK Receiver: AGC → FM discriminator → bit recovery"
+
+  blocks:
+    - id: 101
+      name: "AGC"
+      type: "AGC"
+      enabled: true
+      mode: "Fast"
+      target_db: 0.0
+
+    - id: 102
+      name: "Timing Recovery"
+      type: "Timing Recovery"
+      enabled: true
+      algorithm: "EarlyLate"
+      loop_bw: 0.02
+
+    - id: 103
+      name: "FSK Demodulator"
+      type: "FSK Demodulator"
+      enabled: true
+      order: 2
+
+    - id: 104
+      name: "Bit Output"
+      type: "Bit Output"
+      enabled: true
+
+  connections:
+    - from: [101, 0]
+      to: [102, 0]
+    - from: [102, 0]
+      to: [103, 0]
+    - from: [103, 0]
+      to: [104, 0]
+
+# ============================================================================
+# CHANNEL MODEL
+# ============================================================================
+channel:
+  description: "AWGN channel for BER testing"
+
+  blocks:
+    - id: 201
+      name: "AWGN Channel"
+      type: "AWGN Channel"
+      enabled: true
+      snr_db: 15.0
+
+  connections: []
 
 # ============================================================================
 # VARIANTS
