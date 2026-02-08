@@ -6814,3 +6814,54 @@ Implement GNSS (Global Navigation Satellite System) waveforms for R4W, covering 
 - Commit 6e3505f: `feat(gui): enhance Pipeline Builder with presets, validation, connection UI`
 - Commit c3015ff: `feat(gui): add more Pipeline Builder presets and auto-layout`
 
+
+---
+
+## Session 26 — Proactive Cycle Prevention in Pipeline Builder
+
+**Date**: 2026-02-08
+
+### User Request
+- (Continued from previous session, which hit context limit)
+- Complete the response about cycle protection in pipeline builder
+- User asked: "is it possible, or should we protect against, the creation of a cycle"
+
+### Actions Taken
+
+1. **Implemented Proactive Cycle Prevention**
+   - Added `would_create_cycle()` method to Pipeline
+   - Uses BFS traversal to check if `to_block` can reach `from_block` through existing connections
+   - Special case: self-loops are always rejected as cycles
+   - Prevents cycles at connection time rather than just detecting in validation
+
+2. **Added Visual Feedback During Connection Drag**
+   - Connection line turns red when hovering over a port that would create a cycle
+   - Instruction text changes to warning message: "Cannot connect: would create a cycle with 'BlockName'"
+   - Green connection line when connection is valid
+
+3. **Added Status Bar for Notifications**
+   - New `status_message` field with `Option<(String, Instant)>` for timed messages
+   - Bottom panel displays warning messages
+   - Auto-expires after 3 seconds
+
+4. **Added Comprehensive Tests**
+   - `test_cycle_detection_no_cycle`: Linear A→B→C pipeline has no cycle
+   - `test_cycle_detection_simple_cycle`: C→A would create cycle
+   - `test_cycle_detection_self_loop`: A→A is always a cycle
+   - `test_cycle_detection_complex_graph`: Diamond pattern A→B,C→D with cycle detection
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `crates/r4w-gui/src/views/pipeline_wizard.rs` | Added `would_create_cycle()`, status bar, visual feedback, tests |
+
+### Key Technical Decisions
+- BFS (not DFS) for reachability check - simpler and works for this use case
+- Check happens before connection is created, rejecting invalid attempts
+- Existing `has_cycle()` validation remains for imported pipelines
+- 3-second timeout for status messages provides feedback without clutter
+
+### Git Operations
+- Commit cf08ac8: `[AI:claude] feat(pipeline): add proactive cycle prevention with visual feedback`
+- Pushed to origin/master
