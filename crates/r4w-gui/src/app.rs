@@ -31,6 +31,9 @@ pub enum WaveformGroup {
     MultiCarrier,
     SpreadSpectrum,
     IoTRadar,
+    Gnss,
+    Emergency,
+    PublicSafety,
     HfMilitary,
 }
 
@@ -45,6 +48,9 @@ impl WaveformGroup {
             Self::MultiCarrier => "Multi-Carrier",
             Self::SpreadSpectrum => "Spread Spectrum",
             Self::IoTRadar => "IoT & Radar",
+            Self::Gnss => "GNSS",
+            Self::Emergency => "Emergency",
+            Self::PublicSafety => "Public Safety",
             Self::HfMilitary => "HF/Military",
         }
     }
@@ -53,14 +59,17 @@ impl WaveformGroup {
     pub fn waveforms(&self) -> &[&str] {
         match self {
             Self::Simple => &["CW"],
-            Self::Pulse => &["OOK", "PPM", "ADS-B"],
+            Self::Pulse => &["OOK", "ASK", "4-ASK", "PPM", "ADS-B"],
             Self::Digital => &["BFSK", "4-FSK", "BPSK", "QPSK", "8-PSK"],
             Self::HighOrder => &["16-QAM", "64-QAM", "256-QAM"],
-            Self::Analog => &["AM", "FM"],
+            Self::Analog => &["AM", "4-AM", "FM", "4-FM", "WBFM", "NBFM"],
             Self::MultiCarrier => &["OFDM"],
             Self::SpreadSpectrum => &["DSSS", "DSSS-QPSK", "FHSS", "LoRa"],
             Self::IoTRadar => &["Zigbee", "UWB", "FMCW"],
-            Self::HfMilitary => &["STANAG-4285", "ALE", "SINCGARS", "HAVEQUICK", "Link-16", "MIL-STD-188-110", "P25"],
+            Self::Gnss => &["GPS-L1CA", "GPS-L5", "GLONASS-L1OF", "Galileo-E1"],
+            Self::Emergency => &["ELT-121.5", "EPIRB-121.5", "PLB-121.5", "Beacon-243"],
+            Self::PublicSafety => &["TETRA", "DMR", "P25"],
+            Self::HfMilitary => &["STANAG-4285", "ALE", "3G-ALE", "SINCGARS", "HAVEQUICK", "Link-16", "MIL-STD-188-110"],
         }
     }
 
@@ -75,6 +84,9 @@ impl WaveformGroup {
             WaveformGroup::MultiCarrier,
             WaveformGroup::SpreadSpectrum,
             WaveformGroup::IoTRadar,
+            WaveformGroup::Gnss,
+            WaveformGroup::Emergency,
+            WaveformGroup::PublicSafety,
             WaveformGroup::HfMilitary,
         ]
     }
