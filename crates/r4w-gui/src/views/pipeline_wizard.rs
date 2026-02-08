@@ -1861,6 +1861,7 @@ pub struct PipelineWizardView {
     pub wants_exit: bool,
     pub show_load_menu: bool,
     pub available_specs: Vec<(String, std::path::PathBuf)>,  // (name, path)
+    pub cascade_drag: bool,  // When true, dragging a block also drags all downstream blocks
 }
 
 impl Default for PipelineWizardView {
@@ -1888,11 +1889,30 @@ impl Default for PipelineWizardView {
             wants_exit: false,
             show_load_menu: false,
             available_specs: Vec::new(),
+            cascade_drag: true,  // Default to cascading drag
         }
     }
 }
 
 impl PipelineWizardView {
+    /// Find all blocks downstream from a given block (following output connections)
+    fn get_downstream_blocks(&self, start_id: BlockId) -> HashSet<BlockId> {
+        let mut downstream = HashSet::new();
+        let mut to_visit = vec![start_id];
+
+        while let Some(current) = to_visit.pop() {
+            // Find all blocks that this block connects to
+            for conn in &self.pipeline.connections {
+                if conn.from_block == current && !downstream.contains(&conn.to_block) {
+                    downstream.insert(conn.to_block);
+                    to_visit.push(conn.to_block);
+                }
+            }
+        }
+
+        downstream
+    }
+
     /// Scan the specs directory for available waveform YAML files
     #[cfg(not(target_arch = "wasm32"))]
     fn refresh_available_specs(&mut self) {
@@ -1967,6 +1987,8 @@ impl PipelineWizardView {
                         self.vertical_layout = !self.vertical_layout;
                     }
                     ui.checkbox(&mut self.auto_connect, "Auto-connect");
+                    ui.checkbox(&mut self.cascade_drag, "Cascade drag")
+                        .on_hover_text("Drag a block to also move all downstream connected blocks");
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Export YAML").clicked() {
@@ -2512,13 +2534,27 @@ impl PipelineWizardView {
         if response.dragged() && response.drag_delta().length() > 0.0 {
             if self.connecting_from.is_none() {
                 if let Some(selected_id) = self.selected_block {
-                    if let Some(block) = self.pipeline.blocks.get_mut(&selected_id) {
-                        let mut new_pos = block.position + response.drag_delta() / self.zoom;
-                        if self.snap_to_grid {
-                            new_pos.x = (new_pos.x / self.grid_size).round() * self.grid_size;
-                            new_pos.y = (new_pos.y / self.grid_size).round() * self.grid_size;
+                    let delta = response.drag_delta() / self.zoom;
+
+                    // Get blocks to move: selected block + downstream blocks if cascade_drag enabled
+                    let blocks_to_move: Vec<BlockId> = if self.cascade_drag {
+                        let mut blocks = self.get_downstream_blocks(selected_id);
+                        blocks.insert(selected_id);
+                        blocks.into_iter().collect()
+                    } else {
+                        vec![selected_id]
+                    };
+
+                    // Move all blocks
+                    for block_id in blocks_to_move {
+                        if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                            let mut new_pos = block.position + delta;
+                            if self.snap_to_grid {
+                                new_pos.x = (new_pos.x / self.grid_size).round() * self.grid_size;
+                                new_pos.y = (new_pos.y / self.grid_size).round() * self.grid_size;
+                            }
+                            block.position = new_pos;
                         }
-                        block.position = new_pos;
                     }
                 } else {
                     self.canvas_offset += response.drag_delta();
