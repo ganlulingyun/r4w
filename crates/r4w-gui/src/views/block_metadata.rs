@@ -4500,6 +4500,143 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
         key_parameters: &[],
     });
 
+    m.insert("Decimating FIR", BlockMetadata {
+        block_type: "DecimatingFirBlock",
+        display_name: "Decimating FIR",
+        category: "Rate Conversion",
+        description: "Combined FIR lowpass filtering and integer decimation. Only computes output samples at the decimation rate, saving computation. Auto-designs Hamming-windowed sinc lowpass with cutoff at pi/decimation.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/decimating_fir.rs", line: 31, symbol: "DecimatingFir", description: "Decimating FIR filter" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "FIR Output", plaintext: "y[m] = sum_k(h[k] * x[m*D - k])", latex: None, variables: &[("D", "decimation factor"), ("h", "FIR taps"), ("m", "output sample index")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_decimation_factor", module: "r4w_core::decimating_fir::tests", description: "Correct output length", expected_runtime_ms: 1 },
+            BlockTest { name: "test_removes_high_frequency", module: "r4w_core::decimating_fir::tests", description: "Anti-alias filtering", expected_runtime_ms: 1 },
+            BlockTest { name: "test_streaming", module: "r4w_core::decimating_fir::tests", description: "Streaming operation", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n*T/D)", memory: "O(T)", simd_optimized: false, gpu_accelerable: true }),
+        standards: &[],
+        related_blocks: &["PolyphaseDecimator", "CicDecimator", "Downsampler"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["decimation", "num_taps"],
+    });
+
+    m.insert("AFC", BlockMetadata {
+        block_type: "AfcBlock",
+        display_name: "Automatic Frequency Control",
+        category: "Recovery",
+        description: "Closed-loop frequency tracking using phase discriminator feedback. Estimates and corrects carrier frequency offset. Second-order loop filter for steady-state tracking of frequency drift.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/afc.rs", line: 51, symbol: "Afc", description: "AFC frequency tracking loop" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Phase Discriminator", plaintext: "f_err = arg(z[n] * conj(z[n-1])) * fs / (2*pi)", latex: None, variables: &[("z", "input signal"), ("fs", "sample rate")] },
+            BlockFormula { name: "Loop Filter", plaintext: "f_est += alpha*f_err + beta*integral(f_err)", latex: None, variables: &[("alpha", "proportional gain"), ("beta", "integral gain")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_afc_tracks_offset", module: "r4w_core::afc::tests", description: "Tracks frequency offset", expected_runtime_ms: 1 },
+            BlockTest { name: "test_afc_zero_offset", module: "r4w_core::afc::tests", description: "Zero offset convergence", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["CostasLoop", "FllBandEdge", "CarrierRecovery"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["loop_gain", "sample_rate"],
+    });
+
+    m.insert("Moving Avg Decim", BlockMetadata {
+        block_type: "MovingAvgDecimBlock",
+        display_name: "Moving Average Decimator",
+        category: "Rate Conversion",
+        description: "Boxcar (rectangular window) averaging combined with decimation. Computes the mean of each block of N samples. Equivalent to CIC of order 1. Useful for coarse power detection and first-stage decimation.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/moving_avg_decim.rs", line: 28, symbol: "MovingAvgDecim", description: "Moving average decimator" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Average", plaintext: "y[m] = (1/N) * sum_{k=0}^{N-1} x[m*N + k]", latex: None, variables: &[("N", "averaging/decimation length"), ("m", "output index")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_decimation_length", module: "r4w_core::moving_avg_decim::tests", description: "Correct output length", expected_runtime_ms: 1 },
+            BlockTest { name: "test_average_value", module: "r4w_core::moving_avg_decim::tests", description: "Correct average", expected_runtime_ms: 1 },
+            BlockTest { name: "test_noise_reduction", module: "r4w_core::moving_avg_decim::tests", description: "Noise variance reduction", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+        standards: &[],
+        related_blocks: &["DecimatingFir", "CicDecimator", "Downsampler"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["length"],
+    });
+
+    m.insert("DC Blocker", BlockMetadata {
+        block_type: "DcBlockerBlock",
+        display_name: "DC Blocker",
+        category: "Recovery",
+        description: "Removes DC offset from a signal using a single-pole IIR highpass filter. Essential for SDR receivers where hardware or ADC introduces DC offset. Configurable pole location controls notch width vs settling time.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/dc_blocker.rs", line: 35, symbol: "DcBlocker", description: "DC offset removal filter" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "IIR Highpass", plaintext: "y[n] = x[n] - x[n-1] + alpha * y[n-1]", latex: None, variables: &[("alpha", "pole location (0.99-0.9999)"), ("x", "input"), ("y", "output")] },
+            BlockFormula { name: "Cutoff", plaintext: "f_c = (1-alpha) * fs / (2*pi)", latex: None, variables: &[("fs", "sample rate")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_removes_dc_offset", module: "r4w_core::dc_blocker::tests", description: "Removes DC component", expected_runtime_ms: 1 },
+            BlockTest { name: "test_passes_ac_signal", module: "r4w_core::dc_blocker::tests", description: "AC signal preserved", expected_runtime_ms: 1 },
+            BlockTest { name: "test_narrow_notch_preserves_low_freq", module: "r4w_core::dc_blocker::tests", description: "Narrow notch mode", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+        standards: &[],
+        related_blocks: &["DcOffsetBlock", "FirFilter", "IirFilter"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["alpha"],
+    });
+
+    m.insert("Short to Complex", BlockMetadata {
+        block_type: "InterleavedShortToComplexBlock",
+        display_name: "Interleaved Short to Complex",
+        category: "Output",
+        description: "Converts interleaved i16 [I,Q,I,Q,...] to Complex64. Normalizes to [-1, 1] by dividing by 32768. Essential for interfacing with SDR hardware (USRP, HackRF, PlutoSDR) that outputs 16-bit integer I/Q pairs.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/interleaved.rs", line: 27, symbol: "InterleavedShortToComplex", description: "i16 to Complex conversion" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Normalization", plaintext: "z[n] = (I[2n]/32768) + j*(Q[2n+1]/32768)", latex: None, variables: &[("I", "in-phase i16"), ("Q", "quadrature i16")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_short_to_complex", module: "r4w_core::interleaved::tests", description: "i16 to complex conversion", expected_runtime_ms: 1 },
+            BlockTest { name: "test_short_roundtrip", module: "r4w_core::interleaved::tests", description: "Short roundtrip", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["ComplexToInterleavedShort", "RealToComplex", "TypeConversions"],
+        input_type: "Real",
+        output_type: "IQ",
+        key_parameters: &[],
+    });
+
+    m.insert("Complex to Short", BlockMetadata {
+        block_type: "ComplexToInterleavedShortBlock",
+        display_name: "Complex to Interleaved Short",
+        category: "Output",
+        description: "Converts Complex64 to interleaved i16 [I,Q,I,Q,...] for SDR hardware transmit. Scales by 32767 and clamps to [-32768, 32767].",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/interleaved.rs", line: 62, symbol: "ComplexToInterleavedShort", description: "Complex to i16 conversion" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Quantization", plaintext: "I[2n] = clamp(Re(z[n]) * 32767, -32768, 32767)", latex: None, variables: &[("z", "complex input")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_complex_to_short", module: "r4w_core::interleaved::tests", description: "Complex to i16", expected_runtime_ms: 1 },
+            BlockTest { name: "test_saturation", module: "r4w_core::interleaved::tests", description: "Clipping at bounds", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["InterleavedShortToComplex", "ComplexToReal", "TypeConversions"],
+        input_type: "IQ",
+        output_type: "Real",
+        key_parameters: &[],
+    });
+
     m
 }
 

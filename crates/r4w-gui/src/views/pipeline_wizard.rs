@@ -385,6 +385,13 @@ pub enum BlockType {
     ProbeAvgPowerBlock { alpha: f64, threshold_db: f64 },
     EnvelopeDetectorBlock { mode: String },
     AmDemodulatorBlock,
+    // Batch 25: Decimating FIR, interleaved conversions, AFC, moving avg decim, DC blocker
+    DecimatingFirBlock { decimation: usize, num_taps: usize },
+    AfcBlock { loop_gain: f64, sample_rate: f64 },
+    MovingAvgDecimBlock { length: usize },
+    DcBlockerBlock { alpha: f64 },
+    InterleavedShortToComplexBlock,
+    ComplexToInterleavedShortBlock,
 }
 
 impl BlockType {
@@ -539,6 +546,12 @@ impl BlockType {
             Self::ProbeAvgPowerBlock { .. } => "Probe Avg Power",
             Self::EnvelopeDetectorBlock { .. } => "Envelope Detector",
             Self::AmDemodulatorBlock => "AM Demodulator",
+            Self::DecimatingFirBlock { .. } => "Decimating FIR",
+            Self::AfcBlock { .. } => "AFC",
+            Self::MovingAvgDecimBlock { .. } => "Moving Avg Decim",
+            Self::DcBlockerBlock { .. } => "DC Blocker",
+            Self::InterleavedShortToComplexBlock => "Short to Complex",
+            Self::ComplexToInterleavedShortBlock => "Complex to Short",
         }
     }
 
@@ -622,6 +635,9 @@ impl BlockType {
             Self::StreamAddBlock | Self::StreamSubtractBlock => BlockCategory::RateConversion,
             Self::ProbeAvgPowerBlock { .. } => BlockCategory::Output,
             Self::EnvelopeDetectorBlock { .. } | Self::AmDemodulatorBlock => BlockCategory::Recovery,
+            Self::DecimatingFirBlock { .. } | Self::MovingAvgDecimBlock { .. } => BlockCategory::RateConversion,
+            Self::AfcBlock { .. } | Self::DcBlockerBlock { .. } => BlockCategory::Recovery,
+            Self::InterleavedShortToComplexBlock | Self::ComplexToInterleavedShortBlock => BlockCategory::Output,
         }
     }
 
@@ -789,6 +805,12 @@ impl BlockType {
             Self::ProbeAvgPowerBlock { .. } => vec![PortType::IQ],
             Self::EnvelopeDetectorBlock { .. } => vec![PortType::IQ],
             Self::AmDemodulatorBlock => vec![PortType::IQ],
+            Self::DecimatingFirBlock { .. } => vec![PortType::IQ],
+            Self::AfcBlock { .. } => vec![PortType::IQ],
+            Self::MovingAvgDecimBlock { .. } => vec![PortType::IQ],
+            Self::DcBlockerBlock { .. } => vec![PortType::IQ],
+            Self::InterleavedShortToComplexBlock => vec![PortType::Real],
+            Self::ComplexToInterleavedShortBlock => vec![PortType::IQ],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -948,6 +970,12 @@ impl BlockType {
             Self::ProbeAvgPowerBlock { .. } => vec![PortType::IQ],
             Self::EnvelopeDetectorBlock { .. } => vec![PortType::Real],
             Self::AmDemodulatorBlock => vec![PortType::Real],
+            Self::DecimatingFirBlock { .. } => vec![PortType::IQ],
+            Self::AfcBlock { .. } => vec![PortType::IQ],
+            Self::MovingAvgDecimBlock { .. } => vec![PortType::IQ],
+            Self::DcBlockerBlock { .. } => vec![PortType::IQ],
+            Self::InterleavedShortToComplexBlock => vec![PortType::IQ],
+            Self::ComplexToInterleavedShortBlock => vec![PortType::Real],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -3121,6 +3149,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::SampleRepeat { n: 4 },
             BlockType::StreamAddBlock,
             BlockType::StreamSubtractBlock,
+            BlockType::DecimatingFirBlock { decimation: 4, num_taps: 33 },
+            BlockType::MovingAvgDecimBlock { length: 16 },
         ]),
         (BlockCategory::Synchronization, vec![
             BlockType::PreambleInsert { pattern: "alternating".to_string(), length: 32 },
@@ -3184,6 +3214,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::NoiseBlankerBlock { threshold: 3.0, blank_width: 5 },
             BlockType::EnvelopeDetectorBlock { mode: "Magnitude".to_string() },
             BlockType::AmDemodulatorBlock,
+            BlockType::AfcBlock { loop_gain: 0.001, sample_rate: 48000.0 },
+            BlockType::DcBlockerBlock { alpha: 0.998 },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -3204,6 +3236,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::SampleDelay { delay_samples: 10 },
             BlockType::VectorSink { max_capacity: 1024 },
             BlockType::ProbeAvgPowerBlock { alpha: 0.01, threshold_db: -20.0 },
+            BlockType::InterleavedShortToComplexBlock,
+            BlockType::ComplexToInterleavedShortBlock,
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -7307,6 +7341,72 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), output)
             }
 
+            BlockType::DecimatingFirBlock { decimation, num_taps } => {
+                use r4w_core::decimating_fir::DecimatingFir;
+                let mut dfir = DecimatingFir::lowpass(*decimation, *num_taps);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let filtered = dfir.process(&complex);
+                let output: Vec<(f32, f32)> = filtered.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::AfcBlock { loop_gain, sample_rate } => {
+                use r4w_core::afc::{Afc, AfcDiscriminator};
+                let mut afc = Afc::new(AfcDiscriminator::Phase, *loop_gain, *sample_rate);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let corrected = afc.process(&complex);
+                let output: Vec<(f32, f32)> = corrected.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::MovingAvgDecimBlock { length } => {
+                use r4w_core::moving_avg_decim::MovingAvgDecim;
+                let mut mad = MovingAvgDecim::new(*length);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let averaged = mad.process(&complex);
+                let output: Vec<(f32, f32)> = averaged.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::DcBlockerBlock { alpha } => {
+                use r4w_core::dc_blocker::DcBlocker;
+                let mut blocker = DcBlocker::new(*alpha);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let cleaned = blocker.process(&complex);
+                let output: Vec<(f32, f32)> = cleaned.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::InterleavedShortToComplexBlock => {
+                // Pass-through in test panel (already complex)
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
+            BlockType::ComplexToInterleavedShortBlock => {
+                // Convert to i16 and back for demonstration
+                use r4w_core::interleaved::{ComplexToInterleavedShort, InterleavedShortToComplex};
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let shorts = ComplexToInterleavedShort::convert(&complex);
+                let back = InterleavedShortToComplex::convert(&shorts);
+                let output: Vec<(f32, f32)> = back.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -9952,6 +10052,67 @@ impl PipelineWizardView {
             BlockType::AmDemodulatorBlock => {
                 ui.label("AM demodulation via envelope detection + DC removal.");
                 ui.label("DC alpha: 0.005 (fixed)");
+            }
+            BlockType::DecimatingFirBlock { decimation, num_taps } => {
+                let mut new_dec = decimation as f64;
+                let mut new_taps = num_taps as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Decimation:");
+                    ui.add(egui::DragValue::new(&mut new_dec).range(1.0..=64.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Num Taps:");
+                    ui.add(egui::DragValue::new(&mut new_taps).range(3.0..=256.0).speed(1.0));
+                });
+                ui.label(format!("Output rate: 1/{}", new_dec as usize));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DecimatingFirBlock { decimation: new_dec as usize, num_taps: new_taps as usize };
+                }
+            }
+            BlockType::AfcBlock { loop_gain, sample_rate } => {
+                let mut new_gain = loop_gain;
+                let mut new_sr = sample_rate;
+                ui.horizontal(|ui| {
+                    ui.label("Loop Gain:");
+                    ui.add(egui::DragValue::new(&mut new_gain).range(0.0001..=0.1).speed(0.0001));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sr).range(1000.0..=100_000_000.0).speed(1000.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::AfcBlock { loop_gain: new_gain, sample_rate: new_sr };
+                }
+            }
+            BlockType::MovingAvgDecimBlock { length } => {
+                let mut new_len = length as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Average Length:");
+                    ui.add(egui::DragValue::new(&mut new_len).range(1.0..=1024.0).speed(1.0));
+                });
+                ui.label(format!("Output rate: 1/{}", new_len as usize));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::MovingAvgDecimBlock { length: new_len as usize };
+                }
+            }
+            BlockType::DcBlockerBlock { alpha } => {
+                let mut new_alpha = alpha;
+                ui.horizontal(|ui| {
+                    ui.label("Alpha (pole):");
+                    ui.add(egui::DragValue::new(&mut new_alpha).range(0.9..=0.99999).speed(0.001));
+                });
+                ui.label(format!("Time constant: ~{:.0} samples", 1.0 / (1.0 - new_alpha)));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DcBlockerBlock { alpha: new_alpha };
+                }
+            }
+            BlockType::InterleavedShortToComplexBlock => {
+                ui.label("Converts interleaved i16 [I,Q,I,Q,...] to complex.");
+                ui.label("Normalization: /32768 → [-1, 1]");
+            }
+            BlockType::ComplexToInterleavedShortBlock => {
+                ui.label("Converts complex to interleaved i16 [I,Q,I,Q,...].");
+                ui.label("Scale: ×32767, clamped to [-32768, 32767]");
             }
             BlockType::FileSource { path } => {
                 let mut new_path = path;

@@ -44,6 +44,7 @@
 //! let decoded = demodulator.demodulate(&samples);
 //! ```
 
+pub mod afc;
 pub mod agent;
 pub mod agc;
 pub mod arithmetic;
@@ -53,6 +54,8 @@ pub mod clock_recovery_mm;
 pub mod coordinates;
 pub mod correlator;
 pub mod crc;
+pub mod dc_blocker;
+pub mod decimating_fir;
 pub mod differential;
 pub mod equalizer;
 pub mod analysis;
@@ -93,10 +96,12 @@ pub mod freq_xlating_fir;
 pub mod goertzel;
 pub mod gps_time;
 pub mod hw_impairments;
+pub mod interleaved;
 pub mod io;
 pub mod log_power_fft;
 pub mod lpi_metrics;
 pub mod modulation;
+pub mod moving_avg_decim;
 pub mod multiply;
 pub mod nco;
 pub mod noise;
