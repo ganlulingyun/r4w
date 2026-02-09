@@ -277,6 +277,14 @@ pub enum BlockType {
     KeepOneInN { n: u32 },
     SampleRepeat { n: u32 },
 
+    // Batch 14: delay, multiply, bit packing, power squelch, plateau detector
+    SampleDelay { delay_samples: u32 },
+    MultiplyConst { gain_re: f32, gain_im: f32 },
+    PackKBits { k: u32 },
+    UnpackKBits { k: u32 },
+    PowerSquelch { threshold_db: f32, hysteresis_db: f32 },
+    PlateauDetector { threshold: f32, min_width: u32 },
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -373,6 +381,12 @@ impl BlockType {
             Self::MovingAverage { .. } => "Moving Average",
             Self::KeepOneInN { .. } => "Keep 1 in N",
             Self::SampleRepeat { .. } => "Repeat",
+            Self::SampleDelay { .. } => "Delay",
+            Self::MultiplyConst { .. } => "Multiply Const",
+            Self::PackKBits { .. } => "Pack K Bits",
+            Self::UnpackKBits { .. } => "Unpack K Bits",
+            Self::PowerSquelch { .. } => "Power Squelch",
+            Self::PlateauDetector { .. } => "Plateau Detector",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -409,6 +423,11 @@ impl BlockType {
             Self::PfbSynthesizer { .. } => BlockCategory::Source,
             Self::MovingAverage { .. } => BlockCategory::Filtering,
             Self::KeepOneInN { .. } | Self::SampleRepeat { .. } => BlockCategory::RateConversion,
+            Self::SampleDelay { .. } => BlockCategory::Output,
+            Self::MultiplyConst { .. } => BlockCategory::Filtering,
+            Self::PackKBits { .. } | Self::UnpackKBits { .. } => BlockCategory::Coding,
+            Self::PowerSquelch { .. } => BlockCategory::Recovery,
+            Self::PlateauDetector { .. } => BlockCategory::Synchronization,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -504,6 +523,11 @@ impl BlockType {
             Self::MovingAverage { .. } => vec![PortType::IQ],
             Self::KeepOneInN { .. } | Self::SampleRepeat { .. } => vec![PortType::IQ],
 
+            // Batch 14 blocks
+            Self::SampleDelay { .. } | Self::MultiplyConst { .. } | Self::PowerSquelch { .. } => vec![PortType::IQ],
+            Self::PackKBits { .. } | Self::UnpackKBits { .. } => vec![PortType::Bits],
+            Self::PlateauDetector { .. } => vec![PortType::Real],
+
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
 
@@ -588,6 +612,11 @@ impl BlockType {
             Self::PfbSynthesizer { .. } => vec![PortType::IQ],
             Self::MovingAverage { .. } => vec![PortType::IQ],
             Self::KeepOneInN { .. } | Self::SampleRepeat { .. } => vec![PortType::IQ],
+
+            // Batch 14 blocks
+            Self::SampleDelay { .. } | Self::MultiplyConst { .. } | Self::PowerSquelch { .. } => vec![PortType::IQ],
+            Self::PackKBits { .. } | Self::UnpackKBits { .. } => vec![PortType::Bits],
+            Self::PlateauDetector { .. } => vec![PortType::Real],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2693,6 +2722,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FecEncoder { code_type: FecType::Convolutional, rate: "1/2".to_string() },
             BlockType::Interleaver { rows: 8, cols: 16 },
             BlockType::CrcGenerator { crc_type: CrcType::Crc16Ccitt },
+            BlockType::PackKBits { k: 8 },
+            BlockType::UnpackKBits { k: 8 },
         ]),
         (BlockCategory::Mapping, vec![
             BlockType::GrayMapper { bits_per_symbol: 2 },
@@ -2719,6 +2750,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::DeEmphasis { standard: "US75".to_string(), sample_rate_hz: 48000.0 },
             BlockType::PreEmphasis { standard: "US75".to_string(), sample_rate_hz: 48000.0 },
             BlockType::MovingAverage { length: 8 },
+            BlockType::MultiplyConst { gain_re: 1.0, gain_im: 0.0 },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -2736,6 +2768,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FrameBuilder { header_bits: 32, payload_bits: 256 },
             BlockType::TdmaFramer { slots: 4, slot_ms: 10.0 },
             BlockType::AccessCodeDetector { access_code_hex: "E5".to_string(), threshold: 1 },
+            BlockType::PlateauDetector { threshold: 0.8, min_width: 4 },
         ]),
         (BlockCategory::Impairments, vec![
             BlockType::AwgnChannel { snr_db: 20.0 },
@@ -2757,6 +2790,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::CtcssSquelch { tone_freq: 100.0, sample_rate_hz: 48000.0, threshold: 2.0 },
             BlockType::QuadratureDemod { gain: 1.0, mode: "FM".to_string() },
             BlockType::FllBandEdge { samples_per_symbol: 4.0, rolloff: 0.35, filter_size: 45, loop_bandwidth: 0.02 },
+            BlockType::PowerSquelch { threshold_db: -30.0, hysteresis_db: 3.0 },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -2773,6 +2807,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::ComplexToArg,
             BlockType::ComplexToReal,
             BlockType::RealToComplex,
+            BlockType::SampleDelay { delay_samples: 10 },
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -5751,6 +5786,90 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // Sample Delay
+            BlockType::SampleDelay { delay_samples } => {
+                use r4w_core::delay::Delay as CoreDelay;
+                use num_complex::Complex64;
+                let mut d = CoreDelay::new(*delay_samples as usize);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = d.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Multiply by Constant
+            BlockType::MultiplyConst { gain_re, gain_im } => {
+                use r4w_core::multiply::MultiplyConst as CoreMc;
+                use num_complex::Complex64;
+                let mc = CoreMc::new(Complex64::new(*gain_re as f64, *gain_im as f64));
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = mc.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Pack K Bits
+            BlockType::PackKBits { k } => {
+                use r4w_core::bit_packing::PackKBits as CorePk;
+                let pk = CorePk::new(*k as usize);
+                let bytes: Vec<u8> = input_bits.iter().map(|&b| if b { 1u8 } else { 0u8 }).collect();
+                let packed = pk.pack(&bytes);
+                let bits: Vec<bool> = packed.iter().map(|&b| b != 0).collect();
+                (bits, Vec::new(), Vec::new())
+            }
+
+            // Unpack K Bits
+            BlockType::UnpackKBits { k } => {
+                use r4w_core::bit_packing::UnpackKBits as CoreUk;
+                let uk = CoreUk::new(*k as usize);
+                let bytes: Vec<u8> = input_bits.iter().map(|&b| if b { 1u8 } else { 0u8 }).collect();
+                let unpacked = uk.unpack(&bytes);
+                let bits: Vec<bool> = unpacked.iter().map(|&b| b != 0).collect();
+                (bits, Vec::new(), Vec::new())
+            }
+
+            // Power Squelch
+            BlockType::PowerSquelch { threshold_db, hysteresis_db } => {
+                use r4w_core::power_squelch::PowerSquelch as CorePs;
+                use num_complex::Complex64;
+                let mut ps = CorePs::with_config(
+                    *threshold_db as f64,
+                    *hysteresis_db as f64,
+                    1, 1, 0.1,
+                );
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = ps.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Plateau Detector
+            BlockType::PlateauDetector { threshold, min_width } => {
+                use r4w_core::plateau_detector::PlateauDetector as CorePd;
+                let mut pd = CorePd::new(*threshold as f64, *min_width as usize);
+                // Input is Real samples (amplitude values)
+                let real_input: Vec<f64> = input_samples.iter()
+                    .map(|&(r, _)| r as f64)
+                    .collect();
+                let output = pd.process_block(&real_input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // PFB Synthesizer: multi-channel → wideband
             BlockType::PfbSynthesizer { num_channels, taps_per_channel, window } => {
                 use r4w_core::pfb_synthesizer::{PfbSynthesizer as CorePfb, PfbSynthConfig};
@@ -7451,6 +7570,81 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::SampleRepeat { n: new_n };
+                }
+            }
+            BlockType::SampleDelay { delay_samples } => {
+                let mut new_d = delay_samples;
+                ui.horizontal(|ui| {
+                    ui.label("Delay (samples):");
+                    ui.add(egui::DragValue::new(&mut new_d).range(0..=100000));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SampleDelay { delay_samples: new_d };
+                }
+            }
+            BlockType::MultiplyConst { gain_re, gain_im } => {
+                let mut new_re = gain_re;
+                let mut new_im = gain_im;
+                ui.horizontal(|ui| {
+                    ui.label("Gain (real):");
+                    ui.add(egui::DragValue::new(&mut new_re).speed(0.01).range(-100.0..=100.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Gain (imag):");
+                    ui.add(egui::DragValue::new(&mut new_im).speed(0.01).range(-100.0..=100.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::MultiplyConst { gain_re: new_re, gain_im: new_im };
+                }
+            }
+            BlockType::PackKBits { k } => {
+                let mut new_k = k;
+                ui.horizontal(|ui| {
+                    ui.label("Bits per byte (K):");
+                    ui.add(egui::DragValue::new(&mut new_k).range(1..=8));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PackKBits { k: new_k };
+                }
+            }
+            BlockType::UnpackKBits { k } => {
+                let mut new_k = k;
+                ui.horizontal(|ui| {
+                    ui.label("Bits per byte (K):");
+                    ui.add(egui::DragValue::new(&mut new_k).range(1..=8));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::UnpackKBits { k: new_k };
+                }
+            }
+            BlockType::PowerSquelch { threshold_db, hysteresis_db } => {
+                let mut new_th = threshold_db;
+                let mut new_hy = hysteresis_db;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold (dBFS):");
+                    ui.add(egui::DragValue::new(&mut new_th).speed(0.5).range(-100.0..=0.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Hysteresis (dB):");
+                    ui.add(egui::DragValue::new(&mut new_hy).speed(0.1).range(0.0..=20.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PowerSquelch { threshold_db: new_th, hysteresis_db: new_hy };
+                }
+            }
+            BlockType::PlateauDetector { threshold, min_width } => {
+                let mut new_th = threshold;
+                let mut new_mw = min_width;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::Slider::new(&mut new_th, 0.0..=1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Min Width:");
+                    ui.add(egui::DragValue::new(&mut new_mw).range(1..=1000));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PlateauDetector { threshold: new_th, min_width: new_mw };
                 }
             }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |

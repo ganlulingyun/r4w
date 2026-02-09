@@ -2619,6 +2619,209 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["n"],
         });
 
+    // Batch 14: Delay, MultiplyConst, PackKBits, UnpackKBits, PowerSquelch, PlateauDetector
+    m.insert("SampleDelay", BlockMetadata {
+            block_type: "SampleDelay",
+            display_name: "Delay",
+            category: "Stream Operations",
+            description: "Delays an input sample stream by a configurable number of samples, inserting zeros at the beginning. Used for path alignment, filter group delay compensation, and feedback loops.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/delay.rs",
+                line: 34,
+                symbol: "Delay",
+                description: "Configurable sample delay using VecDeque",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Delay",
+                    plaintext: "y[n] = x[n - D]",
+                    latex: Some("y[n] = x[n - D]"),
+                    variables: &[("D", "Delay in samples")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_delay_inserts_zeros", module: "r4w_core::delay::tests", description: "Verifies zeros inserted", expected_runtime_ms: 5 },
+                BlockTest { name: "test_delay_continuity", module: "r4w_core::delay::tests", description: "State across blocks", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(1) per sample", memory: "O(D)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["HeadBlock", "SkipHeadBlock"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (delayed)",
+            key_parameters: &["delay_samples"],
+        });
+
+    m.insert("MultiplyConst", BlockMetadata {
+            block_type: "MultiplyConst",
+            display_name: "Multiply Const",
+            category: "Filtering",
+            description: "Multiplies every sample by a fixed complex constant. Used for gain control, phase rotation, and frequency shifting (when combined with NCO).",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/multiply.rs",
+                line: 54,
+                symbol: "MultiplyConst",
+                description: "Constant complex multiplication",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Multiply Const",
+                    plaintext: "y[n] = c * x[n]",
+                    latex: Some("y[n] = c \\cdot x[n]"),
+                    variables: &[("c", "Complex constant (gain_re + j*gain_im)"), ("x[n]", "Input sample")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_multiply_const_gain", module: "r4w_core::multiply::tests", description: "Scalar gain", expected_runtime_ms: 5 },
+                BlockTest { name: "test_multiply_const_rotation", module: "r4w_core::multiply::tests", description: "90 degree rotation by j", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["Agc", "FirFilter"],
+            input_type: "IQ samples",
+            output_type: "IQ samples",
+            key_parameters: &["gain_re", "gain_im"],
+        });
+
+    m.insert("PackKBits", BlockMetadata {
+            block_type: "PackKBits",
+            display_name: "Pack K Bits",
+            category: "Coding",
+            description: "Packs K individual bits (one bit per byte, in LSB) into bytes with K bits each (MSB first). Essential glue between FEC decoders and modulators.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/bit_packing.rs",
+                line: 29,
+                symbol: "PackKBits",
+                description: "Bit packing with configurable K",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Bit Packing",
+                    plaintext: "output_byte = b[0]<<(K-1) | b[1]<<(K-2) | ... | b[K-1]",
+                    latex: Some("y = \\sum_{i=0}^{K-1} b_i \\cdot 2^{K-1-i}"),
+                    variables: &[("K", "Bits per output byte"), ("b_i", "Input bit i")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_pack_8_bits", module: "r4w_core::bit_packing::tests", description: "Pack 8 bits into byte", expected_runtime_ms: 5 },
+                BlockTest { name: "test_pack_unpack_roundtrip", module: "r4w_core::bit_packing::tests", description: "Pack/unpack roundtrip", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["UnpackKBits", "Scrambler", "FecEncoder"],
+            input_type: "Bits (1 per byte)",
+            output_type: "Bits (K per byte)",
+            key_parameters: &["k"],
+        });
+
+    m.insert("UnpackKBits", BlockMetadata {
+            block_type: "UnpackKBits",
+            display_name: "Unpack K Bits",
+            category: "Coding",
+            description: "Unpacks bytes with K bits each into individual bits (one per byte, MSB first). Inverse of Pack K Bits.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/bit_packing.rs",
+                line: 65,
+                symbol: "UnpackKBits",
+                description: "Bit unpacking with configurable K",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Bit Unpacking",
+                    plaintext: "b[i] = (input_byte >> (K-1-i)) & 1",
+                    latex: Some("b_i = \\lfloor y / 2^{K-1-i} \\rfloor \\mod 2"),
+                    variables: &[("K", "Bits per input byte"), ("b_i", "Output bit i")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_unpack_8_bits", module: "r4w_core::bit_packing::tests", description: "Unpack byte to 8 bits", expected_runtime_ms: 5 },
+                BlockTest { name: "test_pack_unpack_roundtrip", module: "r4w_core::bit_packing::tests", description: "Pack/unpack roundtrip", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n*K)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["PackKBits", "Scrambler"],
+            input_type: "Bits (K per byte)",
+            output_type: "Bits (1 per byte)",
+            key_parameters: &["k"],
+        });
+
+    m.insert("PowerSquelch", BlockMetadata {
+            block_type: "PowerSquelch",
+            display_name: "Power Squelch",
+            category: "Recovery",
+            description: "Gates signal based on power level. Passes samples when power exceeds threshold, outputs zeros otherwise. Includes hysteresis and attack/release timing.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/power_squelch.rs",
+                line: 26,
+                symbol: "PowerSquelch",
+                description: "Power-based signal gating with hysteresis",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Power Squelch",
+                    plaintext: "y[n] = x[n] if P_smooth > threshold, else 0",
+                    latex: Some("y[n] = \\begin{cases} x[n] & P_{\\text{smooth}} > T \\\\ 0 & \\text{otherwise} \\end{cases}"),
+                    variables: &[("T", "Threshold in dBFS"), ("P_smooth", "Smoothed power estimate")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_quiet_signal_gated", module: "r4w_core::power_squelch::tests", description: "Quiet signal is gated", expected_runtime_ms: 5 },
+                BlockTest { name: "test_loud_signal_passes", module: "r4w_core::power_squelch::tests", description: "Loud signal passes through", expected_runtime_ms: 5 },
+                BlockTest { name: "test_hysteresis", module: "r4w_core::power_squelch::tests", description: "Hysteresis prevents toggling", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(1) per sample", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["CtcssSquelch", "BurstDetector", "Agc"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (gated)",
+            key_parameters: &["threshold_db", "hysteresis_db"],
+        });
+
+    m.insert("PlateauDetector", BlockMetadata {
+            block_type: "PlateauDetector",
+            display_name: "Plateau Detector",
+            category: "Synchronization",
+            description: "Detects flat regions (plateaus) in a signal and marks their midpoints. Used in OFDM Schmidl-Cox synchronization where the timing metric produces a plateau rather than a peak.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/plateau_detector.rs",
+                line: 39,
+                symbol: "PlateauDetector",
+                description: "Plateau detection with configurable threshold and minimum width",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Plateau Detection",
+                    plaintext: "detect: x[n] >= threshold for >= min_width consecutive samples",
+                    latex: Some("\\text{plateau} = \\{n : x[n] \\geq T, \\text{width} \\geq W_{\\min}\\}"),
+                    variables: &[("T", "Detection threshold"), ("W_min", "Minimum plateau width in samples")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_basic_plateau", module: "r4w_core::plateau_detector::tests", description: "Detect single plateau", expected_runtime_ms: 5 },
+                BlockTest { name: "test_multiple_plateaus", module: "r4w_core::plateau_detector::tests", description: "Multiple plateau detection", expected_runtime_ms: 5 },
+                BlockTest { name: "test_too_narrow", module: "r4w_core::plateau_detector::tests", description: "Reject narrow peaks", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "Schmidl & Cox, IEEE Trans. Comm., 1997", section: Some("Robust Frequency and Timing Synchronization for OFDM"), url: None },
+            ],
+            related_blocks: &["BurstDetector", "AccessCodeDetector", "PreambleInsert"],
+            input_type: "Real (timing metric)",
+            output_type: "Real (binary: 1 at midpoints)",
+            key_parameters: &["threshold", "min_width"],
+        });
+
     m
 }
 
