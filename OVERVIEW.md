@@ -2067,7 +2067,7 @@ The mesh networking module is now implemented in `crates/r4w-core/src/mesh/`:
 | `mac.rs` | CSMA/CA `MacLayer`, `CsmaConfig`, `ChannelUtilization` | ✅ Complete |
 | `meshtastic.rs` | `MeshtasticNode`, `ModemPreset`, `Region`, channel config | ✅ Complete |
 | `lora_mesh.rs` | `LoRaMesh`, `LoRaMeshPhy` - LoRa waveform with mesh integration | ✅ Complete |
-| `crypto.rs` | AES-256-CTR encryption, channel keys, MIC (Message Integrity Code) | ✅ Complete |
+| `crypto.rs` | AES-256-CTR encryption, direct PSK key derivation, XOR channel hash | ✅ Complete |
 | `telemetry.rs` | Device, environment, and power metrics | ✅ Complete |
 | `wire/` | 16-byte Meshtastic wire header format (little-endian) | ✅ Complete |
 | `proto/` | Prost protobuf message encoding (Data, Position, User, Telemetry) | ✅ Complete |
@@ -2077,9 +2077,11 @@ The mesh networking module is now implemented in `crates/r4w-core/src/mesh/`:
 The mesh module now includes protocol enhancements for real Meshtastic network interoperability:
 
 **Crypto Module (`crypto.rs`)** - Enable with `--features crypto`
-- AES-256-CTR encryption compatible with Meshtastic devices
-- Channel key derivation from channel name + PSK
-- HMAC-SHA256 Message Integrity Code (MIC)
+- AES-256-CTR encryption matching Meshtastic firmware (`CryptoEngine.cpp`)
+- Direct PSK key usage (32-byte direct, 16-byte zero-padded, 1-byte index expansion)
+- Nonce: `[pkt_id_u64_LE, node_id_u32_LE, zeros]`
+- XOR-fold channel hash: `xorHash(name) ^ xorHash(psk)`
+- No MIC in CTR mode (matches Meshtastic protocol)
 - `PacketCrypto` trait for encrypt/decrypt on `MeshPacket`
 
 **Telemetry Module (`telemetry.rs`)**

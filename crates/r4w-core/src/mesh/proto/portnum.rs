@@ -33,12 +33,20 @@ pub enum PortNum {
     Audio = 9,
     /// Detection sensor data
     DetectionSensor = 10,
+    /// Alert notification
+    Alert = 11,
+    /// Key verification for PKC
+    KeyVerification = 12,
     /// Reply to a message
     Reply = 32,
     /// IP tunnel (TCP/IP over mesh)
     IpTunnel = 33,
     /// Paxcounter (people counting)
     Paxcounter = 34,
+    /// Store and forward++ (improved)
+    StoreForwardPlusPlus = 35,
+    /// Node status
+    NodeStatus = 36,
     /// Serial port data
     Serial = 64,
     /// Store and forward messages
@@ -61,6 +69,10 @@ pub enum PortNum {
     MapReport = 73,
     /// Power stress test
     PowerStress = 74,
+    /// Reticulum tunnel
+    ReticulumTunnel = 76,
+    /// Cayenne LPP
+    Cayenne = 77,
     /// Private application (start of private range)
     PrivateApp = 256,
     /// ATAK forwarder
@@ -84,9 +96,13 @@ impl PortNum {
             8 => PortNum::Waypoint,
             9 => PortNum::Audio,
             10 => PortNum::DetectionSensor,
+            11 => PortNum::Alert,
+            12 => PortNum::KeyVerification,
             32 => PortNum::Reply,
             33 => PortNum::IpTunnel,
             34 => PortNum::Paxcounter,
+            35 => PortNum::StoreForwardPlusPlus,
+            36 => PortNum::NodeStatus,
             64 => PortNum::Serial,
             65 => PortNum::StoreForward,
             66 => PortNum::RangeTest,
@@ -98,6 +114,8 @@ impl PortNum {
             72 => PortNum::AtakPlugin,
             73 => PortNum::MapReport,
             74 => PortNum::PowerStress,
+            76 => PortNum::ReticulumTunnel,
+            77 => PortNum::Cayenne,
             256 => PortNum::PrivateApp,
             257 => PortNum::AtakForwarder,
             511 => PortNum::Max,
@@ -157,5 +175,53 @@ mod tests {
         assert!(!PortNum::Text.is_private());
         assert!(PortNum::PrivateApp.is_private());
         assert!(PortNum::AtakForwarder.is_private());
+    }
+
+    #[test]
+    fn test_portnum_values_match_meshtastic() {
+        // trace:MESH-014 | ai:claude
+        // Verify all PortNum values match official Meshtastic protobufs
+        assert_eq!(PortNum::Unknown.as_u32(), 0);
+        assert_eq!(PortNum::Text.as_u32(), 1);
+        assert_eq!(PortNum::RemoteHardware.as_u32(), 2);
+        assert_eq!(PortNum::Position.as_u32(), 3);
+        assert_eq!(PortNum::NodeInfo.as_u32(), 4);
+        assert_eq!(PortNum::Routing.as_u32(), 5);
+        assert_eq!(PortNum::Admin.as_u32(), 6);
+        assert_eq!(PortNum::TextMessageCompressed.as_u32(), 7);
+        assert_eq!(PortNum::Waypoint.as_u32(), 8);
+        assert_eq!(PortNum::Audio.as_u32(), 9);
+        assert_eq!(PortNum::DetectionSensor.as_u32(), 10);
+        assert_eq!(PortNum::Alert.as_u32(), 11);
+        assert_eq!(PortNum::KeyVerification.as_u32(), 12);
+        assert_eq!(PortNum::Reply.as_u32(), 32);
+        assert_eq!(PortNum::IpTunnel.as_u32(), 33);
+        assert_eq!(PortNum::Paxcounter.as_u32(), 34);
+        assert_eq!(PortNum::StoreForwardPlusPlus.as_u32(), 35);
+        assert_eq!(PortNum::NodeStatus.as_u32(), 36);
+        assert_eq!(PortNum::Serial.as_u32(), 64);
+        assert_eq!(PortNum::StoreForward.as_u32(), 65);
+        assert_eq!(PortNum::RangeTest.as_u32(), 66);
+        assert_eq!(PortNum::Telemetry.as_u32(), 67);
+        assert_eq!(PortNum::Traceroute.as_u32(), 70);
+        assert_eq!(PortNum::NeighborInfo.as_u32(), 71);
+        assert_eq!(PortNum::AtakPlugin.as_u32(), 72);
+        assert_eq!(PortNum::MapReport.as_u32(), 73);
+        assert_eq!(PortNum::PowerStress.as_u32(), 74);
+        assert_eq!(PortNum::ReticulumTunnel.as_u32(), 76);
+        assert_eq!(PortNum::Cayenne.as_u32(), 77);
+        assert_eq!(PortNum::PrivateApp.as_u32(), 256);
+        assert_eq!(PortNum::AtakForwarder.as_u32(), 257);
+        assert_eq!(PortNum::Max.as_u32(), 511);
+    }
+
+    #[test]
+    fn test_new_portnum_roundtrip() {
+        assert_eq!(PortNum::from_u32(11), PortNum::Alert);
+        assert_eq!(PortNum::from_u32(12), PortNum::KeyVerification);
+        assert_eq!(PortNum::from_u32(35), PortNum::StoreForwardPlusPlus);
+        assert_eq!(PortNum::from_u32(36), PortNum::NodeStatus);
+        assert_eq!(PortNum::from_u32(76), PortNum::ReticulumTunnel);
+        assert_eq!(PortNum::from_u32(77), PortNum::Cayenne);
     }
 }

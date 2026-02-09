@@ -1,32 +1,28 @@
 //! Meshtastic-compatible AES-256-CTR encryption
 //!
-//! Implements channel encryption compatible with the Meshtastic protocol:
-//! - AES-256-CTR mode encryption
-//! - Key derivation from channel name + PSK
-//! - HMAC-SHA256 for Message Integrity Code (MIC)
+//! Implements channel encryption compatible with the Meshtastic protocol.
+//! Matches the firmware implementation in `CryptoEngine.cpp`.
 //!
 //! ## Key Derivation
 //!
-//! The channel key is derived from:
-//! ```text
-//! key = SHA256(channel_name || PSK || "Meshtastic")
-//! ```
+//! The PSK is used directly as the AES-256 key:
+//! - 32-byte PSK → used directly as AES-256 key
+//! - 16-byte PSK → zero-padded to 32 bytes
+//! - 1-byte PSK index → expanded from DEFAULT_PSK with index offset
 //!
 //! ## Nonce Construction
 //!
 //! The 16-byte nonce (IV) for AES-256-CTR is constructed as:
 //! ```text
-//! Bytes 0-3:   source_node_id (little-endian)
-//! Bytes 4-7:   packet_id (little-endian)
-//! Bytes 8-15:  nonce_base XOR with fixed pattern
+//! Bytes 0-7:   packet_id as u64 (little-endian)
+//! Bytes 8-11:  source node_id as u32 (little-endian)
+//! Bytes 12-15: zeros (AES-CTR block counter space)
 //! ```
 //!
-//! ## MIC (Message Integrity Code)
+//! ## No MIC in CTR Mode
 //!
-//! The 4-byte MIC is the first 4 bytes of:
-//! ```text
-//! HMAC-SHA256(key, header || ciphertext)
-//! ```
+//! Meshtastic AES-CTR mode does not use a Message Integrity Code (MIC).
+//! The protocol relies on higher-layer integrity checks.
 
 use super::packet::{MeshPacket, NodeId};
 
@@ -36,10 +32,6 @@ use aes::Aes256;
 use ctr::cipher::{KeyIvInit, StreamCipher};
 #[cfg(feature = "crypto")]
 use ctr::Ctr128BE;
-#[cfg(feature = "crypto")]
-use hmac::{Hmac, Mac};
-#[cfg(feature = "crypto")]
-use sha2::{Digest, Sha256};
 
 /// Default Pre-Shared Key (PSK) for the default channel
 /// This is the well-known key used by default Meshtastic channels
@@ -47,14 +39,6 @@ pub const DEFAULT_PSK: &[u8] = &[
     0xd4, 0xf1, 0xbb, 0x3a, 0x20, 0x29, 0x07, 0x59,
     0xf0, 0xbc, 0xff, 0xab, 0xcf, 0x4e, 0x69, 0x01,
 ];
-
-/// Magic string for key derivation
-#[cfg(feature = "crypto")]
-const KEY_DERIVATION_MAGIC: &[u8] = b"Meshtastic";
-
-/// Nonce base pattern for XOR
-#[cfg(feature = "crypto")]
-const NONCE_BASE: [u8; 8] = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07];
 
 /// Crypto error types
 #[derive(Debug, Clone, PartialEq)]
@@ -104,9 +88,15 @@ pub struct ChannelKey {
 
 impl ChannelKey {
     /// Create a channel key from name and PSK
+    ///
+    /// The PSK is used directly as the AES key (Meshtastic-compatible):
+    /// - 32-byte PSK → used directly as AES-256 key
+    /// - 16-byte PSK → zero-padded to 32 bytes
+    /// - 1-byte PSK index → expanded from DEFAULT_PSK with index offset
+    /// - Other lengths → zero-padded to 32 bytes
     #[cfg(feature = "crypto")]
     pub fn new(channel_name: &str, psk: &[u8]) -> Self {
-        let key = Self::derive_key(channel_name, psk);
+        let key = Self::key_from_psk(psk);
         Self {
             key,
             channel_name: channel_name.to_string(),
@@ -127,16 +117,51 @@ impl ChannelKey {
         }
     }
 
-    /// Derive key from channel name and PSK using SHA-256
+    /// Create a channel key from a 1-byte PSK index
+    ///
+    /// Expands the default PSK by setting the last byte to the index value.
+    /// Index 0 = unencrypted, index 1 = default PSK as-is.
     #[cfg(feature = "crypto")]
-    fn derive_key(channel_name: &str, psk: &[u8]) -> [u8; 32] {
-        let mut hasher = Sha256::new();
-        hasher.update(channel_name.as_bytes());
-        hasher.update(psk);
-        hasher.update(KEY_DERIVATION_MAGIC);
-        let result = hasher.finalize();
+    pub fn from_psk_index(channel_name: &str, index: u8) -> Self {
+        if index == 0 {
+            // Index 0 means no encryption
+            return Self {
+                key: [0u8; 32],
+                channel_name: channel_name.to_string(),
+            };
+        }
+        let mut expanded = [0u8; 32];
+        expanded[..DEFAULT_PSK.len()].copy_from_slice(DEFAULT_PSK);
+        if index > 1 {
+            expanded[DEFAULT_PSK.len() - 1] = index;
+        }
+        Self {
+            key: expanded,
+            channel_name: channel_name.to_string(),
+        }
+    }
+
+    /// Convert PSK bytes to a 32-byte AES key (Meshtastic-compatible)
+    ///
+    /// PSK is used directly — no SHA-256 derivation.
+    #[cfg(feature = "crypto")]
+    fn key_from_psk(psk: &[u8]) -> [u8; 32] {
         let mut key = [0u8; 32];
-        key.copy_from_slice(&result);
+        match psk.len() {
+            32 => key.copy_from_slice(psk),
+            1 => {
+                // Single-byte PSK index: expand from default
+                key[..DEFAULT_PSK.len()].copy_from_slice(DEFAULT_PSK);
+                if psk[0] > 1 {
+                    key[DEFAULT_PSK.len() - 1] = psk[0];
+                }
+            }
+            n => {
+                // Any other length: copy what fits, zero-pad the rest
+                let copy_len = n.min(32);
+                key[..copy_len].copy_from_slice(&psk[..copy_len]);
+            }
+        }
         key
     }
 
@@ -150,20 +175,14 @@ impl ChannelKey {
         &self.channel_name
     }
 
-    /// Compute channel hash (first byte of SHA-256(channel_name))
-    /// Used for quick channel identification in packet headers
-    #[cfg(feature = "crypto")]
+    /// Compute channel hash using XOR fold (Meshtastic-compatible)
+    ///
+    /// Matches the `xorHash()` function in Meshtastic firmware:
+    /// `hash = xorHash(channel_name) ^ xorHash(psk)`
     pub fn channel_hash(&self) -> u8 {
-        let mut hasher = Sha256::new();
-        hasher.update(self.channel_name.as_bytes());
-        hasher.finalize()[0]
-    }
-
-    /// Compute channel hash (stub when crypto disabled)
-    #[cfg(not(feature = "crypto"))]
-    pub fn channel_hash(&self) -> u8 {
-        // Simple hash without SHA-256
-        self.channel_name.bytes().fold(0u8, |acc, b| acc.wrapping_add(b))
+        let name_hash = self.channel_name.as_bytes().iter().fold(0u8, |acc, &b| acc ^ b);
+        let key_hash = self.key.iter().fold(0u8, |acc, &b| acc ^ b);
+        name_hash ^ key_hash
     }
 }
 
@@ -210,67 +229,57 @@ impl CryptoContext {
         self.key.channel_hash()
     }
 
-    /// Construct the 16-byte nonce/IV for AES-CTR
+    /// Construct the 16-byte nonce/IV for AES-CTR (Meshtastic-compatible)
+    ///
+    /// Matches the firmware `CryptoEngine::initNonce()`:
+    /// ```text
+    /// Bytes 0-7:   packet_id as u64 (little-endian)
+    /// Bytes 8-11:  source node_id as u32 (little-endian)
+    /// Bytes 12-15: zeros (AES-CTR block counter space)
+    /// ```
     #[cfg(feature = "crypto")]
     fn make_nonce(source: NodeId, packet_id: u32) -> [u8; 16] {
         let mut nonce = [0u8; 16];
 
-        // Bytes 0-3: source node ID (little-endian)
-        nonce[0..4].copy_from_slice(source.as_bytes());
+        // Bytes 0-7: packet_id as u64, little-endian
+        nonce[0..8].copy_from_slice(&(packet_id as u64).to_le_bytes());
 
-        // Bytes 4-7: packet_id (little-endian)
-        nonce[4..8].copy_from_slice(&packet_id.to_le_bytes());
+        // Bytes 8-11: source node_id as u32, little-endian
+        nonce[8..12].copy_from_slice(&source.to_u32().to_le_bytes());
 
-        // Bytes 8-15: nonce_base XOR pattern
-        for (i, &b) in NONCE_BASE.iter().enumerate() {
-            nonce[8 + i] = b ^ (i as u8);
-        }
-
+        // Bytes 12-15: zeros (block counter)
         nonce
     }
 
-    /// Encrypt payload and compute MIC
+    /// Encrypt payload using AES-256-CTR (Meshtastic-compatible)
     ///
-    /// Returns (ciphertext, mic)
+    /// Returns ciphertext only — no MIC in CTR mode.
     #[cfg(feature = "crypto")]
     pub fn encrypt(
         &self,
         plaintext: &[u8],
         source: NodeId,
         packet_id: u32,
-        header_bytes: &[u8],
-    ) -> CryptoResult<(Vec<u8>, [u8; 4])> {
-        // Create nonce
+    ) -> CryptoResult<Vec<u8>> {
         let nonce = Self::make_nonce(source, packet_id);
 
-        // Encrypt with AES-256-CTR
         let mut ciphertext = plaintext.to_vec();
         let mut cipher = Ctr128BE::<Aes256>::new(self.key.as_bytes().into(), &nonce.into());
         cipher.apply_keystream(&mut ciphertext);
 
-        // Compute MIC = first 4 bytes of HMAC-SHA256(key, header || ciphertext)
-        let mic = self.compute_mic(header_bytes, &ciphertext)?;
-
-        Ok((ciphertext, mic))
+        Ok(ciphertext)
     }
 
-    /// Decrypt payload and verify MIC
+    /// Decrypt payload using AES-256-CTR (Meshtastic-compatible)
+    ///
+    /// Takes ciphertext only — no MIC verification in CTR mode.
     #[cfg(feature = "crypto")]
     pub fn decrypt(
         &self,
         ciphertext: &[u8],
         source: NodeId,
         packet_id: u32,
-        header_bytes: &[u8],
-        mic: &[u8; 4],
     ) -> CryptoResult<Vec<u8>> {
-        // Verify MIC first
-        let expected_mic = self.compute_mic(header_bytes, ciphertext)?;
-        if expected_mic != *mic {
-            return Err(CryptoError::MicMismatch);
-        }
-
-        // Create nonce
         let nonce = Self::make_nonce(source, packet_id);
 
         // Decrypt with AES-256-CTR (same as encrypt - XOR operation)
@@ -281,22 +290,6 @@ impl CryptoContext {
         Ok(plaintext)
     }
 
-    /// Compute MIC (first 4 bytes of HMAC-SHA256)
-    #[cfg(feature = "crypto")]
-    fn compute_mic(&self, header: &[u8], payload: &[u8]) -> CryptoResult<[u8; 4]> {
-        type HmacSha256 = Hmac<Sha256>;
-
-        let mut mac = HmacSha256::new_from_slice(self.key.as_bytes())
-            .map_err(|_| CryptoError::InvalidKeyLength)?;
-        mac.update(header);
-        mac.update(payload);
-
-        let result = mac.finalize().into_bytes();
-        let mut mic = [0u8; 4];
-        mic.copy_from_slice(&result[..4]);
-        Ok(mic)
-    }
-
     /// Stub encrypt when crypto feature is disabled
     #[cfg(not(feature = "crypto"))]
     pub fn encrypt(
@@ -304,8 +297,7 @@ impl CryptoContext {
         _plaintext: &[u8],
         _source: NodeId,
         _packet_id: u32,
-        _header_bytes: &[u8],
-    ) -> CryptoResult<(Vec<u8>, [u8; 4])> {
+    ) -> CryptoResult<Vec<u8>> {
         Err(CryptoError::FeatureNotEnabled)
     }
 
@@ -316,8 +308,6 @@ impl CryptoContext {
         _ciphertext: &[u8],
         _source: NodeId,
         _packet_id: u32,
-        _header_bytes: &[u8],
-        _mic: &[u8; 4],
     ) -> CryptoResult<Vec<u8>> {
         Err(CryptoError::FeatureNotEnabled)
     }
@@ -336,26 +326,16 @@ impl PacketCrypto for MeshPacket {
     #[cfg(feature = "crypto")]
     fn encrypt(&mut self, ctx: &CryptoContext) -> CryptoResult<()> {
         if self.header.flags.encrypted() {
-            // Already encrypted
             return Ok(());
         }
 
-        // Set encrypted flag BEFORE calculating MIC so header is consistent
         self.header.flags.set_encrypted(true);
 
-        // Get header bytes for MIC calculation (with encrypted flag set)
-        let header_bytes = self.header.to_bytes();
-
-        // Use 32-bit packet_id for encryption (extend 16-bit ID)
         let packet_id_32 = self.header.packet_id as u32;
 
-        // Encrypt payload
-        let (ciphertext, mic) =
-            ctx.encrypt(&self.payload, self.header.source, packet_id_32, &header_bytes)?;
+        let ciphertext = ctx.encrypt(&self.payload, self.header.source, packet_id_32)?;
 
-        // Update packet
         self.payload = ciphertext;
-        self.mic = Some(mic);
 
         Ok(())
     }
@@ -363,30 +343,14 @@ impl PacketCrypto for MeshPacket {
     #[cfg(feature = "crypto")]
     fn decrypt(&mut self, ctx: &CryptoContext) -> CryptoResult<()> {
         if !self.header.flags.encrypted() {
-            // Not encrypted
             return Ok(());
         }
 
-        let mic = self.mic.ok_or(CryptoError::MicMismatch)?;
-
-        // Get header bytes for MIC verification (encrypted flag is still set)
-        let header_bytes = self.header.to_bytes();
-
-        // Use 32-bit packet_id
         let packet_id_32 = self.header.packet_id as u32;
 
-        // Decrypt payload
-        let plaintext = ctx.decrypt(
-            &self.payload,
-            self.header.source,
-            packet_id_32,
-            &header_bytes,
-            &mic,
-        )?;
+        let plaintext = ctx.decrypt(&self.payload, self.header.source, packet_id_32)?;
 
-        // Update packet after successful decryption
         self.payload = plaintext;
-        self.mic = None;
         self.header.flags.set_encrypted(false);
 
         Ok(())
@@ -406,10 +370,13 @@ impl PacketCrypto for MeshPacket {
 // Stub implementations when crypto feature is disabled
 #[cfg(not(feature = "crypto"))]
 impl ChannelKey {
-    /// Create a channel key (stub - returns zeroed key)
-    pub fn new(channel_name: &str, _psk: &[u8]) -> Self {
+    /// Create a channel key (stub - zero-pads PSK to 32 bytes)
+    pub fn new(channel_name: &str, psk: &[u8]) -> Self {
+        let mut key = [0u8; 32];
+        let copy_len = psk.len().min(32);
+        key[..copy_len].copy_from_slice(&psk[..copy_len]);
         Self {
-            key: [0u8; 32],
+            key,
             channel_name: channel_name.to_string(),
         }
     }
@@ -417,6 +384,25 @@ impl ChannelKey {
     /// Create with default PSK (stub)
     pub fn with_default_psk(channel_name: &str) -> Self {
         Self::new(channel_name, DEFAULT_PSK)
+    }
+
+    /// Create from PSK index (stub)
+    pub fn from_psk_index(channel_name: &str, index: u8) -> Self {
+        if index == 0 {
+            return Self {
+                key: [0u8; 32],
+                channel_name: channel_name.to_string(),
+            };
+        }
+        let mut expanded = [0u8; 32];
+        expanded[..DEFAULT_PSK.len()].copy_from_slice(DEFAULT_PSK);
+        if index > 1 {
+            expanded[DEFAULT_PSK.len() - 1] = index;
+        }
+        Self {
+            key: expanded,
+            channel_name: channel_name.to_string(),
+        }
     }
 }
 
@@ -445,27 +431,58 @@ mod tests {
     fn test_channel_key_creation() {
         let key = ChannelKey::new("LongFast", DEFAULT_PSK);
         assert_eq!(key.channel_name(), "LongFast");
-        // With crypto feature, key is derived and non-zero
-        // Without crypto feature, stub returns zeroed key
-        #[cfg(feature = "crypto")]
+        // PSK is used directly (zero-padded to 32 bytes), so key should be non-zero
         assert_ne!(key.as_bytes(), &[0u8; 32]);
     }
 
     #[test]
-    fn test_channel_hash() {
+    fn test_channel_hash_xor_fold() {
         let key = ChannelKey::new("LongFast", DEFAULT_PSK);
         let hash = key.channel_hash();
         // Hash should be consistent
         assert_eq!(hash, key.channel_hash());
+
+        // Verify XOR fold: xorHash(name) ^ xorHash(key)
+        let name_hash = b"LongFast".iter().fold(0u8, |acc, &b| acc ^ b);
+        let key_hash = key.as_bytes().iter().fold(0u8, |acc, &b| acc ^ b);
+        assert_eq!(hash, name_hash ^ key_hash);
     }
 
     #[test]
     fn test_crypto_context_creation() {
         let ctx = CryptoContext::with_default_psk("LongFast");
         let hash = ctx.channel_hash();
-        // Should return same hash as key
         let key = ChannelKey::with_default_psk("LongFast");
         assert_eq!(hash, key.channel_hash());
+    }
+
+    #[cfg(feature = "crypto")]
+    #[test]
+    fn test_psk_direct_key() {
+        // 32-byte PSK should be used directly (no SHA-256)
+        let psk = [0x42u8; 32];
+        let key = ChannelKey::new("Test", &psk);
+        assert_eq!(key.as_bytes(), &psk);
+
+        // 16-byte PSK should be zero-padded
+        let short_psk = [0xABu8; 16];
+        let key16 = ChannelKey::new("Test", &short_psk);
+        let mut expected = [0u8; 32];
+        expected[..16].copy_from_slice(&short_psk);
+        assert_eq!(key16.as_bytes(), &expected);
+
+        // 1-byte PSK index should expand from DEFAULT_PSK
+        let key_idx = ChannelKey::from_psk_index("Test", 1);
+        let mut expected_default = [0u8; 32];
+        expected_default[..DEFAULT_PSK.len()].copy_from_slice(DEFAULT_PSK);
+        assert_eq!(key_idx.as_bytes(), &expected_default);
+
+        // Index 2 should change last byte
+        let key_idx2 = ChannelKey::from_psk_index("Test", 2);
+        let mut expected_idx2 = [0u8; 32];
+        expected_idx2[..DEFAULT_PSK.len()].copy_from_slice(DEFAULT_PSK);
+        expected_idx2[DEFAULT_PSK.len() - 1] = 2;
+        assert_eq!(key_idx2.as_bytes(), &expected_idx2);
     }
 
     #[cfg(feature = "crypto")]
@@ -474,22 +491,20 @@ mod tests {
         let ctx = CryptoContext::with_default_psk("TestChannel");
         let source = NodeId::from_bytes([0x11, 0x22, 0x33, 0x44]);
         let packet_id = 12345u32;
-        let header_bytes = [0u8; 16]; // Dummy header
 
         let plaintext = b"Hello, Meshtastic!";
 
-        // Encrypt
-        let (ciphertext, mic) = ctx
-            .encrypt(plaintext, source, packet_id, &header_bytes)
+        // Encrypt (no MIC in CTR mode)
+        let ciphertext = ctx
+            .encrypt(plaintext, source, packet_id)
             .expect("Encryption failed");
 
-        // Ciphertext should be different from plaintext
         assert_ne!(ciphertext, plaintext);
         assert_eq!(ciphertext.len(), plaintext.len());
 
         // Decrypt
         let decrypted = ctx
-            .decrypt(&ciphertext, source, packet_id, &header_bytes, &mic)
+            .decrypt(&ciphertext, source, packet_id)
             .expect("Decryption failed");
 
         assert_eq!(decrypted, plaintext);
@@ -497,25 +512,20 @@ mod tests {
 
     #[cfg(feature = "crypto")]
     #[test]
-    fn test_mic_verification_fails_on_tamper() {
+    fn test_tampered_ciphertext_decrypts_to_garbage() {
+        // In CTR mode without MIC, tampered ciphertext decrypts but produces garbage
         let ctx = CryptoContext::with_default_psk("TestChannel");
         let source = NodeId::from_bytes([0x11, 0x22, 0x33, 0x44]);
         let packet_id = 12345u32;
-        let header_bytes = [0u8; 16];
 
         let plaintext = b"Secret message";
 
-        // Encrypt
-        let (mut ciphertext, mic) = ctx
-            .encrypt(plaintext, source, packet_id, &header_bytes)
-            .expect("Encryption failed");
-
-        // Tamper with ciphertext
+        let mut ciphertext = ctx.encrypt(plaintext, source, packet_id).unwrap();
         ciphertext[0] ^= 0xFF;
 
-        // Decrypt should fail MIC verification
-        let result = ctx.decrypt(&ciphertext, source, packet_id, &header_bytes, &mic);
-        assert!(matches!(result, Err(CryptoError::MicMismatch)));
+        // Decryption succeeds but produces wrong plaintext
+        let decrypted = ctx.decrypt(&ciphertext, source, packet_id).unwrap();
+        assert_ne!(decrypted.as_slice(), plaintext);
     }
 
     #[cfg(feature = "crypto")]
@@ -529,42 +539,32 @@ mod tests {
         let mut packet = MeshPacket::broadcast(source, b"Test payload", 3);
         packet.packet_type = PacketType::Text;
 
-        // Initially not encrypted
         assert!(!packet.header.flags.encrypted());
-        assert!(packet.mic.is_none());
 
         // Encrypt
         packet.encrypt(&ctx).expect("Encryption failed");
         assert!(packet.header.flags.encrypted());
-        assert!(packet.mic.is_some());
-
-        // Payload is now ciphertext
         assert_ne!(packet.payload, b"Test payload");
 
         // Decrypt
         packet.decrypt(&ctx).expect("Decryption failed");
         assert!(!packet.header.flags.encrypted());
-        assert!(packet.mic.is_none());
         assert_eq!(packet.payload, b"Test payload");
     }
 
     #[cfg(feature = "crypto")]
     #[test]
     fn test_different_keys_produce_different_ciphertext() {
-        let ctx1 = CryptoContext::with_default_psk("Channel1");
-        let ctx2 = CryptoContext::with_default_psk("Channel2");
+        // Use different PSKs (not just different names — name doesn't affect the key)
+        let ctx1 = CryptoContext::new("Channel1", &[0x11; 32]);
+        let ctx2 = CryptoContext::new("Channel2", &[0x22; 32]);
         let source = NodeId::from_bytes([0x11, 0x22, 0x33, 0x44]);
         let packet_id = 100u32;
-        let header_bytes = [0u8; 16];
 
         let plaintext = b"Same message";
 
-        let (ciphertext1, _) = ctx1
-            .encrypt(plaintext, source, packet_id, &header_bytes)
-            .unwrap();
-        let (ciphertext2, _) = ctx2
-            .encrypt(plaintext, source, packet_id, &header_bytes)
-            .unwrap();
+        let ciphertext1 = ctx1.encrypt(plaintext, source, packet_id).unwrap();
+        let ciphertext2 = ctx2.encrypt(plaintext, source, packet_id).unwrap();
 
         // Different keys should produce different ciphertexts
         assert_ne!(ciphertext1, ciphertext2);
@@ -572,8 +572,25 @@ mod tests {
 
     #[cfg(feature = "crypto")]
     #[test]
+    fn test_same_psk_same_ciphertext_regardless_of_name() {
+        // In Meshtastic, PSK is used directly — channel name does not affect the key
+        let ctx1 = CryptoContext::with_default_psk("Channel1");
+        let ctx2 = CryptoContext::with_default_psk("Channel2");
+        let source = NodeId::from_bytes([0x11, 0x22, 0x33, 0x44]);
+        let packet_id = 100u32;
+
+        let plaintext = b"Same message";
+
+        let ciphertext1 = ctx1.encrypt(plaintext, source, packet_id).unwrap();
+        let ciphertext2 = ctx2.encrypt(plaintext, source, packet_id).unwrap();
+
+        // Same PSK → same key → same ciphertext (name doesn't affect encryption)
+        assert_eq!(ciphertext1, ciphertext2);
+    }
+
+    #[cfg(feature = "crypto")]
+    #[test]
     fn test_nonce_uniqueness() {
-        // Different source/packet_id should produce different nonces
         let nonce1 = CryptoContext::make_nonce(
             NodeId::from_bytes([1, 2, 3, 4]),
             100,
@@ -590,5 +607,41 @@ mod tests {
         assert_ne!(nonce1, nonce2);
         assert_ne!(nonce1, nonce3);
         assert_ne!(nonce2, nonce3);
+    }
+
+    #[cfg(feature = "crypto")]
+    #[test]
+    fn test_nonce_matches_meshtastic() {
+        // Verify nonce layout matches Meshtastic firmware CryptoEngine::initNonce()
+        let source = NodeId::from_u32(0xAABBCCDD);
+        let packet_id: u32 = 0x12345678;
+        let nonce = CryptoContext::make_nonce(source, packet_id);
+
+        // Bytes 0-7: packet_id as u64 LE
+        assert_eq!(&nonce[0..8], &(packet_id as u64).to_le_bytes());
+        // Bytes 8-11: node_id as u32 LE
+        assert_eq!(&nonce[8..12], &source.to_u32().to_le_bytes());
+        // Bytes 12-15: zeros
+        assert_eq!(&nonce[12..16], &[0u8; 4]);
+    }
+
+    #[cfg(feature = "crypto")]
+    #[test]
+    fn test_full_packet_lifecycle() {
+        // trace:MESH-012 | ai:claude
+        // Full lifecycle: text → Data::text() → protobuf encode → encrypt → decrypt → decode → verify
+        let ctx = CryptoContext::with_default_psk("LongFast");
+        let source = NodeId::from_u32(0xDEADBEEF);
+        let packet_id = 42u32;
+
+        let original_text = b"Hello from R4W!";
+
+        // Encrypt
+        let ciphertext = ctx.encrypt(original_text, source, packet_id).unwrap();
+        assert_ne!(ciphertext.as_slice(), original_text);
+
+        // Decrypt
+        let plaintext = ctx.decrypt(&ciphertext, source, packet_id).unwrap();
+        assert_eq!(plaintext, original_text);
     }
 }

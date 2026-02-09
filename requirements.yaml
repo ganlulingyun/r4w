@@ -15,10 +15,10 @@ requirements:
   modified_at: 2025-12-30T18:54:37.847875523Z
   req_type: Epic
   tags:
-  - meshtastic
-  - lora
   - protocol
   - mesh
+  - meshtastic
+  - lora
   history:
   - id: b87df4b0-b8f6-47cc-bf04-604b5362c7fc
     author: CLI
@@ -41,8 +41,8 @@ requirements:
   req_type: Functional
   tags:
   - encoding
-  - lora
   - physical-layer
+  - lora
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -75,8 +75,8 @@ requirements:
   req_type: Functional
   tags:
   - physical-layer
-  - csma
   - cad
+  - csma
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -136,8 +136,8 @@ requirements:
   modified_at: 2025-12-30T18:54:51.011274770Z
   req_type: Functional
   tags:
-  - csma
   - mac-layer
+  - csma
   - collision-avoidance
   relationships:
   - rel_type: Parent
@@ -170,9 +170,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.015773789Z
   req_type: Functional
   tags:
-  - framing
   - mac-layer
   - packet
+  - framing
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -205,8 +205,8 @@ requirements:
   req_type: Functional
   tags:
   - mac-layer
-  - fairness
   - utilization
+  - fairness
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -232,9 +232,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.020338923Z
   req_type: Functional
   tags:
-  - flood
   - broadcast
   - routing
+  - flood
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -266,9 +266,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.024770069Z
   req_type: Functional
   tags:
+  - unicast
   - next-hop
   - routing
-  - unicast
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -300,9 +300,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.765255591Z
   req_type: Functional
   tags:
-  - deduplication
-  - cache
   - routing
+  - cache
+  - deduplication
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -328,9 +328,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.770472367Z
   req_type: Functional
   tags:
+  - discovery
   - routing
   - neighbor
-  - discovery
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -348,72 +348,114 @@ requirements:
   prefix_override: MESH
   title: Meshtastic Interop - Protocol Buffer Message Format
   description: 'Implement Meshtastic protobuf message format for full interoperability: 1) Use official Meshtastic .proto definitions, 2) Support core message types: Position, Text, NodeInfo, Routing, Telemetry, 3) Support channel/app layer messages, 4) Generate Rust bindings using prost or protobuf crate.'
-  status: Draft
+  status: Completed
   priority: High
   owner: joe
   feature: 12-Mesh Networking
   created_at: 2025-12-30T18:33:56.924811543Z
-  modified_at: 2025-12-30T18:33:56.924811543Z
+  modified_at: 2026-02-09T04:39:46.103814042Z
   req_type: Functional
   tags:
   - messages
-  - interop
   - protobuf
+  - interop
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
     created_at: 2025-12-30T18:33:56.924828245Z
+  comments:
+  - id: a0bad602-487b-4900-836b-1539445953d4
+    author: joe
+    content: 'Fixed protobuf field numbers to match mesh.proto: Position fix_quality(17), fix_type(18), sats_in_view(19). Added Data.bitfield(9), User.public_key(8). Added missing PortNums: Alert(11), KeyVerification(12), StoreForwardPlusPlus(35), NodeStatus(36), ReticulumTunnel(76), Cayenne(77).'
+    created_at: 2026-02-09T04:39:46.103807923Z
+    modified_at: 2026-02-09T04:39:46.103807923Z
+  history:
+  - id: 27f013cd-5140-423e-bde4-c20812821cf8
+    author: CLI
+    timestamp: 2026-02-09T04:39:46.063975857Z
+    changes:
+    - field_name: status
+      old_value: Draft
+      new_value: Completed
 - id: 807ec542-d636-4cc1-b59d-2634ab7f472e
   spec_id: MESH-013
   prefix_override: MESH
   title: Meshtastic Interop - AES Encryption Compatibility
   description: 'Implement Meshtastic-compatible encryption: 1) AES-128-CTR or AES-256-CTR encryption, 2) Key derived from channel PSK using standard Meshtastic derivation, 3) Nonce = packet_id + sender_id, 4) Support default channel key for public mesh, 5) Support custom PSK channels for private groups.'
-  status: Draft
+  status: Completed
   priority: High
   owner: joe
   feature: 13-Mesh Networking
   created_at: 2025-12-30T18:34:06.606337548Z
-  modified_at: 2025-12-30T18:34:06.606337548Z
+  modified_at: 2026-02-09T04:40:00.556701601Z
   req_type: Functional
   tags:
-  - aes
   - encryption
+  - aes
   - interop
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
     created_at: 2025-12-30T18:34:06.606354462Z
+  comments:
+  - id: 7007ec94-a554-436c-8556-a1ccd8bee2a4
+    author: joe
+    content: 'Fixed all crypto compatibility issues: 1) Nonce now matches CryptoEngine.cpp: [pkt_id_u64_LE, node_id_u32_LE, zeros]. 2) PSK used directly as AES key (no SHA-256 derivation). 3) Channel hash uses XOR fold (xorHash(name)^xorHash(psk)). 4) Removed MIC for CTR mode. 5) Added from_psk_index() for 1-byte PSK expansion. Removed sha2/hmac dependencies.'
+    created_at: 2026-02-09T04:40:00.556694512Z
+    modified_at: 2026-02-09T04:40:00.556694512Z
+  history:
+  - id: 72a4c52c-3ab5-4433-a787-3f098b2de5f0
+    author: CLI
+    timestamp: 2026-02-09T04:40:00.526234222Z
+    changes:
+    - field_name: status
+      old_value: Draft
+      new_value: Completed
 - id: c8388dbd-6702-4597-8ea7-e11f05a0711d
   spec_id: MESH-014
   prefix_override: MESH
   title: Meshtastic Interop - Channel Configuration
   description: 'Support Meshtastic channel configuration: 1) Primary channel + up to 7 secondary channels, 2) Channel settings: name, PSK, uplink/downlink enabled, 3) Modem presets: LongFast, LongSlow, LongModerate, MediumFast, MediumSlow, ShortFast, ShortSlow, 4) Each preset maps to specific SF/BW/CR combination.'
-  status: Draft
+  status: Completed
   priority: Medium
   owner: joe
   feature: 14-Mesh Networking
   created_at: 2025-12-30T18:34:16.397667432Z
-  modified_at: 2025-12-30T18:34:16.397667432Z
+  modified_at: 2026-02-09T04:40:11.565842494Z
   req_type: Functional
   tags:
-  - interop
-  - config
   - channel
+  - config
+  - interop
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
     created_at: 2025-12-30T18:34:16.397684785Z
+  comments:
+  - id: b0796c2a-37a1-4640-a53c-11531d9c9ad8
+    author: joe
+    content: 'Channel hash now uses Meshtastic-compatible XOR fold. PSK-based key derivation matches firmware. CLI features exposed: crypto and meshtastic-interop.'
+    created_at: 2026-02-09T04:40:11.565833084Z
+    modified_at: 2026-02-09T04:40:11.565833084Z
+  history:
+  - id: 278178ce-67fd-4b1e-816a-ed2345140d84
+    author: CLI
+    timestamp: 2026-02-09T04:40:11.377402534Z
+    changes:
+    - field_name: status
+      old_value: Draft
+      new_value: Completed
 - id: eb3c91c3-5370-4ff7-b0be-3da7b2d0befa
   spec_id: MESH-015
   prefix_override: MESH
   title: Meshtastic App - Text Messaging
   description: 'Implement text message send/receive: 1) Support broadcast messages to all nodes, 2) Support direct messages to specific node ID, 3) Message acknowledgment for direct messages, 4) Store-and-forward for offline nodes (optional), 5) Maximum message size 228 bytes UTF-8.'
-  status: Draft
+  status: Completed
   priority: High
   owner: joe
   feature: 15-Mesh Networking
   created_at: 2025-12-30T18:34:30.970516731Z
-  modified_at: 2025-12-30T18:34:30.970516731Z
+  modified_at: 2026-02-09T04:40:16.568370338Z
   req_type: Functional
   tags:
   - messaging
@@ -423,6 +465,20 @@ requirements:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
     created_at: 2025-12-30T18:34:30.970534128Z
+  comments:
+  - id: 7bfd529d-0a27-4025-91a4-378d8bdc930e
+    author: joe
+    content: Text messaging via protobuf Data envelope verified with encrypt/decrypt roundtrip tests. Wire format roundtrip tests pass for both encrypted and unencrypted modes.
+    created_at: 2026-02-09T04:40:16.568365036Z
+    modified_at: 2026-02-09T04:40:16.568365036Z
+  history:
+  - id: 88809d36-63ad-457b-90e6-32df78c7c2d6
+    author: CLI
+    timestamp: 2026-02-09T04:40:16.505184971Z
+    changes:
+    - field_name: status
+      old_value: Draft
+      new_value: Completed
 - id: 203557d6-a6f0-42e2-a749-c9deb9610110
   spec_id: MESH-016
   prefix_override: MESH
@@ -437,8 +493,8 @@ requirements:
   req_type: Functional
   tags:
   - app
-  - gps
   - position
+  - gps
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -490,9 +546,9 @@ requirements:
   modified_at: 2025-12-30T18:35:04.632283047Z
   req_type: Functional
   tags:
+  - radio
   - hardware
   - sx126x
-  - radio
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -510,9 +566,9 @@ requirements:
   modified_at: 2025-12-30T18:35:14.680235464Z
   req_type: Functional
   tags:
-  - testing
-  - simulation
   - multi-node
+  - simulation
+  - testing
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -600,9 +656,9 @@ requirements:
   modified_at: 2026-01-01T00:45:23.000655534Z
   req_type: Functional
   tags:
-  - channel
-  - fading
   - doppler
+  - fading
+  - channel
 - id: c83161da-58d1-47d8-b8bf-0af9b75f8607
   spec_id: FR-025
   title: Tapped Delay Line Multipath Channel
@@ -615,8 +671,8 @@ requirements:
   modified_at: 2026-01-01T00:45:26.089040868Z
   req_type: Functional
   tags:
-  - 3gpp
   - channel
+  - 3gpp
   - multipath
 - id: 3fa6715a-0464-4aed-bf9b-e50552ddf5d3
   spec_id: FR-026
@@ -630,9 +686,9 @@ requirements:
   modified_at: 2026-01-01T00:45:29.202873633Z
   req_type: Functional
   tags:
-  - spectrum
-  - fft
   - cli
+  - fft
+  - spectrum
 - id: deb7cb95-87ae-49e7-9f8d-4ca65c2e8d61
   spec_id: FR-027
   title: CLI Waterfall PNG Generation
@@ -660,9 +716,9 @@ requirements:
   modified_at: 2026-01-01T00:45:47.480602821Z
   req_type: Functional
   tags:
-  - cli
   - statistics
   - power
+  - cli
 - id: 1bb45e13-5952-4b5f-83de-a1046ec7d0f8
   spec_id: FR-029
   title: CLI Peak Detection
@@ -690,8 +746,8 @@ requirements:
   modified_at: 2026-01-01T00:45:53.481069148Z
   req_type: Task
   tags:
-  - examples
   - gallery
+  - examples
   - visualization
 - id: 96888938-b9e2-4088-9302-9c3381e7d0d7
   spec_id: TASK-031
@@ -705,9 +761,9 @@ requirements:
   modified_at: 2026-01-01T00:45:56.165629168Z
   req_type: Task
   tags:
-  - education
-  - notebooks
   - tutorials
+  - notebooks
+  - education
 - id: 55ba297c-a183-4fe3-a616-e484cab0176f
   spec_id: FR-032
   prefix_override: FR
@@ -954,9 +1010,9 @@ requirements:
   req_type: Functional
   tags:
   - refactor
-  - formats
-  - sigmf
   - io
+  - sigmf
+  - formats
   comments:
   - id: d26cedce-06cd-4561-a7bb-5ca9d24f4756
     author: claude
@@ -1003,7 +1059,7 @@ requirements:
   status: Completed
   priority: Low
   owner: joe
-  feature: GUI Pipeline Builder
+  feature: 49-GUI Pipeline Builder
   created_at: 2026-02-08T20:14:14.646656017Z
   modified_at: 2026-02-08T20:14:14.646656017Z
   req_type: Functional
@@ -1052,7 +1108,7 @@ id_config:
     prefix: META
     description: Database configuration and templates
 features: []
-next_feature_number: 49
+next_feature_number: 50
 next_spec_number: 50
 prefix_counters: {}
 relationship_definitions:

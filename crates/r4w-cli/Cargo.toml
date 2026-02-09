@@ -63,3 +63,7 @@ default = ["image", "ephemeris"]
 image = ["r4w-core/image"]
 # Enable RINEX ephemeris support (CDDIS download)
 ephemeris = ["r4w-core/ephemeris"]
+# Enable Meshtastic AES-256-CTR encryption
+crypto = ["r4w-core/crypto"]
+# Full Meshtastic interoperability (crypto + protobuf wire format)
+meshtastic-interop = ["r4w-core/meshtastic-interop"]

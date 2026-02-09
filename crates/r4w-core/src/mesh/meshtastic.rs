@@ -511,37 +511,29 @@ impl MeshtasticNode {
 
     /// Queue a packet for transmission using Meshtastic wire format
     ///
-    /// Wire format: WireHeader (16 bytes) + payload + optional MIC (4 bytes)
+    /// Wire format: WireHeader (16 bytes) + payload (no MIC in CTR mode)
     fn queue_packet(&mut self, packet: &MeshPacket) -> MeshResult<()> {
-        // Get channel hash for wire header
         let channel_hash = self.config.primary_channel.channel_hash();
 
-        // Convert internal header to wire format
         let wire_header = WireHeader::from_packet_header(&packet.header, channel_hash);
         let header_bytes = wire_header.to_bytes();
 
-        // Build the wire packet
-        let mut bytes = Vec::with_capacity(WIRE_HEADER_SIZE + packet.payload.len() + 4);
+        let mut bytes = Vec::with_capacity(WIRE_HEADER_SIZE + packet.payload.len());
 
-        // Add wire header (16 bytes, little-endian)
         bytes.extend_from_slice(&header_bytes);
 
-        // Add payload (encrypted if crypto enabled)
+        // Add payload (encrypted if crypto enabled, no MIC in CTR mode)
         #[cfg(feature = "crypto")]
         if let Some(ref crypto) = self.crypto {
-            // Encrypt payload and append MIC (MIC is computed over header + ciphertext)
             match crypto.encrypt(
                 &packet.payload,
                 packet.header.source,
                 packet.header.packet_id as u32,
-                &header_bytes,
             ) {
-                Ok((ciphertext, mic)) => {
+                Ok(ciphertext) => {
                     bytes.extend_from_slice(&ciphertext);
-                    bytes.extend_from_slice(&mic);
                 }
                 Err(_) => {
-                    // Fall back to unencrypted on error
                     bytes.extend_from_slice(&packet.payload);
                 }
             }
@@ -627,29 +619,23 @@ impl MeshtasticNode {
     }
 
     /// Extract and optionally decrypt payload from wire format
+    ///
+    /// No MIC in Meshtastic CTR mode — the entire post-header data is ciphertext.
     #[cfg(feature = "crypto")]
     fn extract_payload(
         &self,
-        payload_and_mic: &[u8],
+        payload_data: &[u8],
         source: NodeId,
         packet_id: u32,
-        header_bytes: &[u8],
+        _header_bytes: &[u8],
     ) -> Option<Vec<u8>> {
         if let Some(ref crypto) = self.crypto {
-            // Encrypted: payload + 4-byte MIC
-            if payload_and_mic.len() < 5 {
-                return None; // Need at least 1 byte payload + 4 byte MIC
+            if payload_data.is_empty() {
+                return None;
             }
-
-            let mic_start = payload_and_mic.len() - 4;
-            let ciphertext = &payload_and_mic[..mic_start];
-            let mic: [u8; 4] = payload_and_mic[mic_start..].try_into().ok()?;
-
-            // Decrypt
-            crypto.decrypt(ciphertext, source, packet_id, header_bytes, &mic).ok()
+            crypto.decrypt(payload_data, source, packet_id).ok()
         } else {
-            // Unencrypted: just return payload as-is
-            Some(payload_and_mic.to_vec())
+            Some(payload_data.to_vec())
         }
     }
 
@@ -657,12 +643,12 @@ impl MeshtasticNode {
     #[cfg(not(feature = "crypto"))]
     fn extract_payload(
         &self,
-        payload_and_mic: &[u8],
+        payload_data: &[u8],
         _source: NodeId,
         _packet_id: u32,
         _header_bytes: &[u8],
     ) -> Option<Vec<u8>> {
-        Some(payload_and_mic.to_vec())
+        Some(payload_data.to_vec())
     }
 
     // ========================================================================
@@ -1204,23 +1190,20 @@ mod tests {
         // Wait for DIFS period (50ms) before MAC allows transmission
         std::thread::sleep(std::time::Duration::from_millis(60));
 
-        // Extract wire format (header + ciphertext + MIC)
+        // Extract wire format (header + ciphertext, no MIC in CTR mode)
         let wire_bytes = sender.process_tx(false).expect("should have packet to send");
 
-        // Wire format should be larger due to 4-byte MIC
-        assert!(wire_bytes.len() >= WIRE_HEADER_SIZE + payload.len() + 4);
+        // Wire format: header + ciphertext (same length as plaintext, no MIC)
+        assert_eq!(wire_bytes.len(), WIRE_HEADER_SIZE + payload.len());
 
         // Verify ciphertext is different from plaintext
-        let ciphertext = &wire_bytes[WIRE_HEADER_SIZE..wire_bytes.len() - 4];
+        let ciphertext = &wire_bytes[WIRE_HEADER_SIZE..];
         assert_ne!(ciphertext, payload);
 
         // Receiver decrypts and processes
         let delivered = receiver.receive_bytes(&wire_bytes, -70.0, 15.0);
 
-        // Should receive exactly one packet
         assert_eq!(delivered.len(), 1);
-
-        // Decrypted payload should match original
         assert_eq!(delivered[0].payload, payload);
     }
 
@@ -1380,8 +1363,8 @@ mod tests {
 
         let wire_bytes = sender.process_tx(false).expect("should have packet");
 
-        // Verify it's encrypted (has MIC)
-        assert!(wire_bytes.len() > WIRE_HEADER_SIZE + message.len() + 4);
+        // Verify it's encrypted (protobuf Data wrapping makes it larger than raw message)
+        assert!(wire_bytes.len() > WIRE_HEADER_SIZE + message.len());
 
         // Receiver decrypts and decodes protobuf
         let delivered = receiver.receive_bytes(&wire_bytes, -70.0, 15.0);

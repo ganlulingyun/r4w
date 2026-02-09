@@ -12,7 +12,7 @@
 //! 0x04    4B    from (source node ID)
 //! 0x08    4B    id (32-bit packet ID)
 //! 0x0C    1B    flags (hop_limit:3 | want_ack:1 | via_mqtt:1 | hop_start:3)
-//! 0x0D    1B    channel_hash (first byte of SHA256(channel_name))
+//! 0x0D    1B    channel_hash (xorHash(name) ^ xorHash(psk))
 //! 0x0E    1B    next_hop (for routed packets)
 //! 0x0F    1B    relay_node (last relay, for traceroute)
 //! ```
@@ -118,7 +118,7 @@ pub struct WireHeader {
     /// Flags byte (hop_limit, want_ack, via_mqtt, hop_start)
     pub flags: WireFlags,
 
-    /// Channel hash (first byte of SHA256(channel_name))
+    /// Channel hash (xorHash(name) ^ xorHash(psk))
     pub channel_hash: u8,
 
     /// Next hop for routed packets (0 = broadcast/direct)

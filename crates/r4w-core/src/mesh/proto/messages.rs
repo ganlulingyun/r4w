@@ -42,6 +42,10 @@ pub struct Data {
     /// Emoji reaction (for text messages)
     #[prost(fixed32, tag = "8")]
     pub emoji: u32,
+
+    /// Bitfield for various boolean flags
+    #[prost(uint32, tag = "9")]
+    pub bitfield: u32,
 }
 
 impl Data {
@@ -56,6 +60,7 @@ impl Data {
             request_id: 0,
             reply_id: 0,
             emoji: 0,
+            bitfield: 0,
         }
     }
 
@@ -188,20 +193,28 @@ pub struct Position {
     #[prost(uint32, tag = "16")]
     pub ground_track: u32,
 
-    /// Number of satellites used
+    /// Fix quality (0=no fix, 1=2D, 2=3D)
     #[prost(uint32, tag = "17")]
+    pub fix_quality: u32,
+
+    /// Fix type (GnssFixType enum)
+    #[prost(uint32, tag = "18")]
+    pub fix_type: u32,
+
+    /// Number of satellites used
+    #[prost(uint32, tag = "19")]
     pub sats_in_view: u32,
 
     /// Sensor ID (for multi-sensor setups)
-    #[prost(uint32, tag = "18")]
+    #[prost(uint32, tag = "20")]
     pub sensor_id: u32,
 
     /// Sequence number for this position
-    #[prost(uint32, tag = "19")]
+    #[prost(uint32, tag = "21")]
     pub seq_number: u32,
 
     /// Precision bits for latitude
-    #[prost(int32, tag = "20")]
+    #[prost(int32, tag = "22")]
     pub precision_bits: i32,
 }
 
@@ -257,6 +270,10 @@ pub struct User {
     /// Role of this node in the mesh
     #[prost(enumeration = "i32", tag = "7")]
     pub role: i32,
+
+    /// Public key for key verification
+    #[prost(bytes = "vec", tag = "8")]
+    pub public_key: Vec<u8>,
 }
 
 impl User {
@@ -743,6 +760,55 @@ mod tests {
         } else {
             panic!("Expected DeviceMetrics variant");
         }
+    }
+
+    #[test]
+    fn test_position_field_tags() {
+        // trace:MESH-014 | ai:claude
+        // Verify Position field numbers match Meshtastic mesh.proto
+        let pos = Position {
+            latitude_i: 374220000,         // tag 1
+            longitude_i: -1220840000,       // tag 2
+            altitude: 100,                  // tag 3
+            time: 1700000000,               // tag 4
+            fix_quality: 2,                 // tag 17 (new)
+            fix_type: 3,                    // tag 18 (new)
+            sats_in_view: 12,              // tag 19 (was 17)
+            ..Default::default()
+        };
+
+        let bytes = pos.encode_to_vec();
+        let decoded = Position::decode(bytes.as_slice()).unwrap();
+
+        assert_eq!(decoded.latitude_i, 374220000);
+        assert_eq!(decoded.longitude_i, -1220840000);
+        assert_eq!(decoded.altitude, 100);
+        assert_eq!(decoded.time, 1700000000);
+        assert_eq!(decoded.fix_quality, 2);
+        assert_eq!(decoded.fix_type, 3);
+        assert_eq!(decoded.sats_in_view, 12);
+    }
+
+    #[test]
+    fn test_data_bitfield() {
+        // Verify Data message includes bitfield (tag 9)
+        let mut data = Data::text("test");
+        data.bitfield = 0x0F;
+
+        let bytes = data.encode_to_vec();
+        let decoded = Data::decode(bytes.as_slice()).unwrap();
+        assert_eq!(decoded.bitfield, 0x0F);
+    }
+
+    #[test]
+    fn test_user_public_key() {
+        // Verify User message includes public_key (tag 8)
+        let mut user = User::new("!aabb", "TEST", "Test");
+        user.public_key = vec![0xDE, 0xAD, 0xBE, 0xEF];
+
+        let bytes = user.encode_to_vec();
+        let decoded = User::decode(bytes.as_slice()).unwrap();
+        assert_eq!(decoded.public_key, vec![0xDE, 0xAD, 0xBE, 0xEF]);
     }
 
     #[test]
