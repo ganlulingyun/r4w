@@ -2251,7 +2251,6 @@ pub struct PipelineWizardView {
     pub drag_initial_positions: HashMap<BlockId, Pos2>,  // Initial canvas positions of dragged blocks
     // Test panel state
     pub show_test_panel: bool,
-    pub test_panel_height: f32,  // User-controlled height
     pub test_input_pattern: TestInputPattern,
     pub test_num_bits: usize,
     pub test_view_tab: TestViewTab,
@@ -2293,7 +2292,6 @@ impl Default for PipelineWizardView {
             drag_start_pointer: None,
             drag_initial_positions: HashMap::new(),
             show_test_panel: false,
-            test_panel_height: 200.0,  // Default height, user can resize
             test_input_pattern: TestInputPattern::default(),
             test_num_bits: 32,
             test_view_tab: TestViewTab::default(),
