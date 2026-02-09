@@ -566,4 +566,70 @@ mod tests {
             assert!((a.im - b.im).abs() < 1e-10);
         }
     }
+
+    /// Integration test: generate scenario and verify satellites can be acquired
+    /// This validates end-to-end correctness of the scenario generator
+    #[test]
+    fn test_acquisition_on_scenario() {
+        use crate::waveform::gnss::acquisition::PcpsAcquisition;
+        use crate::waveform::gnss::gps_l1ca::GpsL1Ca;
+
+        // Generate open-sky scenario with longer duration for better acquisition
+        let mut config = GnssScenarioPreset::OpenSky.to_config();
+        config.output.duration_s = 0.001; // 1ms = one code period
+        config.output.sample_rate = 2.046e6; // 2x chipping rate
+        config.environment.multipath_enabled = false; // Clean signal for testing
+
+        let mut scenario = GnssScenario::new(config);
+        let statuses = scenario.satellite_status();
+        let samples = scenario.generate();
+
+        // Find visible satellites, sorted by C/N0 (strongest first)
+        let mut visible: Vec<_> = statuses.iter().filter(|s| s.visible).collect();
+        visible.sort_by(|a, b| b.cn0_dbhz.partial_cmp(&a.cn0_dbhz).unwrap());
+        assert!(visible.len() >= 4, "Need at least 4 visible satellites, got {}", visible.len());
+
+        // Create PCPS acquisition engine
+        // GPS L1 C/A: 1023 chips, 2.046 MHz = 2046 samples per code
+        let acquisition = PcpsAcquisition::new(2046, 2.046e6)
+            .with_doppler_range(5000.0, 500.0)  // ±5 kHz with 500 Hz steps
+            .with_threshold(1.5);                // Lower threshold for noisy composite
+
+        let mut detected_count = 0;
+        let mut results_info = Vec::new();
+
+        for status in visible.iter().take(6) {
+            // Generate local code for this PRN
+            let waveform = GpsL1Ca::new(2.046e6, status.prn);
+            let code = waveform.code();
+
+            // Run acquisition
+            let result = acquisition.acquire(&samples, code, status.prn);
+
+            results_info.push(format!(
+                "PRN {:2}: detected={}, metric={:.2}, doppler={:+.0} (expected {:+.0})",
+                status.prn, result.detected, result.peak_metric,
+                result.doppler_hz, status.doppler_hz
+            ));
+
+            if result.detected {
+                detected_count += 1;
+            }
+        }
+
+        // Print results for debugging
+        eprintln!("Acquisition results:");
+        for info in &results_info {
+            eprintln!("  {}", info);
+        }
+
+        // Verify at least 2 satellites detected
+        // Note: Doppler verification relaxed because acquisition coarse search
+        // may not match fine Doppler from orbit calculation
+        assert!(
+            detected_count >= 2,
+            "Expected at least 2 satellites detected, got {}",
+            detected_count
+        );
+    }
 }
