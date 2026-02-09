@@ -128,6 +128,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `lms_filter.rs`: Standard LMS, Normalized LMS (NLMS), Leaky LMS adaptive filters for system identification and noise cancellation
   - `stft.rs`: Short-Time Fourier Transform with configurable windows (Hann/Hamming/Blackman), Inverse STFT with OLA perfect reconstruction, COLA constraint checking
   - `music_doa.rs`: MUSIC direction-of-arrival estimation with Hermitian eigendecomposition (augmented real form + Jacobi), MDL/AIC source enumeration, test snapshot generation
+  - `rake_receiver.rs`: RAKE multipath combining for DSSS/CDMA (MRC, equal-gain, selection diversity), finger management, delay estimation
+  - `modulation_classifier.rs`: Automatic modulation classification via higher-order cumulants (C20/C40/C42), kurtosis, sigma_af feature extraction
+  - `tdoa_estimator.rs`: Time Difference of Arrival geolocation with GCC-PHAT cross-correlation, iterative least-squares solver
+  - `fm_stereo_decoder.rs`: FM stereo multiplex decoder with 19 kHz pilot PLL, 38 kHz DSB-SC demodulation, de-emphasis filter
+  - `phase_noise_model.rs`: Oscillator phase noise synthesis from L(f) PSD masks and Leeson model, configurable noise floor and corner frequencies
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -146,7 +151,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 248+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 253+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -254,6 +259,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 53 DSP Blocks** - RAKE Receiver (`rake_receiver.rs` - RAKE multipath combining for DSSS/CDMA with MRC, equal-gain, selection diversity), Modulation Classifier (`modulation_classifier.rs` - automatic modulation classification via higher-order cumulants C20/C40/C42, kurtosis, sigma_af), TDOA Estimator (`tdoa_estimator.rs` - Time Difference of Arrival geolocation with GCC-PHAT cross-correlation and iterative least-squares), FM Stereo Decoder (`fm_stereo_decoder.rs` - FM stereo multiplex decoder with 19 kHz pilot PLL, 38 kHz DSB-SC demod, de-emphasis), Phase Noise Model (`phase_noise_model.rs` - oscillator phase noise synthesis from L(f) PSD masks and Leeson model). ~237+ DSP modules total, ~2620+ unit tests.
 
 - **Batch 52 DSP Blocks** - CIC Filter (`cic_filter.rs` - CIC decimation/interpolation without multiplications, passband compensator FIR design), Overlap-Save (`overlap_save.rs` - Overlap-Save and Overlap-Add streaming FFT block convolution, direct convolution reference), LMS Filter (`lms_filter.rs` - Standard LMS, Normalized LMS NLMS, Leaky LMS adaptive filters for system identification and noise cancellation), STFT (`stft.rs` - Short-Time Fourier Transform with configurable windows Hann/Hamming/Blackman, Inverse STFT with OLA perfect reconstruction, COLA constraint checking), MUSIC DOA (`music_doa.rs` - MUSIC direction-of-arrival estimation with Hermitian eigendecomposition augmented real form + Jacobi, MDL/AIC source enumeration, test snapshot generation). ~232+ DSP modules total, ~2560+ unit tests.
 
