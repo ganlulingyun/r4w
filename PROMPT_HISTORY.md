@@ -7060,3 +7060,51 @@ User requested:
 ### Git Operations
 - Commit e6d1dcd: `[AI:claude] feat(gui): add menu bar and resizable test panel`
 - Pushed to origin/master
+
+### Follow-up Request
+User observed that QPSK Modulator outputs I/Q samples but the next block (TX RRC Filter) should receive I/Q as input. Asked to add typed port support to validate connections.
+
+### Actions Taken
+
+1. **Added PortType Enum**
+   - `Bits` - Binary data stream (blue color)
+   - `Symbols` - Symbol indices (purple color)
+   - `IQ` - Complex I/Q samples (orange color)
+   - `Real` - Real-valued samples (cyan color)
+   - `Any` - Generic (gray color, always compatible)
+   - `is_compatible_with()` method for type checking
+
+2. **Added Port Type Methods to BlockType**
+   - `input_port_types()` / `output_port_types()` returns Vec<PortType>
+   - `input_port_type(port)` / `output_port_type(port)` for specific ports
+   - Comprehensive type assignments for all 40+ blocks
+
+3. **Visual Feedback During Connection**
+   - Ports colored by their data type
+   - When dragging connection: compatible ports brighten, incompatible show red with X overlay
+   - Output port brightens when being used as connection source
+
+4. **Validation Enhancement**
+   - Added type mismatch checking in `Pipeline::validate()`
+   - Warnings for incompatible connections (e.g., "Type mismatch: 'PSK' output (IQ) → 'Scrambler' input (Bits)")
+
+5. **Properties Panel Updates**
+   - Shows "Port Types" section with In/Out types for selected block
+   - Port type legend with color samples when no block selected
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `crates/r4w-gui/src/views/pipeline_wizard.rs` | Added PortType enum, type methods, visual feedback, validation |
+| `CLAUDE.md` | Added typed port support to recent updates |
+
+### Key Design Decisions
+- Symbols and Bits are treated as compatible (common in real systems)
+- Real and IQ are compatible (Real becomes just I channel)
+- Any type is always compatible (for Split/Merge blocks)
+- Type mismatch is a warning, not an error (allows experimentation)
+
+### Git Operations
+- Commit c95e173: `[AI:claude] feat(gui): add typed port support for pipeline builder`
+- Pushed to origin/master

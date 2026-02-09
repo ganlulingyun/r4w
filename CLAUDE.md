@@ -143,6 +143,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Typed Port Support** - Port type system for pipeline connections. Types: Bits (blue), Symbols (purple), IQ (orange), Real (cyan), Any (gray). Visual feedback during connection: compatible ports brighten, incompatible show red with X. Type mismatch warnings in validation. Port types shown in Properties panel.
 - **Pipeline Builder Menu Bar** - Traditional dropdown menu bar replacing flat toolbar. Menus: File (New/Load/Save/Export), Edit (Select All/Delete/Validate), View (panels, arrows, zoom), Options (snap, auto-connect, cascade drag, connection styles), Layout (modes), Presets. Resizable test panel with persistent height tracking.
 - **Block Metadata System** - Comprehensive documentation for pipeline blocks (`block_metadata.rs`). Each block has: implementation location (file:line with "View Code" to open in VS Code), mathematical formulas with variable explanations, unit tests with "Run" buttons, performance info (complexity, SIMD/GPU support), standards references with links. Properties panel shows collapsible Documentation/Formulas/Implementation/Tests/Performance/Standards sections.
 - **TX/RX/Channel Pipeline Separation** - Waveform specs v1.1 format with separate `tx`, `rx`, and `channel` sections. Load menu offers TX/RX/Loopback options. Block ID conventions: TX(1-99), RX(100-199), Channel(200-299). Loopback mode auto-connects TX → Channel → RX.
