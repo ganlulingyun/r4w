@@ -461,6 +461,8 @@ pub struct Pipeline {
     pub description: String,
     pub blocks: HashMap<BlockId, PipelineBlock>,
     pub connections: Vec<Connection>,
+    #[serde(default)]
+    pub layout_mode: LayoutMode,
     #[serde(skip)]
     next_id: BlockId,
 }
@@ -517,7 +519,7 @@ pub enum SelectionMode {
 }
 
 /// Layout mode for auto-arranging blocks
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum LayoutMode {
     /// Topological flow layout (follows signal flow)
     Flow,
@@ -525,7 +527,8 @@ pub enum LayoutMode {
     FitToView,
     /// Compact layout minimizing whitespace
     Compact,
-    /// Simple grid arrangement
+    /// Simple grid arrangement (default)
+    #[default]
     Grid,
 }
 
@@ -560,6 +563,7 @@ impl Pipeline {
             description: String::new(),
             blocks: HashMap::new(),
             connections: Vec::new(),
+            layout_mode: LayoutMode::default(),
             next_id: 1,
         }
     }
@@ -2655,11 +2659,16 @@ impl PipelineWizardView {
                             self.validation_result = self.pipeline.validate();
                             self.show_validation = true;
                         }
-                        // Layout dropdown menu
-                        egui::menu::menu_button(ui, "Layout ▼", |ui| {
+                        // Layout dropdown menu - show current layout mode
+                        let current_layout = self.pipeline.layout_mode;
+                        egui::menu::menu_button(ui, format!("Layout: {} ▼", current_layout.name()), |ui| {
                             ui.set_min_width(150.0);
                             for mode in LayoutMode::all() {
-                                if ui.button(mode.name()).on_hover_text(mode.description()).clicked() {
+                                let is_selected = *mode == current_layout;
+                                let label = if is_selected { format!("✓ {}", mode.name()) } else { mode.name().to_string() };
+                                if ui.button(label).on_hover_text(mode.description()).clicked() {
+                                    // Save layout mode to pipeline
+                                    self.pipeline.layout_mode = *mode;
                                     // Use a reasonable default canvas size for fit-to-view
                                     let canvas_size = Vec2::new(800.0, 600.0);
                                     self.apply_layout(*mode, canvas_size);
