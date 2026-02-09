@@ -3369,6 +3369,147 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["max_capacity"],
         });
 
+    // Batch 18: Arithmetic, Conjugate, Phase, Transcendental, ChunksToSymbols
+
+        m.insert("AddConst", BlockMetadata {
+            block_type: "AddConst",
+            display_name: "Add Constant",
+            category: "Filtering",
+            description: "Adds a complex constant to every sample. Used for DC offset correction, level shifting, and bias adjustment.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/arithmetic.rs", line: 67, symbol: "add_const_complex", description: "Add complex constant to stream" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "Add Const", plaintext: "y[n] = x[n] + c", latex: Some("y[n] = x[n] + c"), variables: &[("c", "Complex constant"), ("x", "Input"), ("y", "Output")] }],
+            tests: &[BlockTest { name: "test_add_const_complex", module: "r4w_core::arithmetic::tests", description: "Add complex constant", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["MultiplyConst", "Rotator"],
+            input_type: "IQ",
+            output_type: "IQ",
+            key_parameters: &["re", "im"],
+        });
+
+        m.insert("Conjugate", BlockMetadata {
+            block_type: "Conjugate",
+            display_name: "Complex Conjugate",
+            category: "Filtering",
+            description: "Computes the complex conjugate of each sample: y[n] = conj(x[n]). Flips the sign of the imaginary component.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/conjugate.rs", line: 30, symbol: "conjugate", description: "Complex conjugate" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "Conjugate", plaintext: "y[n] = conj(x[n]) = Re(x) - j*Im(x)", latex: Some("y[n] = x^*[n]"), variables: &[("x", "Input (complex)"), ("y", "Output (complex conjugate)")] }],
+            tests: &[BlockTest { name: "test_conjugate", module: "r4w_core::conjugate::tests", description: "Complex conjugate", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["MultiplyConjugate", "Rotator"],
+            input_type: "IQ",
+            output_type: "IQ",
+            key_parameters: &[],
+        });
+
+        m.insert("MultiplyConjugate", BlockMetadata {
+            block_type: "MultiplyConjugate",
+            display_name: "Multiply Conjugate",
+            category: "Filtering",
+            description: "Multiplies first stream by conjugate of second: y[n] = a[n] * conj(b[n]). Used in cross-correlation and decision-directed loops.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/conjugate.rs", line: 35, symbol: "multiply_conjugate", description: "Multiply by conjugate" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "Multiply Conjugate", plaintext: "y[n] = a[n] * conj(b[n])", latex: Some("y[n] = a[n] \\cdot b^*[n]"), variables: &[("a", "First input"), ("b", "Second input")] }],
+            tests: &[BlockTest { name: "test_multiply_conjugate", module: "r4w_core::conjugate::tests", description: "Multiply conjugate", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["Conjugate", "MultiplyConst"],
+            input_type: "IQ",
+            output_type: "IQ",
+            key_parameters: &[],
+        });
+
+        m.insert("PhaseUnwrap", BlockMetadata {
+            block_type: "PhaseUnwrap",
+            display_name: "Phase Unwrap",
+            category: "Recovery",
+            description: "Reconstructs continuous phase trajectory from wrapped [-pi, pi] values. When the difference between consecutive samples exceeds pi, a 2*pi correction is applied.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/phase_ops.rs", line: 56, symbol: "phase_unwrap", description: "Phase unwrapping" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "Phase Unwrap", plaintext: "y[n] = x[n] + 2*pi*k, k chosen to minimize |y[n]-y[n-1]|", latex: Some("y[n] = x[n] + 2\\pi k_n"), variables: &[("x", "Wrapped phase"), ("k_n", "Cumulative correction"), ("y", "Unwrapped phase")] }],
+            tests: &[BlockTest { name: "test_phase_unwrap_positive_jump", module: "r4w_core::phase_ops::tests", description: "Unwrap positive jump", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["CostasLoop", "CarrierRecovery"],
+            input_type: "Real (phase)",
+            output_type: "Real (unwrapped phase)",
+            key_parameters: &[],
+        });
+
+        m.insert("Normalize", BlockMetadata {
+            block_type: "Normalize",
+            display_name: "Signal Normalize",
+            category: "Recovery",
+            description: "Normalizes signal to unit power, unit RMS, or unit peak amplitude. Useful for AGC-like scaling and pre-processing.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/transcendental.rs", line: 152, symbol: "normalize_power", description: "Power normalization" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "Power Normalize", plaintext: "y[n] = x[n] / sqrt(avg(|x|^2))", latex: Some("y[n] = \\frac{x[n]}{\\sqrt{\\bar{P}}}"), variables: &[("P_bar", "Average power"), ("x", "Input"), ("y", "Normalized output")] }],
+            tests: &[BlockTest { name: "test_normalize_power", module: "r4w_core::transcendental::tests", description: "Normalize to unit power", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["Agc", "RmsPower"],
+            input_type: "IQ",
+            output_type: "IQ",
+            key_parameters: &["mode"],
+        });
+
+        m.insert("ChunksToSymbols", BlockMetadata {
+            block_type: "ChunksToSymbols",
+            display_name: "Chunks to Symbols (LUT Mapper)",
+            category: "Mapping",
+            description: "Maps integer symbol indices to constellation points using a look-up table. Supports BPSK, QPSK, 8PSK, and 16QAM. Also maps bit streams by packing bits_per_symbol bits per index.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/chunks_to_symbols.rs", line: 103, symbol: "ChunksToSymbols::map", description: "LUT symbol mapping" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "LUT Mapping", plaintext: "y[n] = table[idx[n]]", latex: Some("y[n] = \\mathcal{C}[i_n]"), variables: &[("C", "Constellation table"), ("i_n", "Symbol index"), ("y", "Mapped point")] }],
+            tests: &[BlockTest { name: "test_qpsk_map", module: "r4w_core::chunks_to_symbols::tests", description: "QPSK mapping", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(M)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["ConstellationMapper", "SymbolSlicer", "SymbolsToSoftBits"],
+            input_type: "Symbols",
+            output_type: "IQ",
+            key_parameters: &["modulation"],
+        });
+
+        m.insert("SymbolsToSoftBits", BlockMetadata {
+            block_type: "SymbolsToSoftBits",
+            display_name: "Symbols to Soft Bits (LLR Demapper)",
+            category: "Mapping",
+            description: "Computes approximate log-likelihood ratio (LLR) soft decisions from received constellation points. Min-distance approximation over constellation subsets for each bit position.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/chunks_to_symbols.rs", line: 189, symbol: "SymbolsToSoftBits::demap", description: "Soft-decision LLR demapping" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "Approximate LLR", plaintext: "LLR_k = (min_dist_1^2 - min_dist_0^2) / sigma^2", latex: Some("\\Lambda_k = \\frac{\\min_{s:b_k=1} |r-s|^2 - \\min_{s:b_k=0} |r-s|^2}{\\sigma^2}"), variables: &[("r", "Received sample"), ("s", "Constellation points"), ("sigma^2", "Noise variance"), ("b_k", "Bit position k")] }],
+            tests: &[BlockTest { name: "test_soft_bits_bpsk_noiseless", module: "r4w_core::chunks_to_symbols::tests", description: "BPSK soft demapping", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n * M * k)", memory: "O(M)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["ChunksToSymbols", "SymbolSlicer", "ConstellationRx"],
+            input_type: "IQ",
+            output_type: "Real (LLR values)",
+            key_parameters: &["modulation", "noise_var"],
+        });
+
+        m.insert("Transcendental", BlockMetadata {
+            block_type: "Transcendental",
+            display_name: "Transcendental (Math Ops)",
+            category: "Filtering",
+            description: "Element-wise mathematical operations: Abs (magnitude), Power (dB), Ln (natural log), Exp (exponential). Also includes dB conversions and normalization.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/transcendental.rs", line: 38, symbol: "abs_complex", description: "Transcendental math operations" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Abs (Magnitude)", plaintext: "|x[n]| = sqrt(Re^2 + Im^2)", latex: Some("|x[n]| = \\sqrt{x_I^2 + x_Q^2}"), variables: &[("x_I", "Real component"), ("x_Q", "Imaginary component")] },
+                BlockFormula { name: "Power dB", plaintext: "P_dB = 10*log10(|x|^2)", latex: Some("P_{dB} = 10\\log_{10}(|x|^2)"), variables: &[("x", "Input sample"), ("P_dB", "Power in dB")] },
+            ],
+            tests: &[BlockTest { name: "test_abs_complex", module: "r4w_core::transcendental::tests", description: "Complex magnitude", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["ComplexToMag", "LogPowerFft"],
+            input_type: "Any (IQ or Real)",
+            output_type: "Real",
+            key_parameters: &["function"],
+        });
+
     m
 }
 

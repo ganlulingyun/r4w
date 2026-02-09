@@ -307,6 +307,16 @@ pub enum BlockType {
     FrameSync { sync_word_hex: String, frame_length: u32, max_hamming: u32 },
     VectorSink { max_capacity: u32 },
 
+    // Batch 18: Arithmetic / utility blocks
+    AddConst { re: f32, im: f32 },
+    Conjugate,
+    MultiplyConjugate,
+    PhaseUnwrap,
+    Normalize { mode: String },
+    ChunksToSymbols { modulation: String },
+    SymbolsToSoftBits { modulation: String, noise_var: f32 },
+    Transcendental { function: String },
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -425,6 +435,14 @@ impl BlockType {
             Self::SymbolSlicer { .. } => "Symbol Slicer",
             Self::FrameSync { .. } => "Frame Sync",
             Self::VectorSink { .. } => "Vector Sink",
+            Self::AddConst { .. } => "Add Const",
+            Self::Conjugate => "Conjugate",
+            Self::MultiplyConjugate => "Multiply Conjugate",
+            Self::PhaseUnwrap => "Phase Unwrap",
+            Self::Normalize { .. } => "Normalize",
+            Self::ChunksToSymbols { .. } => "Chunks to Symbols",
+            Self::SymbolsToSoftBits { .. } => "Symbols to Soft Bits",
+            Self::Transcendental { .. } => "Transcendental",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -477,6 +495,9 @@ impl BlockType {
             Self::Puncturer { .. } | Self::Depuncturer { .. } => BlockCategory::Coding,
             Self::SymbolSlicer { .. } => BlockCategory::Recovery,
             Self::VectorSink { .. } => BlockCategory::Output,
+            Self::AddConst { .. } | Self::Conjugate | Self::MultiplyConjugate | Self::Transcendental { .. } => BlockCategory::Filtering,
+            Self::PhaseUnwrap | Self::Normalize { .. } => BlockCategory::Recovery,
+            Self::ChunksToSymbols { .. } | Self::SymbolsToSoftBits { .. } => BlockCategory::Mapping,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -598,6 +619,13 @@ impl BlockType {
             Self::SymbolSlicer { .. } => vec![PortType::IQ],
             Self::FrameSync { .. } => vec![PortType::Bits],
             Self::VectorSink { .. } => vec![PortType::Any],
+            Self::AddConst { .. } => vec![PortType::IQ],
+            Self::Conjugate | Self::MultiplyConjugate => vec![PortType::IQ],
+            Self::PhaseUnwrap => vec![PortType::Real],
+            Self::Normalize { .. } => vec![PortType::IQ],
+            Self::ChunksToSymbols { .. } => vec![PortType::Symbols],
+            Self::SymbolsToSoftBits { .. } => vec![PortType::IQ],
+            Self::Transcendental { .. } => vec![PortType::Any],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
@@ -710,6 +738,13 @@ impl BlockType {
             Self::SymbolSlicer { .. } => vec![PortType::Bits],
             Self::FrameSync { .. } => vec![PortType::Bits],
             Self::VectorSink { .. } => vec![],  // Sink - no output
+            Self::AddConst { .. } => vec![PortType::IQ],
+            Self::Conjugate | Self::MultiplyConjugate => vec![PortType::IQ],
+            Self::PhaseUnwrap => vec![PortType::Real],
+            Self::Normalize { .. } => vec![PortType::IQ],
+            Self::ChunksToSymbols { .. } => vec![PortType::IQ],
+            Self::SymbolsToSoftBits { .. } => vec![PortType::Real],
+            Self::Transcendental { .. } => vec![PortType::Real],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2827,6 +2862,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::GrayMapper { bits_per_symbol: 2 },
             BlockType::ConstellationMapper { constellation: ConstellationType::Qpsk },
             BlockType::DifferentialEncoder,
+            BlockType::ChunksToSymbols { modulation: "QPSK".to_string() },
+            BlockType::SymbolsToSoftBits { modulation: "QPSK".to_string(), noise_var: 0.1 },
         ]),
         (BlockCategory::Modulation, vec![
             BlockType::PskModulator { order: 4 },
@@ -2850,6 +2887,10 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::MovingAverage { length: 8 },
             BlockType::MultiplyConst { gain_re: 1.0, gain_im: 0.0 },
             BlockType::Rotator { frequency_hz: 1000.0, sample_rate_hz: 48000.0 },
+            BlockType::AddConst { re: 0.0, im: 0.0 },
+            BlockType::Conjugate,
+            BlockType::MultiplyConjugate,
+            BlockType::Transcendental { function: "Abs".to_string() },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -2899,6 +2940,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::PfbClockSync { sps: 4.0, loop_bw: 0.0628, nfilts: 32 },
             BlockType::RmsPower { alpha: 0.01 },
             BlockType::SymbolSlicer { modulation: "QPSK".to_string() },
+            BlockType::PhaseUnwrap,
+            BlockType::Normalize { mode: "Power".to_string() },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -6294,6 +6337,155 @@ impl PipelineWizardView {
                 }
             }
 
+            // Add Const: add complex constant to every sample
+            BlockType::AddConst { re, im } => {
+                use r4w_core::arithmetic::add_const_complex;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = add_const_complex(&input, Complex64::new(*re as f64, *im as f64));
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Conjugate: complex conjugate
+            BlockType::Conjugate => {
+                use r4w_core::conjugate::conjugate;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = conjugate(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Multiply Conjugate: a * conj(b)
+            BlockType::MultiplyConjugate => {
+                // Without second input, just conjugate the input
+                use r4w_core::conjugate::conjugate;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = conjugate(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Phase Unwrap
+            BlockType::PhaseUnwrap => {
+                use r4w_core::phase_ops::phase_unwrap;
+                let phases: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let unwrapped = phase_unwrap(&phases);
+                let samples: Vec<(f32, f32)> = unwrapped.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Normalize: normalize signal power
+            BlockType::Normalize { mode } => {
+                use r4w_core::transcendental::{normalize_power, normalize_rms};
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = match mode.as_str() {
+                    "RMS" => {
+                        let reals: Vec<f64> = input.iter().map(|z| z.re).collect();
+                        let normed = normalize_rms(&reals);
+                        normed.iter().map(|&v| Complex64::new(v, 0.0)).collect()
+                    }
+                    _ => normalize_power(&input),
+                };
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Chunks to Symbols: LUT-based mapping
+            BlockType::ChunksToSymbols { modulation } => {
+                use r4w_core::chunks_to_symbols::ChunksToSymbols as CoreCts;
+                let mapper = match modulation.as_str() {
+                    "BPSK" => CoreCts::bpsk(),
+                    "8PSK" => CoreCts::psk8(),
+                    "16QAM" => CoreCts::qam16(),
+                    _ => CoreCts::qpsk(),
+                };
+                let indices: Vec<usize> = input_symbols.iter().map(|&s| s as usize).collect();
+                let output = mapper.map(&indices);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Symbols to Soft Bits: LLR demapping
+            BlockType::SymbolsToSoftBits { modulation, noise_var } => {
+                use r4w_core::chunks_to_symbols::SymbolsToSoftBits as CoreStb;
+                use num_complex::Complex64;
+                let soft = match modulation.as_str() {
+                    "BPSK" => CoreStb::new(
+                        vec![Complex64::new(1.0, 0.0), Complex64::new(-1.0, 0.0)],
+                        *noise_var as f64,
+                    ),
+                    _ => CoreStb::qpsk(*noise_var as f64),
+                };
+                let received: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let llrs = soft.demap(&received);
+                let samples: Vec<(f32, f32)> = llrs.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Transcendental: math operations
+            BlockType::Transcendental { function } => {
+                use r4w_core::transcendental::{abs_complex, power_db, abs_real, exp_real, ln_real};
+                use num_complex::Complex64;
+                match function.as_str() {
+                    "PowerDb" => {
+                        let input: Vec<Complex64> = input_samples.iter()
+                            .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                            .collect();
+                        let db = power_db(&input);
+                        let samples: Vec<(f32, f32)> = db.iter().map(|&v| (v as f32, 0.0)).collect();
+                        (Vec::new(), Vec::new(), samples)
+                    }
+                    "Exp" => {
+                        let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                        let result = exp_real(&reals);
+                        let samples: Vec<(f32, f32)> = result.iter().map(|&v| (v as f32, 0.0)).collect();
+                        (Vec::new(), Vec::new(), samples)
+                    }
+                    "Ln" => {
+                        let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                        let result = ln_real(&reals);
+                        let samples: Vec<(f32, f32)> = result.iter().map(|&v| (v as f32, 0.0)).collect();
+                        (Vec::new(), Vec::new(), samples)
+                    }
+                    _ => { // "Abs" and default
+                        let input: Vec<Complex64> = input_samples.iter()
+                            .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                            .collect();
+                        let mags = abs_complex(&input);
+                        let samples: Vec<(f32, f32)> = mags.iter().map(|&v| (v as f32, 0.0)).collect();
+                        (Vec::new(), Vec::new(), samples)
+                    }
+                }
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -8227,8 +8419,94 @@ impl PipelineWizardView {
                     block.block_type = BlockType::VectorSink { max_capacity: new_cap };
                 }
             }
+            BlockType::AddConst { re, im } => {
+                let mut new_re = re;
+                let mut new_im = im;
+                ui.horizontal(|ui| {
+                    ui.label("Real:");
+                    ui.add(egui::DragValue::new(&mut new_re).speed(0.01));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Imag:");
+                    ui.add(egui::DragValue::new(&mut new_im).speed(0.01));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::AddConst { re: new_re, im: new_im };
+                }
+            }
+            BlockType::Normalize { mode } => {
+                let mut new_mode = mode.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Mode:");
+                    egui::ComboBox::from_id_salt("normalize_mode")
+                        .selected_text(&new_mode)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_mode, "Power".to_string(), "Power");
+                            ui.selectable_value(&mut new_mode, "RMS".to_string(), "RMS");
+                            ui.selectable_value(&mut new_mode, "Peak".to_string(), "Peak");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Normalize { mode: new_mode };
+                }
+            }
+            BlockType::ChunksToSymbols { modulation } => {
+                let mut new_mod = modulation.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Modulation:");
+                    egui::ComboBox::from_id_salt("cts_mod")
+                        .selected_text(&new_mod)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_mod, "BPSK".to_string(), "BPSK");
+                            ui.selectable_value(&mut new_mod, "QPSK".to_string(), "QPSK");
+                            ui.selectable_value(&mut new_mod, "8PSK".to_string(), "8PSK");
+                            ui.selectable_value(&mut new_mod, "16QAM".to_string(), "16QAM");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ChunksToSymbols { modulation: new_mod };
+                }
+            }
+            BlockType::SymbolsToSoftBits { modulation, noise_var } => {
+                let mut new_mod = modulation.clone();
+                let mut new_nv = noise_var;
+                ui.horizontal(|ui| {
+                    ui.label("Modulation:");
+                    egui::ComboBox::from_id_salt("stb_mod")
+                        .selected_text(&new_mod)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_mod, "BPSK".to_string(), "BPSK");
+                            ui.selectable_value(&mut new_mod, "QPSK".to_string(), "QPSK");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Noise Variance:");
+                    ui.add(egui::DragValue::new(&mut new_nv).speed(0.01).range(0.001..=10.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SymbolsToSoftBits { modulation: new_mod, noise_var: new_nv };
+                }
+            }
+            BlockType::Transcendental { function } => {
+                let mut new_fn = function.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Function:");
+                    egui::ComboBox::from_id_salt("trans_fn")
+                        .selected_text(&new_fn)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_fn, "Abs".to_string(), "Abs (Magnitude)");
+                            ui.selectable_value(&mut new_fn, "PowerDb".to_string(), "Power (dB)");
+                            ui.selectable_value(&mut new_fn, "Ln".to_string(), "Ln (Natural Log)");
+                            ui.selectable_value(&mut new_fn, "Exp".to_string(), "Exp");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Transcendental { function: new_fn };
+                }
+            }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |
             BlockType::DifferentialEncoder | BlockType::MatchedFilter | BlockType::HdlcDeframer | BlockType::Ax25Decoder |
+            BlockType::Conjugate | BlockType::MultiplyConjugate | BlockType::PhaseUnwrap |
             BlockType::IqOutput | BlockType::BitOutput | BlockType::IqSplit | BlockType::IqMerge => {
                 ui.label(RichText::new("No configurable parameters").italics());
             }
