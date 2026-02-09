@@ -335,6 +335,14 @@ pub enum BlockType {
         doppler_step_hz: f64,
         threshold: f64,
     },
+    // Batch 19: FM, Peak Detector, Selector/Valve/Mute/Rail/Threshold
+    FrequencyModulatorBlock { sensitivity_hz: f64, sample_rate_hz: f64 },
+    PeakDetectorBlock { threshold: f64, min_spacing: usize },
+    IntegrateAndDumpBlock { length: usize, average: bool },
+    RailBlock { max_amplitude: f64 },
+    ThresholdDetector { threshold: f64 },
+    MuteBlock { muted: bool },
+    ValveBlock { open: bool },
 }
 
 impl BlockType {
@@ -445,6 +453,13 @@ impl BlockType {
             Self::Transcendental { .. } => "Transcendental",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
+            Self::FrequencyModulatorBlock { .. } => "FM Modulator",
+            Self::PeakDetectorBlock { .. } => "Peak Detector",
+            Self::IntegrateAndDumpBlock { .. } => "Integrate & Dump",
+            Self::RailBlock { .. } => "Rail (Clamp)",
+            Self::ThresholdDetector { .. } => "Threshold Detector",
+            Self::MuteBlock { .. } => "Mute",
+            Self::ValveBlock { .. } => "Valve",
         }
     }
 
@@ -500,6 +515,10 @@ impl BlockType {
             Self::ChunksToSymbols { .. } | Self::SymbolsToSoftBits { .. } => BlockCategory::Mapping,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
+            Self::FrequencyModulatorBlock { .. } => BlockCategory::Modulation,
+            Self::PeakDetectorBlock { .. } | Self::ThresholdDetector { .. } => BlockCategory::Synchronization,
+            Self::IntegrateAndDumpBlock { .. } => BlockCategory::Filtering,
+            Self::RailBlock { .. } | Self::MuteBlock { .. } | Self::ValveBlock { .. } => BlockCategory::Impairments,
         }
     }
 
@@ -630,6 +649,13 @@ impl BlockType {
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
 
+            // Batch 19 blocks
+            Self::FrequencyModulatorBlock { .. } => vec![PortType::Real],
+            Self::PeakDetectorBlock { .. } | Self::IntegrateAndDumpBlock { .. } |
+            Self::ThresholdDetector { .. } => vec![PortType::Real],
+            Self::RailBlock { .. } => vec![PortType::Real],
+            Self::MuteBlock { .. } | Self::ValveBlock { .. } => vec![PortType::IQ],
+
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
             Self::Merge { num_inputs } => vec![PortType::Any; *num_inputs as usize],
@@ -748,6 +774,13 @@ impl BlockType {
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
+
+            // Batch 19 blocks
+            Self::FrequencyModulatorBlock { .. } => vec![PortType::IQ],
+            Self::PeakDetectorBlock { .. } | Self::ThresholdDetector { .. } => vec![PortType::Real],
+            Self::IntegrateAndDumpBlock { .. } => vec![PortType::Real],
+            Self::RailBlock { .. } => vec![PortType::Real],
+            Self::MuteBlock { .. } | Self::ValveBlock { .. } => vec![PortType::IQ],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -2873,6 +2906,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::DsssSpread { chips_per_symbol: 127, code_type: "Gold".to_string() },
             BlockType::FhssHop { num_channels: 50, hop_rate: 100.0 },
             BlockType::CssModulator { sf: 7, bw_hz: 125000 },
+            BlockType::FrequencyModulatorBlock { sensitivity_hz: 5000.0, sample_rate_hz: 48000.0 },
         ]),
         (BlockCategory::Filtering, vec![
             BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 10000.0, num_taps: 64 },
@@ -2891,6 +2925,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::Conjugate,
             BlockType::MultiplyConjugate,
             BlockType::Transcendental { function: "Abs".to_string() },
+            BlockType::IntegrateAndDumpBlock { length: 10, average: false },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -2911,12 +2946,17 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::PlateauDetector { threshold: 0.8, min_width: 4 },
             BlockType::CorrelateAndSync { threshold: 0.7, min_spacing: 100 },
             BlockType::FrameSync { sync_word_hex: "A5".to_string(), frame_length: 64, max_hamming: 1 },
+            BlockType::PeakDetectorBlock { threshold: 0.5, min_spacing: 10 },
+            BlockType::ThresholdDetector { threshold: 0.5 },
         ]),
         (BlockCategory::Impairments, vec![
             BlockType::AwgnChannel { snr_db: 20.0 },
             BlockType::FadingChannel { model: FadingModel::Rayleigh, doppler_hz: 10.0 },
             BlockType::FrequencyOffset { offset_hz: 100.0 },
             BlockType::IqImbalance { gain_db: 0.5, phase_deg: 2.0 },
+            BlockType::RailBlock { max_amplitude: 1.0 },
+            BlockType::MuteBlock { muted: false },
+            BlockType::ValveBlock { open: true },
         ]),
         (BlockCategory::Recovery, vec![
             BlockType::Agc { mode: AgcMode::Adaptive, target_db: -20.0 },
@@ -6486,6 +6526,95 @@ impl PipelineWizardView {
                 }
             }
 
+            // FM Modulator: real input → IQ output
+            BlockType::FrequencyModulatorBlock { sensitivity_hz, sample_rate_hz } => {
+                use r4w_core::frequency_modulator::FrequencyModulator;
+                let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let mut fm = FrequencyModulator::new(*sensitivity_hz, *sample_rate_hz);
+                let output = fm.modulate(&reals);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Peak Detector: real input → real output (peak magnitudes at peak positions)
+            BlockType::PeakDetectorBlock { threshold, min_spacing } => {
+                use r4w_core::peak_detector::PeakDetector;
+                let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let mut pd = PeakDetector::new(*threshold, *min_spacing);
+                let peaks = pd.process(&reals);
+                // Output: sparse signal with peaks at their positions
+                let mut out = vec![0.0f32; reals.len()];
+                for p in &peaks {
+                    if p.index < out.len() {
+                        out[p.index] = p.magnitude as f32;
+                    }
+                }
+                let samples: Vec<(f32, f32)> = out.iter().map(|&v| (v, 0.0)).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Integrate and Dump: real input → real output (decimated)
+            BlockType::IntegrateAndDumpBlock { length, average } => {
+                use r4w_core::peak_detector::IntegrateAndDump;
+                let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let mut iad = IntegrateAndDump::new(*length, *average);
+                let output = iad.process(&reals);
+                let samples: Vec<(f32, f32)> = output.iter().map(|&v| (v as f32, 0.0)).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Rail: clamp real signal to [-max, max]
+            BlockType::RailBlock { max_amplitude } => {
+                use r4w_core::selector::Rail;
+                let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let rail = Rail::new(*max_amplitude);
+                let output = rail.process(&reals);
+                let samples: Vec<(f32, f32)> = output.iter().map(|&v| (v as f32, 0.0)).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Threshold Detector: real input → real output (1.0 or 0.0)
+            BlockType::ThresholdDetector { threshold } => {
+                use r4w_core::selector::Threshold;
+                let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let th = Threshold::new(*threshold);
+                let output = th.process(&reals);
+                let samples: Vec<(f32, f32)> = output.iter().map(|&v| (v as f32, 0.0)).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Mute: IQ input → IQ output (zeros when muted)
+            BlockType::MuteBlock { muted } => {
+                use r4w_core::selector::Mute;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let mute = Mute::new(*muted);
+                let output = mute.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Valve: IQ input → IQ output (empty when closed)
+            BlockType::ValveBlock { open } => {
+                use r4w_core::selector::Valve;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let valve = Valve::new();
+                let output = valve.process(&input, *open);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -8502,6 +8631,82 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::Transcendental { function: new_fn };
+                }
+            }
+            BlockType::FrequencyModulatorBlock { sensitivity_hz, sample_rate_hz } => {
+                let mut new_sens = sensitivity_hz;
+                let mut new_sr = sample_rate_hz;
+                ui.horizontal(|ui| {
+                    ui.label("Sensitivity (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sens).speed(100.0).range(1.0..=1_000_000.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(100.0).range(1.0..=100_000_000.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FrequencyModulatorBlock { sensitivity_hz: new_sens, sample_rate_hz: new_sr };
+                }
+            }
+            BlockType::PeakDetectorBlock { threshold, min_spacing } => {
+                let mut new_th = threshold;
+                let mut new_ms = min_spacing;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::Slider::new(&mut new_th, 0.0..=10.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Min Spacing:");
+                    ui.add(egui::DragValue::new(&mut new_ms).range(1..=100000));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PeakDetectorBlock { threshold: new_th, min_spacing: new_ms };
+                }
+            }
+            BlockType::IntegrateAndDumpBlock { length, average } => {
+                let mut new_len = length;
+                let mut new_avg = average;
+                ui.horizontal(|ui| {
+                    ui.label("Length:");
+                    ui.add(egui::DragValue::new(&mut new_len).range(1..=100000));
+                });
+                ui.checkbox(&mut new_avg, "Output Average (vs Sum)");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::IntegrateAndDumpBlock { length: new_len, average: new_avg };
+                }
+            }
+            BlockType::RailBlock { max_amplitude } => {
+                let mut new_max = max_amplitude;
+                ui.horizontal(|ui| {
+                    ui.label("Max Amplitude:");
+                    ui.add(egui::DragValue::new(&mut new_max).speed(0.01).range(0.001..=1000.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::RailBlock { max_amplitude: new_max };
+                }
+            }
+            BlockType::ThresholdDetector { threshold } => {
+                let mut new_th = threshold;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::DragValue::new(&mut new_th).speed(0.01));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ThresholdDetector { threshold: new_th };
+                }
+            }
+            BlockType::MuteBlock { muted } => {
+                let mut new_muted = muted;
+                ui.checkbox(&mut new_muted, "Muted (output zeros)");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::MuteBlock { muted: new_muted };
+                }
+            }
+            BlockType::ValveBlock { open } => {
+                let mut new_open = open;
+                ui.checkbox(&mut new_open, "Open (pass through)");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ValveBlock { open: new_open };
                 }
             }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |

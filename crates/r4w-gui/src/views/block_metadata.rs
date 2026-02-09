@@ -3510,6 +3510,165 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["function"],
         });
 
+        // ===== BATCH 19: FM, Peak Detector, Selector/Valve/Mute/Rail/Threshold =====
+
+        m.insert("FrequencyModulatorBlock", BlockMetadata {
+            block_type: "FrequencyModulatorBlock",
+            display_name: "FM Modulator",
+            category: "Modulation",
+            description: "Continuous-phase frequency modulator. Converts a real-valued baseband signal to FM IQ output with configurable sensitivity (max frequency deviation). Factory methods for NBFM (5 kHz) and WBFM (75 kHz).",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/frequency_modulator.rs", line: 36, symbol: "FrequencyModulator", description: "Continuous-phase FM modulator" }),
+            related_code: &[CodeLocation { crate_name: "r4w-core", file_path: "src/frequency_modulator.rs", line: 113, symbol: "FskModulator", description: "M-ary FSK modulator" }],
+            formulas: &[
+                BlockFormula { name: "FM Phase", plaintext: "φ[n] = φ[n-1] + 2π·k·x[n]/fs", latex: Some("\\phi[n] = \\phi[n-1] + \\frac{2\\pi k\\, x[n]}{f_s}"), variables: &[("k", "Sensitivity (Hz/unit)"), ("x[n]", "Input signal"), ("fs", "Sample rate")] },
+                BlockFormula { name: "FM Output", plaintext: "y[n] = exp(j·φ[n])", latex: Some("y[n] = e^{j\\phi[n]}"), variables: &[("φ[n]", "Accumulated phase")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_fm_constant_envelope", module: "r4w_core::frequency_modulator::tests", description: "Constant envelope verification", expected_runtime_ms: 1 },
+                BlockTest { name: "test_fsk_binary", module: "r4w_core::frequency_modulator::tests", description: "Binary FSK modulation", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["FskModulator", "QuadratureDemod", "NbfmReceiver"],
+            input_type: "Real (baseband audio/data)",
+            output_type: "IQ (constant envelope)",
+            key_parameters: &["sensitivity_hz", "sample_rate_hz"],
+        });
+
+        m.insert("PeakDetectorBlock", BlockMetadata {
+            block_type: "PeakDetectorBlock",
+            display_name: "Peak Detector",
+            category: "Synchronization",
+            description: "Detects peaks in real-valued signals with configurable threshold and minimum spacing. Uses parabolic interpolation for sub-sample peak position. Useful for timing recovery, sync detection, and spectral peaks.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/peak_detector.rs", line: 37, symbol: "PeakDetector", description: "Peak detector with threshold and min spacing" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Peak Condition", plaintext: "x[n] > threshold AND x[n] >= x[n-1] AND x[n] >= x[n+1]", latex: None, variables: &[("x[n]", "Input signal"), ("threshold", "Minimum peak value")] },
+                BlockFormula { name: "Parabolic Interpolation", plaintext: "δ = (y[-1] - y[+1]) / (2·(2·y[0] - y[-1] - y[+1]))", latex: Some("\\delta = \\frac{y_{-1} - y_{+1}}{2(2y_0 - y_{-1} - y_{+1})}"), variables: &[("δ", "Fractional offset"), ("y", "Samples around peak")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_peak_detector_basic", module: "r4w_core::peak_detector::tests", description: "Basic peak detection", expected_runtime_ms: 1 },
+                BlockTest { name: "test_peak_detector_min_spacing", module: "r4w_core::peak_detector::tests", description: "Minimum spacing enforcement", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["ThresholdDetector", "CorrelateAndSync", "PlateauDetector"],
+            input_type: "Real",
+            output_type: "Real (sparse peaks)",
+            key_parameters: &["threshold", "min_spacing"],
+        });
+
+        m.insert("IntegrateAndDumpBlock", BlockMetadata {
+            block_type: "IntegrateAndDumpBlock",
+            display_name: "Integrate & Dump",
+            category: "Filtering",
+            description: "Accumulates N samples then outputs the sum or average and resets. Acts as a matched filter for rectangular (NRZ) pulses. Commonly used in timing recovery and energy detection.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/peak_detector.rs", line: 132, symbol: "IntegrateAndDump", description: "Integrate-and-dump matched filter" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Sum Mode", plaintext: "y[k] = Σ x[kN+i] for i=0..N-1", latex: Some("y[k] = \\sum_{i=0}^{N-1} x[kN+i]"), variables: &[("N", "Integration length"), ("x", "Input"), ("y", "Output")] },
+                BlockFormula { name: "Average Mode", plaintext: "y[k] = (1/N) · Σ x[kN+i]", latex: Some("y[k] = \\frac{1}{N} \\sum_{i=0}^{N-1} x[kN+i]"), variables: &[("N", "Integration length")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_integrate_and_dump_sum", module: "r4w_core::peak_detector::tests", description: "Sum accumulation", expected_runtime_ms: 1 },
+                BlockTest { name: "test_integrate_and_dump_average", module: "r4w_core::peak_detector::tests", description: "Average accumulation", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["MovingAverage", "KeepOneInN", "PeakDetectorBlock"],
+            input_type: "Real",
+            output_type: "Real (decimated by N)",
+            key_parameters: &["length", "average"],
+        });
+
+        m.insert("RailBlock", BlockMetadata {
+            block_type: "RailBlock",
+            display_name: "Rail (Clamp)",
+            category: "Impairments",
+            description: "Clamps signal amplitude to [-max, max]. Commonly used to limit signal swing for DAC output or to prevent overflow. For complex signals, clamps real and imaginary parts independently.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/selector.rs", line: 207, symbol: "Rail", description: "Signal amplitude clamp" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Rail", plaintext: "y[n] = clamp(x[n], -max, max)", latex: None, variables: &[("max", "Maximum amplitude"), ("x[n]", "Input")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_rail_unit", module: "r4w_core::selector::tests", description: "Unit rail [-1, 1]", expected_runtime_ms: 1 },
+                BlockTest { name: "test_rail_complex", module: "r4w_core::selector::tests", description: "Complex rail", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["MuteBlock", "Agc"],
+            input_type: "Real",
+            output_type: "Real (clamped)",
+            key_parameters: &["max_amplitude"],
+        });
+
+        m.insert("ThresholdDetector", BlockMetadata {
+            block_type: "ThresholdDetector",
+            display_name: "Threshold Detector",
+            category: "Synchronization",
+            description: "Binary threshold detector — outputs 1.0 if input exceeds threshold, else 0.0. Used for energy detection, squelch triggering, and digital decision making.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/selector.rs", line: 252, symbol: "Threshold", description: "Binary threshold detector" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Threshold", plaintext: "y[n] = { 1.0 if x[n] > threshold, 0.0 otherwise }", latex: Some("y[n] = \\begin{cases} 1 & x[n] > \\tau \\\\ 0 & \\text{otherwise} \\end{cases}"), variables: &[("τ", "Threshold value"), ("x[n]", "Input signal")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_threshold_basic", module: "r4w_core::selector::tests", description: "Basic threshold", expected_runtime_ms: 1 },
+                BlockTest { name: "test_threshold_detect", module: "r4w_core::selector::tests", description: "Boolean detection", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["BinarySlicer", "PeakDetectorBlock", "PowerSquelch"],
+            input_type: "Real",
+            output_type: "Real (0.0 or 1.0)",
+            key_parameters: &["threshold"],
+        });
+
+        m.insert("MuteBlock", BlockMetadata {
+            block_type: "MuteBlock",
+            display_name: "Mute",
+            category: "Impairments",
+            description: "Replaces samples with zeros when muted. Unlike Valve which drops samples entirely, Mute preserves timing by outputting zero-valued samples.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/selector.rs", line: 169, symbol: "Mute", description: "Zero-fill mute block" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Mute", plaintext: "y[n] = { 0 if muted, x[n] if not muted }", latex: None, variables: &[("x[n]", "Input"), ("muted", "Mute state")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_mute_active", module: "r4w_core::selector::tests", description: "Muted → zeros", expected_runtime_ms: 1 },
+                BlockTest { name: "test_mute_inactive", module: "r4w_core::selector::tests", description: "Unmuted → pass through", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["ValveBlock", "RailBlock"],
+            input_type: "IQ",
+            output_type: "IQ (zeros when muted)",
+            key_parameters: &["muted"],
+        });
+
+        m.insert("ValveBlock", BlockMetadata {
+            block_type: "ValveBlock",
+            display_name: "Valve",
+            category: "Impairments",
+            description: "Gates a stream on/off. When open, samples pass through unchanged. When closed, output is empty (no samples). Useful for dynamic stream control.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/selector.rs", line: 120, symbol: "Valve", description: "Stream gate (on/off)" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Valve", plaintext: "y = { x if open, [] if closed }", latex: None, variables: &[("x", "Input stream"), ("open", "Valve state")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_valve_open", module: "r4w_core::selector::tests", description: "Open → pass through", expected_runtime_ms: 1 },
+                BlockTest { name: "test_valve_closed", module: "r4w_core::selector::tests", description: "Closed → empty", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["MuteBlock", "PowerSquelch"],
+            input_type: "IQ",
+            output_type: "IQ (or empty)",
+            key_parameters: &["open"],
+        });
+
     m
 }
 
