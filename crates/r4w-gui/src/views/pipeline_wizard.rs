@@ -2208,6 +2208,16 @@ impl PipelineWizardView {
         self.selected_blocks.contains(&id)
     }
 
+    /// Check if an input port has a connection
+    fn is_input_connected(&self, block_id: BlockId, port: u32) -> bool {
+        self.pipeline.connections.iter().any(|c| c.to_block == block_id && c.to_port == port)
+    }
+
+    /// Check if an output port has a connection
+    fn is_output_connected(&self, block_id: BlockId, port: u32) -> bool {
+        self.pipeline.connections.iter().any(|c| c.from_block == block_id && c.from_port == port)
+    }
+
     /// Select a single block (clearing any previous selection)
     fn select_single_block(&mut self, id: BlockId) {
         self.selected_blocks.clear();
@@ -3518,12 +3528,19 @@ impl PipelineWizardView {
         );
 
         // Input ports - draw on both left (horizontal) and top (vertical)
+        // Only show ports that are connected, OR all ports when in connection mode
         let port_radius = 6.0 * self.zoom;
+        let is_connecting = self.connecting_from.is_some();
         let num_inputs = block.block_type.num_inputs();
         for i in 0..num_inputs {
-            // Check if this is a valid connection target
-            let is_connection_target = self.connecting_from.is_some();
-            let port_color = if is_connection_target {
+            let is_connected = self.is_input_connected(block.id, i);
+
+            // Only draw if connected or we're making a connection
+            if !is_connected && !is_connecting {
+                continue;
+            }
+
+            let port_color = if is_connecting {
                 Color32::from_rgb(100, 200, 255) // Highlight when connecting
             } else {
                 Color32::from_rgb(80, 120, 200)
@@ -3544,9 +3561,17 @@ impl PipelineWizardView {
         }
 
         // Output ports - draw on both right (horizontal) and bottom (vertical)
+        // Only show ports that are connected, OR all ports when in connection mode
         let num_outputs = block.block_type.num_outputs();
         for i in 0..num_outputs {
+            let is_connected = self.is_output_connected(block.id, i);
             let is_connection_source = self.connecting_from == Some((block.id, i));
+
+            // Only draw if connected, is the active source, or we're making a connection
+            if !is_connected && !is_connecting {
+                continue;
+            }
+
             let port_color = if is_connection_source {
                 Color32::from_rgb(255, 200, 100) // Highlight when this is source
             } else {
