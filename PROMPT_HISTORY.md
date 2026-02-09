@@ -6967,3 +6967,60 @@ User requested arrowheads on connection lines and fix for grid layout that wasn'
 ### Git Operations
 - Commit 14ad715: `[AI:claude] feat(gui): add arrowheads and improve grid layout in Pipeline Builder`
 - Pushed to origin/master
+
+
+---
+
+## Session 27 — Pipeline Test Panel
+
+**Date**: 2026-02-08
+
+### User Request
+> In the pipeline would it be possible/practical/useful to use it to test the inputs and outputs of one or more blocks. Maybe a test panel at the bottom where we can have different tabs to have different useful views of the data maybe before and after the block?
+
+### Actions Taken
+
+1. **Added Test Panel Infrastructure**
+   - `TestInputPattern` enum: Random, AllZeros, AllOnes, Alternating, Prbs7 (with LFSR generation)
+   - `TestViewTab` enum: Bits, TimeDomain, Constellation, Spectrum
+   - `TestResults` struct: input_bits, output_samples, output_bits, block_name, error_message
+   - New fields in `PipelineWizardView`: show_test_panel, test_input_pattern, test_num_bits, test_view_tab, test_results
+
+2. **Implemented Test Panel UI**
+   - "Test" checkbox in toolbar to toggle panel visibility
+   - Bottom panel with pattern selector dropdown
+   - Bit count slider (8-256 bits)
+   - "Run Test" button to execute test
+   - Tab buttons for switching views
+
+3. **Implemented Block Processing**
+   - `run_test_panel()` method to execute test on selected block
+   - `process_block()` with simplified PSK/QAM modulation for visualization
+   - Returns (output_samples, output_bits) based on block type
+
+4. **Implemented View Renderers**
+   - `render_bits_view()`: Binary display in groups of 8, input and output side-by-side
+   - `render_time_view()`: I/Q waveform plot with grid lines
+   - `render_constellation_view()`: I/Q diagram with unit circle reference
+   - `render_spectrum_view()`: DFT-based frequency spectrum with Hann window
+
+5. **Fixed Compilation Errors**
+   - Renamed duplicate `run_test` methods: `run_test_panel()` for test panel, `run_block_test()` for block metadata tests
+   - Fixed `Scrambler` BlockType field name from `initial_state` to `seed`
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `crates/r4w-gui/src/views/pipeline_wizard.rs` | Added test panel (471 lines), fixed duplicate method names |
+| `CLAUDE.md` | Added Pipeline Test Panel to recent updates |
+
+### Key Technical Decisions
+- Simplified block processing rather than full DSP instantiation for initial version
+- PRBS-7 uses standard polynomial x^7 + x^6 + 1 for predictable patterns
+- DFT spectrum uses Hann window for better frequency resolution
+- Four view tabs cover the main visualization needs: binary, time, constellation, frequency
+
+### Git Operations
+- Commit a164228: `[AI:claude] feat(gui): add test panel for pipeline block testing`
+- Pushed to origin/master
