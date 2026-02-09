@@ -122,6 +122,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `doppler_pre_correction.rs`: Satellite Doppler pre-compensation (Constant/LinearRamp/Polynomial/Tabulated profiles, phase-continuous NCO, Doppler rate computation, LEO satellite comms/deep-space links)
   - `cognitive_engine.rs`: Dynamic spectrum access decision engine (OODA loop IEEE 802.22, Greedy/EpsilonGreedy/UCB1/ThompsonSampling strategies, SpectrumBand with BandPriority/RegulatoryStatus, PU detection/handoff/vacancy prediction)
   - `raptor_code.rs`: RaptorQ erasure codes RFC 6330 (systematic rateless LDPC+HDPC pre-coding over LT, near-zero reception overhead, 3GPP MBMS/ATSC 3.0/DVB-H, belief propagation peeling decoder)
+  - `esprit.rs`: ESPRIT DOA estimation (LS/TLS variants, ULA steering vectors, complements MUSIC DOA)
+  - `convolutional_interleaver.rs`: Forney-type convolutional interleaver/deinterleaver (DVB-S2 I=12/M=17, GSM I=4/M=19 presets, burst error dispersal)
+  - `unscented_kalman_filter.rs`: Unscented Kalman Filter with UkfModel trait, sigma point generation, predict/update cycle, NEES metric
+  - `sar_processor.rs`: SAR Range-Doppler Algorithm (range compression, RCMC, azimuth compression, point target generation, Doppler centroid estimation)
+  - `wola_channelizer.rs`: Weighted Overlap-Add analysis/synthesis filterbank (Hann/Hamming/Blackman/Kaiser windows, channel frequency response)
   - `dynamic_range_compressor.rs`: Compressor/limiter/expander/noise gate with attack/release envelope follower, soft knee, RMS/peak detection, makeup gain, static compression curve for visualization
   - `teager_kaiser_energy.rs`: Teager-Kaiser Energy Operator (TKEO) instantaneous energy, AM/FM demodulation via TKEO, streaming processor, transient detection
   - `wigner_ville_distribution.rs`: WVD/PWVD/SPWVD time-frequency analysis, analytic signal, instantaneous frequency extraction, 2D time-frequency surface with marginals
@@ -166,7 +171,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 258+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 273+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -274,6 +279,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 57 DSP Blocks** - ESPRIT DOA (`esprit.rs` - ESPRIT direction-of-arrival estimation with LS and TLS variants, ULA steering vector generation, rotation matrix extraction, complements existing MUSIC DOA for subspace-based angle estimation), Convolutional Interleaver (`convolutional_interleaver.rs` - Forney-type convolutional interleaver/deinterleaver for burst error dispersal, DVB-S2 I=12/M=17 and GSM I=4/M=19 presets, shift-register based delay structure, sync marker insertion), Unscented Kalman Filter (`unscented_kalman_filter.rs` - UKF with UkfModel trait for nonlinear state estimation, Merwe scaled sigma point generation, predict/update cycle, NEES consistency metric, constant-velocity and coordinated-turn presets), SAR Processor (`sar_processor.rs` - SAR Range-Doppler Algorithm for synthetic aperture radar imaging, range compression via matched filtering, RCMC range cell migration correction, azimuth compression, point target scene generation, Doppler centroid estimation), WOLA Channelizer (`wola_channelizer.rs` - Weighted Overlap-Add analysis/synthesis filterbank for wideband channelization, multiple window types Hann/Hamming/Blackman/Kaiser, configurable overlap factor, channel frequency response extraction, near-perfect reconstruction). ~257+ DSP modules total, ~2820+ unit tests.
 
 - **Batch 56 DSP Blocks** - Adaptive ModCod (`adaptive_modcod.rs` - Adaptive Modulation and Coding link adaptation engine, DVB-S2 ACM 28-entry modcod table per ETSI EN 302 307-1, LTE CQI 15 entries per 3GPP TS 36.213, Wi-Fi MCS 10 entries for 802.11n/ac, strategies: MaxThroughput/MaxReliability/TargetEfficiency, hysteresis/EMA SNR averaging/backoff margin), MIMO Detector (`mimo_detector.rs` - Schnorr-Euchner sphere decoder, K-best tree search, exhaustive ML, MMSE-SIC MIMO detection, QR decomposition via modified Gram-Schmidt, soft LLR output max-log approximation, ConstellationSet QPSK/16QAM/64QAM/256QAM, ChannelMatrix Hermitian/mat_mul operations), Doppler Pre-Correction (`doppler_pre_correction.rs` - satellite Doppler pre-compensation, profiles: Constant/LinearRamp/Polynomial/Tabulated, phase-continuous NCO correction, Doppler rate computation, utilities: doppler_from_range_rate/max_leo_doppler, for LEO satellite comms Iridium/Starlink and deep-space links), Cognitive Engine (`cognitive_engine.rs` - dynamic spectrum access decision engine, OODA loop for cognitive radio per IEEE 802.22, strategies: Greedy/EpsilonGreedy/UCB1/ThompsonSampling, SpectrumBand with BandPriority/RegulatoryStatus, PU detection/handoff/vacancy prediction/spectrum utilization, builds on spectrum_sensor.rs), RaptorQ Code (`raptor_code.rs` - RaptorQ erasure codes RFC 6330, systematic rateless codes with LDPC+HDPC pre-coding over LT inner code, near-zero reception overhead, mandated by 3GPP MBMS/ATSC 3.0/DVB-H, RaptorQEncoder/RaptorQDecoder with belief propagation peeling decoder, builds on fountain_code.rs LT codes). ~252+ DSP modules total, ~2770+ unit tests.
 
