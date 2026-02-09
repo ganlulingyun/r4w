@@ -60,9 +60,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `ofdm_channel_est.rs`: OFDM pilot-based channel estimation (LS/smoothed), ZF/MMSE equalization
   - `ssb_modem.rs`: SSB modulator/demodulator (Hilbert transform phasing method, BFO)
   - `wavelet.rs`: DWT analysis/synthesis (Haar/Db4/Sym4), soft/hard threshold denoising
+  - `cpm.rs`: CPM/GMSK/GFSK/MSK modulation (constant-envelope, Gaussian/LRC pulse shapes)
+  - `dynamic_channel.rs`: Composite time-varying channel (fading + CFO/SRO drift + AWGN)
+  - `burst_tagger.rs`: Power-based burst detection, tagged stream mux/align
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
+    - `polar.rs`: Polar code encoder/decoder (5G NR, SC/SCL algorithm, Bhattacharyya construction)
     - Standard codes: NASA K=7 rate 1/2, GSM K=5, 3GPP K=9 rate 1/3
   - `analysis/`: Spectrum analyzer, waterfall generator, signal statistics, peak detection
   - `timing.rs`: Multi-clock model (SampleClock, WallClock, HardwareClock, SyncedTime)
@@ -77,7 +81,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 106+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 113+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -186,6 +190,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **DSP Batch 22** - Four modules: CPM Modulation (`cpm.rs` - GMSK/GFSK/MSK constant-envelope modulation, non-coherent demod), Dynamic Channel Model (`dynamic_channel.rs` - composite time-varying: multipath fading + CFO/SRO drift + AWGN, presets), Polar Codes (`fec/polar.rs` - 5G NR encoder/decoder, SC algorithm, Bhattacharyya construction), Burst Tagger (`burst_tagger.rs` - power-based burst detection, tagged stream mux/align). 48 tests. 7 pipeline blocks.
 - **DSP Batch 21** - Four modules: PDU Conversion (`pdu.rs` - PDU↔tagged stream, message debug formatting), OFDM Channel Estimation (`ofdm_channel_est.rs` - LS/smoothed estimation, ZF/MMSE equalization), SSB Modem (`ssb_modem.rs` - Hilbert transform, USB/LSB phasing method, BFO demod), Wavelet Analysis (`wavelet.rs` - DWT Haar/Db4/Sym4, soft/hard threshold denoising). 52 tests. 7 pipeline blocks.
 - **DSP Blocks Round 12** - Five modules: Quadrature Demodulator (FM discriminator), Access Code Detector (bit-level sync word with Hamming distance), Fractional Resampler (MMSE interpolating for irrational ratios), FLL Band-Edge (coarse frequency sync), Type Conversions (ComplexToMag/Arg/Real, RealToComplex). 52 new tests. All wired into pipeline builder with property editors and block metadata.
 - **DSP Blocks Round 11** - Five modules: Frequency Xlating FIR Filter (mixing + FIR + decimation), FM Pre-emphasis/De-emphasis (US 75us/EU 50us IIR), CTCSS Tone Squelch (Goertzel-based 38-tone detection), Stream Control (Head/SkipHead/Throttle), Log Power FFT (windowed FFT with dB averaging). 47 new tests. All wired into pipeline builder.

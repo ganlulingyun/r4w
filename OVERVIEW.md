@@ -650,7 +650,8 @@ Measured with `tokei`:
   - Batch 19: FM Modulator (continuous-phase + FSK), Peak Detector (parabolic interpolation), Integrate & Dump, Rail (clamp), Threshold Detector, Mute, Valve (gate)
   - Batch 20: HW Impairments (Phase Noise, IQ Imbalance, DC Offset), Stream-to-Vector/Interleave/Deinterleave, Tag Debug/Gate/Strobe, Sample-and-Hold + Quantizer (ADC sim), Null Source/Sink + Vector Source + Tee
   - Batch 21: PDU Conversion (PDU↔tagged stream), OFDM Channel Estimation (LS/smoothed, ZF/MMSE equalization), SSB Modem (Hilbert phasing method, USB/LSB, BFO), Wavelet Analysis (DWT Haar/Db4/Sym4, denoising)
-  - All blocks wired into the visual pipeline builder (now 106+ blocks) with property editors and block metadata
+  - Batch 22: CPM/GMSK/GFSK/MSK Modulation (constant-envelope, non-coherent demod), Dynamic Channel Model (multipath+CFO/SRO drift+AWGN, 5 presets), Polar Codes (5G NR SC encoder/decoder), Burst Tagger (power-based burst segmentation + tagged stream mux/align)
+  - All blocks wired into the visual pipeline builder (now 113+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
