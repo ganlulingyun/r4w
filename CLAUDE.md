@@ -122,6 +122,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `doppler_pre_correction.rs`: Satellite Doppler pre-compensation (Constant/LinearRamp/Polynomial/Tabulated profiles, phase-continuous NCO, Doppler rate computation, LEO satellite comms/deep-space links)
   - `cognitive_engine.rs`: Dynamic spectrum access decision engine (OODA loop IEEE 802.22, Greedy/EpsilonGreedy/UCB1/ThompsonSampling strategies, SpectrumBand with BandPriority/RegulatoryStatus, PU detection/handoff/vacancy prediction)
   - `raptor_code.rs`: RaptorQ erasure codes RFC 6330 (systematic rateless LDPC+HDPC pre-coding over LT, near-zero reception overhead, 3GPP MBMS/ATSC 3.0/DVB-H, belief propagation peeling decoder)
+  - `polar_code.rs`: Arikan's 5G NR polar codes (PolarEncoder butterfly transform, PolarDecoder recursive SC decoding, Bhattacharyya channel reliability ordering)
+  - `msk_modulator.rs`: MSK (Minimum Shift Keying, h=0.5 continuous-phase FSK) modulator/demodulator, GMSK variant with configurable BT product Gaussian pre-filter, phase-accumulation demod (GSM, satellite)
+  - `oqpsk_modulator.rs`: Offset QPSK modulator/demodulator (Q delayed by T/2, +-pi/2 phase transitions, PAPR analysis, ZigBee 802.15.4, CDMA IS-95)
+  - `frequency_hopping.rs`: FHSS controller (Pseudorandom/Sequential/Fixed/Adaptive hop patterns, Bluetooth 79ch/1600hps and military HF presets, processing gain)
+  - `digital_down_converter.rs`: DDC with NCO mixer, 3-stage CIC decimation, windowed-sinc FIR compensation filter, retuning, reset
   - `esprit.rs`: ESPRIT DOA estimation (LS/TLS variants, ULA steering vectors, complements MUSIC DOA)
   - `convolutional_interleaver.rs`: Forney-type convolutional interleaver/deinterleaver (DVB-S2 I=12/M=17, GSM I=4/M=19 presets, burst error dispersal)
   - `unscented_kalman_filter.rs`: Unscented Kalman Filter with UkfModel trait, sigma point generation, predict/update cycle, NEES metric
@@ -171,7 +176,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 273+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 278+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -279,6 +284,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 58 DSP Blocks** - Polar Code (`polar_code.rs` - Arikan's 5G NR polar codes, PolarEncoder with butterfly polar transform, PolarDecoder with recursive SC successive cancellation decoding using f/g-function factor graph traversal, Bhattacharyya bounds for channel reliability ordering), MSK Modulator (`msk_modulator.rs` - MSK Minimum Shift Keying h=0.5 continuous-phase FSK modulator and demodulator, GMSK variant with configurable BT product Gaussian pre-filter, phase-accumulation demodulation, used in GSM and satellite comms), OQPSK Modulator (`oqpsk_modulator.rs` - Offset QPSK modulator/demodulator with Q channel delayed by T/2 limiting phase transitions to +-pi/2, PAPR analysis, used in ZigBee 802.15.4 and CDMA IS-95), Frequency Hopping (`frequency_hopping.rs` - FHSS Frequency Hopping Spread Spectrum controller, HopPattern: Pseudorandom LFSR/Sequential/Fixed/Adaptive with blacklist, Bluetooth 79ch 1600 hops/s and military HF presets, processing gain calculation), Digital Down Converter (`digital_down_converter.rs` - DDC with NCO mixer, 3-stage CIC decimation, FIR compensation filter with windowed-sinc Hamming lowpass design, retuning and reset). ~262+ DSP modules total, ~2870+ unit tests.
 
 - **Batch 57 DSP Blocks** - ESPRIT DOA (`esprit.rs` - ESPRIT direction-of-arrival estimation with LS and TLS variants, ULA steering vector generation, rotation matrix extraction, complements existing MUSIC DOA for subspace-based angle estimation), Convolutional Interleaver (`convolutional_interleaver.rs` - Forney-type convolutional interleaver/deinterleaver for burst error dispersal, DVB-S2 I=12/M=17 and GSM I=4/M=19 presets, shift-register based delay structure, sync marker insertion), Unscented Kalman Filter (`unscented_kalman_filter.rs` - UKF with UkfModel trait for nonlinear state estimation, Merwe scaled sigma point generation, predict/update cycle, NEES consistency metric, constant-velocity and coordinated-turn presets), SAR Processor (`sar_processor.rs` - SAR Range-Doppler Algorithm for synthetic aperture radar imaging, range compression via matched filtering, RCMC range cell migration correction, azimuth compression, point target scene generation, Doppler centroid estimation), WOLA Channelizer (`wola_channelizer.rs` - Weighted Overlap-Add analysis/synthesis filterbank for wideband channelization, multiple window types Hann/Hamming/Blackman/Kaiser, configurable overlap factor, channel frequency response extraction, near-perfect reconstruction). ~257+ DSP modules total, ~2820+ unit tests.
 
