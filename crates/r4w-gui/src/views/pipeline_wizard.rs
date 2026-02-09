@@ -252,6 +252,15 @@ pub enum BlockType {
     CostasLoop { order: u32, loop_bw: f32 },
     ConstellationRx { modulation: String, loop_bw: f32 },
 
+    // Batch 11 blocks
+    FreqXlatingFir { center_freq_hz: f32, sample_rate_hz: f32, decimation: u32, num_taps: u32 },
+    DeEmphasis { standard: String, sample_rate_hz: f32 },
+    PreEmphasis { standard: String, sample_rate_hz: f32 },
+    CtcssSquelch { tone_freq: f32, sample_rate_hz: f32, threshold: f32 },
+    HeadBlock { num_samples: u32 },
+    SkipHeadBlock { num_samples: u32 },
+    LogPowerFft { fft_size: u32, avg_alpha: f32 },
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -329,6 +338,13 @@ impl BlockType {
             Self::GoertzelDetector { .. } => "Goertzel Detector",
             Self::CostasLoop { .. } => "Costas Loop",
             Self::ConstellationRx { .. } => "Constellation Rx",
+            Self::FreqXlatingFir { .. } => "Freq Xlating FIR",
+            Self::DeEmphasis { .. } => "De-emphasis",
+            Self::PreEmphasis { .. } => "Pre-emphasis",
+            Self::CtcssSquelch { .. } => "CTCSS Squelch",
+            Self::HeadBlock { .. } => "Head",
+            Self::SkipHeadBlock { .. } => "Skip Head",
+            Self::LogPowerFft { .. } => "Log Power FFT",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -352,6 +368,11 @@ impl BlockType {
             Self::DcBlocker { .. } => BlockCategory::Filtering,
             Self::CicDecimator { .. } => BlockCategory::RateConversion,
             Self::GoertzelDetector { .. } => BlockCategory::Filtering,
+            Self::FreqXlatingFir { .. } => BlockCategory::Filtering,
+            Self::DeEmphasis { .. } | Self::PreEmphasis { .. } => BlockCategory::Filtering,
+            Self::CtcssSquelch { .. } => BlockCategory::Recovery,
+            Self::HeadBlock { .. } | Self::SkipHeadBlock { .. } => BlockCategory::Output,
+            Self::LogPowerFft { .. } => BlockCategory::Output,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -429,6 +450,13 @@ impl BlockType {
             Self::BitOutput => vec![PortType::Bits],
             Self::FileOutput { .. } => vec![PortType::IQ],
 
+            // Batch 11 blocks
+            Self::FreqXlatingFir { .. } => vec![PortType::IQ],
+            Self::DeEmphasis { .. } | Self::PreEmphasis { .. } => vec![PortType::Real],
+            Self::CtcssSquelch { .. } => vec![PortType::Real],
+            Self::HeadBlock { .. } | Self::SkipHeadBlock { .. } => vec![PortType::IQ],
+            Self::LogPowerFft { .. } => vec![PortType::IQ],
+
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
 
@@ -495,6 +523,13 @@ impl BlockType {
 
             // Constellation Rx: IQ in, Symbols out
             Self::ConstellationRx { .. } => vec![PortType::Symbols],
+
+            // Batch 11 blocks
+            Self::FreqXlatingFir { .. } => vec![PortType::IQ],
+            Self::DeEmphasis { .. } | Self::PreEmphasis { .. } => vec![PortType::Real],
+            Self::CtcssSquelch { .. } => vec![PortType::Real],
+            Self::HeadBlock { .. } | Self::SkipHeadBlock { .. } => vec![PortType::IQ],
+            Self::LogPowerFft { .. } => vec![PortType::Real],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2621,6 +2656,9 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::MatchedFilter,
             BlockType::DcBlocker { alpha: 0.998 },
             BlockType::GoertzelDetector { target_freq_hz: 1000.0, sample_rate_hz: 48000.0, block_size: 205 },
+            BlockType::FreqXlatingFir { center_freq_hz: 10000.0, sample_rate_hz: 1_000_000.0, decimation: 10, num_taps: 63 },
+            BlockType::DeEmphasis { standard: "US75".to_string(), sample_rate_hz: 48000.0 },
+            BlockType::PreEmphasis { standard: "US75".to_string(), sample_rate_hz: 48000.0 },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -2652,6 +2690,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::CostasLoop { order: 4, loop_bw: 0.05 },
             BlockType::ConstellationRx { modulation: "QPSK".to_string(), loop_bw: 0.05 },
             BlockType::BurstDetector { high_threshold_db: -20.0, low_threshold_db: -30.0 },
+            BlockType::CtcssSquelch { tone_freq: 100.0, sample_rate_hz: 48000.0, threshold: 2.0 },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -2661,6 +2700,9 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::Merge { num_inputs: 2 },
             BlockType::IqSplit,
             BlockType::IqMerge,
+            BlockType::HeadBlock { num_samples: 1000 },
+            BlockType::SkipHeadBlock { num_samples: 100 },
+            BlockType::LogPowerFft { fft_size: 1024, avg_alpha: 0.3 },
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -5412,6 +5454,117 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // Freq Xlating FIR: mixing + filter + decimation
+            BlockType::FreqXlatingFir { center_freq_hz, sample_rate_hz, decimation, num_taps } => {
+                use r4w_core::freq_xlating_fir::FreqXlatingFirFilter;
+                use num_complex::Complex64;
+                let mut xlat = FreqXlatingFirFilter::new(
+                    *center_freq_hz as f64, *sample_rate_hz as f64,
+                    *decimation as usize, *num_taps as usize,
+                );
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = xlat.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // De-emphasis: lowpass for FM audio
+            BlockType::DeEmphasis { standard, sample_rate_hz } => {
+                use r4w_core::fm_emphasis::{DeEmphasisFilter, EmphasisStandard};
+                let std = match standard.as_str() {
+                    "EU50" => EmphasisStandard::Eu50,
+                    _ => EmphasisStandard::Us75,
+                };
+                let mut filt = DeEmphasisFilter::new(std, *sample_rate_hz as f64);
+                let output: Vec<(f32, f32)> = input_samples.iter().map(|&(i, _)| {
+                    (filt.process(i as f64) as f32, 0.0)
+                }).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+
+            // Pre-emphasis: boost high frequencies for FM TX
+            BlockType::PreEmphasis { standard, sample_rate_hz } => {
+                use r4w_core::fm_emphasis::{PreEmphasisFilter, EmphasisStandard};
+                let std = match standard.as_str() {
+                    "EU50" => EmphasisStandard::Eu50,
+                    _ => EmphasisStandard::Us75,
+                };
+                let mut filt = PreEmphasisFilter::new(std, *sample_rate_hz as f64);
+                let output: Vec<(f32, f32)> = input_samples.iter().map(|&(i, _)| {
+                    (filt.process(i as f64) as f32, 0.0)
+                }).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+
+            // CTCSS Squelch: tone-coded squelch
+            BlockType::CtcssSquelch { tone_freq, sample_rate_hz, threshold } => {
+                use r4w_core::squelch::{CtcssSquelch as CoreCtcss, CtcssConfig};
+                let mut sq = CoreCtcss::new(CtcssConfig {
+                    tone_freq: *tone_freq as f64,
+                    sample_rate: *sample_rate_hz as f64,
+                    threshold: *threshold as f64,
+                    ..Default::default()
+                });
+                let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let output = sq.process_block(&reals);
+                let samples: Vec<(f32, f32)> = output.iter().map(|&v| (v as f32, 0.0)).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Head: pass first N samples
+            BlockType::HeadBlock { num_samples } => {
+                use r4w_core::stream_control::Head;
+                use num_complex::Complex64;
+                let mut head = Head::new(*num_samples as usize);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = head.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Skip Head: drop first N samples
+            BlockType::SkipHeadBlock { num_samples } => {
+                use r4w_core::stream_control::SkipHead;
+                use num_complex::Complex64;
+                let mut skip = SkipHead::new(*num_samples as usize);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = skip.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Log Power FFT: spectrum estimation in dB
+            BlockType::LogPowerFft { fft_size, avg_alpha } => {
+                use r4w_core::log_power_fft::{LogPowerFft as CoreLpf, LogPowerConfig};
+                use num_complex::Complex64;
+                let mut lpf = CoreLpf::new(LogPowerConfig {
+                    fft_size: *fft_size as usize,
+                    avg_alpha: *avg_alpha as f64,
+                    ..Default::default()
+                });
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let spectrum = lpf.process_block(&input);
+                // Output as (dB_value, bin_index) pairs
+                let samples: Vec<(f32, f32)> = spectrum.iter().enumerate()
+                    .map(|(i, &db)| (db as f32, i as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -6774,6 +6927,142 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::ConstellationRx { modulation: new_mod, loop_bw: new_bw };
+                }
+            }
+            BlockType::FreqXlatingFir { center_freq_hz, sample_rate_hz, decimation, num_taps } => {
+                let mut new_freq = center_freq_hz;
+                let mut new_sr = sample_rate_hz;
+                let mut new_dec = decimation;
+                let mut new_taps = num_taps;
+                ui.horizontal(|ui| {
+                    ui.label("Center Freq:");
+                    ui.add(egui::DragValue::new(&mut new_freq).speed(100.0).suffix(" Hz"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate:");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(10000.0).suffix(" Hz"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Decimation:");
+                    ui.add(egui::DragValue::new(&mut new_dec).range(1..=256));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("FIR Taps:");
+                    ui.add(egui::DragValue::new(&mut new_taps).range(3..=255));
+                });
+                ui.label(format!("Output rate: {:.0} Hz", new_sr / new_dec as f32));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FreqXlatingFir {
+                        center_freq_hz: new_freq, sample_rate_hz: new_sr,
+                        decimation: new_dec, num_taps: new_taps,
+                    };
+                }
+            }
+            BlockType::DeEmphasis { standard, sample_rate_hz } => {
+                let mut new_std = standard;
+                let mut new_sr = sample_rate_hz;
+                ui.horizontal(|ui| {
+                    ui.label("Standard:");
+                    egui::ComboBox::from_id_salt("deemph_std")
+                        .selected_text(&new_std)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_std, "US75".to_string(), "US 75µs");
+                            ui.selectable_value(&mut new_std, "EU50".to_string(), "EU 50µs");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate:");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(1000.0).suffix(" Hz"));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DeEmphasis { standard: new_std, sample_rate_hz: new_sr };
+                }
+            }
+            BlockType::PreEmphasis { standard, sample_rate_hz } => {
+                let mut new_std = standard;
+                let mut new_sr = sample_rate_hz;
+                ui.horizontal(|ui| {
+                    ui.label("Standard:");
+                    egui::ComboBox::from_id_salt("preemph_std")
+                        .selected_text(&new_std)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_std, "US75".to_string(), "US 75µs");
+                            ui.selectable_value(&mut new_std, "EU50".to_string(), "EU 50µs");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate:");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(1000.0).suffix(" Hz"));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PreEmphasis { standard: new_std, sample_rate_hz: new_sr };
+                }
+            }
+            BlockType::CtcssSquelch { tone_freq, sample_rate_hz, threshold } => {
+                let mut new_tone = tone_freq;
+                let mut new_sr = sample_rate_hz;
+                let mut new_thr = threshold;
+                ui.horizontal(|ui| {
+                    ui.label("CTCSS Tone:");
+                    egui::ComboBox::from_id_salt("ctcss_tone")
+                        .selected_text(format!("{:.1} Hz", new_tone))
+                        .show_ui(ui, |ui| {
+                            for &t in r4w_core::squelch::CTCSS_TONES {
+                                ui.selectable_value(&mut new_tone, t as f32, format!("{:.1} Hz", t));
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate:");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(1000.0).suffix(" Hz"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::DragValue::new(&mut new_thr).speed(0.1).range(0.1..=20.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::CtcssSquelch { tone_freq: new_tone, sample_rate_hz: new_sr, threshold: new_thr };
+                }
+            }
+            BlockType::HeadBlock { num_samples } => {
+                let mut new_n = num_samples;
+                ui.horizontal(|ui| {
+                    ui.label("Samples:");
+                    ui.add(egui::DragValue::new(&mut new_n).range(1..=1_000_000));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::HeadBlock { num_samples: new_n };
+                }
+            }
+            BlockType::SkipHeadBlock { num_samples } => {
+                let mut new_n = num_samples;
+                ui.horizontal(|ui| {
+                    ui.label("Skip Samples:");
+                    ui.add(egui::DragValue::new(&mut new_n).range(0..=1_000_000));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SkipHeadBlock { num_samples: new_n };
+                }
+            }
+            BlockType::LogPowerFft { fft_size, avg_alpha } => {
+                let mut new_fft = fft_size;
+                let mut new_alpha = avg_alpha;
+                ui.horizontal(|ui| {
+                    ui.label("FFT Size:");
+                    egui::ComboBox::from_id_salt("lpf_fft")
+                        .selected_text(format!("{}", new_fft))
+                        .show_ui(ui, |ui| {
+                            for &s in &[64, 128, 256, 512, 1024, 2048, 4096] {
+                                ui.selectable_value(&mut new_fft, s, format!("{}", s));
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Avg Alpha:");
+                    ui.add(egui::Slider::new(&mut new_alpha, 0.0..=1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::LogPowerFft { fft_size: new_fft, avg_alpha: new_alpha };
                 }
             }
             BlockType::DifferentialEncoder | BlockType::MatchedFilter |

@@ -1919,6 +1919,286 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["modulation", "loop_bw"],
         });
 
+    // --- Batch 11: FreqXlatingFir, FM Emphasis, CTCSS, Stream Control, LogPowerFft ---
+
+    m.insert("FreqXlatingFir", BlockMetadata {
+            block_type: "FreqXlatingFir",
+            display_name: "Freq Xlating FIR Filter",
+            category: "Filtering",
+            description: "Combines frequency translation (mixing), FIR filtering, and decimation in a single efficient block. Shifts a narrowband signal to baseband, filters, and decimates.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/freq_xlating_fir.rs",
+                line: 43,
+                symbol: "FreqXlatingFirFilter",
+                description: "Frequency-translating FIR filter with decimation",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Frequency Translation + FIR + Decimation",
+                    plaintext: "y[m] = sum_k( h[k] * x[mD+k] * exp(-j*2*pi*fc*(mD+k)/fs) )",
+                    latex: Some("y[m] = \\sum_k h[k] \\cdot x[mD+k] \\cdot e^{-j2\\pi f_c (mD+k)/f_s}"),
+                    variables: &[
+                        ("h[k]", "FIR taps"),
+                        ("D", "decimation factor"),
+                        ("fc", "center frequency"),
+                        ("fs", "sample rate"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_passthrough_no_shift", module: "r4w_core::freq_xlating_fir::tests", description: "No shift, no decimation", expected_runtime_ms: 5 },
+                BlockTest { name: "test_decimation", module: "r4w_core::freq_xlating_fir::tests", description: "Decimation output length", expected_runtime_ms: 5 },
+                BlockTest { name: "test_frequency_shift", module: "r4w_core::freq_xlating_fir::tests", description: "DC offset removal", expected_runtime_ms: 5 },
+                BlockTest { name: "test_tone_shift_to_dc", module: "r4w_core::freq_xlating_fir::tests", description: "Shift tone to baseband", expected_runtime_ms: 10 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n * T / D)", memory: "O(T) delay line", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["FirFilter", "Nco", "PolyphaseDecimator"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (baseband, decimated)",
+            key_parameters: &["center_freq_hz", "sample_rate_hz", "decimation", "num_taps"],
+        });
+
+    m.insert("DeEmphasis", BlockMetadata {
+            block_type: "DeEmphasis",
+            display_name: "FM De-Emphasis Filter",
+            category: "Filtering",
+            description: "1-pole IIR lowpass filter for FM audio de-emphasis. Reverses the pre-emphasis applied at the transmitter to flatten the audio spectrum and reduce high-frequency noise.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/fm_emphasis.rs",
+                line: 38,
+                symbol: "DeEmphasisFilter",
+                description: "FM de-emphasis 1-pole IIR lowpass",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "De-Emphasis IIR",
+                    plaintext: "y[n] = (1-a)*x[n] + a*y[n-1], where a = exp(-1/(tau*fs))",
+                    latex: Some("y[n] = (1-\\alpha)x[n] + \\alpha y[n-1], \\quad \\alpha = e^{-1/(\\tau f_s)}"),
+                    variables: &[
+                        ("tau", "time constant (75us US, 50us EU)"),
+                        ("fs", "sample rate"),
+                        ("alpha", "filter coefficient"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_deemphasis_lowpass", module: "r4w_core::fm_emphasis::tests", description: "High freq attenuation", expected_runtime_ms: 5 },
+                BlockTest { name: "test_deemphasis_dc_pass", module: "r4w_core::fm_emphasis::tests", description: "DC passthrough", expected_runtime_ms: 5 },
+                BlockTest { name: "test_us_vs_eu_standards", module: "r4w_core::fm_emphasis::tests", description: "Standard comparison", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) state", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "ITU-R BS.450", section: Some("75us/50us pre-emphasis"), url: Some("https://www.itu.int/rec/R-REC-BS.450") },
+            ],
+            related_blocks: &["PreEmphasis", "FirFilter", "IirFilter"],
+            input_type: "Real audio samples",
+            output_type: "Real audio samples (de-emphasized)",
+            key_parameters: &["standard", "sample_rate_hz"],
+        });
+
+    m.insert("PreEmphasis", BlockMetadata {
+            block_type: "PreEmphasis",
+            display_name: "FM Pre-Emphasis Filter",
+            category: "Filtering",
+            description: "1-pole IIR highpass filter for FM audio pre-emphasis. Boosts high-frequency content before transmission to improve SNR after de-emphasis at the receiver.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/fm_emphasis.rs",
+                line: 79,
+                symbol: "PreEmphasisFilter",
+                description: "FM pre-emphasis 1-pole IIR highpass",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Pre-Emphasis IIR",
+                    plaintext: "y[n] = (x[n] - a*x[n-1]) / (1-a)",
+                    latex: Some("y[n] = \\frac{x[n] - \\alpha x[n-1]}{1-\\alpha}"),
+                    variables: &[
+                        ("alpha", "exp(-1/(tau*fs))"),
+                        ("tau", "time constant"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_preemphasis_highpass", module: "r4w_core::fm_emphasis::tests", description: "High freq boost", expected_runtime_ms: 5 },
+                BlockTest { name: "test_emphasis_roundtrip", module: "r4w_core::fm_emphasis::tests", description: "Pre->De roundtrip", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) state", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "ITU-R BS.450", section: Some("FM pre-emphasis time constants"), url: Some("https://www.itu.int/rec/R-REC-BS.450") },
+            ],
+            related_blocks: &["DeEmphasis", "FirFilter"],
+            input_type: "Real audio samples",
+            output_type: "Real audio samples (pre-emphasized)",
+            key_parameters: &["standard", "sample_rate_hz"],
+        });
+
+    m.insert("CtcssSquelch", BlockMetadata {
+            block_type: "CtcssSquelch",
+            display_name: "CTCSS Tone Squelch",
+            category: "Synchronization",
+            description: "Continuous Tone-Coded Squelch System. Detects sub-audible tones (67-250.3 Hz) using the Goertzel algorithm to gate audio. Standard in FM two-way radio.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/squelch.rs",
+                line: 1,
+                symbol: "CtcssSquelch",
+                description: "CTCSS tone detection and squelch gating",
+            }),
+            related_code: &[
+                CodeLocation {
+                    crate_name: "r4w-core",
+                    file_path: "src/goertzel.rs",
+                    line: 1,
+                    symbol: "Goertzel",
+                    description: "Single-bin DFT detector",
+                },
+            ],
+            formulas: &[
+                BlockFormula {
+                    name: "Goertzel Detection",
+                    plaintext: "coeff = 2*cos(2*pi*k/N), power = s1^2+s2^2-coeff*s1*s2",
+                    latex: Some("\\text{coeff} = 2\\cos(2\\pi k/N), \\quad P = s_1^2 + s_2^2 - \\text{coeff} \\cdot s_1 \\cdot s_2"),
+                    variables: &[
+                        ("k", "tone bin index"),
+                        ("N", "block size"),
+                        ("s1,s2", "Goertzel state"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_ctcss_opens_with_correct_tone", module: "r4w_core::squelch::tests", description: "Squelch opens on tone", expected_runtime_ms: 20 },
+                BlockTest { name: "test_ctcss_stays_closed_wrong_tone", module: "r4w_core::squelch::tests", description: "Rejects wrong tone", expected_runtime_ms: 20 },
+                BlockTest { name: "test_ctcss_tone_table", module: "r4w_core::squelch::tests", description: "EIA tone validation", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(N) block buffer", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "EIA/TIA-603", section: Some("38 standard CTCSS tones"), url: Some("https://www.tiaonline.org/") },
+            ],
+            related_blocks: &["GoertzelDetector", "PowerSquelch", "Squelch"],
+            input_type: "Real audio samples",
+            output_type: "Real audio samples (gated)",
+            key_parameters: &["tone_freq", "sample_rate_hz", "threshold"],
+        });
+
+    m.insert("HeadBlock", BlockMetadata {
+            block_type: "HeadBlock",
+            display_name: "Head (First N Samples)",
+            category: "Stream Control",
+            description: "Passes only the first N samples, then outputs nothing. Useful for limiting recording duration or taking a fixed-size snapshot of a signal.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/stream_control.rs",
+                line: 29,
+                symbol: "Head",
+                description: "Pass first N samples, then stop",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Head",
+                    plaintext: "y[n] = x[n] if n < N, else nothing",
+                    latex: None,
+                    variables: &[
+                        ("N", "number of samples to pass"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_head_limits_samples", module: "r4w_core::stream_control::tests", description: "Limits output count", expected_runtime_ms: 5 },
+                BlockTest { name: "test_head_multiple_blocks", module: "r4w_core::stream_control::tests", description: "Multi-block accumulation", expected_runtime_ms: 5 },
+                BlockTest { name: "test_head_sample_by_sample", module: "r4w_core::stream_control::tests", description: "Per-sample processing", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(1) per sample", memory: "O(1) counter", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["SkipHeadBlock", "Throttle"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (first N)",
+            key_parameters: &["num_samples"],
+        });
+
+    m.insert("SkipHeadBlock", BlockMetadata {
+            block_type: "SkipHeadBlock",
+            display_name: "Skip Head (Drop First N)",
+            category: "Stream Control",
+            description: "Drops the first N samples, then passes everything through. Useful for skipping transient startup effects or initial settling time.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/stream_control.rs",
+                line: 86,
+                symbol: "SkipHead",
+                description: "Drop first N samples, pass the rest",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Skip Head",
+                    plaintext: "y[n] = x[n+N] (output starts after N samples dropped)",
+                    latex: None,
+                    variables: &[
+                        ("N", "number of samples to skip"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_skip_head_drops_samples", module: "r4w_core::stream_control::tests", description: "Drops correct count", expected_runtime_ms: 5 },
+                BlockTest { name: "test_skip_head_multiple_blocks", module: "r4w_core::stream_control::tests", description: "Multi-block skipping", expected_runtime_ms: 5 },
+                BlockTest { name: "test_skip_head_sample_by_sample", module: "r4w_core::stream_control::tests", description: "Per-sample processing", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(1) per sample", memory: "O(1) counter", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["HeadBlock", "Throttle"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (after skip)",
+            key_parameters: &["num_samples"],
+        });
+
+    m.insert("LogPowerFft", BlockMetadata {
+            block_type: "LogPowerFft",
+            display_name: "Log Power FFT",
+            category: "Analysis",
+            description: "Computes windowed FFT, converts to dB power, and applies exponential averaging for continuous spectrum monitoring. Supports multiple window functions and optional DC-centered output.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/log_power_fft.rs",
+                line: 79,
+                symbol: "LogPowerFft",
+                description: "Streaming spectrum estimation in dB",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Log Power Spectrum",
+                    plaintext: "P[k] = 10*log10(|FFT{w*x}[k]|^2 / N^2), avg[k] = a*P[k] + (1-a)*avg_prev[k]",
+                    latex: Some("P[k] = 10\\log_{10}\\frac{|\\text{FFT}\\{w \\cdot x\\}[k]|^2}{N^2}, \\quad \\bar{P}[k] = \\alpha P[k] + (1-\\alpha)\\bar{P}_{\\text{prev}}[k]"),
+                    variables: &[
+                        ("w", "window function"),
+                        ("N", "FFT size"),
+                        ("alpha", "averaging factor (0=full avg, 1=no avg)"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_log_power_fft_basic", module: "r4w_core::log_power_fft::tests", description: "DC signal detection", expected_runtime_ms: 5 },
+                BlockTest { name: "test_log_power_fft_tone", module: "r4w_core::log_power_fft::tests", description: "Tone peak detection", expected_runtime_ms: 5 },
+                BlockTest { name: "test_log_power_fft_center_dc", module: "r4w_core::log_power_fft::tests", description: "FFT shift to center DC", expected_runtime_ms: 5 },
+                BlockTest { name: "test_fft_inplace_known_result", module: "r4w_core::log_power_fft::tests", description: "FFT correctness", expected_runtime_ms: 5 },
+                BlockTest { name: "test_window_types", module: "r4w_core::log_power_fft::tests", description: "Window function validation", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(N*log N) per FFT", memory: "O(N) spectrum + scratch", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["SpectrumAnalyzer", "WaterfallGenerator"],
+            input_type: "IQ samples",
+            output_type: "Real dB spectrum",
+            key_parameters: &["fft_size", "avg_alpha", "window"],
+        });
+
     m
 }
 
