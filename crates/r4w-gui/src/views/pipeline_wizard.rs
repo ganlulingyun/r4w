@@ -271,6 +271,12 @@ pub enum BlockType {
     ComplexToReal,
     RealToComplex,
 
+    // Batch 13: PFB synthesizer, moving average, sample ops
+    PfbSynthesizer { num_channels: u32, taps_per_channel: u32, window: String },
+    MovingAverage { length: u32 },
+    KeepOneInN { n: u32 },
+    SampleRepeat { n: u32 },
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -363,6 +369,10 @@ impl BlockType {
             Self::ComplexToArg => "Complex → Arg",
             Self::ComplexToReal => "Complex → Real",
             Self::RealToComplex => "Real → Complex",
+            Self::PfbSynthesizer { .. } => "PFB Synthesizer",
+            Self::MovingAverage { .. } => "Moving Average",
+            Self::KeepOneInN { .. } => "Keep 1 in N",
+            Self::SampleRepeat { .. } => "Repeat",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -396,6 +406,9 @@ impl BlockType {
             Self::FractionalResampler { .. } => BlockCategory::RateConversion,
             Self::FllBandEdge { .. } => BlockCategory::Recovery,
             Self::ComplexToMag | Self::ComplexToArg | Self::ComplexToReal | Self::RealToComplex => BlockCategory::Output,
+            Self::PfbSynthesizer { .. } => BlockCategory::Source,
+            Self::MovingAverage { .. } => BlockCategory::Filtering,
+            Self::KeepOneInN { .. } | Self::SampleRepeat { .. } => BlockCategory::RateConversion,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -486,6 +499,11 @@ impl BlockType {
             Self::ComplexToMag | Self::ComplexToArg | Self::ComplexToReal => vec![PortType::IQ],
             Self::RealToComplex => vec![PortType::Real],
 
+            // Batch 13 blocks
+            Self::PfbSynthesizer { num_channels, .. } => vec![PortType::IQ; *num_channels as usize],
+            Self::MovingAverage { .. } => vec![PortType::IQ],
+            Self::KeepOneInN { .. } | Self::SampleRepeat { .. } => vec![PortType::IQ],
+
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
 
@@ -565,6 +583,11 @@ impl BlockType {
             Self::FllBandEdge { .. } => vec![PortType::IQ],
             Self::ComplexToMag | Self::ComplexToArg | Self::ComplexToReal => vec![PortType::Real],
             Self::RealToComplex => vec![PortType::IQ],
+
+            // Batch 13 blocks
+            Self::PfbSynthesizer { .. } => vec![PortType::IQ],
+            Self::MovingAverage { .. } => vec![PortType::IQ],
+            Self::KeepOneInN { .. } | Self::SampleRepeat { .. } => vec![PortType::IQ],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2663,6 +2686,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::SymbolSource { alphabet_size: 4 },
             BlockType::FileSource { path: String::new() },
             BlockType::NoiseSource { color: "White".to_string(), amplitude: 1.0 },
+            BlockType::PfbSynthesizer { num_channels: 4, taps_per_channel: 8, window: "hamming".to_string() },
         ]),
         (BlockCategory::Coding, vec![
             BlockType::Scrambler { polynomial: 0x48, seed: 0xFF },
@@ -2694,6 +2718,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FreqXlatingFir { center_freq_hz: 10000.0, sample_rate_hz: 1_000_000.0, decimation: 10, num_taps: 63 },
             BlockType::DeEmphasis { standard: "US75".to_string(), sample_rate_hz: 48000.0 },
             BlockType::PreEmphasis { standard: "US75".to_string(), sample_rate_hz: 48000.0 },
+            BlockType::MovingAverage { length: 8 },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -2702,6 +2727,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::PolyphaseResampler { up: 4, down: 1, taps_per_phase: 16 },
             BlockType::CicDecimator { rate: 10, stages: 3 },
             BlockType::FractionalResampler { ratio: 0.91875 },
+            BlockType::KeepOneInN { n: 4 },
+            BlockType::SampleRepeat { n: 4 },
         ]),
         (BlockCategory::Synchronization, vec![
             BlockType::PreambleInsert { pattern: "alternating".to_string(), length: 32 },
@@ -5724,6 +5751,81 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // PFB Synthesizer: multi-channel → wideband
+            BlockType::PfbSynthesizer { num_channels, taps_per_channel, window } => {
+                use r4w_core::pfb_synthesizer::{PfbSynthesizer as CorePfb, PfbSynthConfig};
+                use num_complex::Complex64;
+                let nc = *num_channels as usize;
+                let synth = CorePfb::new(PfbSynthConfig {
+                    num_channels: nc,
+                    taps_per_channel: *taps_per_channel as usize,
+                    window: window.clone(),
+                });
+                // Split input IQ evenly across channels
+                let samples_per_ch = input_samples.len() / nc.max(1);
+                let channels: Vec<Vec<Complex64>> = (0..nc).map(|ch| {
+                    let start = ch * samples_per_ch;
+                    let end = (start + samples_per_ch).min(input_samples.len());
+                    input_samples[start..end].iter()
+                        .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                        .collect()
+                }).collect();
+                if channels.iter().all(|c| c.len() == channels[0].len()) && !channels[0].is_empty() {
+                    let output = synth.synthesize(&channels);
+                    let samples: Vec<(f32, f32)> = output.iter()
+                        .map(|z| (z.re as f32, z.im as f32))
+                        .collect();
+                    (Vec::new(), Vec::new(), samples)
+                } else {
+                    (Vec::new(), Vec::new(), input_samples.to_vec())
+                }
+            }
+
+            // Moving Average: smoothing filter
+            BlockType::MovingAverage { length } => {
+                use r4w_core::filters::MovingAverage as CoreMa;
+                use num_complex::Complex64;
+                let mut ma = CoreMa::new(*length as usize);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = ma.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Keep One in N: decimation without filtering
+            BlockType::KeepOneInN { n } => {
+                use r4w_core::sample_ops::KeepOneInN as CoreK;
+                use num_complex::Complex64;
+                let mut k = CoreK::new(*n as usize);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = k.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Repeat: sample interpolation without filtering
+            BlockType::SampleRepeat { n } => {
+                use r4w_core::sample_ops::Repeat as CoreR;
+                use num_complex::Complex64;
+                let r = CoreR::new(*n as usize);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = r.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -7293,6 +7395,62 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::FllBandEdge { samples_per_symbol: new_sps, rolloff: new_ro, filter_size: new_fs, loop_bandwidth: new_lb };
+                }
+            }
+            BlockType::PfbSynthesizer { num_channels, taps_per_channel, window } => {
+                let mut new_nc = num_channels;
+                let mut new_tpc = taps_per_channel;
+                let mut new_win = window;
+                ui.horizontal(|ui| {
+                    ui.label("Channels (power of 2):");
+                    ui.add(egui::DragValue::new(&mut new_nc).range(2..=64));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Taps/Channel:");
+                    ui.add(egui::DragValue::new(&mut new_tpc).range(2..=64));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Window:");
+                    egui::ComboBox::from_id_salt("pfb_synth_window")
+                        .selected_text(new_win.as_str())
+                        .show_ui(ui, |ui| {
+                            for w in &["hamming", "blackman", "hann"] {
+                                ui.selectable_value(&mut new_win, w.to_string(), *w);
+                            }
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PfbSynthesizer { num_channels: new_nc, taps_per_channel: new_tpc, window: new_win };
+                }
+            }
+            BlockType::MovingAverage { length } => {
+                let mut new_len = length;
+                ui.horizontal(|ui| {
+                    ui.label("Window Length:");
+                    ui.add(egui::DragValue::new(&mut new_len).range(1..=1024));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::MovingAverage { length: new_len };
+                }
+            }
+            BlockType::KeepOneInN { n } => {
+                let mut new_n = n;
+                ui.horizontal(|ui| {
+                    ui.label("Keep 1 in N:");
+                    ui.add(egui::DragValue::new(&mut new_n).range(1..=1000));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::KeepOneInN { n: new_n };
+                }
+            }
+            BlockType::SampleRepeat { n } => {
+                let mut new_n = n;
+                ui.horizontal(|ui| {
+                    ui.label("Repeat N times:");
+                    ui.add(egui::DragValue::new(&mut new_n).range(1..=1000));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SampleRepeat { n: new_n };
                 }
             }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |

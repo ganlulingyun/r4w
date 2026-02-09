@@ -2482,6 +2482,143 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &[],
         });
 
+    // Batch 13: PFB Synthesizer, Moving Average, KeepOneInN, SampleRepeat
+    m.insert("PfbSynthesizer", BlockMetadata {
+            block_type: "PfbSynthesizer",
+            display_name: "PFB Synthesizer",
+            category: "Source",
+            description: "Polyphase Filter Bank Synthesizer. Combines M narrowband channel streams into a single wideband output using polyphase-FFT synthesis. Inverse of PFB Channelizer.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/pfb_synthesizer.rs",
+                line: 70,
+                symbol: "PfbSynthesizer",
+                description: "PFB synthesis with M-point IFFT and polyphase sub-filters",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "PFB Synthesis",
+                    plaintext: "y[n] = commutate( polyphase_filter( IFFT( X[0..M-1] ) ) )",
+                    latex: Some("y[n] = \\sum_{k=0}^{M-1} h_k[n] \\cdot \\text{IFFT}\\{X_k\\}"),
+                    variables: &[("M", "Number of channels"), ("h_k", "Polyphase sub-filter for branch k"), ("X_k", "Channel k input")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_basic_construction", module: "r4w_core::pfb_synthesizer::tests", description: "Construction with defaults", expected_runtime_ms: 5 },
+                BlockTest { name: "test_output_length", module: "r4w_core::pfb_synthesizer::tests", description: "Output = M * N samples", expected_runtime_ms: 5 },
+                BlockTest { name: "test_ifft_known_result", module: "r4w_core::pfb_synthesizer::tests", description: "IFFT [4,0,0,0] = [1,1,1,1]", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(M*log(M) + M*T) per output block", memory: "O(M*T)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[
+                StandardReference { name: "Fredric J. Harris, Multirate Signal Processing", section: Some("Ch. 7: Polyphase Filter Banks"), url: None },
+            ],
+            related_blocks: &["PfbChannelizer", "Upsampler"],
+            input_type: "M IQ channel streams",
+            output_type: "Wideband IQ",
+            key_parameters: &["num_channels", "taps_per_channel", "window"],
+        });
+
+    m.insert("MovingAverage", BlockMetadata {
+            block_type: "MovingAverage",
+            display_name: "Moving Average",
+            category: "Filtering",
+            description: "Efficient O(1)-per-sample moving average filter using a circular buffer and running sum. Smooths signal by averaging the last N samples.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/filters/moving_average.rs",
+                line: 25,
+                symbol: "MovingAverage",
+                description: "O(1) moving average with circular buffer",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Moving Average",
+                    plaintext: "y[n] = (1/N) * sum(x[n-k], k=0..N-1)",
+                    latex: Some("y[n] = \\frac{1}{N} \\sum_{k=0}^{N-1} x[n-k]"),
+                    variables: &[("N", "Window length"), ("x[n]", "Input sample at time n")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_dc_convergence", module: "r4w_core::filters::moving_average::tests", description: "DC input converges to DC", expected_runtime_ms: 5 },
+                BlockTest { name: "test_ramp_averaging", module: "r4w_core::filters::moving_average::tests", description: "Ramp signal averaging", expected_runtime_ms: 5 },
+                BlockTest { name: "test_complex_averaging", module: "r4w_core::filters::moving_average::tests", description: "Complex-valued averaging", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(1) per sample", memory: "O(N)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["FirFilter", "DcBlocker"],
+            input_type: "IQ samples",
+            output_type: "IQ samples",
+            key_parameters: &["length"],
+        });
+
+    m.insert("KeepOneInN", BlockMetadata {
+            block_type: "KeepOneInN",
+            display_name: "Keep 1 in N",
+            category: "Rate Conversion",
+            description: "Decimation without anti-alias filtering. Keeps every Nth sample and discards the rest. Use after a lowpass filter to prevent aliasing.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/sample_ops.rs",
+                line: 32,
+                symbol: "KeepOneInN",
+                description: "Simple decimation by N",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Decimation",
+                    plaintext: "y[m] = x[m*N]",
+                    latex: Some("y[m] = x[mN]"),
+                    variables: &[("N", "Decimation factor"), ("m", "Output sample index")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_keep_one_in_n_basic", module: "r4w_core::sample_ops::tests", description: "Keep every 3rd sample", expected_runtime_ms: 5 },
+                BlockTest { name: "test_keep_repeat_inverse", module: "r4w_core::sample_ops::tests", description: "Repeat then Keep recovers original", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n/N)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["Downsampler", "SampleRepeat", "CicDecimator"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (decimated)",
+            key_parameters: &["n"],
+        });
+
+    m.insert("SampleRepeat", BlockMetadata {
+            block_type: "SampleRepeat",
+            display_name: "Repeat",
+            category: "Rate Conversion",
+            description: "Sample repetition without anti-image filtering. Replicates each input sample N times. Use before a pulse-shaping or interpolation filter.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/sample_ops.rs",
+                line: 94,
+                symbol: "Repeat",
+                description: "Simple sample repetition by N",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Repetition",
+                    plaintext: "y[n] = x[floor(n/N)]",
+                    latex: Some("y[n] = x[\\lfloor n/N \\rfloor]"),
+                    variables: &[("N", "Repetition factor"), ("n", "Output sample index")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_repeat_basic", module: "r4w_core::sample_ops::tests", description: "Repeat each sample 3 times", expected_runtime_ms: 5 },
+                BlockTest { name: "test_keep_repeat_inverse", module: "r4w_core::sample_ops::tests", description: "Repeat then Keep recovers original", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n*N)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["Upsampler", "KeepOneInN", "PolyphaseResampler"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (interpolated)",
+            key_parameters: &["n"],
+        });
+
     m
 }
 
