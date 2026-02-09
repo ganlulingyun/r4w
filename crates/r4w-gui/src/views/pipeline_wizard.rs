@@ -2942,17 +2942,15 @@ impl PipelineWizardView {
 
         // Test panel at bottom (if enabled) - resizable with persisted height
         if self.show_test_panel {
-            let panel_response = egui::TopBottomPanel::bottom("test_panel")
+            egui::TopBottomPanel::bottom("test_panel")
                 .resizable(true)
                 .show_separator_line(true)
                 .min_height(100.0)
                 .max_height(600.0)
-                .default_height(self.test_panel_height)
+                .default_height(200.0)
                 .show(&ctx, |ui| {
                     self.render_test_panel(ui);
                 });
-            // Track the actual height after user resize
-            self.test_panel_height = panel_response.response.rect.height();
         }
 
         // Main canvas takes the remaining central area
@@ -4160,23 +4158,30 @@ impl PipelineWizardView {
             ui.label("Select a block to test");
         }
 
-        // Results area
-        egui::ScrollArea::both().show(ui, |ui| {
-            if let Some(results) = &self.test_results {
-                if let Some(err) = &results.error_message {
-                    ui.colored_label(Color32::RED, format!("Error: {}", err));
-                } else {
-                    match self.test_view_tab {
-                        TestViewTab::Bits => self.render_bits_view(ui, results),
-                        TestViewTab::TimeDomain => self.render_time_view(ui, results),
-                        TestViewTab::Constellation => self.render_constellation_view(ui, results),
-                        TestViewTab::Spectrum => self.render_spectrum_view(ui, results),
+        // Results area - fill available space, don't auto-shrink
+        let available_height = ui.available_height();
+        egui::ScrollArea::both()
+            .auto_shrink([false, false])
+            .min_scrolled_height(available_height)
+            .show(ui, |ui| {
+                // Ensure minimum size so panel doesn't collapse
+                ui.set_min_height(available_height - 10.0);
+
+                if let Some(results) = &self.test_results {
+                    if let Some(err) = &results.error_message {
+                        ui.colored_label(Color32::RED, format!("Error: {}", err));
+                    } else {
+                        match self.test_view_tab {
+                            TestViewTab::Bits => self.render_bits_view(ui, results),
+                            TestViewTab::TimeDomain => self.render_time_view(ui, results),
+                            TestViewTab::Constellation => self.render_constellation_view(ui, results),
+                            TestViewTab::Spectrum => self.render_spectrum_view(ui, results),
+                        }
                     }
+                } else {
+                    ui.label("Click 'Run Test' to process data through the selected block");
                 }
-            } else {
-                ui.label("Click 'Run Test' to process data through the selected block");
-            }
-        });
+            });
     }
 
     fn run_test_panel(&mut self) {
