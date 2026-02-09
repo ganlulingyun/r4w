@@ -640,12 +640,13 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-16)** — 20 new DSP modules bringing the total to 56+ standalone blocks with 475+ unit tests:
+- **GNU Radio Feature Parity (Batches 13-17)** — 25 new DSP modules bringing the total to 61+ standalone blocks with 522+ unit tests:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
   - Batch 16: PFB Clock Sync, Header/Payload Demux, AX.25 Protocol Decoder, RMS Power, Correlate & Sync
-  - All blocks wired into the visual pipeline builder (now 70+ blocks) with property editors and block metadata
+  - Batch 17: Rotator (NCO freq shift), Puncture/Depuncture (FEC rate adaptation), Symbol Slicer (hard decision), Frame Sync (sync word detection), Vector Sink (data capture)
+  - All blocks wired into the visual pipeline builder (now 76+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
