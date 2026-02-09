@@ -3752,10 +3752,28 @@ impl PipelineWizardView {
 
     /// Draw a connection line with the current style
     fn draw_connection(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, is_vertical: bool, color: Color32, width: f32) {
+        let port_radius = 6.0 * self.zoom;
+        let arrow_size = 8.0 * self.zoom;
+
+        // Calculate the effective endpoint (shortened if arrowheads are shown)
+        let effective_to = if self.show_arrowheads {
+            // Shorten the line to end at the base of the arrowhead
+            let dir = if is_vertical {
+                Vec2::new(0.0, 1.0) // Pointing down (for top input port)
+            } else {
+                Vec2::new(1.0, 0.0) // Pointing right (for left input port)
+            };
+            // Adjust based on actual direction
+            let actual_dir = (to_pos - from_pos).normalized();
+            to_pos - actual_dir * (port_radius + arrow_size)
+        } else {
+            to_pos
+        };
+
         // Get the point before the destination for arrowhead direction
         let arrow_from = match self.connection_style {
             ConnectionStyle::Bezier => {
-                self.draw_bezier_connection(painter, from_pos, to_pos, is_vertical, color, width);
+                self.draw_bezier_connection(painter, from_pos, effective_to, is_vertical, color, width);
                 // For bezier, approximate with control point direction
                 let offset = 50.0 * self.zoom;
                 if is_vertical {
@@ -3765,11 +3783,11 @@ impl PipelineWizardView {
                 }
             }
             ConnectionStyle::Straight => {
-                painter.line_segment([from_pos, to_pos], Stroke::new(width, color));
+                painter.line_segment([from_pos, effective_to], Stroke::new(width, color));
                 from_pos
             }
             ConnectionStyle::Orthogonal => {
-                self.draw_orthogonal_connection(painter, from_pos, to_pos, is_vertical, color, width);
+                self.draw_orthogonal_connection(painter, from_pos, effective_to, is_vertical, color, width);
                 // Last segment is horizontal or vertical
                 let min_offset = 20.0 * self.zoom;
                 if is_vertical {
@@ -3789,7 +3807,7 @@ impl PipelineWizardView {
                 }
             }
             ConnectionStyle::Angled => {
-                self.draw_angled_connection(painter, from_pos, to_pos, is_vertical, color, width);
+                self.draw_angled_connection(painter, from_pos, effective_to, is_vertical, color, width);
                 // Estimate the last segment direction
                 let dx = to_pos.x - from_pos.x;
                 let dy = to_pos.y - from_pos.y;
