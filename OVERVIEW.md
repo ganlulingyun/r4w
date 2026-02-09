@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-28)** — 30 new DSP modules bringing the total to ~117+ standalone blocks with ~598+ unit tests:
+- **GNU Radio Feature Parity (Batches 13-29)** — 35 new DSP modules bringing the total to ~122+ standalone blocks with ~675+ unit tests:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -657,7 +657,8 @@ Measured with `tokei`:
   - Batch 26: Adaptive Notch (AdaptiveNotch + FixedNotch, LMS-like gradient frequency tracking), Signal Detector (energy detection, noise floor estimation, hysteresis), Preamble Generator (Alternating, Barker codes, PN sequences, Zadoff-Chu), Packet Encoder (sync word/length/CRC-8/16/32/whitening), Arbitrary Resampler (cubic Hermite interpolation, non-rational rate conversion)
   - Batch 27: Phase Modulator (instantaneous PM + ContinuousPhaseModulator), VCO (VcoC complex + VcoF real frequency-controlled oscillators), File I/O (IqFileReader/Writer with cf64/cf32/ci16/ci8/cu8 auto-detection), Message Strobe (periodic PDU generation, Message/MessageFilter/MessageCounter/MessageBurst), Throttle (rate-limiting for simulation + ThroughputMonitor)
   - Batch 28: Rail (real clamp + ComplexRail component/magnitude clipping), UDP Source/Sink (network IQ streaming with sequence headers, packet loss detection), Repeat (zero-order hold upsample), KeepOneInN (decimate without filtering), Head (pass first N), SkipHead (discard first N), Integrate (running sum + decimation), WindowedIntegrate (sliding sum), LeakyIntegrate (exponential IIR)
-  - All blocks wired into the visual pipeline builder (now 154+ blocks) with property editors and block metadata
+  - Batch 29: AM Demodulator (envelope detection + DC block + audio lowpass), Hilbert Transform (Hamming-windowed FIR real-to-analytic conversion), Single-Pole IIR (EMA smoothing, real + complex variants, alpha or tau construction), Complex to Mag/Phase (simultaneous extraction + inverse MagPhaseToComplex), Tagged Stream PDU (tagged stream ↔ PDU bridging with metadata)
+  - All blocks wired into the visual pipeline builder (now 158+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
