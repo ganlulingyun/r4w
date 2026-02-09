@@ -556,6 +556,98 @@ impl LayoutMode {
     }
 }
 
+/// Test input pattern for the test panel
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum TestInputPattern {
+    #[default]
+    Random,
+    AllZeros,
+    AllOnes,
+    Alternating,
+    Prbs7,
+}
+
+impl TestInputPattern {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Random => "Random",
+            Self::AllZeros => "All 0s",
+            Self::AllOnes => "All 1s",
+            Self::Alternating => "01010101",
+            Self::Prbs7 => "PRBS-7",
+        }
+    }
+
+    pub fn all() -> &'static [TestInputPattern] {
+        &[Self::Random, Self::AllZeros, Self::AllOnes, Self::Alternating, Self::Prbs7]
+    }
+
+    /// Generate test bits
+    pub fn generate(&self, num_bits: usize) -> Vec<bool> {
+        match self {
+            Self::Random => {
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                let mut hasher = DefaultHasher::new();
+                std::time::SystemTime::now().hash(&mut hasher);
+                let mut seed = hasher.finish();
+                (0..num_bits).map(|_| {
+                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    (seed >> 63) != 0
+                }).collect()
+            }
+            Self::AllZeros => vec![false; num_bits],
+            Self::AllOnes => vec![true; num_bits],
+            Self::Alternating => (0..num_bits).map(|i| i % 2 == 0).collect(),
+            Self::Prbs7 => {
+                // PRBS-7 generator (polynomial x^7 + x^6 + 1)
+                let mut lfsr: u8 = 0x7F; // Initial state (all 1s)
+                (0..num_bits).map(|_| {
+                    let bit = (lfsr & 1) != 0;
+                    let feedback = ((lfsr >> 6) ^ (lfsr >> 5)) & 1;
+                    lfsr = (lfsr >> 1) | (feedback << 6);
+                    bit
+                }).collect()
+            }
+        }
+    }
+}
+
+/// View tab in the test panel
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum TestViewTab {
+    #[default]
+    Bits,
+    TimeDomain,
+    Constellation,
+    Spectrum,
+}
+
+impl TestViewTab {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Bits => "Bits",
+            Self::TimeDomain => "Time",
+            Self::Constellation => "Constellation",
+            Self::Spectrum => "Spectrum",
+        }
+    }
+
+    pub fn all() -> &'static [TestViewTab] {
+        &[Self::Bits, Self::TimeDomain, Self::Constellation, Self::Spectrum]
+    }
+}
+
+/// Results from running test through blocks
+#[derive(Clone, Debug, Default)]
+pub struct TestResults {
+    pub input_bits: Vec<bool>,
+    pub output_samples: Vec<(f32, f32)>,  // I/Q samples
+    pub output_bits: Vec<bool>,           // If block outputs bits
+    pub block_name: String,
+    pub error_message: Option<String>,
+}
+
 impl Pipeline {
     pub fn new() -> Self {
         Self {
@@ -2157,6 +2249,12 @@ pub struct PipelineWizardView {
     // Block drag state (for accurate tracking)
     pub drag_start_pointer: Option<Pos2>,  // Screen position where drag started
     pub drag_initial_positions: HashMap<BlockId, Pos2>,  // Initial canvas positions of dragged blocks
+    // Test panel state
+    pub show_test_panel: bool,
+    pub test_input_pattern: TestInputPattern,
+    pub test_num_bits: usize,
+    pub test_view_tab: TestViewTab,
+    pub test_results: Option<TestResults>,
 }
 
 impl Default for PipelineWizardView {
@@ -2193,6 +2291,11 @@ impl Default for PipelineWizardView {
             lasso_points: Vec::new(),
             drag_start_pointer: None,
             drag_initial_positions: HashMap::new(),
+            show_test_panel: false,
+            test_input_pattern: TestInputPattern::default(),
+            test_num_bits: 32,
+            test_view_tab: TestViewTab::default(),
+            test_results: None,
         }
     }
 }
@@ -2510,6 +2613,8 @@ impl PipelineWizardView {
 
                     ui.checkbox(&mut self.show_arrowheads, "Arrows")
                         .on_hover_text("Show arrowheads on connections");
+                    ui.checkbox(&mut self.show_test_panel, "Test")
+                        .on_hover_text("Show test panel to run data through blocks");
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Export YAML").clicked() {
@@ -2836,6 +2941,18 @@ impl PipelineWizardView {
                     self.status_message = None;
                 }
             }
+        }
+
+        // Test panel at bottom (if enabled)
+        if self.show_test_panel {
+            egui::TopBottomPanel::bottom("test_panel")
+                .resizable(true)
+                .default_height(200.0)
+                .min_height(100.0)
+                .max_height(400.0)
+                .show(&ctx, |ui| {
+                    self.render_test_panel(ui);
+                });
         }
 
         // Main canvas takes the remaining central area
@@ -3989,6 +4106,357 @@ impl PipelineWizardView {
         painter.add(egui::Shape::convex_polygon(points, color, Stroke::NONE));
     }
 
+    fn render_test_panel(&mut self, ui: &mut Ui) {
+        ui.horizontal(|ui| {
+            ui.heading("Test Panel");
+            ui.separator();
+
+            // Input pattern selector
+            ui.label("Input:");
+            egui::ComboBox::from_id_salt("test_pattern")
+                .selected_text(self.test_input_pattern.name())
+                .width(80.0)
+                .show_ui(ui, |ui| {
+                    for pattern in TestInputPattern::all() {
+                        ui.selectable_value(&mut self.test_input_pattern, *pattern, pattern.name());
+                    }
+                });
+
+            // Number of bits
+            ui.label("Bits:");
+            ui.add(egui::DragValue::new(&mut self.test_num_bits)
+                .range(8..=256)
+                .speed(1));
+
+            // Run test button
+            if ui.button("▶ Run Test").clicked() {
+                self.run_test_panel();
+            }
+
+            ui.separator();
+
+            // View tabs
+            for tab in TestViewTab::all() {
+                if ui.selectable_label(self.test_view_tab == *tab, tab.name()).clicked() {
+                    self.test_view_tab = *tab;
+                }
+            }
+        });
+
+        ui.separator();
+
+        // Show selected block info
+        let selected_block_name = if let Some(id) = self.single_selected_block() {
+            self.pipeline.blocks.get(&id).map(|b| b.name.clone())
+        } else if self.selected_blocks.len() > 1 {
+            Some(format!("{} blocks selected", self.selected_blocks.len()))
+        } else {
+            None
+        };
+
+        if let Some(name) = selected_block_name {
+            ui.label(format!("Testing: {}", name));
+        } else {
+            ui.label("Select a block to test");
+        }
+
+        // Results area
+        egui::ScrollArea::both().show(ui, |ui| {
+            if let Some(results) = &self.test_results {
+                if let Some(err) = &results.error_message {
+                    ui.colored_label(Color32::RED, format!("Error: {}", err));
+                } else {
+                    match self.test_view_tab {
+                        TestViewTab::Bits => self.render_bits_view(ui, results),
+                        TestViewTab::TimeDomain => self.render_time_view(ui, results),
+                        TestViewTab::Constellation => self.render_constellation_view(ui, results),
+                        TestViewTab::Spectrum => self.render_spectrum_view(ui, results),
+                    }
+                }
+            } else {
+                ui.label("Click 'Run Test' to process data through the selected block");
+            }
+        });
+    }
+
+    fn run_test_panel(&mut self) {
+        // Get selected block
+        let block_id = match self.single_selected_block() {
+            Some(id) => id,
+            None => {
+                self.test_results = Some(TestResults {
+                    error_message: Some("Select a single block to test".to_string()),
+                    ..Default::default()
+                });
+                return;
+            }
+        };
+
+        let block = match self.pipeline.blocks.get(&block_id) {
+            Some(b) => b.clone(),
+            None => return,
+        };
+
+        // Generate input bits
+        let input_bits = self.test_input_pattern.generate(self.test_num_bits);
+
+        // Process through block (simplified - just show input for now)
+        // TODO: Actually instantiate and run DSP blocks
+        let (output_samples, output_bits) = self.process_block(&block, &input_bits);
+
+        self.test_results = Some(TestResults {
+            input_bits,
+            output_samples,
+            output_bits,
+            block_name: block.name.clone(),
+            error_message: None,
+        });
+    }
+
+    fn process_block(&self, block: &PipelineBlock, input_bits: &[bool]) -> (Vec<(f32, f32)>, Vec<bool>) {
+        // Simplified block processing - generate sample output based on block type
+        match &block.block_type {
+            BlockType::PskModulator { order } => {
+                // Simple PSK modulation
+                let bits_per_symbol = (*order as f32).log2() as usize;
+                let mut samples = Vec::new();
+                for chunk in input_bits.chunks(bits_per_symbol.max(1)) {
+                    let symbol_idx: usize = chunk.iter().enumerate()
+                        .map(|(i, &b)| if b { 1 << i } else { 0 })
+                        .sum();
+                    let phase = 2.0 * std::f32::consts::PI * symbol_idx as f32 / *order as f32;
+                    samples.push((phase.cos(), phase.sin()));
+                }
+                (samples, Vec::new())
+            }
+            BlockType::QamModulator { order } => {
+                // Simple QAM - square constellation
+                let bits_per_symbol = (*order as f32).log2() as usize;
+                let side = (*order as f32).sqrt() as usize;
+                let mut samples = Vec::new();
+                for chunk in input_bits.chunks(bits_per_symbol.max(1)) {
+                    let symbol_idx: usize = chunk.iter().enumerate()
+                        .map(|(i, &b)| if b { 1 << i } else { 0 })
+                        .sum();
+                    let i_idx = symbol_idx % side;
+                    let q_idx = symbol_idx / side;
+                    let i = (2 * i_idx) as f32 - (side - 1) as f32;
+                    let q = (2 * q_idx) as f32 - (side - 1) as f32;
+                    let norm = ((side - 1) as f32).max(1.0);
+                    samples.push((i / norm, q / norm));
+                }
+                (samples, Vec::new())
+            }
+            BlockType::GrayMapper { bits_per_symbol } => {
+                // Gray mapping - just pass through for now
+                (Vec::new(), input_bits.to_vec())
+            }
+            BlockType::Scrambler { polynomial: _, seed: _ } => {
+                // Simple scrambling placeholder
+                let output: Vec<bool> = input_bits.iter()
+                    .enumerate()
+                    .map(|(i, &b)| b ^ (i % 2 == 0))
+                    .collect();
+                (Vec::new(), output)
+            }
+            _ => {
+                // For other blocks, just pass through input
+                (Vec::new(), input_bits.to_vec())
+            }
+        }
+    }
+
+    fn render_bits_view(&self, ui: &mut Ui, results: &TestResults) {
+        ui.horizontal(|ui| {
+            // Input bits
+            ui.vertical(|ui| {
+                ui.label(RichText::new("Input Bits").strong());
+                let input_str: String = results.input_bits.iter()
+                    .map(|&b| if b { '1' } else { '0' })
+                    .collect();
+                // Show in groups of 8
+                for (i, chunk) in input_str.as_bytes().chunks(8).enumerate() {
+                    let s = String::from_utf8_lossy(chunk);
+                    ui.monospace(format!("{:3}: {}", i * 8, s));
+                }
+            });
+
+            ui.separator();
+
+            // Output
+            ui.vertical(|ui| {
+                if !results.output_bits.is_empty() {
+                    ui.label(RichText::new("Output Bits").strong());
+                    let output_str: String = results.output_bits.iter()
+                        .map(|&b| if b { '1' } else { '0' })
+                        .collect();
+                    for (i, chunk) in output_str.as_bytes().chunks(8).enumerate() {
+                        let s = String::from_utf8_lossy(chunk);
+                        ui.monospace(format!("{:3}: {}", i * 8, s));
+                    }
+                } else if !results.output_samples.is_empty() {
+                    ui.label(RichText::new("Output Samples (I/Q)").strong());
+                    for (i, (re, im)) in results.output_samples.iter().take(16).enumerate() {
+                        ui.monospace(format!("{:3}: ({:+.3}, {:+.3})", i, re, im));
+                    }
+                    if results.output_samples.len() > 16 {
+                        ui.label(format!("... and {} more", results.output_samples.len() - 16));
+                    }
+                }
+            });
+        });
+    }
+
+    fn render_time_view(&self, ui: &mut Ui, results: &TestResults) {
+        if results.output_samples.is_empty() {
+            ui.label("No I/Q samples to display (block outputs bits, not samples)");
+            return;
+        }
+
+        let available = ui.available_size();
+        let (response, painter) = ui.allocate_painter(
+            Vec2::new(available.x, available.y.min(150.0)),
+            egui::Sense::hover(),
+        );
+        let rect = response.rect;
+
+        // Background
+        painter.rect_filled(rect, 4.0, Color32::from_rgb(20, 20, 30));
+
+        // Draw I and Q waveforms
+        let n = results.output_samples.len();
+        if n == 0 { return; }
+
+        let x_scale = rect.width() / n as f32;
+        let y_center = rect.center().y;
+        let y_scale = rect.height() * 0.4;
+
+        // I channel (cyan)
+        let i_points: Vec<Pos2> = results.output_samples.iter().enumerate()
+            .map(|(i, (re, _))| Pos2::new(rect.left() + i as f32 * x_scale, y_center - re * y_scale))
+            .collect();
+        if i_points.len() > 1 {
+            painter.add(PathShape::line(i_points, Stroke::new(1.5, Color32::from_rgb(0, 200, 255))));
+        }
+
+        // Q channel (yellow)
+        let q_points: Vec<Pos2> = results.output_samples.iter().enumerate()
+            .map(|(i, (_, im))| Pos2::new(rect.left() + i as f32 * x_scale, y_center - im * y_scale))
+            .collect();
+        if q_points.len() > 1 {
+            painter.add(PathShape::line(q_points, Stroke::new(1.5, Color32::from_rgb(255, 200, 0))));
+        }
+
+        // Center line
+        painter.line_segment(
+            [Pos2::new(rect.left(), y_center), Pos2::new(rect.right(), y_center)],
+            Stroke::new(1.0, Color32::from_rgb(60, 60, 70)),
+        );
+
+        // Legend
+        painter.text(rect.left_top() + Vec2::new(5.0, 5.0), egui::Align2::LEFT_TOP,
+            "I", egui::FontId::proportional(10.0), Color32::from_rgb(0, 200, 255));
+        painter.text(rect.left_top() + Vec2::new(20.0, 5.0), egui::Align2::LEFT_TOP,
+            "Q", egui::FontId::proportional(10.0), Color32::from_rgb(255, 200, 0));
+    }
+
+    fn render_constellation_view(&self, ui: &mut Ui, results: &TestResults) {
+        if results.output_samples.is_empty() {
+            ui.label("No I/Q samples to display");
+            return;
+        }
+
+        let size = ui.available_size().min_elem().min(200.0);
+        let (response, painter) = ui.allocate_painter(
+            Vec2::splat(size),
+            egui::Sense::hover(),
+        );
+        let rect = response.rect;
+
+        // Background
+        painter.rect_filled(rect, 4.0, Color32::from_rgb(20, 20, 30));
+
+        // Grid
+        let center = rect.center();
+        painter.line_segment(
+            [Pos2::new(rect.left(), center.y), Pos2::new(rect.right(), center.y)],
+            Stroke::new(1.0, Color32::from_rgb(50, 50, 60)),
+        );
+        painter.line_segment(
+            [Pos2::new(center.x, rect.top()), Pos2::new(center.x, rect.bottom())],
+            Stroke::new(1.0, Color32::from_rgb(50, 50, 60)),
+        );
+
+        // Unit circle
+        let radius = rect.width() * 0.4;
+        painter.circle_stroke(center, radius, Stroke::new(1.0, Color32::from_rgb(60, 60, 80)));
+
+        // Plot points
+        let scale = radius;
+        for (i, (re, im)) in results.output_samples.iter().enumerate() {
+            let x = center.x + re * scale;
+            let y = center.y - im * scale; // Flip Y for standard orientation
+            let color = egui::epaint::Hsva::new(i as f32 / results.output_samples.len() as f32, 0.8, 1.0, 1.0);
+            painter.circle_filled(Pos2::new(x, y), 4.0, color);
+        }
+
+        // Labels
+        painter.text(Pos2::new(rect.right() - 5.0, center.y + 2.0), egui::Align2::RIGHT_TOP,
+            "I", egui::FontId::proportional(10.0), Color32::GRAY);
+        painter.text(Pos2::new(center.x + 2.0, rect.top() + 5.0), egui::Align2::LEFT_TOP,
+            "Q", egui::FontId::proportional(10.0), Color32::GRAY);
+    }
+
+    fn render_spectrum_view(&self, ui: &mut Ui, results: &TestResults) {
+        if results.output_samples.is_empty() {
+            ui.label("No I/Q samples for spectrum analysis");
+            return;
+        }
+
+        // Simple magnitude spectrum using DFT (not FFT for simplicity)
+        let n = results.output_samples.len().min(64);
+        let mut magnitudes: Vec<f32> = Vec::with_capacity(n);
+
+        for k in 0..n {
+            let mut sum_re = 0.0f32;
+            let mut sum_im = 0.0f32;
+            for (j, (re, im)) in results.output_samples.iter().take(n).enumerate() {
+                let angle = -2.0 * std::f32::consts::PI * k as f32 * j as f32 / n as f32;
+                sum_re += re * angle.cos() - im * angle.sin();
+                sum_im += re * angle.sin() + im * angle.cos();
+            }
+            magnitudes.push((sum_re * sum_re + sum_im * sum_im).sqrt() / n as f32);
+        }
+
+        let max_mag = magnitudes.iter().fold(0.0f32, |a, &b| a.max(b)).max(0.001);
+
+        let available = ui.available_size();
+        let (response, painter) = ui.allocate_painter(
+            Vec2::new(available.x, available.y.min(150.0)),
+            egui::Sense::hover(),
+        );
+        let rect = response.rect;
+
+        // Background
+        painter.rect_filled(rect, 4.0, Color32::from_rgb(20, 20, 30));
+
+        // Draw spectrum bars
+        let bar_width = rect.width() / n as f32;
+        for (i, &mag) in magnitudes.iter().enumerate() {
+            let height = (mag / max_mag) * rect.height() * 0.9;
+            let bar_rect = Rect::from_min_size(
+                Pos2::new(rect.left() + i as f32 * bar_width, rect.bottom() - height),
+                Vec2::new(bar_width * 0.8, height),
+            );
+            let hue = i as f32 / n as f32;
+            painter.rect_filled(bar_rect, 2.0, egui::epaint::Hsva::new(hue, 0.7, 0.9, 1.0));
+        }
+
+        // Label
+        painter.text(rect.left_top() + Vec2::new(5.0, 5.0), egui::Align2::LEFT_TOP,
+            "Magnitude Spectrum", egui::FontId::proportional(10.0), Color32::GRAY);
+    }
+
     fn render_properties_content(&mut self, ui: &mut Ui) {
         let selection_count = self.selected_blocks.len();
 
@@ -4928,7 +5396,7 @@ impl PipelineWizardView {
                             ui.horizontal(|ui| {
                                 ui.label(RichText::new(test.name).monospace());
                                 if ui.small_button("Run").clicked() {
-                                    self.run_test(test);
+                                    self.run_block_test(test);
                                 }
                             });
                             ui.indent("test_desc", |ui| {
@@ -4940,7 +5408,7 @@ impl PipelineWizardView {
                         ui.add_space(5.0);
                         if ui.button("Run All Tests").clicked() {
                             for test in meta.tests.iter() {
-                                self.run_test(test);
+                                self.run_block_test(test);
                             }
                         }
                     });
@@ -5036,7 +5504,7 @@ impl PipelineWizardView {
     }
 
     /// Run a block test
-    fn run_test(&self, test: &block_metadata::BlockTest) {
+    fn run_block_test(&self, test: &block_metadata::BlockTest) {
         #[cfg(not(target_arch = "wasm32"))]
         {
             let cmd = block_metadata::get_test_command(test);
