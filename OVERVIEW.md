@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-38)** — 130+ new DSP modules bringing the total to ~162+ standalone blocks with ~1760+ unit tests:
+- **GNU Radio Feature Parity (Batches 13-42)** — 155+ new DSP modules bringing the total to ~182+ standalone blocks with ~1970+ unit tests:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -669,7 +669,8 @@ Measured with `tokei`:
   - Batch 39: Histogram (signal amplitude distribution with configurable bins, density normalization, mean/median estimation), CFO Estimator (carrier frequency offset estimation: autocorrelation, Moose, Kay algorithms), Burst Shaper (windowed ramp up/down on burst edges: linear, raised-cosine, Hann tapers), Silence Detector (voice activity detection with energy thresholding and holdover timer), Packet Sink (collect and count packets with PER, byte stats, quality tracking)
   - Batch 40: Timing Error Detector (Gardner, Mueller-Muller, Early-Late Gate, Zero-Crossing TEDs for clock recovery, real/complex, streaming block), Constellation Demapper (soft bit demapping via max-log-MAP, BPSK/QPSK fast-path, generic for arbitrary constellations), Eye Diagram (trace accumulation, mean_trace, envelope, eye_opening, timing_jitter_rms for ISI assessment), EVM Calculator (RMS/peak/percentile EVM in linear/dB/percent, streaming with history), Valve (stream gating: Open/Closed/CountedBurst/Triggered modes, gate_signal, extract_segments)
   - Batch 41: Decision Feedback Equalizer (DFE with separate forward/feedback FIR, LMS/CMA/RLS adaptation, training mode, BPSK/QPSK hard decisions), Probe Density (bit density and transition density measurement, exponential averaging, RunLengthAnalyzer for clock recovery/scrambler/DC balance), AIS Decoder (ITU-R M.1371 maritime protocol, message types 1-5/18/21/24, NRZI decode, 6-bit ASCII, CRC-16, AIVDM parsing), BCH Code (Bose-Chaudhuri-Hocquenghem encoder/decoder, standard codes (7,4,1)/(15,11,1)/(15,7,2)/(15,5,3)/(31,21,2), systematic LFSR encoding, brute-force correction), Turbo Code (parallel concatenated convolutional code, RSC constituent encoders, BCJR MAP iterative decoding, random and QPP 3GPP LTE interleavers, near-Shannon-limit FEC)
-  - All blocks wired into the visual pipeline builder (now 213+ blocks) with property editors and block metadata
+  - Batch 42: ACARS Decoder (aviation 131.550 MHz AM-MSK messaging, CRC-CCITT, aircraft registration/flight ID extraction), ARQ Engine (Automatic Repeat Request reliable delivery: Stop-and-Wait/Go-Back-N/Selective Repeat, fragmentation/reassembly, CRC-16, duplicate detection), Kalman Filter (general linear predict/update, flat Vec matrix storage, presets for 1D/phase-frequency/position-velocity tracking), POCSAG Decoder (pager protocol with BCH(31,21) error correction, numeric/alphanumeric/tone-only, 512/1200/2400 baud), Spectrum Sensor (cognitive radio sensing: EnergyDetector Neyman-Pearson, CyclostatDetector cyclic correlation, CovarianceDetector eigenvalue ratio)
+  - All blocks wired into the visual pipeline builder (now 218+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
