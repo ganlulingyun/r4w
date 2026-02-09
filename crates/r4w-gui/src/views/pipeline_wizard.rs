@@ -411,6 +411,11 @@ pub enum BlockType {
     // Batch 28: UDP networking
     UdpSourceBlock { host: String, port: u16, has_header: bool },
     UdpSinkBlock { host: String, port: u16, add_header: bool },
+    // Batch 29: Type converters, filters, demodulators
+    AmDemodBlock { audio_cutoff: f64, dc_alpha: f64 },
+    HilbertBlock { num_taps: usize },
+    SinglePoleIirBlock { alpha: f64 },
+    ComplexToMagPhaseBlock,
 }
 
 impl BlockType {
@@ -585,6 +590,10 @@ impl BlockType {
             Self::ThrottleBlock { .. } => "Throttle",
             Self::UdpSourceBlock { .. } => "UDP Source",
             Self::UdpSinkBlock { .. } => "UDP Sink",
+            Self::AmDemodBlock { .. } => "AM Demodulator",
+            Self::HilbertBlock { .. } => "Hilbert Transform",
+            Self::SinglePoleIirBlock { .. } => "Single-Pole IIR",
+            Self::ComplexToMagPhaseBlock => "Complex to Mag/Phase",
         }
     }
 
@@ -684,6 +693,10 @@ impl BlockType {
             Self::ThrottleBlock { .. } => BlockCategory::RateConversion,
             Self::UdpSourceBlock { .. } => BlockCategory::Source,
             Self::UdpSinkBlock { .. } => BlockCategory::Output,
+            Self::AmDemodBlock { .. } => BlockCategory::Modulation,
+            Self::HilbertBlock { .. } => BlockCategory::Filtering,
+            Self::SinglePoleIirBlock { .. } => BlockCategory::Filtering,
+            Self::ComplexToMagPhaseBlock => BlockCategory::Output,
         }
     }
 
@@ -874,6 +887,10 @@ impl BlockType {
             Self::ThrottleBlock { .. } => vec![PortType::IQ],
             Self::UdpSourceBlock { .. } => vec![],
             Self::UdpSinkBlock { .. } => vec![PortType::IQ],
+            Self::AmDemodBlock { .. } => vec![PortType::IQ],
+            Self::HilbertBlock { .. } => vec![PortType::Real],
+            Self::SinglePoleIirBlock { .. } => vec![PortType::IQ],
+            Self::ComplexToMagPhaseBlock => vec![PortType::IQ],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -1052,6 +1069,10 @@ impl BlockType {
             Self::ThrottleBlock { .. } => vec![PortType::IQ],
             Self::UdpSourceBlock { .. } => vec![PortType::IQ],
             Self::UdpSinkBlock { .. } => vec![],
+            Self::AmDemodBlock { .. } => vec![PortType::Real],
+            Self::HilbertBlock { .. } => vec![PortType::IQ],
+            Self::SinglePoleIirBlock { .. } => vec![PortType::IQ],
+            Self::ComplexToMagPhaseBlock => vec![PortType::Real],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -3196,6 +3217,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::CyclicPrefixAdderBlock { fft_size: 64, cp_length: 16 },
             BlockType::CyclicPrefixRemoverBlock { fft_size: 64, cp_length: 16 },
             BlockType::PhaseModulatorBlock { sensitivity: std::f64::consts::PI },
+            BlockType::AmDemodBlock { audio_cutoff: 5000.0, dc_alpha: 0.95 },
         ]),
         (BlockCategory::Filtering, vec![
             BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 10000.0, num_taps: 64 },
@@ -3222,6 +3244,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::WaveletDenoiserBlock { wavelet: "Haar".to_string(), levels: 3, method: "Soft".to_string() },
             BlockType::AdaptiveNotchBlock { r: 0.95, mu: 0.01 },
             BlockType::FixedNotchBlock { frequency_hz: 1000.0, sample_rate: 48000.0, r: 0.95 },
+            BlockType::HilbertBlock { num_taps: 65 },
+            BlockType::SinglePoleIirBlock { alpha: 0.1 },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -3328,6 +3352,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::ComplexToInterleavedShortBlock,
             BlockType::FileIqSinkBlock { path: "output.iq".to_string(), format: "cf32".to_string() },
             BlockType::UdpSinkBlock { host: "127.0.0.1".to_string(), port: 7355, add_header: false },
+            BlockType::ComplexToMagPhaseBlock,
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -7641,6 +7666,55 @@ impl PipelineWizardView {
                 // Pass-through in test panel (actual UDP send only in runtime)
                 (Vec::new(), Vec::new(), input_samples.to_vec())
             }
+            BlockType::AmDemodBlock { audio_cutoff, dc_alpha } => {
+                use r4w_core::am_demod::AmDemod;
+                let mut demod = AmDemod::new(48000.0, *audio_cutoff);
+                demod.set_dc_alpha(*dc_alpha);
+                let iq: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let audio = demod.process(&iq);
+                let real: Vec<(f32, f32)> = audio.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), real)
+            }
+            BlockType::HilbertBlock { num_taps } => {
+                use r4w_core::hilbert::HilbertTransform;
+                let mut hilbert = HilbertTransform::new(*num_taps);
+                let real_in: Vec<f64> = input_samples.iter()
+                    .map(|&(i, _q)| i as f64)
+                    .collect();
+                let analytic = hilbert.process(&real_in);
+                let output: Vec<(f32, f32)> = analytic.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::SinglePoleIirBlock { alpha } => {
+                use r4w_core::single_pole_iir::SinglePoleIirComplex;
+                let mut iir = SinglePoleIirComplex::new(*alpha);
+                let iq: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let filtered = iir.process(&iq);
+                let output: Vec<(f32, f32)> = filtered.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::ComplexToMagPhaseBlock => {
+                use r4w_core::complex_to_mag_phase::ComplexToMagPhase;
+                let c2mp = ComplexToMagPhase;
+                let iq: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let (mags, _phases) = c2mp.process(&iq);
+                let output: Vec<(f32, f32)> = mags.iter()
+                    .map(|&m| (m as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
 
             // Default: pass through based on likely output type
             _ => {
@@ -10587,6 +10661,55 @@ impl PipelineWizardView {
                         add_header: new_header,
                     };
                 }
+            }
+            BlockType::AmDemodBlock { audio_cutoff, dc_alpha } => {
+                let mut new_cutoff = audio_cutoff;
+                let mut new_dc = dc_alpha;
+                ui.horizontal(|ui| {
+                    ui.label("Audio Cutoff (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_cutoff).range(100.0..=20000.0).speed(50.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("DC Blocker α:");
+                    ui.add(egui::DragValue::new(&mut new_dc).range(0.9..=0.9999).speed(0.001).max_decimals(4));
+                });
+                ui.label("Pipeline: |x[n]| → DC block → lowpass → output");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::AmDemodBlock {
+                        audio_cutoff: new_cutoff,
+                        dc_alpha: new_dc,
+                    };
+                }
+            }
+            BlockType::HilbertBlock { num_taps } => {
+                let mut new_taps = num_taps as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Number of Taps:");
+                    ui.add(egui::DragValue::new(&mut new_taps).range(3.0..=255.0).speed(2.0));
+                });
+                let taps_val = new_taps as usize | 1; // ensure odd
+                ui.label(format!("Group delay: {} samples", taps_val / 2));
+                ui.label("Real → analytic signal (Hamming-windowed FIR).");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::HilbertBlock { num_taps: taps_val };
+                }
+            }
+            BlockType::SinglePoleIirBlock { alpha } => {
+                let mut new_alpha = alpha;
+                ui.horizontal(|ui| {
+                    ui.label("Alpha (α):");
+                    ui.add(egui::DragValue::new(&mut new_alpha).range(0.001..=1.0).speed(0.01).max_decimals(4));
+                });
+                let tau = 1.0 / new_alpha;
+                ui.label(format!("Time constant: {:.1} samples", tau));
+                ui.label("y[n] = α·x[n] + (1-α)·y[n-1]");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SinglePoleIirBlock { alpha: new_alpha };
+                }
+            }
+            BlockType::ComplexToMagPhaseBlock => {
+                ui.label("Converts IQ → (magnitude, phase) as two real outputs.");
+                ui.label("|z| = √(re² + im²),  ∠z = atan2(im, re)");
             }
             BlockType::FileSource { path } => {
                 let mut new_path = path;

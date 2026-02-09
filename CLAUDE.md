@@ -81,7 +81,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 152+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 154+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -190,6 +190,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Batch 28 DSP Blocks** - Rail (real clamp + ComplexRail component/magnitude clipping), UDP Source/Sink (network IQ streaming with sequence headers, packet loss detection), Repeat (zero-order hold upsample), KeepOneInN (decimate without filtering), Head (pass first N), SkipHead (discard first N), Integrate (running sum + decimation), WindowedIntegrate (sliding sum), LeakyIntegrate (exponential IIR). 70 tests + 6 doctests. 2 pipeline blocks. ~117+ DSP modules total, ~154+ pipeline block types.
 - **Batch 27 DSP Blocks** - Phase modulators (PhaseModulator instantaneous + ContinuousPhaseModulator accumulated), VCO (VcoC complex + VcoF real frequency-controlled oscillators), File I/O (IqFileReader/Writer with cf64/cf32/ci16/ci8/cu8 auto-detection), Message system (MessageStrobe periodic PDU + Message/MessageFilter/MessageCounter/MessageBurst), Throttle (rate-limiting + ThroughputMonitor). 59 tests + 5 doctests. 6 pipeline blocks.
 - **Batch 26 DSP Blocks** - Adaptive IIR notch filter (AdaptiveNotch + FixedNotch) for narrowband interference removal, energy-based SignalDetector with noise floor tracking, PreambleGenerator (Alternating, Barker codes, PN sequences, Zadoff-Chu), PacketEncoder with sync word/length/CRC-8/16/32/whitening, ArbitraryResampler using cubic Hermite interpolation for non-rational sample rate conversion.
 - **DSP Batch 25** - Five modules: Decimating FIR (`decimating_fir.rs` - combined lowpass FIR + integer decimation, auto-designed Hamming sinc, streaming operation), Interleaved Conversions (`interleaved.rs` - i16/i8/u8/f32 ↔ Complex64 for SDR hardware: USRP, HackRF, RTL-SDR, PlutoSDR), AFC (`afc.rs` - closed-loop frequency tracking, phase/cross-product discriminators, second-order loop filter, FrequencyEstimator one-shot), Moving Average Decimator (`moving_avg_decim.rs` - boxcar averaging + decimation, sum mode, PowerAvgDecim for dB power), DC Blocker (`dc_blocker.rs` - single-pole IIR highpass, configurable pole/cutoff, RealDcBlocker). 60 tests. 6 pipeline blocks.

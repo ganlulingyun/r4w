@@ -4956,6 +4956,145 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
         key_parameters: &["host (destination address)", "port (UDP port)", "add_header (sequence numbers)"],
     });
 
+    // AM Demodulator
+    m.insert("AmDemodBlock", BlockMetadata {
+        block_type: "AmDemodBlock",
+        display_name: "AM Demodulator",
+        category: "Modulation",
+        description: "Amplitude modulation envelope detector with DC blocking and audio lowpass filtering. Pipeline: |x[n]| → DC block → lowpass → output.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/am_demod.rs", line: 30, symbol: "AmDemod", description: "AM envelope demodulator" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula {
+                name: "Envelope Detection",
+                plaintext: "e[n] = |x[n]| = sqrt(re² + im²)",
+                latex: Some("e[n] = |x[n]|"),
+                variables: &[("x[n]", "complex input sample"), ("e[n]", "envelope output")],
+            },
+            BlockFormula {
+                name: "DC Blocker",
+                plaintext: "y[n] = x[n] - x[n-1] + α·y[n-1]",
+                latex: Some("y[n] = x[n] - x[n-1] + \\alpha \\cdot y[n-1]"),
+                variables: &[("α", "DC blocker coefficient (typ. 0.95)")],
+            },
+        ],
+        tests: &[
+            BlockTest { name: "test_demod_constant_envelope", module: "r4w_core::am_demod", description: "Constant envelope → DC blocked to ~0", expected_runtime_ms: 10 },
+            BlockTest { name: "test_demod_modulated_signal", module: "r4w_core::am_demod", description: "1 kHz AM modulated signal demodulation", expected_runtime_ms: 10 },
+            BlockTest { name: "test_mod_demod_roundtrip", module: "r4w_core::am_demod", description: "Modulator → demodulator roundtrip", expected_runtime_ms: 10 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["HilbertBlock", "SinglePoleIirBlock", "QuadratureDemodBlock"],
+        input_type: "IQ",
+        output_type: "Real",
+        key_parameters: &["audio_cutoff (lowpass cutoff Hz)", "dc_alpha (DC blocker coefficient)"],
+    });
+
+    // Hilbert Transform
+    m.insert("HilbertBlock", BlockMetadata {
+        block_type: "HilbertBlock",
+        display_name: "Hilbert Transform",
+        category: "Filtering",
+        description: "Converts real signal to analytic (complex) signal using a Hamming-windowed FIR Hilbert filter. Real component is delayed to match group delay.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/hilbert.rs", line: 29, symbol: "HilbertTransform", description: "Real-to-analytic Hilbert FIR filter" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula {
+                name: "Hilbert FIR",
+                plaintext: "h[n] = (2/(π·(n-M))) · w[n], odd distance from center; 0 otherwise",
+                latex: Some("h[n] = \\frac{2}{\\pi(n-M)} w[n]"),
+                variables: &[("M", "filter center (num_taps/2)"), ("w[n]", "Hamming window")],
+            },
+            BlockFormula {
+                name: "Output",
+                plaintext: "y[n] = (x[n-M], H{x}[n]) — delayed real + Hilbert imaginary",
+                latex: Some("y[n] = x[n-M] + j \\cdot \\mathcal{H}\\{x\\}[n]"),
+                variables: &[("M", "group delay in samples"), ("H{x}", "Hilbert transform of x")],
+            },
+        ],
+        tests: &[
+            BlockTest { name: "test_cosine_to_analytic", module: "r4w_core::hilbert", description: "Cosine → constant magnitude analytic signal", expected_runtime_ms: 10 },
+            BlockTest { name: "test_dc_input", module: "r4w_core::hilbert", description: "DC → Hilbert is zero", expected_runtime_ms: 10 },
+            BlockTest { name: "test_taps_symmetry", module: "r4w_core::hilbert", description: "Verify anti-symmetric tap structure", expected_runtime_ms: 10 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n·T)", memory: "O(T)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["AmDemodBlock", "ComplexToMagPhaseBlock"],
+        input_type: "Real",
+        output_type: "IQ",
+        key_parameters: &["num_taps (FIR filter length, odd)"],
+    });
+
+    // Single-Pole IIR Filter
+    m.insert("SinglePoleIirBlock", BlockMetadata {
+        block_type: "SinglePoleIirBlock",
+        display_name: "Single-Pole IIR Filter",
+        category: "Filtering",
+        description: "First-order IIR exponential moving average for signal smoothing, power averaging, and DC tracking. Very lightweight.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/single_pole_iir.rs", line: 34, symbol: "SinglePoleIir", description: "Real-valued single-pole IIR" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula {
+                name: "IIR Recurrence",
+                plaintext: "y[n] = α·x[n] + (1-α)·y[n-1]",
+                latex: Some("y[n] = \\alpha x[n] + (1 - \\alpha) y[n-1]"),
+                variables: &[("α", "smoothing coefficient (0 < α ≤ 1)"), ("x[n]", "input"), ("y[n]", "smoothed output")],
+            },
+            BlockFormula {
+                name: "Transfer Function",
+                plaintext: "H(z) = α / (1 - (1-α)z⁻¹)",
+                latex: Some("H(z) = \\frac{\\alpha}{1 - (1-\\alpha)z^{-1}}"),
+                variables: &[("α", "controls bandwidth; α=1 → passthrough")],
+            },
+        ],
+        tests: &[
+            BlockTest { name: "test_step_response", module: "r4w_core::single_pole_iir", description: "Step input converges to 1.0", expected_runtime_ms: 10 },
+            BlockTest { name: "test_alpha_one_passthrough", module: "r4w_core::single_pole_iir", description: "α=1 → output equals input", expected_runtime_ms: 10 },
+            BlockTest { name: "test_bandwidth_calculation", module: "r4w_core::single_pole_iir", description: "Bandwidth roundtrip from_bandwidth → bandwidth()", expected_runtime_ms: 10 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["AmDemodBlock", "AgcBlock"],
+        input_type: "Real or IQ",
+        output_type: "Real or IQ",
+        key_parameters: &["alpha (smoothing coefficient 0..1)"],
+    });
+
+    // Complex to Mag/Phase
+    m.insert("ComplexToMagPhaseBlock", BlockMetadata {
+        block_type: "ComplexToMagPhaseBlock",
+        display_name: "Complex to Mag/Phase",
+        category: "Output",
+        description: "Converts complex IQ samples to magnitude and phase components.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/complex_to_mag_phase.rs", line: 23, symbol: "ComplexToMagPhase", description: "Complex to magnitude and phase converter" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula {
+                name: "Magnitude",
+                plaintext: "|z| = sqrt(re² + im²)",
+                latex: Some("|z| = \\sqrt{\\text{re}^2 + \\text{im}^2}"),
+                variables: &[("re", "real part"), ("im", "imaginary part")],
+            },
+            BlockFormula {
+                name: "Phase",
+                plaintext: "∠z = atan2(im, re)",
+                latex: Some("\\angle z = \\text{atan2}(\\text{im}, \\text{re})"),
+                variables: &[("∠z", "phase in radians (-π, π]")],
+            },
+        ],
+        tests: &[
+            BlockTest { name: "test_mag_phase", module: "r4w_core::complex_to_mag_phase", description: "3+4j → mag=5, phase=atan2(4,3)", expected_runtime_ms: 10 },
+            BlockTest { name: "test_roundtrip", module: "r4w_core::complex_to_mag_phase", description: "complex → mag/phase → complex roundtrip", expected_runtime_ms: 10 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["HilbertBlock", "AmDemodBlock"],
+        input_type: "IQ",
+        output_type: "Real",
+        key_parameters: &[],
+    });
+
     m
 }
 
