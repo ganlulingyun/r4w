@@ -646,7 +646,8 @@ Measured with `tokei`:
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
   - Batch 16: PFB Clock Sync, Header/Payload Demux, AX.25 Protocol Decoder, RMS Power, Correlate & Sync
   - Batch 17: Rotator (NCO freq shift), Puncture/Depuncture (FEC rate adaptation), Symbol Slicer (hard decision), Frame Sync (sync word detection), Vector Sink (data capture)
-  - All blocks wired into the visual pipeline builder (now 76+ blocks) with property editors and block metadata
+  - Batch 18: Arithmetic (Add/Subtract/Divide + const variants), Conjugate/MultiplyConjugate, Phase Wrap/Unwrap, Transcendental (Abs/Log/Exp/Normalize), Chunks to Symbols (LUT mapper + soft-bit LLR)
+  - All blocks wired into the visual pipeline builder (now 84+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
