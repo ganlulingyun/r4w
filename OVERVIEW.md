@@ -772,9 +772,14 @@ The Pipeline Builder is a visual signal processing pipeline designer for creatin
 
 - **Visual Canvas**: Grid background, zoom (0.5x-2x), pan, snap-to-grid
 - **Interactive Connections**: Click output port → click input port to connect
+- **Connection Styles**: Bezier (curved), Straight, Orthogonal (right-angle), Angled (45°)
+- **Connection Arrows**: Optional arrowheads show signal flow direction
+- **Multi-Selection**: Rectangle or lasso selection, Shift+click to add/remove, Ctrl+A for all
 - **12 Preset Templates**: BPSK/QPSK/16-QAM/LoRa/OFDM/FSK/DSSS/DMR transmitters, complete TX-Channel-RX systems, Parallel I/Q demo
-- **Auto-Layout**: Topological sorting arranges blocks left-to-right
-- **Pipeline Validation**: Detects cycles, unconnected inputs/outputs, disabled blocks
+- **Layout Modes**: Flow (topological), Fit to View, Compact, Grid
+- **Auto-Layout**: Topological sorting arranges blocks in signal flow order (left-to-right)
+- **Pipeline Validation**: Proactive cycle prevention, detects unconnected inputs/outputs, disabled blocks
+- **Cascade Drag**: Dragging a block moves all downstream connected blocks
 - **YAML Export**: Export pipeline specification for documentation or execution
 - **Context Menu**: Right-click for duplicate, delete, disconnect all
 
@@ -793,10 +798,14 @@ The Pipeline Builder is a visual signal processing pipeline designer for creatin
 | Key | Action |
 |-----|--------|
 | ESC | Cancel connection or deselect |
-| Delete/Backspace | Remove selected block or connection |
+| Delete/Backspace | Remove selected block(s) or connection |
 | Scroll | Zoom in/out |
 | Drag canvas | Pan view |
-| Drag block | Move block position |
+| Drag block | Move block position (cascades to downstream if enabled) |
+| Shift+Click | Add/remove block from selection |
+| Ctrl+A | Select all blocks |
+| Alt+Drag | Lasso selection |
+| Drag on canvas | Rectangle selection |
 
 ## Example Pipelines
 

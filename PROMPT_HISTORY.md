@@ -6940,3 +6940,30 @@ User requested rectangular and lasso selection for multi-selecting blocks on the
 ### Git Operations
 - Commit 59e60ac: `[AI:claude] feat(pipeline): add rectangular and lasso multi-selection`
 - Pushed to origin/master
+
+### Follow-up Request
+User requested arrowheads on connection lines and fix for grid layout that wasn't respecting signal flow order.
+
+### Actions Taken
+
+1. **Added Arrowheads to Connections**
+   - Added `show_arrowheads: bool` field to `PipelineWizardView` (default: true)
+   - Added "Arrows" checkbox in toolbar next to connection style dropdown
+   - Implemented `draw_arrowhead()` method to render filled triangles at connection endpoints
+   - Modified `draw_connection()` to calculate correct arrow direction for each style:
+     - Bezier: uses control point direction
+     - Straight: uses source position
+     - Orthogonal: uses last segment direction
+     - Angled: estimates final segment direction
+   - Arrow size scales with zoom level (8.0 * zoom)
+
+2. **Fixed Grid Layout to Respect Signal Flow**
+   - Grid layout was sorting by block ID, causing confusing layouts
+   - Added `topological_sort()` method using BFS from source blocks
+   - `grid_layout_with_cols()` now uses topological order
+   - Blocks are always arranged left-to-right (not serpentine/boustrophedon)
+   - Disconnected blocks are added at the end, sorted by ID
+
+### Git Operations
+- Commit 14ad715: `[AI:claude] feat(gui): add arrowheads and improve grid layout in Pipeline Builder`
+- Pushed to origin/master
