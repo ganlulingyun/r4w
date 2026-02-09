@@ -4782,6 +4782,134 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
         key_parameters: &["ratio (output/input, <1=downsample, >1=upsample)"],
     });
 
+    // ── Batch 27: Phase Modulator, VCO, File Source/Sink, Message Strobe, Throttle ──
+
+    m.insert("Phase Modulator", BlockMetadata {
+        block_type: "PhaseModulatorBlock",
+        display_name: "Phase Modulator",
+        category: "Modulation",
+        description: "Converts a real-valued baseband signal into a complex output by modulating the instantaneous phase: output[n] = exp(j * sensitivity * input[n]). PM counterpart to the frequency modulator. Also provides ContinuousPhaseModulator for accumulated phase.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/phase_modulator.rs", line: 22, symbol: "PhaseModulator", description: "Phase modulator" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "PM Output", plaintext: "y[n] = exp(j · sensitivity · x[n])", latex: None, variables: &[("x", "real input signal"), ("sensitivity", "radians per unit")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_unit_magnitude", module: "r4w_core::phase_modulator::tests", description: "Output has unit magnitude", expected_runtime_ms: 1 },
+            BlockTest { name: "test_pi_input", module: "r4w_core::phase_modulator::tests", description: "exp(jπ) = -1", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["FrequencyModulator", "CpmModulator", "VCO"],
+        input_type: "Real",
+        output_type: "IQ",
+        key_parameters: &["sensitivity (radians per unit input)"],
+    });
+
+    m.insert("VCO", BlockMetadata {
+        block_type: "VcoBlock",
+        display_name: "Voltage-Controlled Oscillator",
+        category: "Source",
+        description: "Generates exp(j · 2π · sensitivity · ∫x(t)dt) where the input controls the instantaneous frequency. Unlike NCO (fixed frequency), the VCO takes a real input stream specifying frequency offset per sample. Core building block for DDS, FM generation, and frequency tracking loops.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/vco.rs", line: 27, symbol: "VcoC", description: "Complex VCO" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "VCO Output", plaintext: "y[n] = exp(j · φ[n]),  φ[n+1] = φ[n] + 2π · sensitivity · x[n] / fs", latex: None, variables: &[("x", "frequency control input"), ("sensitivity", "Hz per unit"), ("fs", "sample rate")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_zero_input_constant_output", module: "r4w_core::vco::tests", description: "Zero input = DC output", expected_runtime_ms: 1 },
+            BlockTest { name: "test_constant_frequency", module: "r4w_core::vco::tests", description: "Constant input = fixed tone", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["NCO", "SignalSource", "PhaseModulator", "FrequencyModulator"],
+        input_type: "Real",
+        output_type: "IQ",
+        key_parameters: &["sensitivity (Hz per unit input)", "sample_rate (Hz)"],
+    });
+
+    m.insert("File IQ Source", BlockMetadata {
+        block_type: "FileIqSourceBlock",
+        display_name: "File IQ Source",
+        category: "Source",
+        description: "Reads raw binary IQ samples from disk in various formats (cf64, cf32, ci16, ci8, cu8). Supports streaming reads and auto-format detection from file extension. Foundation I/O block for processing recorded signals.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/file_source_sink.rs", line: 87, symbol: "IqFileReader", description: "Streaming IQ file reader" }),
+        related_code: &[],
+        formulas: &[],
+        tests: &[
+            BlockTest { name: "test_cf64_roundtrip", module: "r4w_core::file_source_sink::tests", description: "cf64 write/read roundtrip", expected_runtime_ms: 5 },
+            BlockTest { name: "test_cf32_roundtrip", module: "r4w_core::file_source_sink::tests", description: "cf32 write/read roundtrip", expected_runtime_ms: 5 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(block_size)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["FileIqSink", "FileSource", "FileMetaSource"],
+        input_type: "None",
+        output_type: "IQ",
+        key_parameters: &["path (file path)", "format (cf64|cf32|ci16|ci8|cu8)"],
+    });
+
+    m.insert("File IQ Sink", BlockMetadata {
+        block_type: "FileIqSinkBlock",
+        display_name: "File IQ Sink",
+        category: "Output",
+        description: "Writes IQ sample streams to raw binary files. Supports multiple formats: cf64 (full precision), cf32 (USRP-compatible), ci16 (compact), ci8, cu8 (RTL-SDR compatible). Buffered writes for performance.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/file_source_sink.rs", line: 163, symbol: "IqFileWriter", description: "Streaming IQ file writer" }),
+        related_code: &[],
+        formulas: &[],
+        tests: &[
+            BlockTest { name: "test_samples_count", module: "r4w_core::file_source_sink::tests", description: "Sample count tracking", expected_runtime_ms: 5 },
+            BlockTest { name: "test_partial_read", module: "r4w_core::file_source_sink::tests", description: "Streaming read in chunks", expected_runtime_ms: 5 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(block_size)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["FileIqSource", "FileOutput", "FileMetaSink"],
+        input_type: "IQ",
+        output_type: "None",
+        key_parameters: &["path (output file)", "format (cf64|cf32|ci16|ci8|cu8)"],
+    });
+
+    m.insert("Message Strobe", BlockMetadata {
+        block_type: "MessageStrobeBlock",
+        display_name: "Message Strobe",
+        category: "Source",
+        description: "Generates PDU messages at configurable intervals. Essential for protocol testing, heartbeats, and driving packet-based pipelines. Also provides MessageFilter (pass/block by metadata), MessageCounter, and MessageBurst.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/message_strobe.rs", line: 79, symbol: "MessageStrobe", description: "Periodic message generator" }),
+        related_code: &[],
+        formulas: &[],
+        tests: &[
+            BlockTest { name: "test_strobe_generates_messages", module: "r4w_core::message_strobe::tests", description: "Generates N messages in time", expected_runtime_ms: 1 },
+            BlockTest { name: "test_strobe_with_limit", module: "r4w_core::message_strobe::tests", description: "Respects max count", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(1)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["PduToTaggedStream", "TaggedStreamToPdu"],
+        input_type: "None",
+        output_type: "Bits",
+        key_parameters: &["period_ms (emission interval in milliseconds)"],
+    });
+
+    m.insert("Throttle", BlockMetadata {
+        block_type: "ThrottleBlock",
+        display_name: "Throttle",
+        category: "Rate Conversion",
+        description: "Rate-limiting block that ensures a data stream doesn't exceed the specified sample rate. Essential for simulating real-time behavior in non-real-time processing pipelines. Also provides ThroughputMonitor for measuring actual data rates.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/throttle.rs", line: 26, symbol: "Throttle", description: "Rate-limiting throttle" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Delay Calculation", plaintext: "delay = (total_samples / sample_rate) - elapsed_time", latex: None, variables: &[("total_samples", "samples processed"), ("sample_rate", "target rate")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_throttle_creation", module: "r4w_core::throttle::tests", description: "Basic creation", expected_runtime_ms: 1 },
+            BlockTest { name: "test_throttle_disabled", module: "r4w_core::throttle::tests", description: "Disabled = zero delay", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(1)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["HeadBlock", "SkipHeadBlock"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["sample_rate (target rate in Hz)"],
+    });
+
     m
 }
 

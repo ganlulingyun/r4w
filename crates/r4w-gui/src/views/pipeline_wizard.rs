@@ -400,6 +400,14 @@ pub enum BlockType {
     PreambleGeneratorBlock { pattern: String, length: usize },
     PacketEncoderBlock { sync_word_hex: String, include_crc: bool },
     ArbitraryResamplerBlock { ratio: f64 },
+
+    // Batch 27: Phase modulator, VCO, file source/sink, message strobe, throttle
+    PhaseModulatorBlock { sensitivity: f64 },
+    VcoBlock { sensitivity: f64, sample_rate: f64 },
+    FileIqSourceBlock { path: String, format: String },
+    FileIqSinkBlock { path: String, format: String },
+    MessageStrobeBlock { period_ms: f64 },
+    ThrottleBlock { sample_rate: f64 },
 }
 
 impl BlockType {
@@ -566,6 +574,12 @@ impl BlockType {
             Self::PreambleGeneratorBlock { .. } => "Preamble Generator",
             Self::PacketEncoderBlock { .. } => "Packet Encoder",
             Self::ArbitraryResamplerBlock { .. } => "Arbitrary Resampler",
+            Self::PhaseModulatorBlock { .. } => "Phase Modulator",
+            Self::VcoBlock { .. } => "VCO",
+            Self::FileIqSourceBlock { .. } => "File IQ Source",
+            Self::FileIqSinkBlock { .. } => "File IQ Sink",
+            Self::MessageStrobeBlock { .. } => "Message Strobe",
+            Self::ThrottleBlock { .. } => "Throttle",
         }
     }
 
@@ -657,6 +671,12 @@ impl BlockType {
             Self::PreambleGeneratorBlock { .. } => BlockCategory::Source,
             Self::PacketEncoderBlock { .. } => BlockCategory::Coding,
             Self::ArbitraryResamplerBlock { .. } => BlockCategory::RateConversion,
+            Self::PhaseModulatorBlock { .. } => BlockCategory::Modulation,
+            Self::VcoBlock { .. } => BlockCategory::Source,
+            Self::FileIqSourceBlock { .. } => BlockCategory::Source,
+            Self::FileIqSinkBlock { .. } => BlockCategory::Output,
+            Self::MessageStrobeBlock { .. } => BlockCategory::Source,
+            Self::ThrottleBlock { .. } => BlockCategory::RateConversion,
         }
     }
 
@@ -665,7 +685,8 @@ impl BlockType {
             Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } |
             Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } |
             Self::NullSourceBlock | Self::VectorSourceBlock { .. } |
-            Self::PreambleGeneratorBlock { .. } => 0,
+            Self::PreambleGeneratorBlock { .. } |
+            Self::FileIqSourceBlock { .. } | Self::MessageStrobeBlock { .. } => 0,
             Self::Merge { num_inputs } => *num_inputs,
             Self::IqMerge => 2,
             Self::StreamAddBlock | Self::StreamSubtractBlock => 2,
@@ -836,6 +857,12 @@ impl BlockType {
             Self::PreambleGeneratorBlock { .. } => vec![],
             Self::PacketEncoderBlock { .. } => vec![PortType::Bits],
             Self::ArbitraryResamplerBlock { .. } => vec![PortType::IQ],
+            Self::PhaseModulatorBlock { .. } => vec![PortType::Real],
+            Self::VcoBlock { .. } => vec![PortType::Real],
+            Self::FileIqSourceBlock { .. } => vec![],
+            Self::FileIqSinkBlock { .. } => vec![PortType::IQ],
+            Self::MessageStrobeBlock { .. } => vec![],
+            Self::ThrottleBlock { .. } => vec![PortType::IQ],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -1006,6 +1033,12 @@ impl BlockType {
             Self::PreambleGeneratorBlock { .. } => vec![PortType::Bits],
             Self::PacketEncoderBlock { .. } => vec![PortType::Bits],
             Self::ArbitraryResamplerBlock { .. } => vec![PortType::IQ],
+            Self::PhaseModulatorBlock { .. } => vec![PortType::IQ],
+            Self::VcoBlock { .. } => vec![PortType::IQ],
+            Self::FileIqSourceBlock { .. } => vec![PortType::IQ],
+            Self::FileIqSinkBlock { .. } => vec![],
+            Self::MessageStrobeBlock { .. } => vec![PortType::Bits],
+            Self::ThrottleBlock { .. } => vec![PortType::IQ],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -3106,6 +3139,9 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::PfbSynthesizer { num_channels: 4, taps_per_channel: 8, window: "hamming".to_string() },
             BlockType::FileMetaSourceBlock { path: String::new(), data_type: "cf64".to_string() },
             BlockType::PreambleGeneratorBlock { pattern: "Alternating".to_string(), length: 32 },
+            BlockType::FileIqSourceBlock { path: String::new(), format: "cf32".to_string() },
+            BlockType::VcoBlock { sensitivity: 1000.0, sample_rate: 48000.0 },
+            BlockType::MessageStrobeBlock { period_ms: 100.0 },
         ]),
         (BlockCategory::Coding, vec![
             BlockType::Scrambler { polynomial: 0x48, seed: 0xFF },
@@ -3145,6 +3181,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::CpmModulatorBlock { cpm_type: "GMSK".to_string(), mod_index: 0.5, sps: 8, pulse_duration: 3 },
             BlockType::CyclicPrefixAdderBlock { fft_size: 64, cp_length: 16 },
             BlockType::CyclicPrefixRemoverBlock { fft_size: 64, cp_length: 16 },
+            BlockType::PhaseModulatorBlock { sensitivity: std::f64::consts::PI },
         ]),
         (BlockCategory::Filtering, vec![
             BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 10000.0, num_taps: 64 },
@@ -3186,6 +3223,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::DecimatingFirBlock { decimation: 4, num_taps: 33 },
             BlockType::MovingAvgDecimBlock { length: 16 },
             BlockType::ArbitraryResamplerBlock { ratio: 0.91875 },
+            BlockType::ThrottleBlock { sample_rate: 48000.0 },
         ]),
         (BlockCategory::Synchronization, vec![
             BlockType::PreambleInsert { pattern: "alternating".to_string(), length: 32 },
@@ -3274,6 +3312,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::ProbeAvgPowerBlock { alpha: 0.01, threshold_db: -20.0 },
             BlockType::InterleavedShortToComplexBlock,
             BlockType::ComplexToInterleavedShortBlock,
+            BlockType::FileIqSinkBlock { path: "output.iq".to_string(), format: "cf32".to_string() },
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -7531,6 +7570,50 @@ impl PipelineWizardView {
                     .collect();
                 (Vec::new(), Vec::new(), output)
             }
+            BlockType::PhaseModulatorBlock { sensitivity } => {
+                use r4w_core::phase_modulator::PhaseModulator;
+                let mut pm = PhaseModulator::new(*sensitivity);
+                // Use I channel as real modulating signal
+                let real_input: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let output = pm.process(&real_input);
+                let iq: Vec<(f32, f32)> = output.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), iq)
+            }
+            BlockType::VcoBlock { sensitivity, sample_rate } => {
+                use r4w_core::vco::VcoC;
+                let mut vco = VcoC::new(*sensitivity, *sample_rate);
+                // Use I channel as frequency control
+                let freq_input: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let output = vco.process(&freq_input);
+                let iq: Vec<(f32, f32)> = output.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), iq)
+            }
+            BlockType::FileIqSourceBlock { .. } => {
+                // In test panel, generate a tone as placeholder
+                let output: Vec<(f32, f32)> = (0..256).map(|i| {
+                    let t = i as f32 * 0.05;
+                    (t.sin(), t.cos())
+                }).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::FileIqSinkBlock { .. } => {
+                // Pass-through in test panel
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
+            BlockType::MessageStrobeBlock { period_ms } => {
+                // Generate a simple bit pattern
+                let n = (1000.0 / period_ms).max(1.0) as usize;
+                let bits: Vec<bool> = (0..n * 8).map(|i| i % 2 == 0).collect();
+                (bits, Vec::new(), Vec::new())
+            }
+            BlockType::ThrottleBlock { .. } => {
+                // Pass-through in test panel (throttle is only for timing)
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
 
             // Default: pass through based on likely output type
             _ => {
@@ -10340,6 +10423,98 @@ impl PipelineWizardView {
                 }
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::ArbitraryResamplerBlock { ratio: new_ratio };
+                }
+            }
+            BlockType::PhaseModulatorBlock { sensitivity } => {
+                let mut new_sens = sensitivity;
+                ui.horizontal(|ui| {
+                    ui.label("Sensitivity (rad/unit):");
+                    ui.add(egui::DragValue::new(&mut new_sens).range(0.01..=100.0).speed(0.1));
+                });
+                ui.label(format!("Max phase: ±{:.2} rad", new_sens));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PhaseModulatorBlock { sensitivity: new_sens };
+                }
+            }
+            BlockType::VcoBlock { sensitivity, sample_rate } => {
+                let mut new_sens = sensitivity;
+                let mut new_sr = sample_rate;
+                ui.horizontal(|ui| {
+                    ui.label("Sensitivity (Hz/unit):");
+                    ui.add(egui::DragValue::new(&mut new_sens).range(1.0..=100_000.0).speed(10.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sr).range(1000.0..=100_000_000.0).speed(1000.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::VcoBlock { sensitivity: new_sens, sample_rate: new_sr };
+                }
+            }
+            BlockType::FileIqSourceBlock { path, format } => {
+                let mut new_path = path.clone();
+                let mut new_fmt = format.clone();
+                let formats = ["cf64", "cf32", "ci16", "ci8", "cu8"];
+                ui.horizontal(|ui| {
+                    ui.label("Path:");
+                    ui.text_edit_singleline(&mut new_path);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Format:");
+                    egui::ComboBox::from_id_salt("iq_src_fmt")
+                        .selected_text(&new_fmt)
+                        .show_ui(ui, |ui| {
+                            for &f in &formats {
+                                ui.selectable_value(&mut new_fmt, f.to_string(), f);
+                            }
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FileIqSourceBlock { path: new_path, format: new_fmt };
+                }
+            }
+            BlockType::FileIqSinkBlock { path, format } => {
+                let mut new_path = path.clone();
+                let mut new_fmt = format.clone();
+                let formats = ["cf64", "cf32", "ci16", "ci8", "cu8"];
+                ui.horizontal(|ui| {
+                    ui.label("Path:");
+                    ui.text_edit_singleline(&mut new_path);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Format:");
+                    egui::ComboBox::from_id_salt("iq_sink_fmt")
+                        .selected_text(&new_fmt)
+                        .show_ui(ui, |ui| {
+                            for &f in &formats {
+                                ui.selectable_value(&mut new_fmt, f.to_string(), f);
+                            }
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FileIqSinkBlock { path: new_path, format: new_fmt };
+                }
+            }
+            BlockType::MessageStrobeBlock { period_ms } => {
+                let mut new_period = period_ms;
+                ui.horizontal(|ui| {
+                    ui.label("Period (ms):");
+                    ui.add(egui::DragValue::new(&mut new_period).range(1.0..=60_000.0).speed(10.0));
+                });
+                ui.label(format!("Rate: {:.1} msg/s", 1000.0 / new_period));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::MessageStrobeBlock { period_ms: new_period };
+                }
+            }
+            BlockType::ThrottleBlock { sample_rate } => {
+                let mut new_sr = sample_rate;
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sr).range(1.0..=100_000_000.0).speed(1000.0));
+                });
+                ui.label("Limits throughput to simulate real-time.");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ThrottleBlock { sample_rate: new_sr };
                 }
             }
             BlockType::FileSource { path } => {
