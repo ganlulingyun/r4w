@@ -76,6 +76,7 @@
 pub mod adaptive;
 pub mod cic;
 pub mod fir;
+pub mod fractional_resampler;
 pub mod iir;
 pub mod polyphase;
 pub mod pulse_shaping;
@@ -91,6 +92,7 @@ pub use adaptive::{AdaptiveFilter, LmsFilter, NlmsFilter, RlsFilter};
 pub use cic::{CicDecimator, CicInterpolator};
 pub use fir::FirFilter;
 pub use iir::{Biquad, IirFilter};
+pub use fractional_resampler::FractionalResampler;
 pub use polyphase::{HalfbandFilter, PolyphaseDecimator, PolyphaseInterpolator, Resampler};
 pub use pulse_shaping::{
     GaussianFilter, PulseShapingFilter, RaisedCosineFilter, RootRaisedCosineFilter,
