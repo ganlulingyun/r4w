@@ -60,6 +60,7 @@ pub mod burst_detector;
 pub mod chirp;
 pub mod coding;
 pub mod config;
+pub mod constellation_receiver;
 pub mod costas_loop;
 pub mod demodulation;
 pub mod fec;
