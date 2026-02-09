@@ -1,6 +1,7 @@
 //! Integration tests for WASM sandbox with a real waveform module.
 //!
 //! Tests load the r4w_wasm_test_waveform.wasm module and exercise its functions.
+#![cfg(feature = "wasm")]
 
 use r4w_sandbox::{WasmSandbox, WasmConfig};
 

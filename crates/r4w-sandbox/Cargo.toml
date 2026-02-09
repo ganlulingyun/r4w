@@ -75,3 +75,7 @@ rustfft = { version = "6.4", optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
+
+[[example]]
+name = "wasm_benchmark"
+required-features = ["wasm"]
