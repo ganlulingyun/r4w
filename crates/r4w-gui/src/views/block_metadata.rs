@@ -4335,6 +4335,171 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
         key_parameters: &["length", "polynomial"],
     });
 
+    m.insert("DTMF Decoder", BlockMetadata {
+        block_type: "DtmfDecoderBlock",
+        display_name: "DTMF Decoder",
+        category: "Recovery",
+        description: "Decodes DTMF (Dual-Tone Multi-Frequency) signals using a bank of 8 Goertzel filters. Detects the 4x4 grid of telephone tones (0-9, A-D, *, #) with twist checking and ambiguity rejection.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/dtmf.rs", line: 52, symbol: "DtmfDecoder", description: "DTMF tone decoder using Goertzel filters" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Goertzel Magnitude", plaintext: "|X(k)|^2 = s1^2 + s2^2 - 2*cos(2*pi*k/N)*s1*s2", latex: None, variables: &[("k", "frequency bin index"), ("N", "block size"), ("s1/s2", "Goertzel state variables")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_detect_all_keys", module: "r4w_core::dtmf::tests", description: "Detects all 16 DTMF keys", expected_runtime_ms: 5 },
+            BlockTest { name: "test_generate_detect_roundtrip", module: "r4w_core::dtmf::tests", description: "Generate and detect roundtrip", expected_runtime_ms: 1 },
+            BlockTest { name: "test_twist_detection", module: "r4w_core::dtmf::tests", description: "Rejects excessive twist", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[
+            StandardReference { name: "ITU-T Q.23", section: Some("DTMF signaling"), url: None },
+            StandardReference { name: "ITU-T Q.24", section: Some("Multi-frequency signaling"), url: None },
+        ],
+        related_blocks: &["GoertzelFilter"],
+        input_type: "IQ",
+        output_type: "Real",
+        key_parameters: &["sample_rate", "block_size"],
+    });
+
+    m.insert("Noise Blanker", BlockMetadata {
+        block_type: "NoiseBlankerBlock",
+        display_name: "Noise Blanker",
+        category: "Recovery",
+        description: "Detects and blanks impulsive noise (ignition, power line, lightning) that appears as short-duration, high-amplitude spikes. Uses running average power with threshold-based detection and configurable blanking modes (Zero, Hold, Interpolate).",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/noise_blanker.rs", line: 25, symbol: "NoiseBlanker", description: "Impulse noise blanker" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Power Estimate", plaintext: "P_avg[n] = (1-alpha)*P_avg[n-1] + alpha*|x[n]|^2", latex: None, variables: &[("alpha", "smoothing factor"), ("P_avg", "running average power")] },
+            BlockFormula { name: "Detection", plaintext: "blank if |x[n]|^2 > P_avg * threshold^2", latex: None, variables: &[("threshold", "detection multiplier")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_blanks_impulse", module: "r4w_core::noise_blanker::tests", description: "Blanks impulse noise", expected_runtime_ms: 1 },
+            BlockTest { name: "test_passes_normal_signal", module: "r4w_core::noise_blanker::tests", description: "Passes normal signal unchanged", expected_runtime_ms: 1 },
+            BlockTest { name: "test_hold_mode", module: "r4w_core::noise_blanker::tests", description: "Hold mode uses last good sample", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["ClipBlanker", "PowerSquelch"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["threshold", "blank_width"],
+    });
+
+    m.insert("Stream Add", BlockMetadata {
+        block_type: "StreamAddBlock",
+        display_name: "Stream Add",
+        category: "Rate Conversion",
+        description: "Element-wise addition of two complex IQ streams. Output[n] = A[n] + B[n]. Streams are truncated to the shorter length.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/stream_arithmetic.rs", line: 11, symbol: "StreamAdd", description: "Element-wise stream addition" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Addition", plaintext: "y[n] = a[n] + b[n]", latex: None, variables: &[("a", "first input stream"), ("b", "second input stream")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_stream_add", module: "r4w_core::stream_arithmetic::tests", description: "Element-wise complex addition", expected_runtime_ms: 1 },
+            BlockTest { name: "test_add_multi", module: "r4w_core::stream_arithmetic::tests", description: "Multi-stream addition", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: true }),
+        standards: &[],
+        related_blocks: &["StreamSubtract", "Multiply"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &[],
+    });
+
+    m.insert("Stream Subtract", BlockMetadata {
+        block_type: "StreamSubtractBlock",
+        display_name: "Stream Subtract",
+        category: "Rate Conversion",
+        description: "Element-wise subtraction of two complex IQ streams. Output[n] = A[n] - B[n]. Streams are truncated to the shorter length.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/stream_arithmetic.rs", line: 29, symbol: "StreamSubtract", description: "Element-wise stream subtraction" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Subtraction", plaintext: "y[n] = a[n] - b[n]", latex: None, variables: &[("a", "first input stream"), ("b", "second input stream")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_stream_subtract", module: "r4w_core::stream_arithmetic::tests", description: "Element-wise complex subtraction", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: true }),
+        standards: &[],
+        related_blocks: &["StreamAdd", "Multiply"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &[],
+    });
+
+    m.insert("Probe Avg Power", BlockMetadata {
+        block_type: "ProbeAvgPowerBlock",
+        display_name: "Probe Avg Mag²",
+        category: "Output",
+        description: "Running average magnitude-squared power measurement with exponential averaging. Pass-through block: input samples are forwarded unchanged while power is measured as a side effect. Provides threshold-based gating for carrier sensing.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/probe_power.rs", line: 26, symbol: "ProbeAvgMagSqrd", description: "Running average power probe" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Power Averaging", plaintext: "P[n] = (1-alpha)*P[n-1] + alpha*|x[n]|^2", latex: None, variables: &[("alpha", "smoothing factor"), ("P", "running average power")] },
+            BlockFormula { name: "Level (dB)", plaintext: "L = 10*log10(P)", latex: None, variables: &[("P", "average power (linear)")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_constant_power", module: "r4w_core::probe_power::tests", description: "Converges to constant power", expected_runtime_ms: 1 },
+            BlockTest { name: "test_level_db", module: "r4w_core::probe_power::tests", description: "Correct dB level", expected_runtime_ms: 1 },
+            BlockTest { name: "test_unmuted", module: "r4w_core::probe_power::tests", description: "Threshold gating works", expected_runtime_ms: 1 },
+            BlockTest { name: "test_pass_through", module: "r4w_core::probe_power::tests", description: "Samples pass through unchanged", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["RmsPower", "PowerSquelch", "LogPowerFft"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["alpha", "threshold_db"],
+    });
+
+    m.insert("Envelope Detector", BlockMetadata {
+        block_type: "EnvelopeDetectorBlock",
+        display_name: "Envelope Detector",
+        category: "Recovery",
+        description: "Extracts the instantaneous amplitude envelope from a modulated signal. Supports Magnitude (|z|), MagnitudeSquared (|z|²), Smoothed (single-pole lowpass), and PeakHold (exponential decay) modes.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/envelope_detector.rs", line: 38, symbol: "EnvelopeDetector", description: "Envelope extraction" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Magnitude", plaintext: "y[n] = |x[n]| = sqrt(I² + Q²)", latex: None, variables: &[("I", "in-phase component"), ("Q", "quadrature component")] },
+            BlockFormula { name: "Smoothed", plaintext: "y[n] = (1-alpha)*y[n-1] + alpha*|x[n]|", latex: None, variables: &[("alpha", "smoothing constant")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_magnitude_envelope", module: "r4w_core::envelope_detector::tests", description: "Constant magnitude extraction", expected_runtime_ms: 1 },
+            BlockTest { name: "test_smoothed_envelope", module: "r4w_core::envelope_detector::tests", description: "Smoothed step response", expected_runtime_ms: 1 },
+            BlockTest { name: "test_peak_hold", module: "r4w_core::envelope_detector::tests", description: "Peak hold with decay", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+        standards: &[],
+        related_blocks: &["AmDemodulator", "ComplexToMag", "RmsPower"],
+        input_type: "IQ",
+        output_type: "Real",
+        key_parameters: &["mode"],
+    });
+
+    m.insert("AM Demodulator", BlockMetadata {
+        block_type: "AmDemodulatorBlock",
+        display_name: "AM Demodulator",
+        category: "Recovery",
+        description: "Simple AM (Amplitude Modulation) demodulator using envelope detection with DC removal. Extracts the audio modulation from an AM carrier signal.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/envelope_detector.rs", line: 112, symbol: "AmDemodulator", description: "AM demodulation with DC removal" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Envelope", plaintext: "env[n] = |x[n]|", latex: None, variables: &[("x", "input complex signal")] },
+            BlockFormula { name: "DC Removal", plaintext: "y[n] = env[n] - DC[n], DC[n] = (1-alpha)*DC[n-1] + alpha*env[n]", latex: None, variables: &[("alpha", "DC filter constant (0.005)")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_am_demodulator", module: "r4w_core::envelope_detector::tests", description: "AM signal demodulation", expected_runtime_ms: 1 },
+            BlockTest { name: "test_am_demod_reset", module: "r4w_core::envelope_detector::tests", description: "Reset state", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["EnvelopeDetector", "SsbDemodulator", "NbfmReceiver"],
+        input_type: "IQ",
+        output_type: "Real",
+        key_parameters: &[],
+    });
+
     m
 }
 

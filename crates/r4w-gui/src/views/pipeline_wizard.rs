@@ -377,6 +377,14 @@ pub enum BlockType {
     FileMetaSourceBlock { path: String, data_type: String },
     FileMetaSinkBlock { path: String, data_type: String, sample_rate: f64 },
     PnCorrelatorBlock { length: usize, polynomial: String },
+    // Batch 24: DTMF, noise blanker, stream arithmetic, power probe, envelope
+    DtmfDecoderBlock { sample_rate: f64, block_size: usize },
+    NoiseBlankerBlock { threshold: f64, blank_width: usize },
+    StreamAddBlock,
+    StreamSubtractBlock,
+    ProbeAvgPowerBlock { alpha: f64, threshold_db: f64 },
+    EnvelopeDetectorBlock { mode: String },
+    AmDemodulatorBlock,
 }
 
 impl BlockType {
@@ -524,6 +532,13 @@ impl BlockType {
             Self::FileMetaSourceBlock { .. } => "File Meta Source",
             Self::FileMetaSinkBlock { .. } => "File Meta Sink",
             Self::PnCorrelatorBlock { .. } => "PN Correlator",
+            Self::DtmfDecoderBlock { .. } => "DTMF Decoder",
+            Self::NoiseBlankerBlock { .. } => "Noise Blanker",
+            Self::StreamAddBlock => "Stream Add",
+            Self::StreamSubtractBlock => "Stream Subtract",
+            Self::ProbeAvgPowerBlock { .. } => "Probe Avg Power",
+            Self::EnvelopeDetectorBlock { .. } => "Envelope Detector",
+            Self::AmDemodulatorBlock => "AM Demodulator",
         }
     }
 
@@ -602,6 +617,11 @@ impl BlockType {
             Self::FileMetaSourceBlock { .. } => BlockCategory::Source,
             Self::FileMetaSinkBlock { .. } => BlockCategory::Output,
             Self::PnCorrelatorBlock { .. } => BlockCategory::Synchronization,
+            Self::DtmfDecoderBlock { .. } => BlockCategory::Recovery,
+            Self::NoiseBlankerBlock { .. } => BlockCategory::Recovery,
+            Self::StreamAddBlock | Self::StreamSubtractBlock => BlockCategory::RateConversion,
+            Self::ProbeAvgPowerBlock { .. } => BlockCategory::Output,
+            Self::EnvelopeDetectorBlock { .. } | Self::AmDemodulatorBlock => BlockCategory::Recovery,
         }
     }
 
@@ -612,6 +632,7 @@ impl BlockType {
             Self::NullSourceBlock | Self::VectorSourceBlock { .. } => 0,
             Self::Merge { num_inputs } => *num_inputs,
             Self::IqMerge => 2,
+            Self::StreamAddBlock | Self::StreamSubtractBlock => 2,
             _ => 1,
         }
     }
@@ -762,6 +783,12 @@ impl BlockType {
             Self::FileMetaSourceBlock { .. } => vec![],
             Self::FileMetaSinkBlock { .. } => vec![PortType::IQ],
             Self::PnCorrelatorBlock { .. } => vec![PortType::IQ],
+            Self::DtmfDecoderBlock { .. } => vec![PortType::IQ],
+            Self::NoiseBlankerBlock { .. } => vec![PortType::IQ],
+            Self::StreamAddBlock | Self::StreamSubtractBlock => vec![PortType::IQ, PortType::IQ],
+            Self::ProbeAvgPowerBlock { .. } => vec![PortType::IQ],
+            Self::EnvelopeDetectorBlock { .. } => vec![PortType::IQ],
+            Self::AmDemodulatorBlock => vec![PortType::IQ],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -915,6 +942,12 @@ impl BlockType {
             Self::FileMetaSourceBlock { .. } => vec![PortType::IQ],
             Self::FileMetaSinkBlock { .. } => vec![],
             Self::PnCorrelatorBlock { .. } => vec![PortType::Real],
+            Self::DtmfDecoderBlock { .. } => vec![PortType::Real],
+            Self::NoiseBlankerBlock { .. } => vec![PortType::IQ],
+            Self::StreamAddBlock | Self::StreamSubtractBlock => vec![PortType::IQ],
+            Self::ProbeAvgPowerBlock { .. } => vec![PortType::IQ],
+            Self::EnvelopeDetectorBlock { .. } => vec![PortType::Real],
+            Self::AmDemodulatorBlock => vec![PortType::Real],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -3086,6 +3119,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FractionalResampler { ratio: 0.91875 },
             BlockType::KeepOneInN { n: 4 },
             BlockType::SampleRepeat { n: 4 },
+            BlockType::StreamAddBlock,
+            BlockType::StreamSubtractBlock,
         ]),
         (BlockCategory::Synchronization, vec![
             BlockType::PreambleInsert { pattern: "alternating".to_string(), length: 32 },
@@ -3145,6 +3180,10 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::PhaseUnwrap,
             BlockType::Normalize { mode: "Power".to_string() },
             BlockType::FeedforwardAgcBlock { window_size: 16, reference: 1.0 },
+            BlockType::DtmfDecoderBlock { sample_rate: 8000.0, block_size: 205 },
+            BlockType::NoiseBlankerBlock { threshold: 3.0, blank_width: 5 },
+            BlockType::EnvelopeDetectorBlock { mode: "Magnitude".to_string() },
+            BlockType::AmDemodulatorBlock,
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -3164,6 +3203,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::RealToComplex,
             BlockType::SampleDelay { delay_samples: 10 },
             BlockType::VectorSink { max_capacity: 1024 },
+            BlockType::ProbeAvgPowerBlock { alpha: 0.01, threshold_db: -20.0 },
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -7172,6 +7212,101 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), output)
             }
 
+            BlockType::DtmfDecoderBlock { sample_rate, block_size } => {
+                use r4w_core::dtmf::DtmfDecoder;
+                let mut decoder = DtmfDecoder::new(*sample_rate, *block_size);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let real: Vec<f64> = complex.iter().map(|c| c.re).collect();
+                let chars = decoder.decode_stream(&real);
+                // Output detected tones as real values (ASCII codes)
+                let output: Vec<(f32, f32)> = chars.iter()
+                    .map(|&c| (c as u8 as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::NoiseBlankerBlock { threshold, blank_width } => {
+                use r4w_core::noise_blanker::NoiseBlanker;
+                let mut nb = NoiseBlanker::new(*threshold, *blank_width);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let cleaned = nb.process(&complex);
+                let output: Vec<(f32, f32)> = cleaned.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::StreamAddBlock => {
+                // Add two IQ streams element-wise (uses first input only in test panel)
+                use r4w_core::stream_arithmetic::StreamAdd;
+                let a: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                // In test panel, second input is zeros
+                let b = vec![num_complex::Complex64::new(0.0, 0.0); a.len()];
+                let result = StreamAdd::process(&a, &b);
+                let output: Vec<(f32, f32)> = result.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::StreamSubtractBlock => {
+                use r4w_core::stream_arithmetic::StreamSubtract;
+                let a: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let b = vec![num_complex::Complex64::new(0.0, 0.0); a.len()];
+                let result = StreamSubtract::process(&a, &b);
+                let output: Vec<(f32, f32)> = result.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::ProbeAvgPowerBlock { alpha, threshold_db } => {
+                use r4w_core::probe_power::ProbeAvgMagSqrd;
+                let mut probe = ProbeAvgMagSqrd::new(*alpha, *threshold_db);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output_complex = probe.process(&complex);
+                let output: Vec<(f32, f32)> = output_complex.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::EnvelopeDetectorBlock { mode } => {
+                use r4w_core::envelope_detector::{EnvelopeDetector, EnvelopeMode};
+                let env_mode = match mode.as_str() {
+                    "MagnitudeSquared" => EnvelopeMode::MagnitudeSquared,
+                    "Smoothed" => EnvelopeMode::Smoothed,
+                    "PeakHold" => EnvelopeMode::PeakHold,
+                    _ => EnvelopeMode::Magnitude,
+                };
+                let mut det = EnvelopeDetector::new(env_mode, 0.01);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let envelope = det.process(&complex);
+                let output: Vec<(f32, f32)> = envelope.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::AmDemodulatorBlock => {
+                use r4w_core::envelope_detector::AmDemodulator;
+                let mut demod = AmDemodulator::new();
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let audio = demod.demodulate(&complex);
+                let output: Vec<(f32, f32)> = audio.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -9742,6 +9877,81 @@ impl PipelineWizardView {
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::PnCorrelatorBlock { length: new_len as usize, polynomial: new_poly };
                 }
+            }
+            BlockType::DtmfDecoderBlock { sample_rate, block_size } => {
+                let mut new_sr = sample_rate;
+                let mut new_bs = block_size as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sr).range(1000.0..=48000.0).speed(100.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Block Size:");
+                    ui.add(egui::DragValue::new(&mut new_bs).range(50.0..=1024.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DtmfDecoderBlock { sample_rate: new_sr, block_size: new_bs as usize };
+                }
+            }
+            BlockType::NoiseBlankerBlock { threshold, blank_width } => {
+                let mut new_thr = threshold;
+                let mut new_bw = blank_width as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::DragValue::new(&mut new_thr).range(1.0..=20.0).speed(0.1));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Blank Width:");
+                    ui.add(egui::DragValue::new(&mut new_bw).range(1.0..=50.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::NoiseBlankerBlock { threshold: new_thr, blank_width: new_bw as usize };
+                }
+            }
+            BlockType::ProbeAvgPowerBlock { alpha, threshold_db } => {
+                let mut new_alpha = alpha;
+                let mut new_thr = threshold_db;
+                ui.horizontal(|ui| {
+                    ui.label("Alpha:");
+                    ui.add(egui::DragValue::new(&mut new_alpha).range(0.0001..=1.0).speed(0.001));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Threshold (dB):");
+                    ui.add(egui::DragValue::new(&mut new_thr).range(-100.0..=0.0).speed(1.0));
+                });
+                ui.label(format!("Settling: ~{:.0} samples", 2.0 / new_alpha));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ProbeAvgPowerBlock { alpha: new_alpha, threshold_db: new_thr };
+                }
+            }
+            BlockType::EnvelopeDetectorBlock { mode } => {
+                let mut new_mode = mode.clone();
+                let modes = ["Magnitude", "MagnitudeSquared", "Smoothed", "PeakHold"];
+                ui.horizontal(|ui| {
+                    ui.label("Mode:");
+                    egui::ComboBox::from_id_salt("env_mode")
+                        .selected_text(&new_mode)
+                        .show_ui(ui, |ui| {
+                            for &m in &modes {
+                                ui.selectable_value(&mut new_mode, m.to_string(), m);
+                            }
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::EnvelopeDetectorBlock { mode: new_mode };
+                }
+            }
+            BlockType::StreamAddBlock => {
+                ui.label("Element-wise addition of two IQ streams.");
+                ui.label("Connect two inputs to add them together.");
+            }
+            BlockType::StreamSubtractBlock => {
+                ui.label("Element-wise subtraction of two IQ streams.");
+                ui.label("Output = Input A - Input B");
+            }
+            BlockType::AmDemodulatorBlock => {
+                ui.label("AM demodulation via envelope detection + DC removal.");
+                ui.label("DC alpha: 0.005 (fixed)");
             }
             BlockType::FileSource { path } => {
                 let mut new_path = path;
