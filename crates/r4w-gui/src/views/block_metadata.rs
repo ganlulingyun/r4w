@@ -3167,6 +3167,208 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["threshold", "min_spacing"],
         });
 
+    // Batch 17: Rotator, Puncturer, Depuncturer, SymbolSlicer, FrameSync, VectorSink
+
+        m.insert("Rotator", BlockMetadata {
+            block_type: "Rotator",
+            display_name: "Rotator (NCO Frequency Shift)",
+            category: "Filtering",
+            description: "NCO-based frequency shift block. Multiplies input signal by a complex \
+                exponential to shift the spectrum by the specified frequency. Uses phase accumulation \
+                with periodic wrapping for long-term numerical stability.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/rotator.rs",
+                line: 26,
+                symbol: "Rotator::process",
+                description: "NCO-based frequency shift",
+            }),
+            related_code: &[],
+            formulas: &[BlockFormula {
+                name: "Frequency Shift",
+                plaintext: "y[n] = x[n] * exp(j*phi[n]), phi[n] = phi[n-1] + 2*pi*f/fs",
+                latex: Some("y[n] = x[n] \\cdot e^{j\\phi[n]}, \\quad \\phi[n] = \\phi[n-1] + 2\\pi f / f_s"),
+                variables: &[("f", "Shift frequency (Hz)"), ("f_s", "Sample rate (Hz)"), ("phi", "Accumulated phase (rad)")],
+            }],
+            tests: &[
+                BlockTest { name: "test_dc_shift", module: "r4w_core::rotator::tests", description: "Shifts DC signal to specified frequency", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["FreqXlatingFir", "CostasLoop", "SignalSource"],
+            input_type: "IQ",
+            output_type: "IQ",
+            key_parameters: &["frequency_hz", "sample_rate_hz"],
+        });
+
+        m.insert("Puncturer", BlockMetadata {
+            block_type: "Puncturer",
+            display_name: "Puncturer (FEC Rate Adaptation)",
+            category: "Coding",
+            description: "Removes coded bits according to a puncture pattern to achieve higher \
+                code rates from a base rate-1/2 convolutional code. Standard patterns provided \
+                for rates 2/3, 3/4, 5/6, and 7/8.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/puncture.rs",
+                line: 101,
+                symbol: "Puncturer::puncture",
+                description: "Puncture coded bits to increase effective code rate",
+            }),
+            related_code: &[],
+            formulas: &[BlockFormula {
+                name: "Puncture Rate",
+                plaintext: "R_eff = k / n_kept, n_kept = sum(P[i,j])",
+                latex: Some("R_{eff} = \\frac{k}{n_{kept}}, \\quad n_{kept} = \\sum P[i,j]"),
+                variables: &[("P", "Puncture pattern matrix (rows x cols)"), ("k", "Information bits per period"), ("n_kept", "Coded bits kept per period")],
+            }],
+            tests: &[
+                BlockTest { name: "test_rate_3_4_puncture", module: "r4w_core::puncture::tests", description: "Rate 3/4 puncture pattern", expected_runtime_ms: 1 },
+                BlockTest { name: "test_roundtrip_hard", module: "r4w_core::puncture::tests", description: "Puncture/depuncture roundtrip", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(pattern_size)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[StandardReference {
+                name: "IEEE 802.11a/g",
+                section: Some("17.3.5.6"),
+                url: Some("https://standards.ieee.org/standard/802_11a-1999.html"),
+            }],
+            related_blocks: &["Depuncturer", "FecEncoder", "Interleaver"],
+            input_type: "Bits",
+            output_type: "Bits",
+            key_parameters: &["rate"],
+        });
+
+        m.insert("Depuncturer", BlockMetadata {
+            block_type: "Depuncturer",
+            display_name: "Depuncturer (FEC Rate Restoration)",
+            category: "Coding",
+            description: "Restores punctured positions by inserting erasure values where bits were \
+                removed. Used before Viterbi decoding to mark low-confidence positions.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/puncture.rs",
+                line: 197,
+                symbol: "Depuncturer::depuncture",
+                description: "Restore punctured positions with erasure values",
+            }),
+            related_code: &[],
+            formulas: &[BlockFormula {
+                name: "Depuncture Insertion",
+                plaintext: "y[i] = x[k] if P[i%N]=1, else erasure",
+                latex: Some("y[i] = \\begin{cases} x[k], & P[i \\bmod N] = 1 \\\\ \\text{erasure}, & P[i \\bmod N] = 0 \\end{cases}"),
+                variables: &[("P", "Puncture pattern"), ("N", "Pattern period"), ("erasure", "Erasure value (e.g., 128 for unsigned, 0 for LLR)")],
+            }],
+            tests: &[
+                BlockTest { name: "test_roundtrip_hard", module: "r4w_core::puncture::tests", description: "Depuncture roundtrip with erasures", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(pattern_size)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["Puncturer", "FecEncoder", "Interleaver"],
+            input_type: "Bits",
+            output_type: "Bits",
+            key_parameters: &["rate"],
+        });
+
+        m.insert("SymbolSlicer", BlockMetadata {
+            block_type: "SymbolSlicer",
+            display_name: "Symbol Slicer (Hard Decision)",
+            category: "Recovery",
+            description: "Minimum-distance hard decision device for digital constellations. Maps \
+                received IQ samples to nearest constellation point. Supports BPSK, QPSK, 8PSK, \
+                16QAM, and 64QAM. Also computes EVM (Error Vector Magnitude).",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/symbol_slicer.rs",
+                line: 46,
+                symbol: "SymbolSlicer::slice",
+                description: "Minimum-distance hard decision",
+            }),
+            related_code: &[],
+            formulas: &[BlockFormula {
+                name: "Minimum Distance Decision",
+                plaintext: "s_hat = argmin_{s_k in C} |r - s_k|^2",
+                latex: Some("\\hat{s} = \\arg\\min_{s_k \\in \\mathcal{C}} |r - s_k|^2"),
+                variables: &[("r", "Received sample (complex)"), ("s_k", "Constellation points"), ("C", "Constellation set")],
+            },
+            BlockFormula {
+                name: "EVM",
+                plaintext: "EVM = sqrt(1/N * sum|r_n - s_n|^2)",
+                latex: Some("\\text{EVM} = \\sqrt{\\frac{1}{N} \\sum_{n=1}^{N} |r_n - s_n|^2}"),
+                variables: &[("r_n", "Received sample"), ("s_n", "Nearest constellation point")],
+            }],
+            tests: &[
+                BlockTest { name: "test_bpsk_slicer", module: "r4w_core::symbol_slicer::tests", description: "BPSK hard decision", expected_runtime_ms: 1 },
+                BlockTest { name: "test_qpsk_slicer", module: "r4w_core::symbol_slicer::tests", description: "QPSK hard decision", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(M) per sample", memory: "O(M)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["ConstellationRx", "PskDemodulator", "QamDemodulator"],
+            input_type: "IQ",
+            output_type: "Symbols + IQ (nearest points)",
+            key_parameters: &["modulation"],
+        });
+
+        m.insert("FrameSync", BlockMetadata {
+            block_type: "FrameSync",
+            display_name: "Frame Synchronizer",
+            category: "Synchronization",
+            description: "Detects frame boundaries in a bit stream using known sync word patterns. \
+                Shifts each bit into a register and compares against the sync word using Hamming \
+                distance. After detection, extracts fixed-length frames from the stream.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/frame_sync.rs",
+                line: 106,
+                symbol: "FrameSync::process",
+                description: "Bit-level frame synchronizer with Hamming distance detection",
+            }),
+            related_code: &[],
+            formulas: &[BlockFormula {
+                name: "Hamming Distance Check",
+                plaintext: "d_H(r, s) = sum(r_i XOR s_i) <= T",
+                latex: Some("d_H(\\mathbf{r}, \\mathbf{s}) = \\sum_{i=0}^{L-1} r_i \\oplus s_i \\leq T"),
+                variables: &[("r", "Shift register contents"), ("s", "Sync word pattern"), ("L", "Sync word length"), ("T", "Max Hamming distance threshold")],
+            }],
+            tests: &[
+                BlockTest { name: "test_basic_sync", module: "r4w_core::frame_sync::tests", description: "Detect sync word in bit stream", expected_runtime_ms: 1 },
+                BlockTest { name: "test_hamming_tolerance", module: "r4w_core::frame_sync::tests", description: "Detect with bit errors", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n * L)", memory: "O(L + frame_length)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["AccessCodeDetector", "CorrelateAndSync", "SyncWordInsert"],
+            input_type: "Bits",
+            output_type: "Bits (extracted frames)",
+            key_parameters: &["sync_word_hex", "frame_length", "max_hamming"],
+        });
+
+        m.insert("VectorSink", BlockMetadata {
+            block_type: "VectorSink",
+            display_name: "Vector Sink (Data Capture)",
+            category: "Output",
+            description: "Terminal block that captures samples into memory for analysis, testing, \
+                and signal inspection. Supports complex IQ, real-valued, and bit stream data. \
+                Optional maximum capacity prevents unbounded memory growth.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/vector_sink.rs",
+                line: 57,
+                symbol: "VectorSinkComplex::process",
+                description: "Capture complex IQ samples into memory",
+            }),
+            related_code: &[],
+            formulas: &[],
+            tests: &[
+                BlockTest { name: "test_complex_sink_basic", module: "r4w_core::vector_sink::tests", description: "Basic capture test", expected_runtime_ms: 1 },
+                BlockTest { name: "test_complex_sink_capacity", module: "r4w_core::vector_sink::tests", description: "Capacity limiting", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(capacity)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["IqOutput", "BitOutput", "FileOutput"],
+            input_type: "Any (IQ, Real, Bits)",
+            output_type: "Same as input (passthrough)",
+            key_parameters: &["max_capacity"],
+        });
+
     m
 }
 

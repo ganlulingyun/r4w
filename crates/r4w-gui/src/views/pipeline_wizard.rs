@@ -299,6 +299,14 @@ pub enum BlockType {
     RmsPower { alpha: f32 },
     CorrelateAndSync { threshold: f32, min_spacing: u32 },
 
+    // Batch 17: rotator, puncture/depuncture, symbol slicer, frame sync, vector sink
+    Rotator { frequency_hz: f32, sample_rate_hz: f32 },
+    Puncturer { rate: String },
+    Depuncturer { rate: String },
+    SymbolSlicer { modulation: String },
+    FrameSync { sync_word_hex: String, frame_length: u32, max_hamming: u32 },
+    VectorSink { max_capacity: u32 },
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -411,6 +419,12 @@ impl BlockType {
             Self::Ax25Decoder => "AX.25 Decoder",
             Self::RmsPower { .. } => "RMS Power",
             Self::CorrelateAndSync { .. } => "Correlate & Sync",
+            Self::Rotator { .. } => "Rotator",
+            Self::Puncturer { .. } => "Puncturer",
+            Self::Depuncturer { .. } => "Depuncturer",
+            Self::SymbolSlicer { .. } => "Symbol Slicer",
+            Self::FrameSync { .. } => "Frame Sync",
+            Self::VectorSink { .. } => "Vector Sink",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -458,7 +472,11 @@ impl BlockType {
             Self::NbfmReceiver { .. } => BlockCategory::Recovery,
             Self::HeaderPayloadDemux { .. } | Self::Ax25Decoder => BlockCategory::Coding,
             Self::RmsPower { .. } => BlockCategory::Recovery,
-            Self::CorrelateAndSync { .. } => BlockCategory::Synchronization,
+            Self::CorrelateAndSync { .. } | Self::FrameSync { .. } => BlockCategory::Synchronization,
+            Self::Rotator { .. } => BlockCategory::Filtering,
+            Self::Puncturer { .. } | Self::Depuncturer { .. } => BlockCategory::Coding,
+            Self::SymbolSlicer { .. } => BlockCategory::Recovery,
+            Self::VectorSink { .. } => BlockCategory::Output,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -573,6 +591,14 @@ impl BlockType {
             Self::RmsPower { .. } => vec![PortType::IQ],
             Self::CorrelateAndSync { .. } => vec![PortType::IQ],
 
+            // Batch 17 blocks
+            Self::Rotator { .. } => vec![PortType::IQ],
+            Self::Puncturer { .. } => vec![PortType::Bits],
+            Self::Depuncturer { .. } => vec![PortType::Bits],
+            Self::SymbolSlicer { .. } => vec![PortType::IQ],
+            Self::FrameSync { .. } => vec![PortType::Bits],
+            Self::VectorSink { .. } => vec![PortType::Any],
+
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
 
@@ -676,6 +702,14 @@ impl BlockType {
             Self::Ax25Decoder => vec![PortType::Bits],
             Self::RmsPower { .. } => vec![PortType::Real],
             Self::CorrelateAndSync { .. } => vec![PortType::Real],
+
+            // Batch 17 blocks
+            Self::Rotator { .. } => vec![PortType::IQ],
+            Self::Puncturer { .. } => vec![PortType::Bits],
+            Self::Depuncturer { .. } => vec![PortType::Bits],
+            Self::SymbolSlicer { .. } => vec![PortType::Bits],
+            Self::FrameSync { .. } => vec![PortType::Bits],
+            Self::VectorSink { .. } => vec![],  // Sink - no output
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2786,6 +2820,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::HdlcDeframer,
             BlockType::HeaderPayloadDemux { header_len: 4, length_offset: 0, length_size: 2, big_endian: false },
             BlockType::Ax25Decoder,
+            BlockType::Puncturer { rate: "3/4".to_string() },
+            BlockType::Depuncturer { rate: "3/4".to_string() },
         ]),
         (BlockCategory::Mapping, vec![
             BlockType::GrayMapper { bits_per_symbol: 2 },
@@ -2813,6 +2849,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::PreEmphasis { standard: "US75".to_string(), sample_rate_hz: 48000.0 },
             BlockType::MovingAverage { length: 8 },
             BlockType::MultiplyConst { gain_re: 1.0, gain_im: 0.0 },
+            BlockType::Rotator { frequency_hz: 1000.0, sample_rate_hz: 48000.0 },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -2832,6 +2869,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::AccessCodeDetector { access_code_hex: "E5".to_string(), threshold: 1 },
             BlockType::PlateauDetector { threshold: 0.8, min_width: 4 },
             BlockType::CorrelateAndSync { threshold: 0.7, min_spacing: 100 },
+            BlockType::FrameSync { sync_word_hex: "A5".to_string(), frame_length: 64, max_hamming: 1 },
         ]),
         (BlockCategory::Impairments, vec![
             BlockType::AwgnChannel { snr_db: 20.0 },
@@ -2860,6 +2898,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::SymbolSync { sps: 4.0, ted: "Gardner".to_string(), loop_bw: 0.045 },
             BlockType::PfbClockSync { sps: 4.0, loop_bw: 0.0628, nfilts: 32 },
             BlockType::RmsPower { alpha: 0.01 },
+            BlockType::SymbolSlicer { modulation: "QPSK".to_string() },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -2877,6 +2916,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::ComplexToReal,
             BlockType::RealToComplex,
             BlockType::SampleDelay { delay_samples: 10 },
+            BlockType::VectorSink { max_capacity: 1024 },
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -6168,6 +6208,92 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // Rotator: NCO frequency shift
+            BlockType::Rotator { frequency_hz, sample_rate_hz } => {
+                use r4w_core::rotator::Rotator as CoreRot;
+                use num_complex::Complex64;
+                let mut rot = CoreRot::new(*frequency_hz as f64, *sample_rate_hz as f64);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = rot.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Puncturer: remove coded bits for higher FEC rate
+            BlockType::Puncturer { rate } => {
+                use r4w_core::puncture::Puncturer as CorePunct;
+                let p = match rate.as_str() {
+                    "2/3" => CorePunct::rate_2_3(),
+                    "5/6" => CorePunct::rate_5_6(),
+                    "7/8" => CorePunct::rate_7_8(),
+                    _ => CorePunct::rate_3_4(),
+                };
+                let output_bits = p.puncture_bits(input_bits);
+                (output_bits, Vec::new(), Vec::new())
+            }
+
+            // Depuncturer: restore punctured positions with erasures
+            BlockType::Depuncturer { rate } => {
+                use r4w_core::puncture::Depuncturer as CoreDepunct;
+                let pattern = match rate.as_str() {
+                    "2/3" => vec![vec![true, true], vec![true, false]],
+                    "5/6" => vec![vec![true, true, false, true, false], vec![true, false, true, false, true]],
+                    "7/8" => vec![vec![true, true, false, true, false, false, true], vec![true, false, true, false, true, true, false]],
+                    _ => vec![vec![true, true, false], vec![true, false, true]],
+                };
+                let d = CoreDepunct::new(&pattern, 128);
+                let hard: Vec<u8> = input_bits.iter().map(|&b| if b { 1 } else { 0 }).collect();
+                let depunctured = d.depuncture(&hard);
+                let output_bits: Vec<bool> = depunctured.iter().map(|&v| v > 0 && v != 128).collect();
+                (output_bits, Vec::new(), Vec::new())
+            }
+
+            // Symbol Slicer: hard decision device
+            BlockType::SymbolSlicer { modulation } => {
+                use r4w_core::symbol_slicer::SymbolSlicer as CoreSlicer;
+                use num_complex::Complex64;
+                let slicer = match modulation.as_str() {
+                    "BPSK" => CoreSlicer::bpsk(),
+                    "8PSK" => CoreSlicer::psk8(),
+                    "16QAM" => CoreSlicer::qam16(),
+                    "64QAM" => CoreSlicer::qam64(),
+                    _ => CoreSlicer::qpsk(),
+                };
+                let mut output_symbols = Vec::new();
+                let mut output_samples = Vec::new();
+                for &(i, q) in input_samples {
+                    let (idx, nearest) = slicer.slice(Complex64::new(i as f64, q as f64));
+                    output_symbols.push(idx as u32);
+                    output_samples.push((nearest.re as f32, nearest.im as f32));
+                }
+                (Vec::new(), output_symbols, output_samples)
+            }
+
+            // Frame Sync: detect sync words in bit stream
+            BlockType::FrameSync { sync_word_hex, frame_length, max_hamming } => {
+                use r4w_core::frame_sync::{FrameSync as CoreFs, sync_word_from_hex};
+                let sync_word = sync_word_from_hex(sync_word_hex);
+                let mut fs = CoreFs::new(&sync_word, *frame_length as usize, *max_hamming as usize);
+                let frames = fs.process(input_bits);
+                let output_bits: Vec<bool> = frames.iter().flat_map(|f| f.data.iter().copied()).collect();
+                (output_bits, Vec::new(), Vec::new())
+            }
+
+            // Vector Sink: capture data (output = input passthrough)
+            BlockType::VectorSink { .. } => {
+                if !input_samples.is_empty() {
+                    (Vec::new(), Vec::new(), input_samples.to_vec())
+                } else if !input_symbols.is_empty() {
+                    (Vec::new(), input_symbols.to_vec(), Vec::new())
+                } else {
+                    (input_bits.to_vec(), Vec::new(), Vec::new())
+                }
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -8001,6 +8127,104 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::CorrelateAndSync { threshold: new_th, min_spacing: new_ms };
+                }
+            }
+            BlockType::Rotator { frequency_hz, sample_rate_hz } => {
+                let mut new_freq = frequency_hz;
+                let mut new_sr = sample_rate_hz;
+                ui.horizontal(|ui| {
+                    ui.label("Frequency (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_freq).speed(10.0).range(-1_000_000.0..=1_000_000.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(100.0).range(1.0..=100_000_000.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Rotator { frequency_hz: new_freq, sample_rate_hz: new_sr };
+                }
+            }
+            BlockType::Puncturer { rate } => {
+                let mut new_rate = rate.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Code Rate:");
+                    egui::ComboBox::from_id_salt("puncture_rate")
+                        .selected_text(&new_rate)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_rate, "2/3".to_string(), "2/3");
+                            ui.selectable_value(&mut new_rate, "3/4".to_string(), "3/4");
+                            ui.selectable_value(&mut new_rate, "5/6".to_string(), "5/6");
+                            ui.selectable_value(&mut new_rate, "7/8".to_string(), "7/8");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Puncturer { rate: new_rate };
+                }
+            }
+            BlockType::Depuncturer { rate } => {
+                let mut new_rate = rate.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Code Rate:");
+                    egui::ComboBox::from_id_salt("depuncture_rate")
+                        .selected_text(&new_rate)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_rate, "2/3".to_string(), "2/3");
+                            ui.selectable_value(&mut new_rate, "3/4".to_string(), "3/4");
+                            ui.selectable_value(&mut new_rate, "5/6".to_string(), "5/6");
+                            ui.selectable_value(&mut new_rate, "7/8".to_string(), "7/8");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::Depuncturer { rate: new_rate };
+                }
+            }
+            BlockType::SymbolSlicer { modulation } => {
+                let mut new_mod = modulation.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Modulation:");
+                    egui::ComboBox::from_id_salt("slicer_mod")
+                        .selected_text(&new_mod)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_mod, "BPSK".to_string(), "BPSK");
+                            ui.selectable_value(&mut new_mod, "QPSK".to_string(), "QPSK");
+                            ui.selectable_value(&mut new_mod, "8PSK".to_string(), "8PSK");
+                            ui.selectable_value(&mut new_mod, "16QAM".to_string(), "16QAM");
+                            ui.selectable_value(&mut new_mod, "64QAM".to_string(), "64QAM");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SymbolSlicer { modulation: new_mod };
+                }
+            }
+            BlockType::FrameSync { sync_word_hex, frame_length, max_hamming } => {
+                let mut new_hex = sync_word_hex.clone();
+                let mut new_len = frame_length;
+                let mut new_ham = max_hamming;
+                ui.horizontal(|ui| {
+                    ui.label("Sync Word (hex):");
+                    ui.text_edit_singleline(&mut new_hex);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Frame Length (bits):");
+                    ui.add(egui::DragValue::new(&mut new_len).range(1..=65536));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Max Hamming Distance:");
+                    ui.add(egui::DragValue::new(&mut new_ham).range(0..=16));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FrameSync { sync_word_hex: new_hex, frame_length: new_len, max_hamming: new_ham };
+                }
+            }
+            BlockType::VectorSink { max_capacity } => {
+                let mut new_cap = max_capacity;
+                ui.horizontal(|ui| {
+                    ui.label("Max Capacity:");
+                    ui.add(egui::DragValue::new(&mut new_cap).range(0..=1_000_000));
+                });
+                ui.label(RichText::new("0 = unlimited").weak());
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::VectorSink { max_capacity: new_cap };
                 }
             }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |
