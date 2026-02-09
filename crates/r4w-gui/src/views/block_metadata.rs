@@ -1434,6 +1434,77 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["crc_type (CRC-8/CRC-16/CRC-32)"],
         });
 
+        m.insert("Equalizer", BlockMetadata {
+            block_type: "Equalizer",
+            display_name: "Adaptive Equalizer",
+            category: "Recovery",
+            description: "Compensates for inter-symbol interference (ISI), multipath distortion, \
+                and channel fading using adaptive filtering. Supports LMS (trained), CMA (blind for PSK), \
+                and Decision-Directed (hybrid) algorithms.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/equalizer.rs",
+                line: 1,
+                symbol: "CmaEqualizer",
+                description: "Adaptive equalization algorithms (LMS, CMA, DD)",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "LMS Weight Update",
+                    plaintext: "w[n+1] = w[n] + mu * conj(e[n]) * x[n], e = d - y",
+                    latex: Some(r"\mathbf{w}[n+1] = \mathbf{w}[n] + \mu \cdot e^*[n] \cdot \mathbf{x}[n]"),
+                    variables: &[
+                        ("w", "Filter tap weights"),
+                        ("mu", "Step size (convergence rate)"),
+                        ("e", "Error signal (reference - output)"),
+                        ("x", "Input vector (delay line)"),
+                    ],
+                },
+                BlockFormula {
+                    name: "CMA Cost Function",
+                    plaintext: "J = E[(|y|^2 - R)^2], R = target modulus",
+                    latex: Some(r"J_\text{CMA} = E\left[\left(|y[n]|^2 - R\right)^2\right]"),
+                    variables: &[
+                        ("J", "Cost function to minimize"),
+                        ("y", "Equalizer output"),
+                        ("R", "Target modulus (1.0 for unit-amplitude PSK)"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_lms_simple_isi_channel",
+                    module: "r4w_core::equalizer::tests",
+                    description: "LMS equalizer corrects ISI from h=[1, 0.5] channel",
+                    expected_runtime_ms: 1,
+                },
+                BlockTest {
+                    name: "test_cma_unit_modulus",
+                    module: "r4w_core::equalizer::tests",
+                    description: "CMA blind equalizer converges to unit modulus",
+                    expected_runtime_ms: 1,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(N) per sample, N = number of taps",
+                memory: "O(N) for tap weights and delay line",
+                simd_optimized: false,
+                gpu_accelerable: true,
+            }),
+            standards: &[
+                StandardReference {
+                    name: "Haykin, Adaptive Filter Theory",
+                    section: Some("Ch. 9: LMS Algorithm, Ch. 16: Blind Equalization"),
+                    url: None,
+                },
+            ],
+            related_blocks: &["CarrierRecovery", "TimingRecovery", "MatchedFilter"],
+            input_type: "IQ",
+            output_type: "IQ (equalized)",
+            key_parameters: &["eq_type (LMS/CMA/DD)", "taps", "mu (step size)"],
+        });
+
     m
 }
 

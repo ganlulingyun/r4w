@@ -5136,6 +5136,49 @@ impl PipelineWizardView {
                 (output, Vec::new(), Vec::new())
             }
 
+            // Equalizer: IQ → IQ (adaptive equalization using r4w-core)
+            BlockType::Equalizer { eq_type, taps, mu } => {
+                use r4w_core::equalizer::{CmaEqualizer, CmaConfig, LmsEqualizer, LmsConfig, DdEqualizer, DdConfig, Constellation};
+                use num_complex::Complex64;
+
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+
+                let output = match eq_type {
+                    EqualizerType::Cma => {
+                        let mut eq = CmaEqualizer::new(CmaConfig {
+                            num_taps: *taps as usize,
+                            step_size: *mu as f64,
+                            modulus: 1.0,
+                        });
+                        eq.process_block(&input)
+                    }
+                    EqualizerType::Dfe => {
+                        let mut eq = DdEqualizer::new(DdConfig {
+                            num_taps: *taps as usize,
+                            step_size: *mu as f64,
+                            constellation: Constellation::Qpsk,
+                        });
+                        eq.process_block(&input)
+                    }
+                    _ => {
+                        // LMS and RLS both use LMS for now
+                        let mut eq = LmsEqualizer::new(LmsConfig {
+                            num_taps: *taps as usize,
+                            step_size: *mu as f64,
+                            leakage: 0.0,
+                        });
+                        eq.process_block(&input)
+                    }
+                };
+
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
