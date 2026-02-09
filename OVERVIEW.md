@@ -638,6 +638,63 @@ Measured with `tokei`:
   - AIDA requirements: FR-032..FR-042 (all Completed)
   - Developer's guide: [docs/GNSS_GUIDE.md](./docs/GNSS_GUIDE.md)
 
+### February 2026 (Pipeline Builder & Interop)
+
+- **GNSS Pipeline Blocks** — New GNSS category (teal) in the visual pipeline builder with two blocks:
+  - `GnssScenarioSource`: Multi-satellite IQ generation with preset selection (OpenSky, UrbanCanyon, Driving, Walking, HighDynamics, MultiConstellation), receiver position (lat/lon/alt), sample rate, duration, noise figure, and elevation mask
+  - `GnssAcquisition`: PCPS-based signal detection with configurable Doppler search range, step size, and detection threshold
+  - `GnssOpenSky` preset template connecting scenario source → acquisition → IQ output
+  - Full property editors, block metadata with mathematical formulas and standards references
+
+- **Meshtastic Interop Crypto Fix** — 7 critical compatibility bugs fixed for real-device interoperability (MESH-012 through MESH-015):
+  - Nonce format: `[pkt_id_u64_LE, node_id_u32_LE, zeros]` matching firmware CryptoEngine.cpp
+  - PSK used directly as AES key (removed SHA-256 derivation)
+  - Channel hash: `xorHash(name)^xorHash(psk)` matching firmware
+  - Removed MIC for CTR mode
+  - Fixed Position proto field tags (fix_quality=17, fix_type=18, sats_in_view=19)
+  - Added missing PortNums (Alert, KeyVerification, etc.), Data.bitfield, User.public_key
+  - Removed sha2/hmac dependencies
+
+- **Type-Aware Test Panel** — Test panel adapts input options to block type:
+  - BitPattern (Random, AllZeros, AllOnes, Alternating, Prbs7) for bit inputs
+  - SymbolPattern (Random, Sequential, AllZero, Alternating) for symbol inputs
+  - IqPattern (Noise, Tone, Chirp, Impulse) for IQ inputs
+  - Block output caching enables pipeline chaining
+
+- **Typed Port System** — Port types for pipeline connections:
+  - Types: Bits (blue), Symbols (purple), IQ (orange), Real (cyan), Any (gray)
+  - Visual feedback during connection: compatible ports brighten, incompatible show red with X
+  - Type mismatch warnings in validation
+
+- **Pipeline Builder Menu Bar** — Traditional dropdown menu bar (File, Edit, View, Options, Layout, Presets) replacing flat toolbar. Resizable test panel with persistent height tracking.
+
+- **Block Metadata System** — Comprehensive documentation for 40+ pipeline blocks:
+  - Implementation locations (file:line with "View Code" to open in VS Code)
+  - Mathematical formulas with variable explanations
+  - Unit tests with "Run" buttons
+  - Performance info (complexity, SIMD/GPU)
+  - Standards references with links
+
+- **TX/RX/Channel Pipeline Separation** — Waveform specs v1.1 format with separate `tx`, `rx`, and `channel` sections. Block ID conventions: TX(1-99), RX(100-199), Channel(200-299). Loopback mode auto-connects TX → Channel → RX.
+
+- **Unified IqFormat Module** — `r4w_core::io::IqFormat` enum as single source of truth for IQ sample formats: cf64, cf32/ettus, ci16/sc16, ci8, cu8/rtlsdr. Replaces scattered format handling.
+
+- **SP3 Precise Ephemeris & IONEX TEC Maps** — cm-level satellite positions from CODE FTP server SP3 files. Global ionospheric TEC grids from IONEX files. Satellite clock corrections (microsecond-level). CLI: `--sp3 <path>`, `--ionex <path>`, requires `--features ephemeris`.
+
+- **Multi-Format IQ Output** — USRP/Ettus-compatible interleaved float32 (`--format ettus`), sc16 (signed 16-bit), cf64, ci8, cu8/rtlsdr formats. CLI examples in CLAUDE.md.
+
+- **Real Galileo E1 ICD Codes** — Replaced simulated LFSR codes with actual memory codes from Galileo OS SIS ICD v2.1. E1B (data) and E1C (pilot) for PRN 1-50, plus E1C secondary code. ~330 KB embedded.
+
+- **Emergency Distress Beacons** — 121.5 MHz / 243 MHz swept-tone AM beacon waveforms per ICAO Annex 10. ELT (aircraft), EPIRB (maritime), PLB (personal), Military (243 MHz). Factory names: ELT-121.5, EPIRB-121.5, PLB-121.5, Beacon-243.
+
+- **Corrected C/N0 Link Budget** — Fixed: EIRP(dBW) - FSPL + Gr + 204 dBW/Hz. Realistic 30-45 dB-Hz at varying elevations.
+
+- **GNSS Scenario Enhancements** — Real-world PRN lookup tables (GPS 31 SVs, Galileo 24, GLONASS 24). Per-sample Doppler interpolation. GPS time conversion. Auto-discovery of visible satellites. `--lat/--lon/--alt`, `--time`, `--signals`, `--export-preset`, `--config` YAML. Galileo orbit calibration.
+
+- **PCPS Acquisition Integration Test** — End-to-end test: scenario generation → signal injection → PCPS acquisition → detection verification (FR-041).
+
+- **12 Jupyter Notebooks** — Added notebooks 09-12: GNSS scenario generation, environment models, precise ephemeris, filter design.
+
 ### December 2024
 
 - **Enhanced Channel Simulation**:
@@ -655,7 +712,7 @@ Measured with `tokei`:
   - Channel effect visualizations: AWGN at various SNRs, fading, multipath
   - Gallery generator example: `cargo run --example gallery_generate -p r4w-sim --features image`
 - **Jupyter Tutorial Notebooks** (`notebooks/`):
-  - 10 interactive notebooks covering SDR fundamentals and GNSS
+  - 12 interactive notebooks covering SDR fundamentals, GNSS, and filter design
   - Python wrapper for R4W CLI (`r4w_python` module)
   - Topics: I/Q basics, modulation, spectrum analysis, channel effects, LoRa, BER simulation, mesh networking
 

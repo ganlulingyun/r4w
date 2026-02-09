@@ -25,6 +25,7 @@ Powered by ![AIDA_Logo](images/aida_logo_1.png) - a Joe Mooney/Claude Code Produ
 - **Waveform Wizard**: Interactive GUI for designing waveforms with AI-assisted implementation
 - **Cross-Platform**: x86 Linux, ARM, macOS, Windows, WebAssembly, FPGA, Xilinx Zynq, Lattice
 - **Security & Isolation**: 8-level waveform isolation from process sandboxing to air-gapped systems
+- **Visual Pipeline Builder**: Drag-and-drop signal processing pipeline designer with 40+ blocks in 11 categories (including GNSS)
 - **Educational GUI**: Interactive visualization of modulation and signal processing
 - **Production CLI**: Benchmarking, remote agents, UDP I/Q streaming
 - **FPGA Ready**: Designed for Xilinx Zynq and Lattice acceleration
@@ -234,6 +235,9 @@ R4W includes a multi-satellite GNSS IQ signal generator with realistic propagati
 - **Scenario Presets**: Open Sky, Urban Canyon, Multi-Constellation, Driving, Walking, High Dynamics
 - **Coordinate Library**: WGS-84 ECEF/LLA conversions, look angles, range rate, FSPL
 - **GUI Simulator**: Sky plot, C/N0 bars, IQ waveform display in r4w-explorer
+- **Pipeline Builder GNSS Blocks**: Scenario source and PCPS acquisition blocks in visual pipeline
+- **Multi-Format Output**: cf64, cf32/ettus (USRP), ci16/sc16, ci8, cu8/rtlsdr
+- **Precise Ephemeris**: SP3 orbits and IONEX TEC maps for cm-level accuracy (`--features ephemeris`)
 
 ```bash
 # Explore GNSS signal parameters
@@ -276,7 +280,8 @@ See [docs/FPGA_DEVELOPERS_GUIDE.md](docs/FPGA_DEVELOPERS_GUIDE.md) for IP cores,
 | **[MISSING_FEATURES.md](MISSING_FEATURES.md)** | Production readiness assessment and roadmap |
 | **[Tutorial](https://joemooney.github.io/r4w/tutorial/)** | Interactive HTML tutorial |
 | **[Workshops](workshops/)** | 11 hands-on workshops (~11 hours) covering I/Q, modulation, spread spectrum, and more |
-| **[Notebooks](notebooks/)** | 10 Jupyter tutorials: I/Q, modulation, spectrum, channels, LoRa, BER, GNSS scenarios |
+| **[docs/IQ_FORMAT_GUIDE.md](docs/IQ_FORMAT_GUIDE.md)** | IQ sample formats, file I/O, SigMF integration |
+| **[Notebooks](notebooks/)** | 12 Jupyter tutorials: I/Q, modulation, spectrum, channels, LoRa, BER, GNSS, filters |
 
 ## Development
 

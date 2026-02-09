@@ -70,8 +70,14 @@ This directory contains comprehensive documentation for the R4W (Rust for Wavefo
 │  ├── PHYSICAL_LAYER_GUIDE.md                                            │
 │  │   └── Timing → HAL → RT Primitives → Config → Observability          │
 │  │                                                                      │
+│  ├── GNSS_GUIDE.md                                                      │
+│  │   └── Waveforms → Scenario Engine → Pipeline Blocks → Precise Ephem  │
+│  │                                                                      │
 │  ├── TICK_SCHEDULER_GUIDE.md                                            │
 │  │   └── Tick Events → Time Scaling → Sleep/Wake → DES Patterns         │
+│  │                                                                      │
+│  ├── REALTIME_SCHEDULER_GUIDE.md                                        │
+│  │   └── TX/RX Coordination → FHSS → TDMA → Production Timing          │
 │  │                                                                      │
 │  ├── FPGA_DEVELOPERS_GUIDE.md                                           │
 │  │   └── IP Cores → Register Maps → Integration → Collaboration         │
@@ -113,6 +119,7 @@ This directory contains comprehensive documentation for the R4W (Rust for Wavefo
 | Isolate waveforms (containers, VMs) | [ISOLATION_GUIDE.md](./ISOLATION_GUIDE.md) |
 | Port existing military waveforms | [PORTING_GUIDE_MILITARY.md](./PORTING_GUIDE_MILITARY.md) |
 | Cross-compile for ARM | [porting/BUILD_PROCEDURES.md](./porting/BUILD_PROCEDURES.md) |
+| Use the Pipeline Builder | [OVERVIEW.md](../OVERVIEW.md) → Pipeline Builder section |
 | Use the GUI/CLI tools | [OVERVIEW.md](../OVERVIEW.md) → Quick Start |
 
 ## Contributing
@@ -128,10 +135,13 @@ Documentation improvements are welcome. When contributing:
 
 | Document | Status | Last Updated |
 |----------|--------|--------------|
-| OVERVIEW.md | Complete | 2025-12 |
+| OVERVIEW.md | Complete | 2026-02 |
 | WAVEFORM_DEVELOPERS_GUIDE.md | Complete | 2025-12 |
 | PHYSICAL_LAYER_GUIDE.md | Complete | 2025-12 |
+| IQ_FORMAT_GUIDE.md | Complete | 2026-02 |
+| GNSS_GUIDE.md | Complete | 2026-02 |
 | TICK_SCHEDULER_GUIDE.md | Complete | 2025-12 |
+| REALTIME_SCHEDULER_GUIDE.md | Complete | 2025-12 |
 | FPGA_DEVELOPERS_GUIDE.md | Complete | 2025-12 |
 | SECURITY_GUIDE.md | Complete | 2025-12 |
 | ISOLATION_GUIDE.md | Complete | 2025-12 |

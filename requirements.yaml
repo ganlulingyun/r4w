@@ -41,8 +41,8 @@ requirements:
   req_type: Functional
   tags:
   - encoding
-  - physical-layer
   - lora
+  - physical-layer
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -74,9 +74,9 @@ requirements:
   modified_at: 2025-12-30T20:09:32.379972839Z
   req_type: Functional
   tags:
-  - physical-layer
-  - cad
   - csma
+  - cad
+  - physical-layer
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -108,8 +108,8 @@ requirements:
   modified_at: 2025-12-30T18:54:27.733209443Z
   req_type: Functional
   tags:
-  - frequency
   - regulatory
+  - frequency
   - physical-layer
   relationships:
   - rel_type: Parent
@@ -137,8 +137,8 @@ requirements:
   req_type: Functional
   tags:
   - mac-layer
-  - csma
   - collision-avoidance
+  - csma
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -204,9 +204,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.749015544Z
   req_type: Functional
   tags:
+  - fairness
   - mac-layer
   - utilization
-  - fairness
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -266,9 +266,9 @@ requirements:
   modified_at: 2025-12-30T18:54:51.024770069Z
   req_type: Functional
   tags:
-  - unicast
-  - next-hop
   - routing
+  - next-hop
+  - unicast
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -300,9 +300,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.765255591Z
   req_type: Functional
   tags:
-  - routing
-  - cache
   - deduplication
+  - cache
+  - routing
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -328,9 +328,9 @@ requirements:
   modified_at: 2025-12-30T18:54:27.770472367Z
   req_type: Functional
   tags:
+  - neighbor
   - discovery
   - routing
-  - neighbor
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -356,9 +356,9 @@ requirements:
   modified_at: 2026-02-09T04:39:46.103814042Z
   req_type: Functional
   tags:
-  - messages
-  - protobuf
   - interop
+  - protobuf
+  - messages
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -391,8 +391,8 @@ requirements:
   req_type: Functional
   tags:
   - encryption
-  - aes
   - interop
+  - aes
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -424,9 +424,9 @@ requirements:
   modified_at: 2026-02-09T04:40:11.565842494Z
   req_type: Functional
   tags:
-  - channel
   - config
   - interop
+  - channel
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -458,9 +458,9 @@ requirements:
   modified_at: 2026-02-09T04:40:16.568370338Z
   req_type: Functional
   tags:
-  - messaging
-  - app
   - text
+  - app
+  - messaging
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -546,9 +546,9 @@ requirements:
   modified_at: 2025-12-30T18:35:04.632283047Z
   req_type: Functional
   tags:
-  - radio
   - hardware
   - sx126x
+  - radio
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -566,8 +566,8 @@ requirements:
   modified_at: 2025-12-30T18:35:14.680235464Z
   req_type: Functional
   tags:
-  - multi-node
   - simulation
+  - multi-node
   - testing
   relationships:
   - rel_type: Parent
@@ -586,9 +586,9 @@ requirements:
   modified_at: 2025-12-30T18:35:26.159312602Z
   req_type: NonFunctional
   tags:
+  - nfr
   - power
   - battery
-  - nfr
   relationships:
   - rel_type: Parent
     target_id: 00a8d98b-da52-4c20-8d69-f1f90facbfc3
@@ -657,8 +657,8 @@ requirements:
   req_type: Functional
   tags:
   - doppler
-  - fading
   - channel
+  - fading
 - id: c83161da-58d1-47d8-b8bf-0af9b75f8607
   spec_id: FR-025
   title: Tapped Delay Line Multipath Channel
@@ -671,9 +671,9 @@ requirements:
   modified_at: 2026-01-01T00:45:26.089040868Z
   req_type: Functional
   tags:
-  - channel
-  - 3gpp
   - multipath
+  - 3gpp
+  - channel
 - id: 3fa6715a-0464-4aed-bf9b-e50552ddf5d3
   spec_id: FR-026
   title: CLI Spectrum Analysis Command
@@ -686,9 +686,9 @@ requirements:
   modified_at: 2026-01-01T00:45:29.202873633Z
   req_type: Functional
   tags:
-  - cli
-  - fft
   - spectrum
+  - fft
+  - cli
 - id: deb7cb95-87ae-49e7-9f8d-4ca65c2e8d61
   spec_id: FR-027
   title: CLI Waterfall PNG Generation
@@ -701,9 +701,9 @@ requirements:
   modified_at: 2026-01-01T00:45:32.061276826Z
   req_type: Functional
   tags:
+  - spectrogram
   - cli
   - waterfall
-  - spectrogram
 - id: d17f5ab3-f452-45e0-af66-7c8d481ab8fb
   spec_id: FR-028
   title: CLI Signal Statistics
@@ -716,9 +716,9 @@ requirements:
   modified_at: 2026-01-01T00:45:47.480602821Z
   req_type: Functional
   tags:
+  - cli
   - statistics
   - power
-  - cli
 - id: 1bb45e13-5952-4b5f-83de-a1046ec7d0f8
   spec_id: FR-029
   title: CLI Peak Detection
@@ -731,9 +731,9 @@ requirements:
   modified_at: 2026-01-01T00:45:50.819575716Z
   req_type: Functional
   tags:
-  - peaks
-  - detection
   - cli
+  - detection
+  - peaks
 - id: c743ccdf-5f80-413b-96a3-dd09dc0e7233
   spec_id: TASK-030
   title: Signal Visualization Gallery
@@ -746,9 +746,9 @@ requirements:
   modified_at: 2026-01-01T00:45:53.481069148Z
   req_type: Task
   tags:
+  - visualization
   - gallery
   - examples
-  - visualization
 - id: 96888938-b9e2-4088-9302-9c3381e7d0d7
   spec_id: TASK-031
   title: Jupyter Tutorial Notebooks
@@ -762,8 +762,8 @@ requirements:
   req_type: Task
   tags:
   - tutorials
-  - notebooks
   - education
+  - notebooks
 - id: 55ba297c-a183-4fe3-a616-e484cab0176f
   spec_id: FR-032
   prefix_override: FR
@@ -1009,10 +1009,10 @@ requirements:
   modified_at: 2026-02-06T17:37:14.161032440Z
   req_type: Functional
   tags:
-  - refactor
   - io
   - sigmf
   - formats
+  - refactor
   comments:
   - id: d26cedce-06cd-4561-a7bb-5ca9d24f4756
     author: claude
@@ -1063,6 +1063,96 @@ requirements:
   created_at: 2026-02-08T20:14:14.646656017Z
   modified_at: 2026-02-08T20:14:14.646656017Z
   req_type: Functional
+- id: 6ebe61f6-2d5f-4963-a3b4-398af35c25e6
+  spec_id: FR-050
+  title: GNSS Pipeline Builder Blocks
+  description: Add GNSS category to the visual pipeline builder with GnssScenarioSource (multi-satellite IQ generation with presets, receiver position, sample rate, duration, noise figure, elevation mask) and GnssAcquisition (PCPS-based signal detection with configurable Doppler search and threshold). Includes GnssOpenSky preset template, property editors, block metadata with formulas and standards references, and processing logic integrated with r4w-core GNSS engine.
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 50-Uncategorized
+  created_at: 2026-02-09T06:33:51.964668561Z
+  modified_at: 2026-02-09T06:33:51.964668561Z
+  req_type: Functional
+  relationships:
+  - rel_type: References
+    target_id: d16c6f08-9ed0-4e12-9327-af9bff73f2ac
+    created_at: 2026-02-09T06:34:30.561987129Z
+- id: 5e8339ff-97a6-407b-af82-38899081bf0d
+  spec_id: FR-051
+  title: SP3 Precise Ephemeris and IONEX TEC Map Support
+  description: 'Support SP3 precise orbit files and IONEX ionospheric TEC maps for cm-level satellite positioning and accurate ionospheric delay computation. SP3 files from CODE FTP server provide interpolated positions (1-5 min intervals) and clock corrections (microsecond-level). IONEX files provide global TEC grids replacing the simpler Klobuchar broadcast model. CLI: --sp3 and --ionex flags. Requires --features ephemeris.'
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 51-Uncategorized
+  created_at: 2026-02-09T06:33:57.957404678Z
+  modified_at: 2026-02-09T06:33:57.957404678Z
+  req_type: Functional
+  relationships:
+  - rel_type: References
+    target_id: ed086584-b16d-409e-b040-1db4518e78dc
+    created_at: 2026-02-09T06:34:36.112757026Z
+- id: 42bec1d4-b8db-4d8a-8c17-2bf06078ecef
+  spec_id: FR-052
+  title: Real Galileo E1 ICD Memory Codes
+  description: 'Replace simulated LFSR codes with real memory codes from Galileo OS SIS ICD v2.1. E1B (data) and E1C (pilot) codes for PRN 1-50, plus E1C secondary code (25 chips). API: GalileoE1CodeGenerator::new_e1b(prn), new_e1c(prn), secondary_code(). Source: GNSS-matlab repository. ~330 KB embedded binary.'
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 52-Uncategorized
+  created_at: 2026-02-09T06:34:04.695319270Z
+  modified_at: 2026-02-09T06:34:04.695319270Z
+  req_type: Functional
+  relationships:
+  - rel_type: References
+    target_id: 714d68f5-01e0-439c-a4e3-bf715780832c
+    created_at: 2026-02-09T06:34:36.119180162Z
+- id: 71efe49f-3805-4f36-8f0c-ecdfc56e7e6e
+  spec_id: FR-053
+  title: Pipeline Builder Block Metadata System
+  description: 'Comprehensive documentation system for pipeline blocks including: Rust implementation locations (file:line with VS Code ''View Code'' links), mathematical formulas with variable explanations, unit tests with ''Run'' buttons, performance info (complexity, SIMD/GPU support), standards references with URLs. Properties panel shows collapsible Documentation/Formulas/Implementation/Tests/Performance/Standards sections.'
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 53-Uncategorized
+  created_at: 2026-02-09T06:34:11.511819772Z
+  modified_at: 2026-02-09T06:34:11.511819772Z
+  req_type: Functional
+  relationships:
+  - rel_type: References
+    target_id: 90c4874a-2a0f-4741-b3e9-88ed3d07a4b0
+    created_at: 2026-02-09T06:34:36.137896166Z
+- id: d1aa1c9e-7a51-4e8d-8171-479b7a032d22
+  spec_id: FR-054
+  title: Pipeline Builder Typed Port System
+  description: 'Port type system for pipeline connections. Types: Bits (blue), Symbols (purple), IQ (orange), Real (cyan), Any (gray). Visual feedback during connection: compatible ports brighten, incompatible show red with X. Type mismatch warnings in validation. Port types shown in Properties panel.'
+  status: Completed
+  priority: Medium
+  owner: joe
+  feature: 54-Uncategorized
+  created_at: 2026-02-09T06:34:16.856635087Z
+  modified_at: 2026-02-09T06:34:16.856635087Z
+  req_type: Functional
+  relationships:
+  - rel_type: References
+    target_id: 90c4874a-2a0f-4741-b3e9-88ed3d07a4b0
+    created_at: 2026-02-09T06:34:36.166041153Z
+- id: 412f874f-4c40-406e-8ad0-5d78123b4263
+  spec_id: FR-055
+  title: Pipeline Builder Type-Aware Test Panel
+  description: Test panel adapts input options to selected block's input type. BitPattern (Random, AllZeros, AllOnes, Alternating, Prbs7) for Bits inputs, SymbolPattern (Random, Sequential, AllZero, Alternating) for Symbols, IqPattern (Noise, Tone, Chirp, Impulse) for IQ. Block output caching enables pipeline chaining (use previous block's output as input). Resizable panel with persistent height.
+  status: Completed
+  priority: Low
+  owner: joe
+  feature: 55-Uncategorized
+  created_at: 2026-02-09T06:34:26.244166101Z
+  modified_at: 2026-02-09T06:34:26.244166101Z
+  req_type: Functional
+  relationships:
+  - rel_type: References
+    target_id: d1aa1c9e-7a51-4e8d-8171-479b7a032d22
+    created_at: 2026-02-09T06:34:36.197635449Z
 id_config:
   format: SingleLevel
   numbering: Global
@@ -1108,8 +1198,8 @@ id_config:
     prefix: META
     description: Database configuration and templates
 features: []
-next_feature_number: 50
-next_spec_number: 50
+next_feature_number: 56
+next_spec_number: 56
 prefix_counters: {}
 relationship_definitions:
 - name: parent

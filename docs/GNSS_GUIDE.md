@@ -59,7 +59,11 @@ Each constellation has a dedicated PRN code generator:
 - **`GpsCaCodeGenerator`** - Gold codes for PRN 1-32. Call `generate_code()` to produce a 1023-chip code.
 - **`GpsL5CodeGenerator`** - I5/Q5 codes (10230 chips). Construct with `new_i5(prn)` or `new_q5(prn)`.
 - **`GlonassCodeGenerator`** - Maximal-length sequence (511 chips). Takes a `frequency_channel: i8` parameter for FDMA slot assignment.
-- **`GalileoE1CodeGenerator`** - Memory codes (4092 chips) via `PnSequence`.
+- **`GalileoE1CodeGenerator`** - Real ICD memory codes from Galileo OS SIS ICD v2.1.
+  - `new_e1b(prn)` — E1B data channel codes (PRN 1-50)
+  - `new_e1c(prn)` — E1C pilot channel codes (PRN 1-50, data-free)
+  - `secondary_code()` — 25-chip E1C secondary code
+  - Source: GNSS-matlab repository, ~330 KB embedded binary
 
 ### Transmit Power
 
@@ -305,6 +309,7 @@ Wraps a `Waveform` with orbital mechanics and atmospheric models:
 
 - Computes satellite ECEF position/velocity from `KeplerianOrbit` at any time
 - Generates code-phase-aligned baseband IQ from geometric pseudorange (no generate-then-delay waste)
+- Per-sample Doppler interpolation with continuous phase accumulation (no block-level quantization)
 - Applies ionospheric and tropospheric delays as carrier phase shifts
 - Reports `SatelliteStatus` with elevation, azimuth, range, Doppler, C/N0, delay breakdowns
 
@@ -378,7 +383,66 @@ r4w gnss scenario --preset urban-canyon --duration 0.01 --sample-rate 4092000 -o
 r4w gnss scenario --config my_scenario.yaml -o custom.iq
 ```
 
-**Output format:** Raw interleaved f64 I/Q pairs (little-endian binary). File size = `num_samples * 2 * 8` bytes.
+### Output Formats
+
+Multiple IQ output formats are supported via `--format`:
+
+```bash
+# Default: cf64 (Complex float64, 16 bytes/sample)
+r4w gnss scenario --preset open-sky -o output.iq
+
+# USRP/Ettus-compatible interleaved float32 (8 bytes/sample)
+r4w gnss scenario --preset open-sky --format ettus -o usrp.iq
+
+# Compact signed 16-bit (4 bytes/sample)
+r4w gnss scenario --preset open-sky --format sc16 -o compact.iq
+
+# RTL-SDR native unsigned 8-bit (2 bytes/sample)
+r4w gnss scenario --preset open-sky --format rtlsdr -o rtlsdr.iq
+```
+
+| Format | Alias | Bytes/Sample | Use Case |
+|--------|-------|-------------|----------|
+| `cf64` | — | 16 | Maximum precision, analysis |
+| `cf32` | `ettus` | 8 | USRP/Ettus hardware, GNU Radio |
+| `ci16` | `sc16` | 4 | Compact storage, moderate precision |
+| `ci8` | — | 2 | Low-bandwidth, embedded |
+| `cu8` | `rtlsdr` | 2 | RTL-SDR native format |
+
+### Precise Ephemeris (SP3/IONEX)
+
+For cm-level satellite positions and accurate ionospheric corrections, use SP3 and IONEX files from CODE/IGS:
+
+```bash
+# Requires the 'ephemeris' feature
+cargo run --bin r4w --features ephemeris -- gnss scenario --preset open-sky \
+    --sp3 /path/to/COD0OPSFIN_20260050000_01D_05M_ORB.SP3 \
+    --ionex /path/to/COD0OPSFIN_20260050000_01D_01H_GIM.INX \
+    --duration 0.01 --output precise.iq
+```
+
+SP3 files provide interpolated satellite positions (1-5 minute intervals) and clock corrections (microsecond-level biases displayed per-PRN). IONEX files provide global TEC grids for ionospheric delay computation, replacing the simpler Klobuchar broadcast model.
+
+### Receiver Position and Time
+
+```bash
+# Custom receiver position (WGS-84)
+r4w gnss scenario --preset open-sky --lat 48.8566 --lon 2.3522 --alt 35.0 -o paris.iq
+
+# Set GPS time (auto-discovers visible satellites)
+r4w gnss scenario --preset open-sky --time "2026-02-08T12:00:00Z" -o timed.iq
+
+# Filter by signal type
+r4w gnss scenario --preset multi-constellation --signals GPS-L1CA,Galileo-E1 -o filtered.iq
+
+# Export preset to YAML for editing
+r4w gnss scenario --preset urban-canyon --export-preset > custom_scenario.yaml
+r4w gnss scenario --config custom_scenario.yaml -o custom.iq
+```
+
+### Satellite Auto-Discovery
+
+When `--lat/--lon/--alt` and `--time` are provided, the scenario engine automatically discovers visible satellites using the real-world PRN lookup tables (GPS 31 SVs from NAVCEN, Galileo 24 SVs from GSC, GLONASS 24 SVs). Only satellites above the elevation mask are included.
 
 The CLI displays a satellite status table and signal statistics after generation:
 
@@ -408,11 +472,33 @@ cargo run --bin r4w-explorer
 # Navigate to GNSS Simulator view
 ```
 
+### Pipeline Builder GNSS Blocks
+
+The visual pipeline builder includes a GNSS category (teal) with two blocks for interactive signal exploration:
+
+**GnssScenarioSource** — Multi-satellite IQ generator (source block, 0 inputs → 1 IQ output):
+- Preset selector: OpenSky, UrbanCanyon, Driving, Walking, HighDynamics, MultiConstellation
+- Configurable sample rate (1-20 MHz), duration (0.1 ms - 6 s), receiver position (lat/lon/alt)
+- Noise figure and elevation mask controls
+- Test panel caps duration at 10 ms for responsiveness
+
+**GnssAcquisition** — PCPS acquisition engine (1 IQ input → 1 Real output):
+- Signal type selector: GPS-L1CA, GPS-L5, Galileo-E1, GLONASS-L1OF
+- Configurable PRN (1-50), Doppler search range, step size, and detection threshold
+- Outputs detection status, code phase, Doppler estimate, and peak metric
+
+**GnssOpenSky preset** connects: Scenario Source → Acquisition → IQ Output
+
+```bash
+cargo run --bin r4w-explorer
+# Pipeline Builder → Presets → GNSS Open Sky
+```
+
 ---
 
 ## Jupyter Workshops
 
-Two notebooks in `notebooks/` provide hands-on GNSS learning:
+Four notebooks in `notebooks/` provide hands-on GNSS learning:
 
 ### 09: GNSS Scenario Generation
 
@@ -430,6 +516,20 @@ Two notebooks in `notebooks/` provide hands-on GNSS learning:
 - Multipath tap profiles for different environments
 - Antenna gain patterns (patch, choke ring, hemispherical)
 - Complete link budget calculation from SV to receiver
+
+### 11: GNSS Precise Ephemeris
+
+- SP3 file format and CODE FTP server data
+- Precise orbit interpolation (Lagrange, cm-level accuracy)
+- Satellite clock corrections from SP3
+- IONEX TEC maps for ionospheric delay
+- Comparison: Keplerian vs precise orbits
+
+### 12: Filter Design (GNSS-relevant)
+
+- FIR anti-aliasing filter design for GNSS front-ends
+- Polyphase decimation for sample rate reduction
+- Parks-McClellan equiripple design for narrowband filtering
 
 ---
 

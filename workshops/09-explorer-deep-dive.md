@@ -506,16 +506,75 @@ Checklist:
 
 ---
 
-## 15. Key Takeaways
+## 15. Pipeline Builder View
+
+The Pipeline Builder is a visual signal processing pipeline designer. Switch to it from the view selector at the top of Explorer.
+
+### Key Features
+
+- **Block Library** (left panel) — 40+ blocks in 11 categories. Click to add blocks to the canvas.
+- **Canvas** (center) — Drag to position blocks, scroll to zoom, drag canvas to pan.
+- **Properties** (right panel) — Select a block to edit its parameters, view port types, and see documentation.
+- **Test Panel** (bottom) — Generate test data through the pipeline and visualize results.
+
+### Typed Ports
+
+Ports are color-coded by signal type:
+- **Blue** = Bits
+- **Purple** = Symbols
+- **Orange** = IQ samples
+- **Cyan** = Real values
+- **Gray** = Any type
+
+When connecting ports, compatible targets brighten and incompatible ones show red with an X.
+
+### GNSS Blocks
+
+The GNSS category (teal) includes:
+- **GNSS Scenario Source** — Generates multi-satellite IQ from presets (OpenSky, UrbanCanyon, etc.)
+- **GNSS Acquisition** — Runs PCPS acquisition on input IQ to detect satellite signals
+
+Try the **GNSS Open Sky** preset: Presets menu → GNSS Open Sky.
+
+### Hands-On: Build a Simple Pipeline
+
+1. Click **Bit Source** from the Source category
+2. Click **PSK Modulator** from the Modulation category (auto-connects if enabled)
+3. Click **AWGN Channel** from Impairments
+4. Click **IQ Output** from Output
+5. Click **Validate** to check the pipeline
+6. Open the Test Panel to see signal flow through the pipeline
+
+---
+
+## 16. GNSS Simulator View
+
+The GNSS Simulator provides interactive exploration of GNSS signal generation.
+
+### Controls
+- **Preset** — Select from OpenSky, UrbanCanyon, Driving, Walking, HighDynamics, MultiConstellation
+- **Duration/Sample Rate** — Adjust scenario parameters
+- **Environment Toggles** — Enable/disable ionosphere, troposphere, multipath
+
+### Displays
+- **Sky Plot** — Polar projection showing satellite positions with elevation rings
+- **C/N0 Bars** — Carrier-to-noise density per visible satellite
+- **IQ Waveform** — Time-domain I and Q channels of the composite signal
+
+---
+
+## 17. Key Takeaways
 
 1. **Constellation = Signal Health**: First place to look
 2. **Time Domain = Waveform Shape**: See amplitude patterns
 3. **Spectrum = Bandwidth**: Regulatory compliance
 4. **SNR Slider = Reality Check**: Test noise immunity
 5. **Stages/Steps = Learning**: Understand internals
+6. **Pipeline Builder = System Design**: Build complete TX/RX chains visually
+7. **GNSS Simulator = Satellite Navigation**: Explore multi-satellite signal generation
 
 ---
 
-## 16. Next Steps
+## 18. Next Steps
 
 Continue to [Workshop 10: Real-Time and FPGA Concepts](10-rt-fpga.md) to learn about RT primitives, hardware acceleration, and production deployment.
