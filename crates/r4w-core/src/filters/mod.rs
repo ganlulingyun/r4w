@@ -73,6 +73,8 @@
 //! let output = lpf.process_block(&input);
 //! ```
 
+pub mod adaptive;
+pub mod cic;
 pub mod fir;
 pub mod iir;
 pub mod polyphase;
@@ -85,6 +87,8 @@ pub mod windows;
 pub use traits::{Filter, FilterResponse, FilterType, FirFilterOps, FrequencyResponse, RealFilter};
 
 // Re-export filter implementations
+pub use adaptive::{AdaptiveFilter, LmsFilter, NlmsFilter, RlsFilter};
+pub use cic::{CicDecimator, CicInterpolator};
 pub use fir::FirFilter;
 pub use iir::{Biquad, IirFilter};
 pub use polyphase::{HalfbandFilter, PolyphaseDecimator, PolyphaseInterpolator, Resampler};
