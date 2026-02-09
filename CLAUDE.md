@@ -78,6 +78,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `nlog10.rs`: Logarithmic scaling (to_db, from_db, to_dbm, from_dbm, power_to_db, iq_to_db)
   - `dpll.rs`: Second-order digital PLL with PI loop filter (Dpll carrier tracking, BinaryDpll clock recovery)
   - `endian_swap.rs`: Byte order conversion (16/32/64-bit swap, typed swap_i16/u16/i32/u32/f32/f64, reverse_bits)
+  - `iq_balance.rs`: IQ imbalance estimation/correction (IqBalanceCorrector fixed gain/phase, AdaptiveIqBalance LMS-based online)
+  - `peak_to_average.rs`: PAPR/crest factor measurement (papr_db, papr_db_complex, crest_factor, PaprEstimator streaming windowed)
+  - `correlate_estimate.rs`: Time-domain cross-correlation (cross_correlate, cross_correlate_complex, find_delay, autocorrelate, correlation_coefficient)
+  - `bin_statistics.rs`: Per-FFT-bin statistical accumulation (BinStatistics min/max/mean/variance, accumulate_max_hold, dynamic_range)
+  - `check_lfsr.rs`: LFSR sequence verification for BER testing (LfsrChecker, synchronize offset detection, generate_reference, cumulative BER)
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -96,7 +101,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 183+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 188+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -205,6 +210,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Batch 36 DSP Blocks** - IQ Balance (`iq_balance.rs` - IqBalanceCorrector for fixed gain/phase correction, estimate_iq_imbalance() for gain ratio and phase error measurement, AdaptiveIqBalance for LMS-based online correction), Peak to Average (`peak_to_average.rs` - papr_db/papr_db_complex for real/complex PAPR, crest_factor, papr_linear, PaprEstimator for streaming windowed measurement), Correlate Estimate (`correlate_estimate.rs` - cross_correlate/cross_correlate_complex time-domain correlation, find_delay for sample offset, autocorrelate, cross_correlate_normalized, correlation_coefficient), Bin Statistics (`bin_statistics.rs` - BinStatistics per-FFT-bin min/max/mean/variance accumulation, accumulate_max_hold for peak detection, dynamic_range per bin), Check LFSR (`check_lfsr.rs` - LfsrChecker for received-vs-expected LFSR comparison, synchronize() for offset detection, generate_reference utility, cumulative BER tracking). 60 tests. ~152+ DSP modules total, ~188+ pipeline block types.
 - **Batch 35 DSP Blocks** - Additive Scrambler (`additive_scrambler.rs` - LFSR-based stream scrambling with DVB x^15+x^14+1 and WiFi x^7+x^4+1 presets, auto-reset period, bool and in-place APIs), Stretch (`stretch.rs` - signal normalization and range mapping, stretch/stretch_to_range/clip, StreamStretch for windowed streaming), Nlog10 (`nlog10.rs` - logarithmic scaling linear↔dB/dBm, nlog10/to_db/from_db/to_dbm/from_dbm, batch power_to_db/iq_to_db), DPLL (`dpll.rs` - second-order digital PLL with PI loop filter, Dpll carrier tracking with from_bandwidth, BinaryDpll for clock recovery from edge transitions), Endian Swap (`endian_swap.rs` - byte order conversion 16/32/64-bit, typed swap_i16/u16/i32/u32/f32/f64, reverse_bits for bit-level reversal). 70 tests. ~147+ DSP modules total, ~183+ pipeline block types.
 - **Batch 34 DSP Blocks** - Patterned Interleaver (`patterned_interleaver.rs` - custom-pattern stream interleaving/deinterleaving of N streams, f64 and bytes), Bitwise Ops (`bitwise_ops.rs` - XOR/AND/OR/NOT for byte and boolean streams, _const/_inplace variants, hamming_distance/popcount/parity), Peak Hold (`peak_hold.rs` - signal peak tracking with exponential decay, PeakHold/AbsPeakHold/PeakHoldDb variants), Multiply Matrix (`multiply_matrix.rs` - complex and real matrix-vector multiplication, identity/scalar/diagonal/from_rows constructors), GLFSR Source (`glfsr_source.rs` - Galois and Fibonacci LFSR PN sequence generators, maximal-length polynomials 2-31 bits, bits/bools/bipolar output). 72 tests. ~142+ DSP modules total, ~178+ pipeline block types.
 - **Batch 32 DSP Blocks** - Stream to Streams (`stream_to_streams.rs` - round-robin demux/mux by index, I/Q deinterleave/interleave, supports real/complex/bytes), Argmax (`argmax.rs` - find max/min index in vectors, ArgmaxBlock for windowed processing, top_k functions), Threshold (`threshold.rs` - hysteresis threshold detector with configurable low/high thresholds, rising/falling edge detection), PDU Filter (`pdu_filter.rs` - metadata-based filtering and routing with Require/Reject modes, first-match PduRouter), Regenerate BB (`regenerate_bb.rs` - bit regeneration pulse stretcher with guard intervals, PulseGenerator for one-shot pulses). 70 tests. GNU Radio equivalents: `stream_to_streams`, `argmax`, `threshold_ff`, `pdu_filter`, `regenerate_bb`. ~137+ DSP modules total, ~173+ pipeline block types.
