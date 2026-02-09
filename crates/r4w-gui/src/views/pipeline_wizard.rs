@@ -368,6 +368,15 @@ pub enum BlockType {
     PolarDecoderBlock { block_size: usize, info_bits: usize },
     BurstTaggerBlock { threshold_db: f64, min_burst_len: usize, holdoff: usize },
     TaggedStreamMuxBlock { num_inputs: usize },
+    // Batch 23: AGC, vector ops, OFDM CP, file I/O, PN sync
+    FeedforwardAgcBlock { window_size: usize, reference: f64 },
+    VectorInsertBlock { period: usize, offset: usize },
+    VectorRemoveBlock { vector_len: usize, period: usize, offset: usize },
+    CyclicPrefixAdderBlock { fft_size: usize, cp_length: usize },
+    CyclicPrefixRemoverBlock { fft_size: usize, cp_length: usize },
+    FileMetaSourceBlock { path: String, data_type: String },
+    FileMetaSinkBlock { path: String, data_type: String, sample_rate: f64 },
+    PnCorrelatorBlock { length: usize, polynomial: String },
 }
 
 impl BlockType {
@@ -507,6 +516,14 @@ impl BlockType {
             Self::PolarDecoderBlock { .. } => "Polar Decoder",
             Self::BurstTaggerBlock { .. } => "Burst Tagger",
             Self::TaggedStreamMuxBlock { .. } => "Tagged Stream Mux",
+            Self::FeedforwardAgcBlock { .. } => "Feedforward AGC",
+            Self::VectorInsertBlock { .. } => "Vector Insert",
+            Self::VectorRemoveBlock { .. } => "Vector Remove",
+            Self::CyclicPrefixAdderBlock { .. } => "CP Add",
+            Self::CyclicPrefixRemoverBlock { .. } => "CP Remove",
+            Self::FileMetaSourceBlock { .. } => "File Meta Source",
+            Self::FileMetaSinkBlock { .. } => "File Meta Sink",
+            Self::PnCorrelatorBlock { .. } => "PN Correlator",
         }
     }
 
@@ -579,6 +596,12 @@ impl BlockType {
             Self::DynamicChannelBlock { .. } => BlockCategory::Impairments,
             Self::PolarEncoderBlock { .. } | Self::PolarDecoderBlock { .. } => BlockCategory::Coding,
             Self::BurstTaggerBlock { .. } | Self::TaggedStreamMuxBlock { .. } => BlockCategory::Synchronization,
+            Self::FeedforwardAgcBlock { .. } => BlockCategory::Recovery,
+            Self::VectorInsertBlock { .. } | Self::VectorRemoveBlock { .. } => BlockCategory::Synchronization,
+            Self::CyclicPrefixAdderBlock { .. } | Self::CyclicPrefixRemoverBlock { .. } => BlockCategory::Modulation,
+            Self::FileMetaSourceBlock { .. } => BlockCategory::Source,
+            Self::FileMetaSinkBlock { .. } => BlockCategory::Output,
+            Self::PnCorrelatorBlock { .. } => BlockCategory::Synchronization,
         }
     }
 
@@ -733,6 +756,12 @@ impl BlockType {
             Self::PolarEncoderBlock { .. } | Self::PolarDecoderBlock { .. } => vec![PortType::Bits],
             Self::BurstTaggerBlock { .. } => vec![PortType::IQ],
             Self::TaggedStreamMuxBlock { num_inputs } => vec![PortType::IQ; *num_inputs],
+            Self::FeedforwardAgcBlock { .. } => vec![PortType::IQ],
+            Self::VectorInsertBlock { .. } | Self::VectorRemoveBlock { .. } => vec![PortType::IQ],
+            Self::CyclicPrefixAdderBlock { .. } | Self::CyclicPrefixRemoverBlock { .. } => vec![PortType::IQ],
+            Self::FileMetaSourceBlock { .. } => vec![],
+            Self::FileMetaSinkBlock { .. } => vec![PortType::IQ],
+            Self::PnCorrelatorBlock { .. } => vec![PortType::IQ],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -880,6 +909,12 @@ impl BlockType {
             Self::PolarEncoderBlock { .. } | Self::PolarDecoderBlock { .. } => vec![PortType::Bits],
             Self::BurstTaggerBlock { .. } => vec![PortType::IQ],
             Self::TaggedStreamMuxBlock { .. } => vec![PortType::IQ],
+            Self::FeedforwardAgcBlock { .. } => vec![PortType::IQ],
+            Self::VectorInsertBlock { .. } | Self::VectorRemoveBlock { .. } => vec![PortType::IQ],
+            Self::CyclicPrefixAdderBlock { .. } | Self::CyclicPrefixRemoverBlock { .. } => vec![PortType::IQ],
+            Self::FileMetaSourceBlock { .. } => vec![PortType::IQ],
+            Self::FileMetaSinkBlock { .. } => vec![],
+            Self::PnCorrelatorBlock { .. } => vec![PortType::Real],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -2978,6 +3013,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::NullSourceBlock,
             BlockType::VectorSourceBlock { pattern: "Tone".to_string() },
             BlockType::PfbSynthesizer { num_channels: 4, taps_per_channel: 8, window: "hamming".to_string() },
+            BlockType::FileMetaSourceBlock { path: String::new(), data_type: "cf64".to_string() },
         ]),
         (BlockCategory::Coding, vec![
             BlockType::Scrambler { polynomial: 0x48, seed: 0xFF },
@@ -3014,6 +3050,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FrequencyModulatorBlock { sensitivity_hz: 5000.0, sample_rate_hz: 48000.0 },
             BlockType::SsbModulatorBlock { mode: "USB".to_string(), hilbert_order: 31 },
             BlockType::CpmModulatorBlock { cpm_type: "GMSK".to_string(), mod_index: 0.5, sps: 8, pulse_duration: 3 },
+            BlockType::CyclicPrefixAdderBlock { fft_size: 64, cp_length: 16 },
+            BlockType::CyclicPrefixRemoverBlock { fft_size: 64, cp_length: 16 },
         ]),
         (BlockCategory::Filtering, vec![
             BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 10000.0, num_taps: 64 },
@@ -3062,6 +3100,9 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::ThresholdDetector { threshold: 0.5 },
             BlockType::BurstTaggerBlock { threshold_db: -20.0, min_burst_len: 10, holdoff: 5 },
             BlockType::TaggedStreamMuxBlock { num_inputs: 2 },
+            BlockType::VectorInsertBlock { period: 10, offset: 0 },
+            BlockType::VectorRemoveBlock { vector_len: 1, period: 10, offset: 0 },
+            BlockType::PnCorrelatorBlock { length: 5, polynomial: "0x25".to_string() },
         ]),
         (BlockCategory::Impairments, vec![
             BlockType::AwgnChannel { snr_db: 20.0 },
@@ -3103,11 +3144,13 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::SymbolSlicer { modulation: "QPSK".to_string() },
             BlockType::PhaseUnwrap,
             BlockType::Normalize { mode: "Power".to_string() },
+            BlockType::FeedforwardAgcBlock { window_size: 16, reference: 1.0 },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
             BlockType::BitOutput,
             BlockType::FileOutput { path: "output.iq".to_string(), format: OutputFormat::ComplexFloat32 },
+            BlockType::FileMetaSinkBlock { path: "output.iqm".to_string(), data_type: "cf64".to_string(), sample_rate: 48000.0 },
             BlockType::Split { num_outputs: 2 },
             BlockType::Merge { num_inputs: 2 },
             BlockType::IqSplit,
@@ -7046,6 +7089,88 @@ impl PipelineWizardView {
                 // Pass through (in a real pipeline, this would combine multiple inputs)
                 (Vec::new(), Vec::new(), input_samples.to_vec())
             }
+            BlockType::FeedforwardAgcBlock { window_size, reference } => {
+                use r4w_core::feedforward_agc::FeedforwardAgc;
+                let mut agc = FeedforwardAgc::new(*window_size, *reference);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let mut out = agc.process_block(&complex);
+                out.extend(agc.flush());
+                let output: Vec<(f32, f32)> = out.iter().map(|c| (c.re as f32, c.im as f32)).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::VectorInsertBlock { period, offset } => {
+                use r4w_core::vector_insert::VectorInsert;
+                // Insert a pilot at (1,0) periodically
+                let pilot = vec![num_complex::Complex64::new(1.0, 0.0)];
+                let mut inserter = VectorInsert::new(pilot, *period, *offset);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let out = inserter.process(&complex);
+                let output: Vec<(f32, f32)> = out.iter().map(|c| (c.re as f32, c.im as f32)).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::VectorRemoveBlock { vector_len, period, offset } => {
+                use r4w_core::vector_insert::VectorRemove;
+                let mut remover = VectorRemove::new(*vector_len, *period, *offset);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let out = remover.process(&complex);
+                let output: Vec<(f32, f32)> = out.iter().map(|c| (c.re as f32, c.im as f32)).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::CyclicPrefixAdderBlock { fft_size, cp_length } => {
+                use r4w_core::cyclic_prefix::CyclicPrefixAdder;
+                let adder = CyclicPrefixAdder::new(*fft_size, *cp_length);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let out = adder.add_cp_block(&complex);
+                let output: Vec<(f32, f32)> = out.iter().map(|c| (c.re as f32, c.im as f32)).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::CyclicPrefixRemoverBlock { fft_size, cp_length } => {
+                use r4w_core::cyclic_prefix::CyclicPrefixRemover;
+                let remover = CyclicPrefixRemover::new(*fft_size, *cp_length);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let out = remover.remove_cp_block(&complex);
+                let output: Vec<(f32, f32)> = out.iter().map(|c| (c.re as f32, c.im as f32)).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::FileMetaSourceBlock { .. } => {
+                // Source block — generates test tone if no file
+                let output: Vec<(f32, f32)> = (0..256)
+                    .map(|i| {
+                        let t = i as f32 * 0.1;
+                        (t.cos(), t.sin())
+                    })
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::FileMetaSinkBlock { .. } => {
+                // Sink — pass through for test panel visualization
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
+            BlockType::PnCorrelatorBlock { length, polynomial } => {
+                use r4w_core::pn_sync::{PnGenerator, PnCorrelator};
+                let poly = u32::from_str_radix(polynomial.trim_start_matches("0x").trim_start_matches("0X"), 16).unwrap_or(0x25);
+                let gen = PnGenerator::m_sequence(*length, poly);
+                let seq = gen.generate(gen.period());
+                let correlator = PnCorrelator::new(seq);
+                let real: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let (peak, idx) = correlator.correlate(&real);
+                // Output correlation peak info as real samples
+                let mut output = vec![(0.0_f32, 0.0_f32); input_samples.len()];
+                if idx < output.len() {
+                    output[idx] = (peak as f32, 0.0);
+                }
+                (Vec::new(), Vec::new(), output)
+            }
 
             // Default: pass through based on likely output type
             _ => {
@@ -9476,6 +9601,147 @@ impl PipelineWizardView {
             BlockType::SampleAndHoldBlock | BlockType::NullSourceBlock |
             BlockType::IqOutput | BlockType::BitOutput | BlockType::IqSplit | BlockType::IqMerge => {
                 ui.label(RichText::new("No configurable parameters").italics());
+            }
+            BlockType::FeedforwardAgcBlock { window_size, reference } => {
+                let mut new_win = window_size as f64;
+                let mut new_ref = reference;
+                ui.horizontal(|ui| {
+                    ui.label("Window Size:");
+                    ui.add(egui::DragValue::new(&mut new_win).range(1.0..=256.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Reference Level:");
+                    ui.add(egui::DragValue::new(&mut new_ref).range(0.001..=10.0).speed(0.01));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FeedforwardAgcBlock { window_size: new_win as usize, reference: new_ref };
+                }
+            }
+            BlockType::VectorInsertBlock { period, offset } => {
+                let mut new_period = period as f64;
+                let mut new_offset = offset as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Period:");
+                    ui.add(egui::DragValue::new(&mut new_period).range(1.0..=1000.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Offset:");
+                    ui.add(egui::DragValue::new(&mut new_offset).range(0.0..=new_period - 1.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::VectorInsertBlock { period: new_period as usize, offset: new_offset as usize };
+                }
+            }
+            BlockType::VectorRemoveBlock { vector_len, period, offset } => {
+                let mut new_vlen = vector_len as f64;
+                let mut new_period = period as f64;
+                let mut new_offset = offset as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Vector Length:");
+                    ui.add(egui::DragValue::new(&mut new_vlen).range(1.0..=100.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Period:");
+                    ui.add(egui::DragValue::new(&mut new_period).range(1.0..=1000.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Offset:");
+                    ui.add(egui::DragValue::new(&mut new_offset).range(0.0..=new_period - 1.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::VectorRemoveBlock { vector_len: new_vlen as usize, period: new_period as usize, offset: new_offset as usize };
+                }
+            }
+            BlockType::CyclicPrefixAdderBlock { fft_size, cp_length } |
+            BlockType::CyclicPrefixRemoverBlock { fft_size, cp_length } => {
+                let mut new_fft = fft_size as f64;
+                let mut new_cp = cp_length as f64;
+                ui.horizontal(|ui| {
+                    ui.label("FFT Size:");
+                    egui::ComboBox::from_id_salt("cp_fft_size")
+                        .selected_text(format!("{}", fft_size))
+                        .show_ui(ui, |ui| {
+                            for &sz in &[64.0, 128.0, 256.0, 512.0, 1024.0, 2048.0, 4096.0, 8192.0] {
+                                ui.selectable_value(&mut new_fft, sz, format!("{}", sz as usize));
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("CP Length:");
+                    ui.add(egui::DragValue::new(&mut new_cp).range(0.0..=new_fft).speed(1.0));
+                });
+                ui.label(format!("Overhead: {:.1}%", new_cp / new_fft * 100.0));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    let is_adder = matches!(block.block_type, BlockType::CyclicPrefixAdderBlock { .. });
+                    if is_adder {
+                        block.block_type = BlockType::CyclicPrefixAdderBlock { fft_size: new_fft as usize, cp_length: new_cp as usize };
+                    } else {
+                        block.block_type = BlockType::CyclicPrefixRemoverBlock { fft_size: new_fft as usize, cp_length: new_cp as usize };
+                    }
+                }
+            }
+            BlockType::FileMetaSourceBlock { path, data_type } => {
+                let mut new_path = path.clone();
+                let mut new_dt = data_type.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Path:");
+                    ui.text_edit_singleline(&mut new_path);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Data Type:");
+                    egui::ComboBox::from_id_salt("fmeta_src_dt")
+                        .selected_text(&new_dt)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_dt, "cf64".to_string(), "cf64 (Complex Float64)");
+                            ui.selectable_value(&mut new_dt, "cf32".to_string(), "cf32 (Complex Float32)");
+                            ui.selectable_value(&mut new_dt, "ci16".to_string(), "ci16 (Complex Int16)");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FileMetaSourceBlock { path: new_path, data_type: new_dt };
+                }
+            }
+            BlockType::FileMetaSinkBlock { path, data_type, sample_rate } => {
+                let mut new_path = path.clone();
+                let mut new_dt = data_type.clone();
+                let mut new_sr = sample_rate;
+                ui.horizontal(|ui| {
+                    ui.label("Path:");
+                    ui.text_edit_singleline(&mut new_path);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Data Type:");
+                    egui::ComboBox::from_id_salt("fmeta_sink_dt")
+                        .selected_text(&new_dt)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_dt, "cf64".to_string(), "cf64 (Complex Float64)");
+                            ui.selectable_value(&mut new_dt, "cf32".to_string(), "cf32 (Complex Float32)");
+                            ui.selectable_value(&mut new_dt, "ci16".to_string(), "ci16 (Complex Int16)");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate:");
+                    ui.add(egui::DragValue::new(&mut new_sr).range(1.0..=100_000_000.0).speed(100.0).suffix(" Hz"));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FileMetaSinkBlock { path: new_path, data_type: new_dt, sample_rate: new_sr };
+                }
+            }
+            BlockType::PnCorrelatorBlock { length, polynomial } => {
+                let mut new_len = length as f64;
+                let mut new_poly = polynomial.clone();
+                ui.horizontal(|ui| {
+                    ui.label("LFSR Length:");
+                    ui.add(egui::DragValue::new(&mut new_len).range(3.0..=15.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Polynomial (hex):");
+                    ui.text_edit_singleline(&mut new_poly);
+                });
+                ui.label(format!("PN Period: {}", (1usize << (new_len as usize)) - 1));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PnCorrelatorBlock { length: new_len as usize, polynomial: new_poly };
+                }
             }
             BlockType::FileSource { path } => {
                 let mut new_path = path;

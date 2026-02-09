@@ -4151,6 +4151,190 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["num_inputs"],
         });
 
+    // Batch 23: Feedforward AGC, Vector Insert/Remove, Cyclic Prefix, File Meta, PN Sync
+    m.insert("Feedforward AGC", BlockMetadata {
+        block_type: "FeedforwardAgcBlock",
+        display_name: "Feedforward AGC",
+        category: "Recovery",
+        description: "Non-causal automatic gain control using a lookahead window. Computes gain from future samples for fast response without overshoot. Introduces a fixed delay equal to the window size.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/feedforward_agc.rs", line: 30, symbol: "FeedforwardAgc", description: "Feedforward AGC with lookahead" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Gain computation", plaintext: "gain[n] = ref / max(|x[n..n+W]|)", latex: None, variables: &[("ref", "target output amplitude"), ("W", "window size"), ("x", "input signal")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_constant_amplitude", module: "r4w_core::feedforward_agc::tests", description: "Normalizes constant input to reference", expected_runtime_ms: 1 },
+            BlockTest { name: "test_varying_amplitude", module: "r4w_core::feedforward_agc::tests", description: "Handles amplitude transitions", expected_runtime_ms: 1 },
+            BlockTest { name: "test_max_gain", module: "r4w_core::feedforward_agc::tests", description: "Gain clamped to max", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n*W)", memory: "O(W)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["Agc"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["window_size", "reference"],
+    });
+
+    m.insert("Vector Insert", BlockMetadata {
+        block_type: "VectorInsertBlock",
+        display_name: "Vector Insert",
+        category: "Synchronization",
+        description: "Periodically inserts pilot symbols, sync words, or training sequences into a sample stream. Essential for OFDM pilot-aided channel estimation and frame synchronization.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/vector_insert.rs", line: 24, symbol: "VectorInsert", description: "Periodic vector insertion" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Overhead", plaintext: "overhead = 1 + L_vec / period", latex: None, variables: &[("L_vec", "inserted vector length"), ("period", "insertion period in input samples")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_insert_remove_roundtrip", module: "r4w_core::vector_insert::tests", description: "Insert then remove preserves data", expected_runtime_ms: 1 },
+            BlockTest { name: "test_offset_insertion", module: "r4w_core::vector_insert::tests", description: "Inserts at correct offset", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["VectorRemoveBlock", "PreambleInsert", "SyncWordInsert"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["period", "offset"],
+    });
+
+    m.insert("Vector Remove", BlockMetadata {
+        block_type: "VectorRemoveBlock",
+        display_name: "Vector Remove",
+        category: "Synchronization",
+        description: "Removes periodically inserted vectors from a sample stream. Inverse of Vector Insert — strips pilots or sync words at known positions.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/vector_insert.rs", line: 76, symbol: "VectorRemove", description: "Periodic vector removal" }),
+        related_code: &[],
+        formulas: &[],
+        tests: &[
+            BlockTest { name: "test_vector_remove_basic", module: "r4w_core::vector_insert::tests", description: "Strips inserted vectors", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["VectorInsertBlock"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["vector_len", "period", "offset"],
+    });
+
+    m.insert("CP Add", BlockMetadata {
+        block_type: "CyclicPrefixAdderBlock",
+        display_name: "CP Add",
+        category: "Modulation",
+        description: "Adds cyclic prefix (guard interval) to OFDM symbols by copying the tail of each symbol to its front. Absorbs multipath delay spread in OFDM systems.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/cyclic_prefix.rs", line: 28, symbol: "CyclicPrefixAdder", description: "OFDM cyclic prefix insertion" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "CP construction", plaintext: "y = [x[N-L:N], x[0:N]]", latex: None, variables: &[("N", "FFT size"), ("L", "CP length"), ("x", "OFDM symbol")] },
+            BlockFormula { name: "Overhead", plaintext: "overhead = (N + L) / N", latex: None, variables: &[("N", "FFT size"), ("L", "CP length")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_add_remove_roundtrip", module: "r4w_core::cyclic_prefix::tests", description: "Add then remove CP is lossless", expected_runtime_ms: 1 },
+            BlockTest { name: "test_cp_is_cyclic", module: "r4w_core::cyclic_prefix::tests", description: "CP matches symbol tail", expected_runtime_ms: 1 },
+            BlockTest { name: "test_block_processing", module: "r4w_core::cyclic_prefix::tests", description: "Multi-symbol block processing", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(N+L)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[
+            StandardReference { name: "IEEE 802.11a/g/n", section: Some("OFDM PHY"), url: None },
+            StandardReference { name: "3GPP TS 36.211", section: Some("LTE OFDM"), url: None },
+            StandardReference { name: "ETSI EN 300 744", section: Some("DVB-T"), url: None },
+        ],
+        related_blocks: &["CyclicPrefixRemoverBlock", "OfdmModulator"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["fft_size", "cp_length"],
+    });
+
+    m.insert("CP Remove", BlockMetadata {
+        block_type: "CyclicPrefixRemoverBlock",
+        display_name: "CP Remove",
+        category: "Modulation",
+        description: "Removes cyclic prefix from received OFDM symbols, recovering the original symbol for FFT demodulation.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/cyclic_prefix.rs", line: 81, symbol: "CyclicPrefixRemover", description: "OFDM cyclic prefix removal" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "CP removal", plaintext: "y = x[L:L+N]", latex: None, variables: &[("N", "FFT size"), ("L", "CP length")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_remove_cp_basic", module: "r4w_core::cyclic_prefix::tests", description: "Basic CP removal", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(N)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[
+            StandardReference { name: "IEEE 802.11a/g/n", section: Some("OFDM PHY"), url: None },
+            StandardReference { name: "3GPP TS 36.211", section: Some("LTE OFDM"), url: None },
+        ],
+        related_blocks: &["CyclicPrefixAdderBlock", "OfdmModulator"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["fft_size", "cp_length"],
+    });
+
+    m.insert("File Meta Source", BlockMetadata {
+        block_type: "FileMetaSourceBlock",
+        display_name: "File Meta Source",
+        category: "Source",
+        description: "Reads IQ samples from a self-describing file with embedded JSON metadata header. Supports cf64, cf32, and ci16 sample formats.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/file_meta.rs", line: 278, symbol: "FileMetaSource", description: "File meta IQ reader" }),
+        related_code: &[],
+        formulas: &[],
+        tests: &[
+            BlockTest { name: "test_file_roundtrip_cf64", module: "r4w_core::file_meta::tests", description: "cf64 file read/write roundtrip", expected_runtime_ms: 5 },
+            BlockTest { name: "test_file_roundtrip_cf32", module: "r4w_core::file_meta::tests", description: "cf32 file read/write roundtrip", expected_runtime_ms: 5 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["FileMetaSinkBlock", "FileSource"],
+        input_type: "None",
+        output_type: "IQ",
+        key_parameters: &["path", "data_type"],
+    });
+
+    m.insert("File Meta Sink", BlockMetadata {
+        block_type: "FileMetaSinkBlock",
+        display_name: "File Meta Sink",
+        category: "Output",
+        description: "Writes IQ samples to a self-describing file with JSON metadata header containing sample rate, data type, and custom properties.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/file_meta.rs", line: 209, symbol: "FileMetaSink", description: "File meta IQ writer" }),
+        related_code: &[],
+        formulas: &[],
+        tests: &[
+            BlockTest { name: "test_header_serialize_deserialize", module: "r4w_core::file_meta::tests", description: "Header roundtrip", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["FileMetaSourceBlock", "FileOutput"],
+        input_type: "IQ",
+        output_type: "None",
+        key_parameters: &["path", "data_type", "sample_rate"],
+    });
+
+    m.insert("PN Correlator", BlockMetadata {
+        block_type: "PnCorrelatorBlock",
+        display_name: "PN Correlator",
+        category: "Synchronization",
+        description: "Correlates incoming signal against a known PN (Pseudo-Noise) sequence for synchronization and despreading. Uses LFSR-generated m-sequences or Gold codes.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/pn_sync.rs", line: 128, symbol: "PnCorrelator", description: "PN sequence correlator" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Normalized cross-correlation", plaintext: "R(tau) = sum(x[n+tau] * c[n]) / sqrt(E_x * E_c)", latex: None, variables: &[("x", "received signal"), ("c", "reference PN sequence"), ("tau", "offset"), ("E_x", "signal energy"), ("E_c", "reference energy")] },
+            BlockFormula { name: "m-sequence period", plaintext: "P = 2^L - 1", latex: None, variables: &[("L", "LFSR register length"), ("P", "sequence period")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_correlator_autocorrelation", module: "r4w_core::pn_sync::tests", description: "Peak at zero lag", expected_runtime_ms: 1 },
+            BlockTest { name: "test_correlator_offset_detection", module: "r4w_core::pn_sync::tests", description: "Detects embedded PN at offset", expected_runtime_ms: 1 },
+            BlockTest { name: "test_correlator_noise", module: "r4w_core::pn_sync::tests", description: "Detection through noise", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n*P)", memory: "O(P)", simd_optimized: false, gpu_accelerable: true }),
+        standards: &[
+            StandardReference { name: "IS-95 CDMA", section: None, url: None },
+            StandardReference { name: "GPS ICD IS-GPS-200", section: Some("C/A code"), url: None },
+            StandardReference { name: "ITU-R M.2012", section: Some("WCDMA"), url: None },
+        ],
+        related_blocks: &["DsssSpread", "CorrelateSync"],
+        input_type: "IQ",
+        output_type: "Real",
+        key_parameters: &["length", "polynomial"],
+    });
+
     m
 }
 
