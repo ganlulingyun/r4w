@@ -285,6 +285,13 @@ pub enum BlockType {
     PowerSquelch { threshold_db: f32, hysteresis_db: f32 },
     PlateauDetector { threshold: f32, min_width: u32 },
 
+    // Batch 15: binary slicer, HDLC, clock recovery, FM receiver, symbol sync
+    BinarySlicer { threshold: f32 },
+    HdlcDeframer,
+    ClockRecoveryMm { sps: f32, loop_bw: f32 },
+    NbfmReceiver { max_deviation: f32, sample_rate: f32 },
+    SymbolSync { sps: f32, ted: String, loop_bw: f32 },
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -387,6 +394,11 @@ impl BlockType {
             Self::UnpackKBits { .. } => "Unpack K Bits",
             Self::PowerSquelch { .. } => "Power Squelch",
             Self::PlateauDetector { .. } => "Plateau Detector",
+            Self::BinarySlicer { .. } => "Binary Slicer",
+            Self::HdlcDeframer => "HDLC Deframer",
+            Self::ClockRecoveryMm { .. } => "Clock Recovery (M&M)",
+            Self::NbfmReceiver { .. } => "NBFM Receiver",
+            Self::SymbolSync { .. } => "Symbol Sync",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -428,6 +440,10 @@ impl BlockType {
             Self::PackKBits { .. } | Self::UnpackKBits { .. } => BlockCategory::Coding,
             Self::PowerSquelch { .. } => BlockCategory::Recovery,
             Self::PlateauDetector { .. } => BlockCategory::Synchronization,
+            Self::BinarySlicer { .. } => BlockCategory::Recovery,
+            Self::HdlcDeframer => BlockCategory::Coding,
+            Self::ClockRecoveryMm { .. } | Self::SymbolSync { .. } => BlockCategory::Recovery,
+            Self::NbfmReceiver { .. } => BlockCategory::Recovery,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -528,6 +544,13 @@ impl BlockType {
             Self::PackKBits { .. } | Self::UnpackKBits { .. } => vec![PortType::Bits],
             Self::PlateauDetector { .. } => vec![PortType::Real],
 
+            // Batch 15 blocks
+            Self::BinarySlicer { .. } => vec![PortType::Real],
+            Self::HdlcDeframer => vec![PortType::Bits],
+            Self::ClockRecoveryMm { .. } => vec![PortType::Real],
+            Self::NbfmReceiver { .. } => vec![PortType::IQ],
+            Self::SymbolSync { .. } => vec![PortType::IQ],
+
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
 
@@ -617,6 +640,13 @@ impl BlockType {
             Self::SampleDelay { .. } | Self::MultiplyConst { .. } | Self::PowerSquelch { .. } => vec![PortType::IQ],
             Self::PackKBits { .. } | Self::UnpackKBits { .. } => vec![PortType::Bits],
             Self::PlateauDetector { .. } => vec![PortType::Real],
+
+            // Batch 15 blocks
+            Self::BinarySlicer { .. } => vec![PortType::Bits],
+            Self::HdlcDeframer => vec![PortType::Bits],
+            Self::ClockRecoveryMm { .. } => vec![PortType::Real],
+            Self::NbfmReceiver { .. } => vec![PortType::Real],
+            Self::SymbolSync { .. } => vec![PortType::IQ],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2724,6 +2754,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::CrcGenerator { crc_type: CrcType::Crc16Ccitt },
             BlockType::PackKBits { k: 8 },
             BlockType::UnpackKBits { k: 8 },
+            BlockType::HdlcDeframer,
         ]),
         (BlockCategory::Mapping, vec![
             BlockType::GrayMapper { bits_per_symbol: 2 },
@@ -2791,6 +2822,10 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::QuadratureDemod { gain: 1.0, mode: "FM".to_string() },
             BlockType::FllBandEdge { samples_per_symbol: 4.0, rolloff: 0.35, filter_size: 45, loop_bandwidth: 0.02 },
             BlockType::PowerSquelch { threshold_db: -30.0, hysteresis_db: 3.0 },
+            BlockType::BinarySlicer { threshold: 0.0 },
+            BlockType::ClockRecoveryMm { sps: 4.0, loop_bw: 0.01 },
+            BlockType::NbfmReceiver { max_deviation: 5000.0, sample_rate: 48000.0 },
+            BlockType::SymbolSync { sps: 4.0, ted: "Gardner".to_string(), loop_bw: 0.045 },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -5870,6 +5905,73 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // Binary Slicer: soft → hard bit decision
+            BlockType::BinarySlicer { threshold } => {
+                use r4w_core::binary_slicer::BinarySlicer as CoreBs;
+                let bs = CoreBs::new(*threshold as f64);
+                // Input is real samples (from QuadratureDemod, etc.)
+                let real_input: Vec<f64> = input_samples.iter()
+                    .map(|&(r, _)| r as f64)
+                    .collect();
+                let bits = bs.slice(&real_input);
+                (bits, Vec::new(), Vec::new())
+            }
+
+            // HDLC Deframer: bits → frame data
+            BlockType::HdlcDeframer => {
+                // Pass bits through (deframing would produce variable-length frames)
+                (input_bits.to_vec(), Vec::new(), Vec::new())
+            }
+
+            // Clock Recovery M&M
+            BlockType::ClockRecoveryMm { sps, loop_bw } => {
+                use r4w_core::clock_recovery_mm::ClockRecoveryMM;
+                let mut cr = ClockRecoveryMM::new(*sps as f64, *loop_bw as f64);
+                let real_input: Vec<f64> = input_samples.iter()
+                    .map(|&(r, _)| r as f64)
+                    .collect();
+                let output = cr.process(&real_input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // NBFM Receiver
+            BlockType::NbfmReceiver { max_deviation, sample_rate } => {
+                use r4w_core::fm_receiver::NbfmReceiver;
+                use num_complex::Complex64;
+                let mut rx = NbfmReceiver::new(*sample_rate as f64, *max_deviation as f64);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = rx.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Symbol Sync
+            BlockType::SymbolSync { sps, ted, loop_bw } => {
+                use r4w_core::symbol_sync::{SymbolSync as CoreSs, TedType};
+                use num_complex::Complex64;
+                let ted_type = match ted.as_str() {
+                    "ZeroCrossing" => TedType::ZeroCrossing,
+                    "MuellerMuller" | "M&M" => TedType::MuellerMuller,
+                    _ => TedType::Gardner,
+                };
+                let mut ss = CoreSs::new(*sps as f64, ted_type, *loop_bw as f64);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = ss.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // PFB Synthesizer: multi-channel → wideband
             BlockType::PfbSynthesizer { num_channels, taps_per_channel, window } => {
                 use r4w_core::pfb_synthesizer::{PfbSynthesizer as CorePfb, PfbSynthConfig};
@@ -7647,8 +7749,74 @@ impl PipelineWizardView {
                     block.block_type = BlockType::PlateauDetector { threshold: new_th, min_width: new_mw };
                 }
             }
+            BlockType::BinarySlicer { threshold } => {
+                let mut new_th = threshold;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::DragValue::new(&mut new_th).speed(0.01).range(-10.0..=10.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::BinarySlicer { threshold: new_th };
+                }
+            }
+            BlockType::ClockRecoveryMm { sps, loop_bw } => {
+                let mut new_sps = sps;
+                let mut new_lb = loop_bw;
+                ui.horizontal(|ui| {
+                    ui.label("Samples/Symbol:");
+                    ui.add(egui::DragValue::new(&mut new_sps).speed(0.1).range(2.0..=32.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Loop BW:");
+                    ui.add(egui::DragValue::new(&mut new_lb).speed(0.001).range(0.001..=0.2));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ClockRecoveryMm { sps: new_sps, loop_bw: new_lb };
+                }
+            }
+            BlockType::NbfmReceiver { max_deviation, sample_rate } => {
+                let mut new_dev = max_deviation;
+                let mut new_sr = sample_rate;
+                ui.horizontal(|ui| {
+                    ui.label("Max Deviation (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_dev).speed(100.0).range(500.0..=75000.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(1000.0).range(8000.0..=1000000.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::NbfmReceiver { max_deviation: new_dev, sample_rate: new_sr };
+                }
+            }
+            BlockType::SymbolSync { sps, ted, loop_bw } => {
+                let mut new_sps = sps;
+                let mut new_ted = ted;
+                let mut new_lb = loop_bw;
+                ui.horizontal(|ui| {
+                    ui.label("Samples/Symbol:");
+                    ui.add(egui::DragValue::new(&mut new_sps).speed(0.1).range(2.0..=32.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("TED:");
+                    egui::ComboBox::from_id_salt("symbol_sync_ted")
+                        .selected_text(new_ted.as_str())
+                        .show_ui(ui, |ui| {
+                            for t in &["Gardner", "ZeroCrossing", "MuellerMuller"] {
+                                ui.selectable_value(&mut new_ted, t.to_string(), *t);
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Loop BW:");
+                    ui.add(egui::DragValue::new(&mut new_lb).speed(0.001).range(0.001..=0.2));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SymbolSync { sps: new_sps, ted: new_ted, loop_bw: new_lb };
+                }
+            }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |
-            BlockType::DifferentialEncoder | BlockType::MatchedFilter |
+            BlockType::DifferentialEncoder | BlockType::MatchedFilter | BlockType::HdlcDeframer |
             BlockType::IqOutput | BlockType::BitOutput | BlockType::IqSplit | BlockType::IqMerge => {
                 ui.label(RichText::new("No configurable parameters").italics());
             }

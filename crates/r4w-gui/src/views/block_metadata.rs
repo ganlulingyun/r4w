@@ -2822,6 +2822,180 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["threshold", "min_width"],
         });
 
+    // Batch 15: BinarySlicer, HdlcDeframer, ClockRecoveryMm, NbfmReceiver, SymbolSync
+    m.insert("BinarySlicer", BlockMetadata {
+            block_type: "BinarySlicer",
+            display_name: "Binary Slicer",
+            category: "Recovery",
+            description: "Converts soft floating-point symbols to hard binary decisions using a configurable threshold. Essential for packet radio, APRS, and AX.25.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/binary_slicer.rs",
+                line: 22,
+                symbol: "BinarySlicer",
+                description: "Threshold-based soft-to-hard decision",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Binary Decision",
+                    plaintext: "bit = 1 if x >= threshold, else 0",
+                    latex: Some("b = \\begin{cases} 1 & x \\geq T \\\\ 0 & x < T \\end{cases}"),
+                    variables: &[("T", "Decision threshold"), ("x", "Soft input sample")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_bipolar_basic", module: "r4w_core::binary_slicer::tests", description: "Bipolar decision", expected_runtime_ms: 5 },
+                BlockTest { name: "test_noisy_signal", module: "r4w_core::binary_slicer::tests", description: "Noisy signal decisions", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["QuadratureDemod", "ClockRecoveryMm", "HdlcDeframer"],
+            input_type: "Real (soft symbols)",
+            output_type: "Bits",
+            key_parameters: &["threshold"],
+        });
+
+    m.insert("HdlcDeframer", BlockMetadata {
+            block_type: "HdlcDeframer",
+            display_name: "HDLC Deframer",
+            category: "Coding",
+            description: "Decodes HDLC frames from a bit stream. Performs flag detection (0x7E), bit-unstuffing, and CRC-16/CCITT verification. Used by AX.25, APRS, and satellite protocols.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/hdlc.rs",
+                line: 150,
+                symbol: "HdlcDeframer",
+                description: "HDLC frame decoder with bit-unstuffing and FCS",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "HDLC Frame",
+                    plaintext: "Flag(7E) | Data (bit-stuffed) | FCS(CRC-16) | Flag(7E)",
+                    latex: None,
+                    variables: &[("7E", "Flag byte 01111110"), ("FCS", "Frame Check Sequence CRC-16/CCITT")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_frame_deframe_roundtrip", module: "r4w_core::hdlc::tests", description: "Encode/decode roundtrip", expected_runtime_ms: 5 },
+                BlockTest { name: "test_ax25_like_payload", module: "r4w_core::hdlc::tests", description: "AX.25 packet decode", expected_runtime_ms: 5 },
+                BlockTest { name: "test_corrupted_fcs", module: "r4w_core::hdlc::tests", description: "Reject bad FCS", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "ISO/IEC 13239:2002 HDLC", section: Some("Frame structure, bit-stuffing, FCS"), url: None },
+                StandardReference { name: "AX.25 Link Access Protocol", section: Some("v2.2 §3"), url: None },
+            ],
+            related_blocks: &["BinarySlicer", "AccessCodeDetector", "CrcGenerator"],
+            input_type: "Bits",
+            output_type: "Bits (frame data)",
+            key_parameters: &[],
+        });
+
+    m.insert("ClockRecoveryMm", BlockMetadata {
+            block_type: "ClockRecoveryMm",
+            display_name: "Clock Recovery (M&M)",
+            category: "Recovery",
+            description: "Mueller & Müller symbol timing recovery. Recovers symbol timing from oversampled signals using a decision-directed TED and PI loop filter.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/clock_recovery_mm.rs",
+                line: 42,
+                symbol: "ClockRecoveryMM",
+                description: "M&M timing recovery with PI loop filter",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "M&M TED",
+                    plaintext: "e[n] = y[n-1] * (y[n] - y[n-2])",
+                    latex: Some("e[n] = y[n-1] \\cdot (y[n] - y[n-2])"),
+                    variables: &[("e[n]", "Timing error"), ("y[n]", "Symbol sample at time n")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_alternating_symbols", module: "r4w_core::clock_recovery_mm::tests", description: "Recover alternating BPSK", expected_runtime_ms: 5 },
+                BlockTest { name: "test_output_rate", module: "r4w_core::clock_recovery_mm::tests", description: "Correct decimation rate", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n/sps)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "Mueller & Müller, IEEE Trans. Comm., 1976", section: Some("Timing Recovery in Digital Synchronous Data Receivers"), url: None },
+            ],
+            related_blocks: &["TimingRecovery", "SymbolSync", "BinarySlicer"],
+            input_type: "Real (oversampled)",
+            output_type: "Real (symbol-rate)",
+            key_parameters: &["sps", "loop_bw"],
+        });
+
+    m.insert("NbfmReceiver", BlockMetadata {
+            block_type: "NbfmReceiver",
+            display_name: "NBFM Receiver",
+            category: "Recovery",
+            description: "Narrowband FM receiver combining quadrature demodulation and de-emphasis filtering. Outputs demodulated audio/data from I/Q input.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/fm_receiver.rs",
+                line: 37,
+                symbol: "NbfmReceiver",
+                description: "Composite NBFM receiver (discriminator + de-emphasis)",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "FM Discriminator",
+                    plaintext: "y[n] = gain * arg(x[n] * conj(x[n-1]))",
+                    latex: Some("y[n] = \\frac{f_s}{2\\pi \\Delta f} \\cdot \\arg(x[n] \\cdot x^*[n-1])"),
+                    variables: &[("f_s", "Sample rate"), ("Delta_f", "Max FM deviation")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_nbfm_dc_input", module: "r4w_core::fm_receiver::tests", description: "DC input → zero output", expected_runtime_ms: 5 },
+                BlockTest { name: "test_output_length_matches", module: "r4w_core::fm_receiver::tests", description: "1:1 output rate", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["QuadratureDemod", "DeEmphasis", "PowerSquelch"],
+            input_type: "IQ samples",
+            output_type: "Real (audio/data)",
+            key_parameters: &["max_deviation", "sample_rate"],
+        });
+
+    m.insert("SymbolSync", BlockMetadata {
+            block_type: "SymbolSync",
+            display_name: "Symbol Sync",
+            category: "Recovery",
+            description: "Polyphase filterbank-based symbol synchronizer with configurable TED (Gardner, Zero-Crossing, or Mueller & Müller). Recovers optimal sampling instants from oversampled I/Q.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/symbol_sync.rs",
+                line: 56,
+                symbol: "SymbolSync",
+                description: "PFB-based symbol sync with TED options",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Gardner TED",
+                    plaintext: "e = Re{y_mid * conj(y_cur - y_prev)}",
+                    latex: Some("e = \\Re\\{y_{\\text{mid}} \\cdot (y_n - y_{n-1})^*\\}"),
+                    variables: &[("y_mid", "Midpoint sample"), ("y_n", "Current symbol"), ("y_{n-1}", "Previous symbol")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_alternating_bpsk", module: "r4w_core::symbol_sync::tests", description: "BPSK symbol recovery", expected_runtime_ms: 5 },
+                BlockTest { name: "test_incremental_processing", module: "r4w_core::symbol_sync::tests", description: "Block-by-block processing", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n/sps)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "Gardner, IEEE Trans. Comm., 1986", section: Some("A BPSK/QPSK Timing-Error Detector for Sampled Receivers"), url: None },
+            ],
+            related_blocks: &["TimingRecovery", "ClockRecoveryMm", "FllBandEdge"],
+            input_type: "IQ (oversampled)",
+            output_type: "IQ (symbol-rate)",
+            key_parameters: &["sps", "ted", "loop_bw"],
+        });
+
     m
 }
 
