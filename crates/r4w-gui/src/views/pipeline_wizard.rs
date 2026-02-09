@@ -323,6 +323,128 @@ impl BlockType {
             _ => 1,
         }
     }
+
+    /// Get the input port types for this block
+    pub fn input_port_types(&self) -> Vec<PortType> {
+        match self {
+            // Source blocks have no inputs
+            Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } => vec![],
+
+            // Coding blocks: bits in, bits out
+            Self::Scrambler { .. } | Self::FecEncoder { .. } |
+            Self::Interleaver { .. } | Self::CrcGenerator { .. } => vec![PortType::Bits],
+
+            // Mapping blocks: bits in
+            Self::GrayMapper { .. } | Self::ConstellationMapper { .. } |
+            Self::DifferentialEncoder => vec![PortType::Bits],
+
+            // Modulators: bits/symbols in, IQ out
+            Self::PskModulator { .. } | Self::QamModulator { .. } |
+            Self::FskModulator { .. } | Self::OfdmModulator { .. } |
+            Self::DsssSpread { .. } | Self::FhssHop { .. } | Self::CssModulator { .. } => vec![PortType::Symbols],
+
+            // Filters: IQ in, IQ out (or Real in, Real out)
+            Self::FirFilter { .. } | Self::IirFilter { .. } |
+            Self::PulseShaper { .. } | Self::MatchedFilter => vec![PortType::IQ],
+
+            // Rate conversion: IQ in, IQ out
+            Self::Upsampler { .. } | Self::Downsampler { .. } |
+            Self::RationalResampler { .. } | Self::PolyphaseResampler { .. } => vec![PortType::IQ],
+
+            // Synchronization: bits in (frame building)
+            Self::PreambleInsert { .. } | Self::SyncWordInsert { .. } |
+            Self::FrameBuilder { .. } | Self::TdmaFramer { .. } => vec![PortType::Bits],
+
+            // Channel impairments: IQ in, IQ out
+            Self::AwgnChannel { .. } | Self::FadingChannel { .. } |
+            Self::FrequencyOffset { .. } | Self::IqImbalance { .. } => vec![PortType::IQ],
+
+            // Demodulators: IQ in, bits/symbols out
+            Self::PskDemodulator { .. } | Self::QamDemodulator { .. } |
+            Self::FskDemodulator { .. } => vec![PortType::IQ],
+
+            // Recovery blocks: IQ in
+            Self::Agc { .. } | Self::TimingRecovery { .. } |
+            Self::CarrierRecovery { .. } | Self::Equalizer { .. } => vec![PortType::IQ],
+
+            // Output blocks
+            Self::IqOutput => vec![PortType::IQ],
+            Self::BitOutput => vec![PortType::Bits],
+            Self::FileOutput { .. } => vec![PortType::IQ],
+
+            // Control flow
+            Self::Split { .. } => vec![PortType::Any],
+            Self::Merge { num_inputs } => vec![PortType::Any; *num_inputs as usize],
+            Self::IqSplit => vec![PortType::IQ],
+            Self::IqMerge => vec![PortType::Real, PortType::Real],
+        }
+    }
+
+    /// Get the output port types for this block
+    pub fn output_port_types(&self) -> Vec<PortType> {
+        match self {
+            // Source blocks
+            Self::BitSource { .. } => vec![PortType::Bits],
+            Self::SymbolSource { .. } => vec![PortType::Symbols],
+            Self::FileSource { .. } => vec![PortType::IQ],
+
+            // Coding blocks: bits in, bits out
+            Self::Scrambler { .. } | Self::FecEncoder { .. } |
+            Self::Interleaver { .. } | Self::CrcGenerator { .. } => vec![PortType::Bits],
+
+            // Mapping blocks: bits in, symbols out
+            Self::GrayMapper { .. } | Self::ConstellationMapper { .. } |
+            Self::DifferentialEncoder => vec![PortType::Symbols],
+
+            // Modulators: symbols in, IQ out
+            Self::PskModulator { .. } | Self::QamModulator { .. } |
+            Self::FskModulator { .. } | Self::OfdmModulator { .. } |
+            Self::DsssSpread { .. } | Self::FhssHop { .. } | Self::CssModulator { .. } => vec![PortType::IQ],
+
+            // Filters: IQ in, IQ out
+            Self::FirFilter { .. } | Self::IirFilter { .. } |
+            Self::PulseShaper { .. } | Self::MatchedFilter => vec![PortType::IQ],
+
+            // Rate conversion: IQ in, IQ out
+            Self::Upsampler { .. } | Self::Downsampler { .. } |
+            Self::RationalResampler { .. } | Self::PolyphaseResampler { .. } => vec![PortType::IQ],
+
+            // Synchronization: bits in, bits out (with framing)
+            Self::PreambleInsert { .. } | Self::SyncWordInsert { .. } |
+            Self::FrameBuilder { .. } | Self::TdmaFramer { .. } => vec![PortType::Bits],
+
+            // Channel impairments: IQ in, IQ out
+            Self::AwgnChannel { .. } | Self::FadingChannel { .. } |
+            Self::FrequencyOffset { .. } | Self::IqImbalance { .. } => vec![PortType::IQ],
+
+            // Demodulators: IQ in, symbols/bits out
+            Self::PskDemodulator { .. } | Self::QamDemodulator { .. } |
+            Self::FskDemodulator { .. } => vec![PortType::Symbols],
+
+            // Recovery blocks: IQ in, IQ out
+            Self::Agc { .. } | Self::TimingRecovery { .. } |
+            Self::CarrierRecovery { .. } | Self::Equalizer { .. } => vec![PortType::IQ],
+
+            // Output blocks have no outputs
+            Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
+
+            // Control flow
+            Self::Split { num_outputs } => vec![PortType::Any; *num_outputs as usize],
+            Self::Merge { .. } => vec![PortType::Any],
+            Self::IqSplit => vec![PortType::Real, PortType::Real],  // I and Q channels
+            Self::IqMerge => vec![PortType::IQ],
+        }
+    }
+
+    /// Get the input port type for a specific port index
+    pub fn input_port_type(&self, port: u32) -> PortType {
+        self.input_port_types().get(port as usize).copied().unwrap_or(PortType::Any)
+    }
+
+    /// Get the output port type for a specific port index
+    pub fn output_port_type(&self, port: u32) -> PortType {
+        self.output_port_types().get(port as usize).copied().unwrap_or(PortType::Any)
+    }
 }
 
 // Supporting enums for block parameters
@@ -419,6 +541,60 @@ pub enum OutputFormat {
     ComplexFloat64,
     ComplexInt16,
     ComplexInt8,
+}
+
+/// Port data type for type-safe connections
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PortType {
+    /// Binary data stream (0s and 1s)
+    Bits,
+    /// Symbol indices (integers representing constellation points)
+    Symbols,
+    /// Complex I/Q samples (baseband signal)
+    IQ,
+    /// Real-valued samples (single channel)
+    Real,
+    /// Any type (for generic blocks like Split/Merge)
+    Any,
+}
+
+impl PortType {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Bits => "Bits",
+            Self::Symbols => "Symbols",
+            Self::IQ => "I/Q",
+            Self::Real => "Real",
+            Self::Any => "Any",
+        }
+    }
+
+    /// Color for visual differentiation
+    pub fn color(&self) -> Color32 {
+        match self {
+            Self::Bits => Color32::from_rgb(100, 180, 255),    // Blue
+            Self::Symbols => Color32::from_rgb(180, 100, 255), // Purple
+            Self::IQ => Color32::from_rgb(255, 180, 100),      // Orange
+            Self::Real => Color32::from_rgb(100, 255, 180),    // Cyan/Green
+            Self::Any => Color32::from_rgb(200, 200, 200),     // Gray
+        }
+    }
+
+    /// Check if this type is compatible with another type
+    pub fn is_compatible_with(&self, other: PortType) -> bool {
+        match (self, other) {
+            // Same types are always compatible
+            (a, b) if *a == b => true,
+            // Any is compatible with everything
+            (PortType::Any, _) | (_, PortType::Any) => true,
+            // Symbols and Bits are often interchangeable in practice
+            (PortType::Bits, PortType::Symbols) | (PortType::Symbols, PortType::Bits) => true,
+            // Real can be treated as I/Q (becomes just I channel)
+            (PortType::Real, PortType::IQ) | (PortType::IQ, PortType::Real) => true,
+            // Everything else is incompatible
+            _ => false,
+        }
+    }
 }
 
 /// A block in the pipeline
@@ -1733,6 +1909,25 @@ pipeline:
         if self.has_cycle() {
             result.errors.push("Pipeline contains a cycle".to_string());
             result.is_valid = false;
+        }
+
+        // Check port type compatibility
+        for conn in &self.connections {
+            if let (Some(from_block), Some(to_block)) = (
+                self.blocks.get(&conn.from_block),
+                self.blocks.get(&conn.to_block),
+            ) {
+                let from_type = from_block.block_type.output_port_type(conn.from_port);
+                let to_type = to_block.block_type.input_port_type(conn.to_port);
+
+                if !from_type.is_compatible_with(to_type) {
+                    result.warnings.push(format!(
+                        "Type mismatch: '{}' output ({}) → '{}' input ({})",
+                        from_block.name, from_type.name(),
+                        to_block.name, to_type.name()
+                    ));
+                }
+            }
         }
 
         // Check disabled blocks
@@ -3721,10 +3916,25 @@ impl PipelineWizardView {
             let is_connected_horiz = self.is_input_connected_horizontal(block.id, i, canvas_rect);
             let is_connected_vert = self.is_input_connected_vertical(block.id, i, canvas_rect);
 
-            let port_color = if is_connecting {
-                Color32::from_rgb(100, 200, 255) // Highlight when connecting
+            // Get port type and use its color
+            let port_type = block.block_type.input_port_type(i);
+            let type_color = port_type.color();
+
+            // Check type compatibility if we're connecting
+            let (port_color, is_compatible) = if let Some((from_block_id, from_port)) = self.connecting_from {
+                if let Some(from_block) = self.pipeline.blocks.get(&from_block_id) {
+                    let from_type = from_block.block_type.output_port_type(from_port);
+                    let compatible = from_type.is_compatible_with(port_type);
+                    if compatible {
+                        (type_color.gamma_multiply(1.3), true) // Brighter when compatible
+                    } else {
+                        (Color32::from_rgb(255, 80, 80), false) // Red when incompatible
+                    }
+                } else {
+                    (type_color, true)
+                }
             } else {
-                Color32::from_rgb(80, 120, 200)
+                (type_color, true)
             };
 
             // Left side port (horizontal connections)
@@ -3734,6 +3944,18 @@ impl PipelineWizardView {
                 painter.circle_stroke(port_pos_left, port_radius + 2.0, Stroke::new(1.0, port_color));
                 painter.circle_filled(port_pos_left, port_radius, port_color);
                 painter.circle_filled(port_pos_left, port_radius * 0.4, Color32::WHITE);
+                // Draw X for incompatible
+                if is_connecting && !is_compatible {
+                    let x_size = port_radius * 0.5;
+                    painter.line_segment(
+                        [port_pos_left - Vec2::splat(x_size), port_pos_left + Vec2::splat(x_size)],
+                        Stroke::new(2.0, Color32::WHITE),
+                    );
+                    painter.line_segment(
+                        [port_pos_left + Vec2::new(-x_size, x_size), port_pos_left + Vec2::new(x_size, -x_size)],
+                        Stroke::new(2.0, Color32::WHITE),
+                    );
+                }
             }
 
             // Top side port (vertical connections) - same styling as left port
@@ -3744,6 +3966,18 @@ impl PipelineWizardView {
                 painter.circle_stroke(port_pos_top, port_radius + 2.0, Stroke::new(1.0, port_color));
                 painter.circle_filled(port_pos_top, port_radius, port_color);
                 painter.circle_filled(port_pos_top, port_radius * 0.4, Color32::WHITE);
+                // Draw X for incompatible
+                if is_connecting && !is_compatible {
+                    let x_size = port_radius * 0.5;
+                    painter.line_segment(
+                        [port_pos_top - Vec2::splat(x_size), port_pos_top + Vec2::splat(x_size)],
+                        Stroke::new(2.0, Color32::WHITE),
+                    );
+                    painter.line_segment(
+                        [port_pos_top + Vec2::new(-x_size, x_size), port_pos_top + Vec2::new(x_size, -x_size)],
+                        Stroke::new(2.0, Color32::WHITE),
+                    );
+                }
             }
         }
 
@@ -3756,10 +3990,14 @@ impl PipelineWizardView {
             let has_any_connection = is_connected_horiz || is_connected_vert;
             let is_connection_source = self.connecting_from == Some((block.id, i));
 
+            // Get port type and use its color
+            let port_type = block.block_type.output_port_type(i);
+            let type_color = port_type.color();
+
             let port_color = if is_connection_source {
-                Color32::from_rgb(255, 200, 100) // Highlight when this is source
+                type_color.gamma_multiply(1.5) // Brighter when this is source
             } else {
-                Color32::from_rgb(200, 80, 80)
+                type_color
             };
 
             // Right side port (horizontal connections)
@@ -4474,6 +4712,46 @@ impl PipelineWizardView {
 
                 ui.checkbox(&mut block.enabled, "Enabled");
 
+                // Port Types section
+                ui.add_space(10.0);
+                ui.label(RichText::new("Port Types").strong());
+                ui.separator();
+
+                let input_types = block.block_type.input_port_types();
+                let output_types = block.block_type.output_port_types();
+
+                ui.horizontal(|ui| {
+                    // Input types
+                    if !input_types.is_empty() {
+                        ui.label("In:");
+                        for (i, port_type) in input_types.iter().enumerate() {
+                            let color = port_type.color();
+                            ui.colored_label(color, port_type.name());
+                            if i < input_types.len() - 1 {
+                                ui.label(",");
+                            }
+                        }
+                    } else {
+                        ui.label("In: (none)");
+                    }
+
+                    ui.label(" → ");
+
+                    // Output types
+                    if !output_types.is_empty() {
+                        ui.label("Out:");
+                        for (i, port_type) in output_types.iter().enumerate() {
+                            let color = port_type.color();
+                            ui.colored_label(color, port_type.name());
+                            if i < output_types.len() - 1 {
+                                ui.label(",");
+                            }
+                        }
+                    } else {
+                        ui.label("Out: (none)");
+                    }
+                });
+
                 ui.add_space(10.0);
                 ui.label(RichText::new("Parameters").strong());
                 ui.separator();
@@ -4532,6 +4810,19 @@ impl PipelineWizardView {
             ui.label("2. Select a block to edit");
             ui.label("3. Drag blocks to position");
             ui.label("4. Export to YAML when done");
+
+            // Port type legend
+            ui.add_space(10.0);
+            ui.label(RichText::new("Port Type Colors").strong());
+            ui.separator();
+            for port_type in [PortType::Bits, PortType::Symbols, PortType::IQ, PortType::Real, PortType::Any] {
+                ui.horizontal(|ui| {
+                    let color = port_type.color();
+                    let (rect, _) = ui.allocate_exact_size(egui::vec2(12.0, 12.0), egui::Sense::hover());
+                    ui.painter().circle_filled(rect.center(), 5.0, color);
+                    ui.label(port_type.name());
+                });
+            }
         }
     }
 
