@@ -109,7 +109,7 @@ auto samples = waveform.modulate({1, 0, 1, 1, 0, 0, 1, 0});
 
 | Crate | Purpose | Key Features |
 |-------|---------|--------------|
-| **r4w-core** | DSP algorithms and waveform trait | FFT, FIR/IIR/polyphase filters, PSK/FSK/QAM, FEC (convolutional+Viterbi, Reed-Solomon), CRC, AGC, Costas loop, M&M clock recovery, FreqXlatingFIR, OFDM, PFB channelizer, correlator, scrambler, differential coding, packet framing, equalizer, signal source, squelch, Gray coding |
+| **r4w-core** | DSP algorithms and waveform trait | FFT, FIR/IIR/polyphase/CIC/adaptive(LMS/NLMS/RLS) filters, PSK/FSK/QAM, FEC (convolutional+Viterbi, Reed-Solomon), CRC, AGC, PLL, Costas loop, constellation receiver, M&M clock recovery, FreqXlatingFIR, NCO/FM mod-demod, OFDM, PFB channelizer, correlator, scrambler, differential coding, packet framing, equalizer, signal source, squelch, burst detector, symbol mapper (soft LLR), Goertzel/DTMF, SNR estimator, measurement probes, colored noise, stream tags, Gray coding |
 | **r4w-sim** | Channel simulation and transport | AWGN/Rayleigh/Rician, UDP I/Q, device abstraction |
 | **r4w-fpga** | FPGA hardware acceleration | Xilinx Zynq, Lattice iCE40/ECP5, simulated backend |
 | **r4w-sandbox** | Waveform isolation | Secure memory, namespaces, seccomp, container/VM support |

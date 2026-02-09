@@ -34,6 +34,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `scrambler.rs`: LFSR scrambler/descrambler (additive/multiplicative, WiFi/DVB-S2/Bluetooth/V.34)
   - `differential.rs`: Differential encoder/decoder (DBPSK/DQPSK/D8PSK, complex-domain DPSK)
   - `packet_framing.rs`: Packet formatter/parser (sync word, headers, CRC, AX.25/ISM configs)
+  - `nco.rs`: NCO/VCO + FM modulator/demodulator (PLL building block, frequency translation)
+  - `snr_estimator.rs`: SNR estimation (M2M4, split-spectrum, signal+noise, EVM methods)
+  - `symbol_mapping.rs`: Constellation mapper/demapper (BPSK/QPSK/8PSK/16QAM/64QAM, soft LLR)
+  - `probe.rs`: Measurement probes (Power/PAPR, EVM, constellation scatter, freq offset, rate)
+  - `pll.rs`: Second-order PLL, DC blocker (IIR highpass), sample delay (circular buffer)
+  - `costas_loop.rs`: Costas loop carrier recovery (BPSK/QPSK/8PSK decision-directed)
+  - `constellation_receiver.rs`: Combined AGC + Costas + symbol demapper receiver
+  - `goertzel.rs`: Goertzel single-frequency DFT + MultiGoertzel + DTMF detector
+  - `burst_detector.rs`: Power-based burst detector with hysteresis (SOB/EOB events)
+  - `noise.rs`: Colored noise generator (white/pink/brown/blue/violet) + AWGN helpers
+  - `stream_tags.rs`: Metadata propagation (TagStore, TagValue, range queries, well-known keys)
+  - `filters/cic.rs`: CIC decimator/interpolator for high-ratio sample rate conversion
+  - `filters/adaptive.rs`: Adaptive filters (LMS, NLMS, RLS) for equalization/cancellation
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -160,6 +173,12 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **DSP Blocks Round 10** - Constellation Receiver (`constellation_receiver.rs` - combined AGC + Costas loop + symbol demapper for BPSK/QPSK/8PSK, soft/hard decisions). 9 new tests.
+- **DSP Blocks Round 9** - Three modules: Costas Loop (`costas_loop.rs` - decision-directed carrier recovery for BPSK/QPSK/8PSK), Goertzel Algorithm (`goertzel.rs` - efficient single-frequency DFT, MultiGoertzel, full DTMF detector with all 16 digits), Stream Tags (`stream_tags.rs` - metadata propagation with TagStore, range queries, well-known keys). 34 new tests.
+- **DSP Blocks Round 8** - Four modules: CIC Filter (`filters/cic.rs` - multiplier-free decimator/interpolator for high sample rate conversion, compensation filter design), Adaptive Filters (`filters/adaptive.rs` - LMS/NLMS/RLS for equalization/echo cancellation), Burst Detector (`burst_detector.rs` - power-based SOB/EOB detection with hysteresis and holdoff), Colored Noise (`noise.rs` - white/pink/brown/blue/violet generators with AWGN helpers). 38 new tests.
+- **DSP Blocks Round 7** - PLL (`pll.rs` - second-order PLL with PI loop filter and lock detection), DC Blocker (single-pole IIR highpass implementing Filter trait), Sample Delay (circular buffer implementing Filter trait). 11 new tests.
+- **DSP Blocks Round 6** - Four more r4w-core modules: NCO/VCO (`nco.rs` - phase-continuous oscillator, FM modulator/demodulator with arctangent discriminator), SNR Estimator (`snr_estimator.rs` - M2M4 moment-based, split-spectrum, signal+noise, EVM methods), Symbol Mapper (`symbol_mapping.rs` - BPSK/QPSK/8PSK/16QAM/64QAM with Gray coding, hard/soft LLR demapping), Measurement Probes (`probe.rs` - PowerProbe with PAPR, EvmProbe, ConstellationProbe with IQ imbalance, FreqOffsetProbe, RateProbe). 43 new unit tests.
+- **DSP Blocks Round 5** - Pipeline builder integration: wired Scrambler, OfdmModulator, and DifferentialEncoder to real r4w-core implementations. Added OFDM and DifferentialEncoder block metadata.
 - **DSP Blocks Round 4** - Four more r4w-core modules: Correlator (`correlator.rs` - cross-correlation sync word detector with Barker-7/11/13 codes, dynamic threshold, holdoff, phase estimation), LFSR Scrambler (`scrambler.rs` - additive/multiplicative scrambling for WiFi/DVB-S2/Bluetooth/V.34 protocols), Differential Encoder/Decoder (`differential.rs` - symbol-domain and complex-domain DPSK for DBPSK/DQPSK/D8PSK), Packet Framing (`packet_framing.rs` - formatter/parser with sync word detection, configurable headers, CRC-16/32, AX.25/ISM presets). 41 new unit tests.
 - **DSP Blocks Round 3** - Two more r4w-core modules: OFDM modulator/demodulator (`ofdm.rs` - WiFi-like, DVB-T 2K, simple configs with CP insertion/removal, pilot insertion/extraction), Polyphase Filter Bank channelizer (`pfb_channelizer.rs` - windowed-sinc prototype filter design, stateful polyphase sub-filtering, M-point IFFT). 13 new unit tests.
 - **GNSS Pipeline Blocks** - Added GNSS category (teal) to the visual pipeline builder with two blocks: `GnssScenarioSource` (multi-satellite IQ generation with preset selection, receiver position, sample rate, duration) and `GnssAcquisition` (PCPS-based signal acquisition with configurable Doppler search and detection threshold). GnssOpenSky preset pipeline template connects scenario source to acquisition to IQ output. Full property editors, block metadata with formulas and standards references, and processing logic integrated with r4w-core GNSS engine.
