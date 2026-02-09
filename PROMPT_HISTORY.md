@@ -7163,3 +7163,60 @@ User observed that clicking on QPSK Modulator (In: Symbols, Out: IQ) should chan
 ### Git Operations
 - Commit dae23bf: `[AI:claude] feat(gui): add type-aware test panel for pipeline builder`
 - Pushed to origin/master
+
+---
+
+## Session 28 — GNSS Scenario Plan Verification
+
+**Date**: 2026-02-08
+
+### User Request
+> continue with the gnss scenario plan
+
+### Plan Status
+The GNSS Scenario plan (from `/home/joe/.claude/plans/wondrous-coalescing-bentley.md`) was already fully implemented. Verified all components are complete:
+
+### Verification Summary
+
+| Phase | Status | Details |
+|-------|--------|---------|
+| Phase 1: Coordinate math + Generic scenario engine | Complete | `coordinates.rs`, `r4w-sim/scenario/` modules |
+| Phase 2: GNSS environment models | Complete | `environment/orbit.rs`, `ionosphere.rs`, `troposphere.rs`, `multipath.rs`, `antenna.rs` |
+| Phase 3: GNSS scenario composer | Complete | `scenario.rs`, `scenario_config.rs`, `satellite_emitter.rs` |
+| Phase 4: CLI | Complete | `r4w gnss scenario` with all options |
+| Phase 5: GUI | Complete | `GnssSimulatorView` with sky plot, C/N0 bars, IQ display |
+| Phase 6: Docs | Complete | CLAUDE.md, OVERVIEW.md updated |
+
+### Tests Verified
+
+1. **Coordinate tests**: 6 passing (ECEF/LLA roundtrip, FSPL, range rate)
+2. **Environment tests**: 21 passing (orbit, ionosphere, troposphere, multipath, antenna)
+3. **Scenario tests**: 8 passing (presets, satellite status, reset/regenerate)
+4. **Scenario engine tests**: 6 passing (trajectory, config, engine)
+
+### Actions Taken
+
+1. **Added Integration Test** (`test_acquisition_on_scenario`)
+   - Generate open-sky scenario with 8 GPS L1 C/A satellites
+   - Run PCPS acquisition on composite IQ signal
+   - Verify at least 2 satellites detected
+   - Validates scenario generator produces acquirable signals
+
+### CLI Tested
+```bash
+r4w gnss scenario --preset open-sky --duration 0.001 --output /tmp/test.iq
+```
+Successfully generated 5000 samples (40KB) with 8 satellites visible.
+
+### Git Operations
+- Commit ac0d199: `[AI:claude] test(gnss): add PCPS acquisition integration test (FR-041)`
+- Pushed to origin/master
+
+### Plan Completion
+All 6 phases complete. All verification items from the plan satisfied:
+- Unit tests per file
+- Integration test (PCPS acquisition)
+- Preset smoke tests
+- CLI works
+- GUI renders
+- `cargo test` and `cargo build` pass clean
