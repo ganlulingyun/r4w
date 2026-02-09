@@ -2208,14 +2208,68 @@ impl PipelineWizardView {
         self.selected_blocks.contains(&id)
     }
 
-    /// Check if an input port has a connection
-    fn is_input_connected(&self, block_id: BlockId, port: u32) -> bool {
-        self.pipeline.connections.iter().any(|c| c.to_block == block_id && c.to_port == port)
+    /// Check if an input port has a horizontal connection (from the left side)
+    fn is_input_connected_horizontal(&self, block_id: BlockId, port: u32, canvas_rect: Rect) -> bool {
+        self.pipeline.connections.iter().any(|c| {
+            if c.to_block == block_id && c.to_port == port {
+                // Check if this connection is horizontal
+                if let (Some(from_block), Some(to_block)) = (
+                    self.pipeline.blocks.get(&c.from_block),
+                    self.pipeline.blocks.get(&c.to_block),
+                ) {
+                    return !self.is_vertical_connection(from_block, to_block, canvas_rect);
+                }
+            }
+            false
+        })
     }
 
-    /// Check if an output port has a connection
-    fn is_output_connected(&self, block_id: BlockId, port: u32) -> bool {
-        self.pipeline.connections.iter().any(|c| c.from_block == block_id && c.from_port == port)
+    /// Check if an input port has a vertical connection (from the top side)
+    fn is_input_connected_vertical(&self, block_id: BlockId, port: u32, canvas_rect: Rect) -> bool {
+        self.pipeline.connections.iter().any(|c| {
+            if c.to_block == block_id && c.to_port == port {
+                // Check if this connection is vertical
+                if let (Some(from_block), Some(to_block)) = (
+                    self.pipeline.blocks.get(&c.from_block),
+                    self.pipeline.blocks.get(&c.to_block),
+                ) {
+                    return self.is_vertical_connection(from_block, to_block, canvas_rect);
+                }
+            }
+            false
+        })
+    }
+
+    /// Check if an output port has a horizontal connection (from the right side)
+    fn is_output_connected_horizontal(&self, block_id: BlockId, port: u32, canvas_rect: Rect) -> bool {
+        self.pipeline.connections.iter().any(|c| {
+            if c.from_block == block_id && c.from_port == port {
+                // Check if this connection is horizontal
+                if let (Some(from_block), Some(to_block)) = (
+                    self.pipeline.blocks.get(&c.from_block),
+                    self.pipeline.blocks.get(&c.to_block),
+                ) {
+                    return !self.is_vertical_connection(from_block, to_block, canvas_rect);
+                }
+            }
+            false
+        })
+    }
+
+    /// Check if an output port has a vertical connection (from the bottom side)
+    fn is_output_connected_vertical(&self, block_id: BlockId, port: u32, canvas_rect: Rect) -> bool {
+        self.pipeline.connections.iter().any(|c| {
+            if c.from_block == block_id && c.from_port == port {
+                // Check if this connection is vertical
+                if let (Some(from_block), Some(to_block)) = (
+                    self.pipeline.blocks.get(&c.from_block),
+                    self.pipeline.blocks.get(&c.to_block),
+                ) {
+                    return self.is_vertical_connection(from_block, to_block, canvas_rect);
+                }
+            }
+            false
+        })
     }
 
     /// Select a single block (clearing any previous selection)
@@ -3527,18 +3581,13 @@ impl PipelineWizardView {
             Color32::from_rgb(150, 150, 150),
         );
 
-        // Input ports - draw on both left (horizontal) and top (vertical)
-        // Only show ports that are connected, OR all ports when in connection mode
+        // Input ports - show only connected ports (on the correct side), OR all when in connection mode
         let port_radius = 6.0 * self.zoom;
         let is_connecting = self.connecting_from.is_some();
         let num_inputs = block.block_type.num_inputs();
         for i in 0..num_inputs {
-            let is_connected = self.is_input_connected(block.id, i);
-
-            // Only draw if connected or we're making a connection
-            if !is_connected && !is_connecting {
-                continue;
-            }
+            let is_connected_horiz = self.is_input_connected_horizontal(block.id, i, canvas_rect);
+            let is_connected_vert = self.is_input_connected_vertical(block.id, i, canvas_rect);
 
             let port_color = if is_connecting {
                 Color32::from_rgb(100, 200, 255) // Highlight when connecting
@@ -3547,30 +3596,31 @@ impl PipelineWizardView {
             };
 
             // Left side port (horizontal connections)
-            let port_pos_left = self.block_input_pos(block, i, canvas_rect);
-            painter.circle_stroke(port_pos_left, port_radius + 2.0, Stroke::new(1.0, port_color));
-            painter.circle_filled(port_pos_left, port_radius, port_color);
-            painter.circle_filled(port_pos_left, port_radius * 0.4, Color32::WHITE);
+            // Show if: connected horizontally, OR in connection mode (as potential target)
+            if is_connected_horiz || is_connecting {
+                let port_pos_left = self.block_input_pos(block, i, canvas_rect);
+                painter.circle_stroke(port_pos_left, port_radius + 2.0, Stroke::new(1.0, port_color));
+                painter.circle_filled(port_pos_left, port_radius, port_color);
+                painter.circle_filled(port_pos_left, port_radius * 0.4, Color32::WHITE);
+            }
 
-            // Top side port (vertical connections) - smaller/subtle
-            let spacing = block_rect.width() / (num_inputs + 1) as f32;
-            let port_pos_top = Pos2::new(block_rect.left() + spacing * (i + 1) as f32, block_rect.top());
-            let subtle_color = port_color.gamma_multiply(0.6);
-            painter.circle_stroke(port_pos_top, port_radius + 1.0, Stroke::new(1.0, subtle_color));
-            painter.circle_filled(port_pos_top, port_radius * 0.8, subtle_color);
+            // Top side port (vertical connections)
+            // Show if: connected vertically, OR in connection mode (as potential target)
+            if is_connected_vert || is_connecting {
+                let spacing = block_rect.width() / (num_inputs + 1) as f32;
+                let port_pos_top = Pos2::new(block_rect.left() + spacing * (i + 1) as f32, block_rect.top());
+                let subtle_color = if is_connecting { port_color } else { port_color.gamma_multiply(0.8) };
+                painter.circle_stroke(port_pos_top, port_radius + 1.0, Stroke::new(1.0, subtle_color));
+                painter.circle_filled(port_pos_top, port_radius * 0.9, subtle_color);
+            }
         }
 
-        // Output ports - draw on both right (horizontal) and bottom (vertical)
-        // Only show ports that are connected, OR all ports when in connection mode
+        // Output ports - show connected ports (on correct side), plus right-side for starting connections
         let num_outputs = block.block_type.num_outputs();
         for i in 0..num_outputs {
-            let is_connected = self.is_output_connected(block.id, i);
+            let is_connected_horiz = self.is_output_connected_horizontal(block.id, i, canvas_rect);
+            let is_connected_vert = self.is_output_connected_vertical(block.id, i, canvas_rect);
             let is_connection_source = self.connecting_from == Some((block.id, i));
-
-            // Only draw if connected, is the active source, or we're making a connection
-            if !is_connected && !is_connecting {
-                continue;
-            }
 
             let port_color = if is_connection_source {
                 Color32::from_rgb(255, 200, 100) // Highlight when this is source
@@ -3579,17 +3629,24 @@ impl PipelineWizardView {
             };
 
             // Right side port (horizontal connections)
-            let port_pos_right = self.block_output_pos(block, i, canvas_rect);
-            painter.circle_stroke(port_pos_right, port_radius + 2.0, Stroke::new(1.0, port_color));
-            painter.circle_filled(port_pos_right, port_radius, port_color);
-            painter.circle_filled(port_pos_right, port_radius * 0.4, Color32::WHITE);
+            // Show if: connected horizontally, OR is the active source, OR not connecting (for starting)
+            if is_connected_horiz || is_connection_source || !is_connecting {
+                let port_pos_right = self.block_output_pos(block, i, canvas_rect);
+                painter.circle_stroke(port_pos_right, port_radius + 2.0, Stroke::new(1.0, port_color));
+                painter.circle_filled(port_pos_right, port_radius, port_color);
+                painter.circle_filled(port_pos_right, port_radius * 0.4, Color32::WHITE);
+            }
 
-            // Bottom side port (vertical connections) - smaller/subtle
-            let spacing = block_rect.width() / (num_outputs + 1) as f32;
-            let port_pos_bottom = Pos2::new(block_rect.left() + spacing * (i + 1) as f32, block_rect.bottom());
-            let subtle_color = port_color.gamma_multiply(0.6);
-            painter.circle_stroke(port_pos_bottom, port_radius + 1.0, Stroke::new(1.0, subtle_color));
-            painter.circle_filled(port_pos_bottom, port_radius * 0.8, subtle_color);
+            // Bottom side port (vertical connections)
+            // Show only if: connected vertically, OR is the active source
+            // (Don't show by default - users mostly connect horizontally)
+            if is_connected_vert || is_connection_source {
+                let spacing = block_rect.width() / (num_outputs + 1) as f32;
+                let port_pos_bottom = Pos2::new(block_rect.left() + spacing * (i + 1) as f32, block_rect.bottom());
+                let subtle_color = if is_connection_source { port_color } else { port_color.gamma_multiply(0.8) };
+                painter.circle_stroke(port_pos_bottom, port_radius + 1.0, Stroke::new(1.0, subtle_color));
+                painter.circle_filled(port_pos_bottom, port_radius * 0.9, subtle_color);
+            }
         }
 
         // Disabled overlay
