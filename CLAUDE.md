@@ -133,6 +133,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `tdoa_estimator.rs`: Time Difference of Arrival geolocation with GCC-PHAT cross-correlation, iterative least-squares solver
   - `fm_stereo_decoder.rs`: FM stereo multiplex decoder with 19 kHz pilot PLL, 38 kHz DSB-SC demodulation, de-emphasis filter
   - `phase_noise_model.rs`: Oscillator phase noise synthesis from L(f) PSD masks and Leeson model, configurable noise floor and corner frequencies
+  - `ofdm_sync_schmidl_cox.rs`: Schmidl-Cox OFDM symbol timing and coarse/fine CFO estimation (delayed autocorrelation, timing metric M(d), preamble generator)
+  - `ofdm_carrier_allocator.rs`: OFDM subcarrier mapping (CarrierAllocator TX, CarrierSerializer RX), WiFi 802.11a and LTE presets, guard bands, DC null, pilot insertion
+  - `trellis_metrics.rs`: Branch metric computation for trellis-based decoding (Euclidean, squared Euclidean, Manhattan, Hamming, ViterbiCombined, metrics_to_llr)
+  - `link_budget.rs`: RF link budget calculator (builder pattern, FSPL, cascaded NF via Friis, thermal noise floor, max range estimation)
+  - `fec_generic_api.rs`: Unified FEC framework (GenericEncoder/GenericDecoder traits, streaming FecEncoderBlock/FecDecoderBlock, AsyncFecEncoder/AsyncFecDecoder, FecCodecRegistry, built-in Repetition and ParityCheck codecs)
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -151,7 +156,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 253+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 258+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -259,6 +264,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 54 DSP Blocks** - OFDM Schmidl-Cox Sync (`ofdm_sync_schmidl_cox.rs` - OFDM symbol timing and coarse/fine CFO estimation using delayed autocorrelation P(d) with half-symbol repetition detection, timing metric M(d)=|P(d)|^2/R(d)^2, preamble generator), OFDM Carrier Allocator (`ofdm_carrier_allocator.rs` - subcarrier mapping TX/RX with CarrierAllocator and CarrierSerializer, WiFi 802.11a 48+4 pilot and LTE resource block presets, guard bands, DC null), Trellis Metrics (`trellis_metrics.rs` - branch metric computation for Viterbi/BCJR: Euclidean, squared Euclidean, Manhattan, Hamming hard/soft, ViterbiCombined, metrics_to_llr), Link Budget (`link_budget.rs` - RF link budget calculator with builder pattern, cascaded receiver NF via Friis, FSPL, thermal noise floor, max range), FEC Generic API (`fec_generic_api.rs` - unified FEC framework with GenericEncoder/GenericDecoder traits, streaming FecEncoderBlock/FecDecoderBlock, async PDU mode, FecCodecRegistry runtime selection, built-in Repetition and ParityCheck codecs). ~242+ DSP modules total, ~2670+ unit tests.
 
 - **Batch 53 DSP Blocks** - RAKE Receiver (`rake_receiver.rs` - RAKE multipath combining for DSSS/CDMA with MRC, equal-gain, selection diversity), Modulation Classifier (`modulation_classifier.rs` - automatic modulation classification via higher-order cumulants C20/C40/C42, kurtosis, sigma_af), TDOA Estimator (`tdoa_estimator.rs` - Time Difference of Arrival geolocation with GCC-PHAT cross-correlation and iterative least-squares), FM Stereo Decoder (`fm_stereo_decoder.rs` - FM stereo multiplex decoder with 19 kHz pilot PLL, 38 kHz DSB-SC demod, de-emphasis), Phase Noise Model (`phase_noise_model.rs` - oscillator phase noise synthesis from L(f) PSD masks and Leeson model). ~237+ DSP modules total, ~2620+ unit tests.
 
