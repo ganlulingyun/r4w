@@ -3604,22 +3604,24 @@ impl PipelineWizardView {
                 painter.circle_filled(port_pos_left, port_radius * 0.4, Color32::WHITE);
             }
 
-            // Top side port (vertical connections)
+            // Top side port (vertical connections) - same styling as left port
             // Show if: connected vertically, OR in connection mode (as potential target)
             if is_connected_vert || is_connecting {
                 let spacing = block_rect.width() / (num_inputs + 1) as f32;
                 let port_pos_top = Pos2::new(block_rect.left() + spacing * (i + 1) as f32, block_rect.top());
-                let subtle_color = if is_connecting { port_color } else { port_color.gamma_multiply(0.8) };
-                painter.circle_stroke(port_pos_top, port_radius + 1.0, Stroke::new(1.0, subtle_color));
-                painter.circle_filled(port_pos_top, port_radius * 0.9, subtle_color);
+                painter.circle_stroke(port_pos_top, port_radius + 2.0, Stroke::new(1.0, port_color));
+                painter.circle_filled(port_pos_top, port_radius, port_color);
+                painter.circle_filled(port_pos_top, port_radius * 0.4, Color32::WHITE);
             }
         }
 
-        // Output ports - show connected ports (on correct side), plus right-side for starting connections
+        // Output ports - show only connected ports on the correct side
+        // If no connections exist, show right port (default for starting new connections)
         let num_outputs = block.block_type.num_outputs();
         for i in 0..num_outputs {
             let is_connected_horiz = self.is_output_connected_horizontal(block.id, i, canvas_rect);
             let is_connected_vert = self.is_output_connected_vertical(block.id, i, canvas_rect);
+            let has_any_connection = is_connected_horiz || is_connected_vert;
             let is_connection_source = self.connecting_from == Some((block.id, i));
 
             let port_color = if is_connection_source {
@@ -3629,23 +3631,24 @@ impl PipelineWizardView {
             };
 
             // Right side port (horizontal connections)
-            // Show if: connected horizontally, OR is the active source, OR not connecting (for starting)
-            if is_connected_horiz || is_connection_source || !is_connecting {
+            // Show if: connected horizontally, OR is source, OR (not connecting AND no connections exist)
+            let show_right = is_connected_horiz || is_connection_source || (!is_connecting && !has_any_connection);
+            if show_right {
                 let port_pos_right = self.block_output_pos(block, i, canvas_rect);
                 painter.circle_stroke(port_pos_right, port_radius + 2.0, Stroke::new(1.0, port_color));
                 painter.circle_filled(port_pos_right, port_radius, port_color);
                 painter.circle_filled(port_pos_right, port_radius * 0.4, Color32::WHITE);
             }
 
-            // Bottom side port (vertical connections)
-            // Show only if: connected vertically, OR is the active source
-            // (Don't show by default - users mostly connect horizontally)
-            if is_connected_vert || is_connection_source {
+            // Bottom side port (vertical connections) - same styling as right port
+            // Show if: connected vertically, OR is source
+            let show_bottom = is_connected_vert || is_connection_source;
+            if show_bottom {
                 let spacing = block_rect.width() / (num_outputs + 1) as f32;
                 let port_pos_bottom = Pos2::new(block_rect.left() + spacing * (i + 1) as f32, block_rect.bottom());
-                let subtle_color = if is_connection_source { port_color } else { port_color.gamma_multiply(0.8) };
-                painter.circle_stroke(port_pos_bottom, port_radius + 1.0, Stroke::new(1.0, subtle_color));
-                painter.circle_filled(port_pos_bottom, port_radius * 0.9, subtle_color);
+                painter.circle_stroke(port_pos_bottom, port_radius + 2.0, Stroke::new(1.0, port_color));
+                painter.circle_filled(port_pos_bottom, port_radius, port_color);
+                painter.circle_filled(port_pos_bottom, port_radius * 0.4, Color32::WHITE);
             }
         }
 
