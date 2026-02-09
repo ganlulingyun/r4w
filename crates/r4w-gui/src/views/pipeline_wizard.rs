@@ -732,9 +732,28 @@ impl LayoutMode {
     }
 }
 
-/// Test input pattern for the test panel
+/// Test input source type - determines what kind of data to generate
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum TestInputPattern {
+pub enum TestInputSource {
+    /// Generate pattern based on block's input type
+    #[default]
+    Generated,
+    /// Use output from the previous block in the pipeline
+    PreviousBlock,
+}
+
+impl TestInputSource {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Generated => "Generated",
+            Self::PreviousBlock => "Previous Block",
+        }
+    }
+}
+
+/// Test input pattern for bit-based inputs
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum BitPattern {
     #[default]
     Random,
     AllZeros,
@@ -743,7 +762,7 @@ pub enum TestInputPattern {
     Prbs7,
 }
 
-impl TestInputPattern {
+impl BitPattern {
     pub fn name(&self) -> &'static str {
         match self {
             Self::Random => "Random",
@@ -754,7 +773,7 @@ impl TestInputPattern {
         }
     }
 
-    pub fn all() -> &'static [TestInputPattern] {
+    pub fn all() -> &'static [BitPattern] {
         &[Self::Random, Self::AllZeros, Self::AllOnes, Self::Alternating, Self::Prbs7]
     }
 
@@ -789,6 +808,123 @@ impl TestInputPattern {
     }
 }
 
+/// Test input pattern for symbol-based inputs
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SymbolPattern {
+    #[default]
+    Random,
+    Sequential,
+    AllZero,
+    Alternating,
+}
+
+impl SymbolPattern {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Random => "Random",
+            Self::Sequential => "Sequential",
+            Self::AllZero => "All 0",
+            Self::Alternating => "Alternating",
+        }
+    }
+
+    pub fn all() -> &'static [SymbolPattern] {
+        &[Self::Random, Self::Sequential, Self::AllZero, Self::Alternating]
+    }
+
+    /// Generate test symbols for a given constellation size
+    pub fn generate(&self, num_symbols: usize, constellation_size: usize) -> Vec<u32> {
+        match self {
+            Self::Random => {
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                let mut hasher = DefaultHasher::new();
+                std::time::SystemTime::now().hash(&mut hasher);
+                let mut seed = hasher.finish();
+                (0..num_symbols).map(|_| {
+                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    (seed % constellation_size as u64) as u32
+                }).collect()
+            }
+            Self::Sequential => (0..num_symbols).map(|i| (i % constellation_size) as u32).collect(),
+            Self::AllZero => vec![0; num_symbols],
+            Self::Alternating => (0..num_symbols).map(|i| if i % 2 == 0 { 0 } else { (constellation_size - 1) as u32 }).collect(),
+        }
+    }
+}
+
+/// Test input pattern for IQ-based inputs
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum IqPattern {
+    #[default]
+    Noise,
+    Tone,
+    Chirp,
+    Impulse,
+}
+
+impl IqPattern {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Noise => "Noise",
+            Self::Tone => "Tone",
+            Self::Chirp => "Chirp",
+            Self::Impulse => "Impulse",
+        }
+    }
+
+    pub fn all() -> &'static [IqPattern] {
+        &[Self::Noise, Self::Tone, Self::Chirp, Self::Impulse]
+    }
+
+    /// Generate test IQ samples
+    pub fn generate(&self, num_samples: usize) -> Vec<(f32, f32)> {
+        match self {
+            Self::Noise => {
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                let mut hasher = DefaultHasher::new();
+                std::time::SystemTime::now().hash(&mut hasher);
+                let mut seed = hasher.finish();
+                (0..num_samples).map(|_| {
+                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    let i = ((seed as f64 / u64::MAX as f64) * 2.0 - 1.0) as f32;
+                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    let q = ((seed as f64 / u64::MAX as f64) * 2.0 - 1.0) as f32;
+                    (i * 0.5, q * 0.5)
+                }).collect()
+            }
+            Self::Tone => {
+                let freq = 0.1; // Normalized frequency
+                (0..num_samples).map(|i| {
+                    let phase = 2.0 * std::f32::consts::PI * freq * i as f32;
+                    (phase.cos(), phase.sin())
+                }).collect()
+            }
+            Self::Chirp => {
+                let f0 = 0.01;
+                let f1 = 0.4;
+                (0..num_samples).map(|i| {
+                    let t = i as f32 / num_samples as f32;
+                    let freq = f0 + (f1 - f0) * t;
+                    let phase = 2.0 * std::f32::consts::PI * freq * i as f32;
+                    (phase.cos(), phase.sin())
+                }).collect()
+            }
+            Self::Impulse => {
+                let mut samples = vec![(0.0f32, 0.0f32); num_samples];
+                if !samples.is_empty() {
+                    samples[0] = (1.0, 0.0);
+                }
+                samples
+            }
+        }
+    }
+}
+
+// Keep old type alias for compatibility
+pub type TestInputPattern = BitPattern;
+
 /// View tab in the test panel
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum TestViewTab {
@@ -817,10 +953,18 @@ impl TestViewTab {
 /// Results from running test through blocks
 #[derive(Clone, Debug, Default)]
 pub struct TestResults {
-    pub input_bits: Vec<bool>,
-    pub output_samples: Vec<(f32, f32)>,  // I/Q samples
-    pub output_bits: Vec<bool>,           // If block outputs bits
+    pub block_id: BlockId,
     pub block_name: String,
+    pub input_type: Option<PortType>,
+    pub output_type: Option<PortType>,
+    // Input data (one of these will be populated based on input_type)
+    pub input_bits: Vec<bool>,
+    pub input_symbols: Vec<u32>,
+    pub input_samples: Vec<(f32, f32)>,
+    // Output data (one of these will be populated based on output_type)
+    pub output_bits: Vec<bool>,
+    pub output_symbols: Vec<u32>,
+    pub output_samples: Vec<(f32, f32)>,
     pub error_message: Option<String>,
 }
 
@@ -2446,10 +2590,14 @@ pub struct PipelineWizardView {
     pub drag_initial_positions: HashMap<BlockId, Pos2>,  // Initial canvas positions of dragged blocks
     // Test panel state
     pub show_test_panel: bool,
-    pub test_input_pattern: TestInputPattern,
-    pub test_num_bits: usize,
+    pub test_input_source: TestInputSource,
+    pub test_bit_pattern: BitPattern,
+    pub test_symbol_pattern: SymbolPattern,
+    pub test_iq_pattern: IqPattern,
+    pub test_num_items: usize,  // Number of bits, symbols, or samples
     pub test_view_tab: TestViewTab,
     pub test_results: Option<TestResults>,
+    pub block_output_cache: HashMap<BlockId, TestResults>,  // Cache of block outputs for chaining
 }
 
 impl Default for PipelineWizardView {
@@ -2487,10 +2635,14 @@ impl Default for PipelineWizardView {
             drag_start_pointer: None,
             drag_initial_positions: HashMap::new(),
             show_test_panel: false,
-            test_input_pattern: TestInputPattern::default(),
-            test_num_bits: 32,
+            test_input_source: TestInputSource::default(),
+            test_bit_pattern: BitPattern::default(),
+            test_symbol_pattern: SymbolPattern::default(),
+            test_iq_pattern: IqPattern::default(),
+            test_num_items: 32,
             test_view_tab: TestViewTab::default(),
             test_results: None,
+            block_output_cache: HashMap::new(),
         }
     }
 }
@@ -4341,26 +4493,96 @@ impl PipelineWizardView {
     }
 
     fn render_test_panel(&mut self, ui: &mut Ui) {
+        // Get selected block's input type for adaptive UI
+        let (selected_block_id, input_type, block_name) = if let Some(id) = self.single_selected_block() {
+            if let Some(block) = self.pipeline.blocks.get(&id) {
+                let input_types = block.block_type.input_port_types();
+                let input_type = input_types.first().copied().unwrap_or(PortType::Bits);
+                (Some(id), input_type, Some(block.name.clone()))
+            } else {
+                (None, PortType::Bits, None)
+            }
+        } else {
+            (None, PortType::Bits, None)
+        };
+
+        // Check if previous block has cached output
+        let prev_block_available = if let Some(id) = selected_block_id {
+            self.find_previous_block(id)
+                .map(|prev_id| self.block_output_cache.contains_key(&prev_id))
+                .unwrap_or(false)
+        } else {
+            false
+        };
+
         ui.horizontal(|ui| {
             ui.heading("Test Panel");
             ui.separator();
 
-            // Input pattern selector
-            ui.label("Input:");
-            egui::ComboBox::from_id_salt("test_pattern")
-                .selected_text(self.test_input_pattern.name())
-                .width(80.0)
+            // Input source selector
+            ui.label("Source:");
+            egui::ComboBox::from_id_salt("test_source")
+                .selected_text(self.test_input_source.name())
+                .width(100.0)
                 .show_ui(ui, |ui| {
-                    for pattern in TestInputPattern::all() {
-                        ui.selectable_value(&mut self.test_input_pattern, *pattern, pattern.name());
+                    ui.selectable_value(&mut self.test_input_source, TestInputSource::Generated, "Generated");
+                    let prev_label = if prev_block_available { "Previous Block ✓" } else { "Previous Block" };
+                    if ui.add_enabled(prev_block_available, egui::SelectableLabel::new(
+                        self.test_input_source == TestInputSource::PreviousBlock, prev_label
+                    )).clicked() {
+                        self.test_input_source = TestInputSource::PreviousBlock;
                     }
                 });
 
-            // Number of bits
-            ui.label("Bits:");
-            ui.add(egui::DragValue::new(&mut self.test_num_bits)
-                .range(8..=256)
-                .speed(1));
+            // Pattern selector based on input type (only show when using Generated source)
+            if self.test_input_source == TestInputSource::Generated {
+                ui.separator();
+                ui.label("Pattern:");
+
+                match input_type {
+                    PortType::Bits => {
+                        egui::ComboBox::from_id_salt("bit_pattern")
+                            .selected_text(self.test_bit_pattern.name())
+                            .width(80.0)
+                            .show_ui(ui, |ui| {
+                                for pattern in BitPattern::all() {
+                                    ui.selectable_value(&mut self.test_bit_pattern, *pattern, pattern.name());
+                                }
+                            });
+                        ui.label("Bits:");
+                    }
+                    PortType::Symbols => {
+                        egui::ComboBox::from_id_salt("symbol_pattern")
+                            .selected_text(self.test_symbol_pattern.name())
+                            .width(80.0)
+                            .show_ui(ui, |ui| {
+                                for pattern in SymbolPattern::all() {
+                                    ui.selectable_value(&mut self.test_symbol_pattern, *pattern, pattern.name());
+                                }
+                            });
+                        ui.label("Symbols:");
+                    }
+                    PortType::IQ | PortType::Real => {
+                        egui::ComboBox::from_id_salt("iq_pattern")
+                            .selected_text(self.test_iq_pattern.name())
+                            .width(80.0)
+                            .show_ui(ui, |ui| {
+                                for pattern in IqPattern::all() {
+                                    ui.selectable_value(&mut self.test_iq_pattern, *pattern, pattern.name());
+                                }
+                            });
+                        ui.label("Samples:");
+                    }
+                    PortType::Any => {
+                        ui.label("(Any)");
+                        ui.label("Items:");
+                    }
+                }
+
+                ui.add(egui::DragValue::new(&mut self.test_num_items)
+                    .range(8..=256)
+                    .speed(1));
+            }
 
             // Run test button
             if ui.button("▶ Run Test").clicked() {
@@ -4379,17 +4601,16 @@ impl PipelineWizardView {
 
         ui.separator();
 
-        // Show selected block info
-        let selected_block_name = if let Some(id) = self.single_selected_block() {
-            self.pipeline.blocks.get(&id).map(|b| b.name.clone())
+        // Show selected block info with type
+        if let Some(name) = block_name {
+            ui.horizontal(|ui| {
+                ui.label(format!("Testing: {}", name));
+                ui.label(" | ");
+                ui.label("Input:");
+                ui.colored_label(input_type.color(), input_type.name());
+            });
         } else if self.selected_blocks.len() > 1 {
-            Some(format!("{} blocks selected", self.selected_blocks.len()))
-        } else {
-            None
-        };
-
-        if let Some(name) = selected_block_name {
-            ui.label(format!("Testing: {}", name));
+            ui.label(format!("{} blocks selected (select one to test)", self.selected_blocks.len()));
         } else {
             ui.label("Select a block to test");
         }
@@ -4420,6 +4641,13 @@ impl PipelineWizardView {
             });
     }
 
+    /// Find the previous block connected to this block's input
+    fn find_previous_block(&self, block_id: BlockId) -> Option<BlockId> {
+        self.pipeline.connections.iter()
+            .find(|c| c.to_block == block_id)
+            .map(|c| c.from_block)
+    }
+
     fn run_test_panel(&mut self) {
         // Get selected block
         let block_id = match self.single_selected_block() {
@@ -4438,96 +4666,253 @@ impl PipelineWizardView {
             None => return,
         };
 
-        // Generate input bits
-        let input_bits = self.test_input_pattern.generate(self.test_num_bits);
+        // Get input/output types
+        let input_types = block.block_type.input_port_types();
+        let output_types = block.block_type.output_port_types();
+        let input_type = input_types.first().copied().unwrap_or(PortType::Any);
+        let output_type = output_types.first().copied().unwrap_or(PortType::Any);
 
-        // Process through block (simplified - just show input for now)
-        // TODO: Actually instantiate and run DSP blocks
-        let (output_samples, output_bits) = self.process_block(&block, &input_bits);
+        // Generate or retrieve input based on source and type
+        let (input_bits, input_symbols, input_samples) = if self.test_input_source == TestInputSource::PreviousBlock {
+            // Use output from previous block
+            if let Some(prev_id) = self.find_previous_block(block_id) {
+                if let Some(prev_results) = self.block_output_cache.get(&prev_id) {
+                    (prev_results.output_bits.clone(), prev_results.output_symbols.clone(), prev_results.output_samples.clone())
+                } else {
+                    self.test_results = Some(TestResults {
+                        error_message: Some("Previous block has no cached output. Run test on it first.".to_string()),
+                        ..Default::default()
+                    });
+                    return;
+                }
+            } else {
+                self.test_results = Some(TestResults {
+                    error_message: Some("No previous block connected".to_string()),
+                    ..Default::default()
+                });
+                return;
+            }
+        } else {
+            // Generate based on input type
+            match input_type {
+                PortType::Bits => {
+                    (self.test_bit_pattern.generate(self.test_num_items), Vec::new(), Vec::new())
+                }
+                PortType::Symbols => {
+                    // Get constellation size from block if it's a modulator
+                    let constellation_size = match &block.block_type {
+                        BlockType::PskModulator { order } => *order as usize,
+                        BlockType::QamModulator { order } => *order as usize,
+                        _ => 4, // Default to QPSK
+                    };
+                    (Vec::new(), self.test_symbol_pattern.generate(self.test_num_items, constellation_size), Vec::new())
+                }
+                PortType::IQ | PortType::Real => {
+                    (Vec::new(), Vec::new(), self.test_iq_pattern.generate(self.test_num_items))
+                }
+                PortType::Any => {
+                    // Default to bits for Any type
+                    (self.test_bit_pattern.generate(self.test_num_items), Vec::new(), Vec::new())
+                }
+            }
+        };
 
-        self.test_results = Some(TestResults {
-            input_bits,
-            output_samples,
-            output_bits,
+        // Process through block
+        let (output_bits, output_symbols, output_samples) = self.process_block_typed(&block, &input_bits, &input_symbols, &input_samples);
+
+        let results = TestResults {
+            block_id,
             block_name: block.name.clone(),
+            input_type: Some(input_type),
+            output_type: Some(output_type),
+            input_bits,
+            input_symbols,
+            input_samples,
+            output_bits,
+            output_symbols,
+            output_samples,
             error_message: None,
-        });
+        };
+
+        // Cache the results for potential use by next block
+        self.block_output_cache.insert(block_id, results.clone());
+        self.test_results = Some(results);
     }
 
-    fn process_block(&self, block: &PipelineBlock, input_bits: &[bool]) -> (Vec<(f32, f32)>, Vec<bool>) {
-        // Simplified block processing - generate sample output based on block type
+    fn process_block_typed(&self, block: &PipelineBlock, input_bits: &[bool], input_symbols: &[u32], input_samples: &[(f32, f32)]) -> (Vec<bool>, Vec<u32>, Vec<(f32, f32)>) {
         match &block.block_type {
+            // Modulators: Symbols → IQ
             BlockType::PskModulator { order } => {
-                // Simple PSK modulation
-                let bits_per_symbol = (*order as f32).log2() as usize;
-                let mut samples = Vec::new();
-                for chunk in input_bits.chunks(bits_per_symbol.max(1)) {
-                    let symbol_idx: usize = chunk.iter().enumerate()
-                        .map(|(i, &b)| if b { 1 << i } else { 0 })
-                        .sum();
-                    let phase = 2.0 * std::f32::consts::PI * symbol_idx as f32 / *order as f32;
-                    samples.push((phase.cos(), phase.sin()));
-                }
-                (samples, Vec::new())
+                let symbols = if !input_symbols.is_empty() {
+                    input_symbols
+                } else {
+                    // Convert bits to symbols
+                    return self.bits_to_psk(*order, input_bits);
+                };
+                let samples: Vec<(f32, f32)> = symbols.iter().map(|&s| {
+                    let phase = 2.0 * std::f32::consts::PI * s as f32 / *order as f32;
+                    (phase.cos(), phase.sin())
+                }).collect();
+                (Vec::new(), Vec::new(), samples)
             }
             BlockType::QamModulator { order } => {
-                // Simple QAM - square constellation
-                let bits_per_symbol = (*order as f32).log2() as usize;
+                let symbols = if !input_symbols.is_empty() {
+                    input_symbols
+                } else {
+                    return self.bits_to_qam(*order, input_bits);
+                };
                 let side = (*order as f32).sqrt() as usize;
-                let mut samples = Vec::new();
-                for chunk in input_bits.chunks(bits_per_symbol.max(1)) {
-                    let symbol_idx: usize = chunk.iter().enumerate()
-                        .map(|(i, &b)| if b { 1 << i } else { 0 })
-                        .sum();
-                    let i_idx = symbol_idx % side;
-                    let q_idx = symbol_idx / side;
+                let samples: Vec<(f32, f32)> = symbols.iter().map(|&s| {
+                    let i_idx = (s as usize) % side;
+                    let q_idx = (s as usize) / side;
                     let i = (2 * i_idx) as f32 - (side - 1) as f32;
                     let q = (2 * q_idx) as f32 - (side - 1) as f32;
                     let norm = ((side - 1) as f32).max(1.0);
-                    samples.push((i / norm, q / norm));
-                }
-                (samples, Vec::new())
+                    (i / norm, q / norm)
+                }).collect();
+                (Vec::new(), Vec::new(), samples)
             }
+
+            // Mapping: Bits → Symbols
             BlockType::GrayMapper { bits_per_symbol } => {
-                // Gray mapping - just pass through for now
-                (Vec::new(), input_bits.to_vec())
+                let bps = *bits_per_symbol as usize;
+                let symbols: Vec<u32> = input_bits.chunks(bps.max(1)).map(|chunk| {
+                    chunk.iter().enumerate()
+                        .map(|(i, &b)| if b { 1u32 << i } else { 0 })
+                        .sum()
+                }).collect();
+                (Vec::new(), symbols, Vec::new())
             }
+
+            // Coding: Bits → Bits
             BlockType::Scrambler { polynomial: _, seed: _ } => {
-                // Simple scrambling placeholder
                 let output: Vec<bool> = input_bits.iter()
                     .enumerate()
                     .map(|(i, &b)| b ^ (i % 2 == 0))
                     .collect();
-                (Vec::new(), output)
+                (output, Vec::new(), Vec::new())
             }
+
+            // Filters: IQ → IQ (pass through for now)
+            BlockType::FirFilter { .. } | BlockType::IirFilter { .. } |
+            BlockType::PulseShaper { .. } | BlockType::MatchedFilter => {
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
+
+            // Channel: IQ → IQ
+            BlockType::AwgnChannel { snr_db } => {
+                // Add noise
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                let mut hasher = DefaultHasher::new();
+                std::time::SystemTime::now().hash(&mut hasher);
+                let mut seed = hasher.finish();
+                let noise_power = 10.0f32.powf(-snr_db / 10.0) * 0.5;
+                let samples: Vec<(f32, f32)> = input_samples.iter().map(|&(i, q)| {
+                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    let ni = ((seed as f64 / u64::MAX as f64) * 2.0 - 1.0) as f32 * noise_power.sqrt();
+                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    let nq = ((seed as f64 / u64::MAX as f64) * 2.0 - 1.0) as f32 * noise_power.sqrt();
+                    (i + ni, q + nq)
+                }).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Demodulators: IQ → Symbols
+            BlockType::PskDemodulator { order } => {
+                let symbols: Vec<u32> = input_samples.iter().map(|&(i, q)| {
+                    let phase = q.atan2(i);
+                    let norm_phase = if phase < 0.0 { phase + 2.0 * std::f32::consts::PI } else { phase };
+                    let symbol = (norm_phase / (2.0 * std::f32::consts::PI) * *order as f32).round() as u32 % *order;
+                    symbol
+                }).collect();
+                (Vec::new(), symbols, Vec::new())
+            }
+
+            // Default: pass through based on likely output type
             _ => {
-                // For other blocks, just pass through input
-                (Vec::new(), input_bits.to_vec())
+                if !input_samples.is_empty() {
+                    (Vec::new(), Vec::new(), input_samples.to_vec())
+                } else if !input_symbols.is_empty() {
+                    (Vec::new(), input_symbols.to_vec(), Vec::new())
+                } else {
+                    (input_bits.to_vec(), Vec::new(), Vec::new())
+                }
             }
         }
     }
 
+    fn bits_to_psk(&self, order: u32, bits: &[bool]) -> (Vec<bool>, Vec<u32>, Vec<(f32, f32)>) {
+        let bits_per_symbol = (order as f32).log2() as usize;
+        let samples: Vec<(f32, f32)> = bits.chunks(bits_per_symbol.max(1)).map(|chunk| {
+            let symbol_idx: u32 = chunk.iter().enumerate()
+                .map(|(i, &b)| if b { 1u32 << i } else { 0 })
+                .sum();
+            let phase = 2.0 * std::f32::consts::PI * symbol_idx as f32 / order as f32;
+            (phase.cos(), phase.sin())
+        }).collect();
+        (Vec::new(), Vec::new(), samples)
+    }
+
+    fn bits_to_qam(&self, order: u32, bits: &[bool]) -> (Vec<bool>, Vec<u32>, Vec<(f32, f32)>) {
+        let bits_per_symbol = (order as f32).log2() as usize;
+        let side = (order as f32).sqrt() as usize;
+        let samples: Vec<(f32, f32)> = bits.chunks(bits_per_symbol.max(1)).map(|chunk| {
+            let symbol_idx: usize = chunk.iter().enumerate()
+                .map(|(i, &b)| if b { 1 << i } else { 0 })
+                .sum();
+            let i_idx = symbol_idx % side;
+            let q_idx = symbol_idx / side;
+            let i = (2 * i_idx) as f32 - (side - 1) as f32;
+            let q = (2 * q_idx) as f32 - (side - 1) as f32;
+            let norm = ((side - 1) as f32).max(1.0);
+            (i / norm, q / norm)
+        }).collect();
+        (Vec::new(), Vec::new(), samples)
+    }
+
     fn render_bits_view(&self, ui: &mut Ui, results: &TestResults) {
         ui.horizontal(|ui| {
-            // Input bits
+            // Input section
             ui.vertical(|ui| {
-                ui.label(RichText::new("Input Bits").strong());
-                let input_str: String = results.input_bits.iter()
-                    .map(|&b| if b { '1' } else { '0' })
-                    .collect();
-                // Show in groups of 8
-                for (i, chunk) in input_str.as_bytes().chunks(8).enumerate() {
-                    let s = String::from_utf8_lossy(chunk);
-                    ui.monospace(format!("{:3}: {}", i * 8, s));
+                let input_type = results.input_type.unwrap_or(PortType::Bits);
+                let label = format!("Input ({})", input_type.name());
+                ui.label(RichText::new(label).strong().color(input_type.color()));
+
+                if !results.input_bits.is_empty() {
+                    let input_str: String = results.input_bits.iter()
+                        .map(|&b| if b { '1' } else { '0' })
+                        .collect();
+                    for (i, chunk) in input_str.as_bytes().chunks(8).enumerate() {
+                        let s = String::from_utf8_lossy(chunk);
+                        ui.monospace(format!("{:3}: {}", i * 8, s));
+                    }
+                } else if !results.input_symbols.is_empty() {
+                    for (i, &sym) in results.input_symbols.iter().take(32).enumerate() {
+                        ui.monospace(format!("{:3}: {}", i, sym));
+                    }
+                    if results.input_symbols.len() > 32 {
+                        ui.label(format!("... and {} more", results.input_symbols.len() - 32));
+                    }
+                } else if !results.input_samples.is_empty() {
+                    for (i, (re, im)) in results.input_samples.iter().take(16).enumerate() {
+                        ui.monospace(format!("{:3}: ({:+.3}, {:+.3})", i, re, im));
+                    }
+                    if results.input_samples.len() > 16 {
+                        ui.label(format!("... and {} more", results.input_samples.len() - 16));
+                    }
                 }
             });
 
             ui.separator();
 
-            // Output
+            // Output section
             ui.vertical(|ui| {
+                let output_type = results.output_type.unwrap_or(PortType::Bits);
+                let label = format!("Output ({})", output_type.name());
+                ui.label(RichText::new(label).strong().color(output_type.color()));
+
                 if !results.output_bits.is_empty() {
-                    ui.label(RichText::new("Output Bits").strong());
                     let output_str: String = results.output_bits.iter()
                         .map(|&b| if b { '1' } else { '0' })
                         .collect();
@@ -4535,14 +4920,22 @@ impl PipelineWizardView {
                         let s = String::from_utf8_lossy(chunk);
                         ui.monospace(format!("{:3}: {}", i * 8, s));
                     }
+                } else if !results.output_symbols.is_empty() {
+                    for (i, &sym) in results.output_symbols.iter().take(32).enumerate() {
+                        ui.monospace(format!("{:3}: {}", i, sym));
+                    }
+                    if results.output_symbols.len() > 32 {
+                        ui.label(format!("... and {} more", results.output_symbols.len() - 32));
+                    }
                 } else if !results.output_samples.is_empty() {
-                    ui.label(RichText::new("Output Samples (I/Q)").strong());
                     for (i, (re, im)) in results.output_samples.iter().take(16).enumerate() {
                         ui.monospace(format!("{:3}: ({:+.3}, {:+.3})", i, re, im));
                     }
                     if results.output_samples.len() > 16 {
                         ui.label(format!("... and {} more", results.output_samples.len() - 16));
                     }
+                } else {
+                    ui.label("(no output)");
                 }
             });
         });
