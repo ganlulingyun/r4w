@@ -758,7 +758,7 @@ The Pipeline Builder is a visual signal processing pipeline designer for creatin
 
 ## Features
 
-- **40+ Block Types** in 10 categories:
+- **40+ Block Types** in 11 categories:
   - **Source**: Bit Source, Symbol Source, File Source
   - **Coding**: Scrambler, FEC Encoder, Interleaver, CRC Generator
   - **Mapping**: Gray Mapper, Constellation Mapper, Differential Encoder
@@ -769,13 +769,14 @@ The Pipeline Builder is a visual signal processing pipeline designer for creatin
   - **Impairments**: AWGN Channel, Fading Channel, Frequency Offset, IQ Imbalance
   - **Recovery**: AGC, Timing Recovery, Carrier Recovery, Equalizer
   - **Output**: IQ Output, Bit Output, File Output, Split, Merge, I/Q Split/Merge
+  - **GNSS**: Scenario Source (multi-satellite IQ generation with presets), Acquisition (PCPS signal detection)
 
 - **Visual Canvas**: Grid background, zoom (0.5x-2x), pan, snap-to-grid
 - **Interactive Connections**: Click output port → click input port to connect
 - **Connection Styles**: Bezier (curved), Straight, Orthogonal (right-angle), Angled (45°)
 - **Connection Arrows**: Optional arrowheads show signal flow direction
 - **Multi-Selection**: Rectangle or lasso selection, Shift+click to add/remove, Ctrl+A for all
-- **12 Preset Templates**: BPSK/QPSK/16-QAM/LoRa/OFDM/FSK/DSSS/DMR transmitters, complete TX-Channel-RX systems, Parallel I/Q demo
+- **13 Preset Templates**: BPSK/QPSK/16-QAM/LoRa/OFDM/FSK/DSSS/DMR transmitters, complete TX-Channel-RX systems, Parallel I/Q demo, GNSS Open Sky
 - **Layout Modes**: Flow (topological), Fit to View, Compact, Grid
 - **Auto-Layout**: Topological sorting arranges blocks in signal flow order (left-to-right)
 - **Pipeline Validation**: Proactive cycle prevention, detects unconnected inputs/outputs, disabled blocks

@@ -36,6 +36,7 @@ pub enum PipelinePreset {
     QpskTxRx,
     OfdmTxRx,
     ParallelIqDemo,
+    GnssOpenSky,
 }
 
 impl PipelinePreset {
@@ -53,6 +54,7 @@ impl PipelinePreset {
             Self::QpskTxRx => "QPSK TX → Channel → RX",
             Self::OfdmTxRx => "OFDM TX → Channel → RX",
             Self::ParallelIqDemo => "Parallel I/Q Demo",
+            Self::GnssOpenSky => "GNSS Open Sky",
         }
     }
 
@@ -70,6 +72,7 @@ impl PipelinePreset {
             Self::QpskTxRx => "Complete QPSK system with channel and recovery",
             Self::OfdmTxRx => "Complete OFDM system with fading channel",
             Self::ParallelIqDemo => "Demonstrates I/Q split and merge",
+            Self::GnssOpenSky => "GPS L1 C/A scenario source with PCPS acquisition",
         }
     }
 
@@ -87,6 +90,7 @@ impl PipelinePreset {
             Self::QpskTxRx,
             Self::OfdmTxRx,
             Self::ParallelIqDemo,
+            Self::GnssOpenSky,
         ]
     }
 }
@@ -112,6 +116,7 @@ pub enum BlockCategory {
     Impairments,
     Recovery,
     Output,
+    Gnss,
 }
 
 impl BlockCategory {
@@ -127,6 +132,7 @@ impl BlockCategory {
             Self::Impairments => "Impairments",
             Self::Recovery => "Recovery",
             Self::Output => "Output",
+            Self::Gnss => "GNSS",
         }
     }
 
@@ -142,6 +148,7 @@ impl BlockCategory {
             Self::Impairments => Color32::from_rgb(150, 100, 150), // Magenta
             Self::Recovery => Color32::from_rgb(150, 200, 150),    // Light green
             Self::Output => Color32::from_rgb(180, 180, 180),      // Gray
+            Self::Gnss => Color32::from_rgb(0, 180, 160),          // Teal
         }
     }
 
@@ -157,6 +164,7 @@ impl BlockCategory {
             Self::Impairments,
             Self::Recovery,
             Self::Output,
+            Self::Gnss,
         ]
     }
 }
@@ -234,6 +242,25 @@ pub enum BlockType {
     Merge { num_inputs: u32 },
     IqSplit,
     IqMerge,
+
+    // GNSS blocks
+    GnssScenarioSource {
+        preset: String,
+        sample_rate_hz: f64,
+        duration_s: f64,
+        lat_deg: f64,
+        lon_deg: f64,
+        alt_m: f64,
+        noise_figure_db: f64,
+        elevation_mask_deg: f64,
+    },
+    GnssAcquisition {
+        signal: String,
+        prn: u8,
+        doppler_max_hz: f64,
+        doppler_step_hz: f64,
+        threshold: f64,
+    },
 }
 
 impl BlockType {
@@ -286,6 +313,8 @@ impl BlockType {
             Self::Merge { .. } => "Merge",
             Self::IqSplit => "I/Q Split",
             Self::IqMerge => "I/Q Merge",
+            Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
+            Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
     }
 
@@ -303,12 +332,14 @@ impl BlockType {
             Self::PskDemodulator { .. } | Self::QamDemodulator { .. } | Self::FskDemodulator { .. } |
             Self::Agc { .. } | Self::TimingRecovery { .. } | Self::CarrierRecovery { .. } | Self::Equalizer { .. } => BlockCategory::Recovery,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
+            Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
     }
 
     pub fn num_inputs(&self) -> u32 {
         match self {
-            Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } => 0,
+            Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } |
+            Self::GnssScenarioSource { .. } => 0,
             Self::Merge { num_inputs } => *num_inputs,
             Self::IqMerge => 2,
             _ => 1,
@@ -328,7 +359,8 @@ impl BlockType {
     pub fn input_port_types(&self) -> Vec<PortType> {
         match self {
             // Source blocks have no inputs
-            Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } => vec![],
+            Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } |
+            Self::GnssScenarioSource { .. } => vec![],
 
             // Coding blocks: bits in, bits out
             Self::Scrambler { .. } | Self::FecEncoder { .. } |
@@ -372,6 +404,9 @@ impl BlockType {
             Self::BitOutput => vec![PortType::Bits],
             Self::FileOutput { .. } => vec![PortType::IQ],
 
+            // GNSS blocks
+            Self::GnssAcquisition { .. } => vec![PortType::IQ],
+
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
             Self::Merge { num_inputs } => vec![PortType::Any; *num_inputs as usize],
@@ -387,6 +422,7 @@ impl BlockType {
             Self::BitSource { .. } => vec![PortType::Bits],
             Self::SymbolSource { .. } => vec![PortType::Symbols],
             Self::FileSource { .. } => vec![PortType::IQ],
+            Self::GnssScenarioSource { .. } => vec![PortType::IQ],
 
             // Coding blocks: bits in, bits out
             Self::Scrambler { .. } | Self::FecEncoder { .. } |
@@ -424,6 +460,9 @@ impl BlockType {
             // Recovery blocks: IQ in, IQ out
             Self::Agc { .. } | Self::TimingRecovery { .. } |
             Self::CarrierRecovery { .. } | Self::Equalizer { .. } => vec![PortType::IQ],
+
+            // GNSS blocks
+            Self::GnssAcquisition { .. } => vec![PortType::Real],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -1723,6 +1762,14 @@ pipeline:
             BlockType::PskDemodulator { order } => format!("      order: {}\n", order),
             BlockType::QamDemodulator { order } => format!("      order: {}\n", order),
             BlockType::FskDemodulator { order } => format!("      order: {}\n", order),
+            BlockType::GnssScenarioSource { preset, sample_rate_hz, duration_s, lat_deg, lon_deg, alt_m, noise_figure_db, elevation_mask_deg } => {
+                format!("      preset: \"{}\"\n      sample_rate_hz: {}\n      duration_s: {}\n      lat_deg: {}\n      lon_deg: {}\n      alt_m: {}\n      noise_figure_db: {}\n      elevation_mask_deg: {}\n",
+                    preset, sample_rate_hz, duration_s, lat_deg, lon_deg, alt_m, noise_figure_db, elevation_mask_deg)
+            }
+            BlockType::GnssAcquisition { signal, prn, doppler_max_hz, doppler_step_hz, threshold } => {
+                format!("      signal: \"{}\"\n      prn: {}\n      doppler_max_hz: {}\n      doppler_step_hz: {}\n      threshold: {}\n",
+                    signal, prn, doppler_max_hz, doppler_step_hz, threshold)
+            }
             _ => String::new(),
         }
     }
@@ -1978,6 +2025,29 @@ pipeline:
                 pipeline.connect(fir_i, 0, merge, 0);  // I input
                 pipeline.connect(fir_q, 0, merge, 1);  // Q input
                 pipeline.connect(merge, 0, out, 0);
+            }
+            PipelinePreset::GnssOpenSky => {
+                let src = pipeline.add_block(BlockType::GnssScenarioSource {
+                    preset: "OpenSky".into(),
+                    sample_rate_hz: 5_000_000.0,
+                    duration_s: 0.001,
+                    lat_deg: 41.08,
+                    lon_deg: -85.14,
+                    alt_m: 240.0,
+                    noise_figure_db: 2.0,
+                    elevation_mask_deg: 5.0,
+                }, Pos2::new(50.0, 150.0));
+                let acq = pipeline.add_block(BlockType::GnssAcquisition {
+                    signal: "GPS-L1CA".into(),
+                    prn: 5,
+                    doppler_max_hz: 5000.0,
+                    doppler_step_hz: 500.0,
+                    threshold: 2.5,
+                }, Pos2::new(300.0, 150.0));
+                let out = pipeline.add_block(BlockType::IqOutput, Pos2::new(550.0, 150.0));
+
+                pipeline.connect(src, 0, acq, 0);
+                pipeline.connect(acq, 0, out, 0);
             }
         }
 
@@ -2549,6 +2619,25 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::Merge { num_inputs: 2 },
             BlockType::IqSplit,
             BlockType::IqMerge,
+        ]),
+        (BlockCategory::Gnss, vec![
+            BlockType::GnssScenarioSource {
+                preset: "OpenSky".into(),
+                sample_rate_hz: 5_000_000.0,
+                duration_s: 0.001,
+                lat_deg: 41.08,
+                lon_deg: -85.14,
+                alt_m: 240.0,
+                noise_figure_db: 2.0,
+                elevation_mask_deg: 5.0,
+            },
+            BlockType::GnssAcquisition {
+                signal: "GPS-L1CA".into(),
+                prn: 1,
+                doppler_max_hz: 5000.0,
+                doppler_step_hz: 500.0,
+                threshold: 2.5,
+            },
         ]),
     ]
 }
@@ -4829,6 +4918,87 @@ impl PipelineWizardView {
                 (Vec::new(), symbols, Vec::new())
             }
 
+            // GNSS Scenario Source: generate IQ samples from scenario
+            BlockType::GnssScenarioSource { preset, sample_rate_hz, duration_s, lat_deg, lon_deg, alt_m, noise_figure_db, elevation_mask_deg } => {
+                use r4w_core::waveform::gnss::{GnssScenario, GnssScenarioPreset, GnssScenarioConfig};
+
+                // Parse preset string to enum
+                let scenario_preset = match preset.as_str() {
+                    "UrbanCanyon" => GnssScenarioPreset::UrbanCanyon,
+                    "Driving" => GnssScenarioPreset::Driving,
+                    "Walking" => GnssScenarioPreset::Walking,
+                    "HighDynamics" => GnssScenarioPreset::HighDynamics,
+                    "MultiConstellation" => GnssScenarioPreset::MultiConstellation,
+                    _ => GnssScenarioPreset::OpenSky,
+                };
+
+                let mut config = scenario_preset.to_config();
+                config.output.sample_rate = *sample_rate_hz;
+                // Cap duration for test panel responsiveness
+                config.output.duration_s = duration_s.min(0.01);
+                config.receiver.position = r4w_core::coordinates::LlaPosition {
+                    lat_deg: *lat_deg, lon_deg: *lon_deg, alt_m: *alt_m,
+                };
+                config.receiver.noise_figure_db = *noise_figure_db;
+                config.receiver.elevation_mask_deg = *elevation_mask_deg;
+                config.receiver.bandwidth_hz = *sample_rate_hz;
+
+                // Rediscover satellites for the configured position
+                r4w_core::waveform::gnss::discover_satellites_for_config(&mut config);
+
+                let mut scenario = GnssScenario::new(config);
+                let block_size = (sample_rate_hz * duration_s.min(0.01)) as usize;
+                let iq_samples = scenario.generate_block(block_size.max(1));
+                let samples: Vec<(f32, f32)> = iq_samples.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // GNSS Acquisition: run PCPS on input IQ
+            BlockType::GnssAcquisition { signal, prn, doppler_max_hz, doppler_step_hz, threshold } => {
+                use r4w_core::waveform::gnss::PcpsAcquisition;
+                use num_complex::Complex64;
+
+                // Determine code length and sample rate from signal type
+                let (code_length, sample_rate) = match signal.as_str() {
+                    "GPS-L5" => (10230, 10_230_000.0),
+                    "GLONASS-L1OF" => (511, 511_000.0),
+                    _ => (1023, 1_023_000.0), // GPS-L1CA, Galileo-E1
+                };
+
+                // Convert input to Complex64
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+
+                if input.is_empty() {
+                    return (Vec::new(), Vec::new(), Vec::new());
+                }
+
+                // Create acquisition engine
+                let acq = PcpsAcquisition::new(code_length, sample_rate)
+                    .with_doppler_range(*doppler_max_hz, *doppler_step_hz)
+                    .with_threshold(*threshold);
+
+                // Generate local replica code
+                let code: Vec<i8> = {
+                    let mut gen = r4w_core::waveform::gnss::GpsCaCodeGenerator::new(*prn);
+                    gen.generate_code()
+                };
+
+                let result = acq.acquire(&input, &code, *prn);
+
+                // Output acquisition result as a few real samples encoding the result
+                let output_samples: Vec<(f32, f32)> = vec![
+                    (if result.detected { 1.0 } else { 0.0 }, 0.0),  // detected flag
+                    (result.code_phase as f32, 0.0),                   // code phase
+                    (result.doppler_hz as f32, 0.0),                   // doppler estimate
+                    (result.peak_metric as f32, 0.0),                  // peak metric
+                ];
+                (Vec::new(), Vec::new(), output_samples)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -5956,6 +6126,109 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::Merge { num_inputs: new_inputs };
+                }
+            }
+            BlockType::GnssScenarioSource { preset, sample_rate_hz, duration_s, lat_deg, lon_deg, alt_m, noise_figure_db, elevation_mask_deg } => {
+                let mut new_preset = preset;
+                let mut new_sr = sample_rate_hz;
+                let mut new_dur = duration_s;
+                let mut new_lat = lat_deg;
+                let mut new_lon = lon_deg;
+                let mut new_alt = alt_m;
+                let mut new_nf = noise_figure_db;
+                let mut new_mask = elevation_mask_deg;
+
+                ui.horizontal(|ui| {
+                    ui.label("Preset:");
+                    egui::ComboBox::from_id_salt("gnss_preset")
+                        .selected_text(&new_preset)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_preset, "OpenSky".to_string(), "Open Sky");
+                            ui.selectable_value(&mut new_preset, "UrbanCanyon".to_string(), "Urban Canyon");
+                            ui.selectable_value(&mut new_preset, "Driving".to_string(), "Driving");
+                            ui.selectable_value(&mut new_preset, "Walking".to_string(), "Walking");
+                            ui.selectable_value(&mut new_preset, "HighDynamics".to_string(), "High Dynamics");
+                            ui.selectable_value(&mut new_preset, "MultiConstellation".to_string(), "Multi-Constellation");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate:");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(100000.0).range(1_000_000.0..=20_000_000.0).suffix(" Hz"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Duration:");
+                    ui.add(egui::DragValue::new(&mut new_dur).speed(0.001).range(0.0001..=6.0).suffix(" s"));
+                });
+                ui.add_space(5.0);
+                ui.label(RichText::new("Receiver Position").strong());
+                ui.horizontal(|ui| {
+                    ui.label("Lat:");
+                    ui.add(egui::DragValue::new(&mut new_lat).speed(0.01).range(-90.0..=90.0).suffix("°"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Lon:");
+                    ui.add(egui::DragValue::new(&mut new_lon).speed(0.01).range(-180.0..=180.0).suffix("°"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Alt:");
+                    ui.add(egui::DragValue::new(&mut new_alt).speed(1.0).range(0.0..=50000.0).suffix(" m"));
+                });
+                ui.add_space(5.0);
+                ui.horizontal(|ui| {
+                    ui.label("Noise Figure:");
+                    ui.add(egui::DragValue::new(&mut new_nf).speed(0.1).range(0.0..=20.0).suffix(" dB"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Elev Mask:");
+                    ui.add(egui::DragValue::new(&mut new_mask).speed(0.5).range(0.0..=45.0).suffix("°"));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::GnssScenarioSource {
+                        preset: new_preset, sample_rate_hz: new_sr, duration_s: new_dur,
+                        lat_deg: new_lat, lon_deg: new_lon, alt_m: new_alt,
+                        noise_figure_db: new_nf, elevation_mask_deg: new_mask,
+                    };
+                }
+            }
+            BlockType::GnssAcquisition { signal, prn, doppler_max_hz, doppler_step_hz, threshold } => {
+                let mut new_signal = signal;
+                let mut new_prn = prn;
+                let mut new_dmax = doppler_max_hz;
+                let mut new_dstep = doppler_step_hz;
+                let mut new_thr = threshold;
+
+                ui.horizontal(|ui| {
+                    ui.label("Signal:");
+                    egui::ComboBox::from_id_salt("gnss_signal")
+                        .selected_text(&new_signal)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_signal, "GPS-L1CA".to_string(), "GPS L1 C/A");
+                            ui.selectable_value(&mut new_signal, "GPS-L5".to_string(), "GPS L5");
+                            ui.selectable_value(&mut new_signal, "Galileo-E1".to_string(), "Galileo E1");
+                            ui.selectable_value(&mut new_signal, "GLONASS-L1OF".to_string(), "GLONASS L1OF");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("PRN:");
+                    ui.add(egui::DragValue::new(&mut new_prn).range(1..=50));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Doppler Max:");
+                    ui.add(egui::DragValue::new(&mut new_dmax).speed(100.0).range(1000.0..=15000.0).suffix(" Hz"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Doppler Step:");
+                    ui.add(egui::DragValue::new(&mut new_dstep).speed(50.0).range(100.0..=2000.0).suffix(" Hz"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::DragValue::new(&mut new_thr).speed(0.1).range(1.0..=10.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::GnssAcquisition {
+                        signal: new_signal, prn: new_prn,
+                        doppler_max_hz: new_dmax, doppler_step_hz: new_dstep, threshold: new_thr,
+                    };
                 }
             }
             BlockType::DifferentialEncoder | BlockType::MatchedFilter |

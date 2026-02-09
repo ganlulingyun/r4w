@@ -1010,6 +1010,150 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["bits_per_symbol"],
         });
 
+        // ===== GNSS BLOCKS =====
+
+        m.insert("GnssScenarioSource", BlockMetadata {
+            block_type: "GnssScenarioSource",
+            display_name: "GNSS Scenario Source",
+            category: "GNSS",
+            description: "Multi-satellite GNSS IQ scenario generator. Produces composite baseband \
+                IQ samples from multiple GNSS satellites with realistic channel effects including \
+                Keplerian orbital geometry, ionospheric/tropospheric delays, multipath, antenna \
+                patterns, free-space path loss, and Doppler shifts. Supports GPS L1 C/A, GPS L5, \
+                Galileo E1, and GLONASS L1OF signals.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/waveform/gnss/scenario.rs",
+                line: 37,
+                symbol: "GnssScenario",
+                description: "GNSS scenario IQ generator",
+            }),
+            related_code: &[
+                CodeLocation {
+                    crate_name: "r4w-core",
+                    file_path: "src/waveform/gnss/scenario_config.rs",
+                    line: 430,
+                    symbol: "GnssScenarioConfig",
+                    description: "Scenario configuration struct",
+                },
+                CodeLocation {
+                    crate_name: "r4w-core",
+                    file_path: "src/waveform/gnss/environment/mod.rs",
+                    line: 1,
+                    symbol: "environment",
+                    description: "Ionosphere, troposphere, multipath models",
+                },
+            ],
+            formulas: &[
+                BlockFormula {
+                    name: "Composite IQ Signal",
+                    plaintext: "y[n] = sum_k( A_k * PRN_k(n) * exp(j*2*pi*(f_IF + f_doppler_k)*n/fs) )",
+                    latex: Some(r"y[n] = \sum_k A_k \cdot \text{PRN}_k(n) \cdot e^{j2\pi(f_{IF} + f_{d,k})n/f_s}"),
+                    variables: &[
+                        ("A_k", "Signal amplitude for satellite k (from FSPL, antenna gain)"),
+                        ("PRN_k(n)", "PRN code chips for satellite k"),
+                        ("f_IF", "Intermediate frequency (0 for baseband)"),
+                        ("f_doppler_k", "Doppler shift for satellite k"),
+                        ("f_s", "Sample rate in Hz"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_gnss_scenario_opensky",
+                    module: "r4w_core::waveform::gnss::scenario::tests",
+                    description: "Verify open sky scenario generates valid IQ",
+                    expected_runtime_ms: 500,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(n * k) where k = number of satellites",
+                memory: "O(n) for output buffer",
+                simd_optimized: false,
+                gpu_accelerable: true,
+            }),
+            standards: &[
+                StandardReference {
+                    name: "IS-GPS-200",
+                    section: Some("GPS L1 C/A signal specification"),
+                    url: Some("https://www.gps.gov/technical/icwg/IS-GPS-200N.pdf"),
+                },
+                StandardReference {
+                    name: "Galileo OS SIS ICD v2.1",
+                    section: Some("Galileo E1 signal specification"),
+                    url: Some("https://www.gsc-europa.eu/sites/default/files/sites/all/files/Galileo_OS_SIS_ICD_v2.1.pdf"),
+                },
+            ],
+            related_blocks: &["GnssAcquisition"],
+            input_type: "(none - source block)",
+            output_type: "IQ samples",
+            key_parameters: &["preset", "sample_rate_hz", "duration_s", "lat/lon/alt", "noise_figure_db"],
+        });
+
+        m.insert("GnssAcquisition", BlockMetadata {
+            block_type: "GnssAcquisition",
+            display_name: "GNSS Acquisition",
+            category: "GNSS",
+            description: "Parallel Code Phase Search (PCPS) acquisition engine. Performs FFT-based \
+                circular correlation across a 2D search grid of code phase and Doppler frequency \
+                to detect and estimate the parameters of a GNSS satellite signal. Reports detection \
+                status, code phase, Doppler estimate, and peak metric.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/waveform/gnss/acquisition.rs",
+                line: 38,
+                symbol: "PcpsAcquisition",
+                description: "PCPS acquisition engine",
+            }),
+            related_code: &[
+                CodeLocation {
+                    crate_name: "r4w-core",
+                    file_path: "src/waveform/gnss/types.rs",
+                    line: 1,
+                    symbol: "AcquisitionResult",
+                    description: "Acquisition result struct",
+                },
+            ],
+            formulas: &[
+                BlockFormula {
+                    name: "PCPS Correlation",
+                    plaintext: "R(tau, fd) = |IFFT{ FFT{x * exp(-j*2*pi*fd*t)} * conj(FFT{c(tau)}) }|",
+                    latex: Some(r"R(\tau, f_d) = \left|\text{IFFT}\left\{\text{FFT}\left\{x \cdot e^{-j2\pi f_d t}\right\} \cdot \text{FFT}\{c(\tau)\}^*\right\}\right|"),
+                    variables: &[
+                        ("x", "Input IQ samples"),
+                        ("c(tau)", "Local replica PRN code at delay tau"),
+                        ("f_d", "Doppler frequency hypothesis"),
+                        ("R", "Correlation power (2D surface)"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_pcps_acquisition",
+                    module: "r4w_core::waveform::gnss::acquisition::tests",
+                    description: "Verify PCPS acquisition detects GPS signal",
+                    expected_runtime_ms: 200,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(N_d * N * log N) where N_d = Doppler bins, N = code length",
+                memory: "O(N) for FFT buffers",
+                simd_optimized: false,
+                gpu_accelerable: true,
+            }),
+            standards: &[
+                StandardReference {
+                    name: "Kaplan & Hegarty",
+                    section: Some("Ch. 8 - GNSS Receivers"),
+                    url: None,
+                },
+            ],
+            related_blocks: &["GnssScenarioSource"],
+            input_type: "IQ samples",
+            output_type: "Real (acquisition results)",
+            key_parameters: &["signal", "prn", "doppler_max_hz", "doppler_step_hz", "threshold"],
+        });
+
     m
 }
 

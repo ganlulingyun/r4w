@@ -34,7 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 40+ blocks, TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 40+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -143,6 +143,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **GNSS Pipeline Blocks** - Added GNSS category (teal) to the visual pipeline builder with two blocks: `GnssScenarioSource` (multi-satellite IQ generation with preset selection, receiver position, sample rate, duration) and `GnssAcquisition` (PCPS-based signal acquisition with configurable Doppler search and detection threshold). GnssOpenSky preset pipeline template connects scenario source to acquisition to IQ output. Full property editors, block metadata with formulas and standards references, and processing logic integrated with r4w-core GNSS engine.
 - **Meshtastic Interop Crypto Fix** - Fixed 7 critical compatibility bugs for real-device interoperability (MESH-012 through MESH-015). Nonce now matches firmware CryptoEngine.cpp: `[pkt_id_u64_LE, node_id_u32_LE, zeros]`. PSK used directly as AES key (no SHA-256 derivation). Channel hash uses XOR fold (`xorHash(name)^xorHash(psk)`). Removed MIC for CTR mode. Fixed Position proto field tags (fix_quality=17, fix_type=18, sats_in_view=19). Added missing PortNums (Alert, KeyVerification, etc.). Added Data.bitfield, User.public_key. CLI features: `crypto`, `meshtastic-interop`. Removed sha2/hmac dependencies.
 - **Type-Aware Test Panel** - Test panel adapts to selected block's input type. Shows BitPattern options (Random, AllZeros, AllOnes, Alternating, Prbs7) for Bits inputs, SymbolPattern (Random, Sequential, AllZero, Alternating) for Symbols, IqPattern (Noise, Tone, Chirp, Impulse) for IQ. Block output caching enables pipeline chaining (use previous block's output as input).
 - **Typed Port Support** - Port type system for pipeline connections. Types: Bits (blue), Symbols (purple), IQ (orange), Real (cyan), Any (gray). Visual feedback during connection: compatible ports brighten, incompatible show red with X. Type mismatch warnings in validation. Port types shown in Properties panel.
