@@ -653,7 +653,8 @@ Measured with `tokei`:
   - Batch 22: CPM/GMSK/GFSK/MSK Modulation (constant-envelope, non-coherent demod), Dynamic Channel Model (multipath+CFO/SRO drift+AWGN, 5 presets), Polar Codes (5G NR SC encoder/decoder), Burst Tagger (power-based burst segmentation + tagged stream mux/align)
   - Batch 23: Feedforward AGC (non-causal lookahead), Vector Insert/Remove (periodic pilot insertion), Cyclic Prefix Add/Remove (OFDM guard interval, WiFi/LTE/DVB-T configs), File Meta I/O (self-describing IQ files with JSON header), PN Sync (LFSR m-sequence/Gold code gen + normalized cross-correlator)
   - Batch 24: DTMF Decoder (Goertzel filter bank, 4x4 tone grid, twist checking), Noise Blanker (impulse detection, Zero/Hold/Interpolate modes), Stream Arithmetic (element-wise add/subtract/multiply/divide), Probe Avg Mag² (running power measurement, threshold gating), Envelope Detector (Magnitude/Smoothed/PeakHold, AM demodulator)
-  - All blocks wired into the visual pipeline builder (now 128+ blocks) with property editors and block metadata
+  - Batch 25: Decimating FIR (combined lowpass + decimation, auto-design), Interleaved Conversions (i16/i8/u8/f32 ↔ Complex64 for USRP/HackRF/RTL-SDR), AFC (closed-loop frequency tracking), Moving Average Decimator (boxcar + decimate, power measurement), DC Blocker (single-pole IIR highpass)
+  - All blocks wired into the visual pipeline builder (now 134+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
