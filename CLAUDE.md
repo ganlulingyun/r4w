@@ -47,6 +47,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `stream_tags.rs`: Metadata propagation (TagStore, TagValue, range queries, well-known keys)
   - `filters/cic.rs`: CIC decimator/interpolator for high-ratio sample rate conversion
   - `filters/adaptive.rs`: Adaptive filters (LMS, NLMS, RLS) for equalization/cancellation
+  - `filters/fractional_resampler.rs`: MMSE interpolating resampler for arbitrary rate conversion
+  - `freq_xlating_fir.rs`: Frequency-translating FIR filter (mixing + FIR + decimation)
+  - `fm_emphasis.rs`: FM pre-emphasis/de-emphasis (US 75us / EU 50us, 1-pole IIR)
+  - `quadrature_demod.rs`: FM discriminator y[n] = gain * arg(x[n] * conj(x[n-1]))
+  - `access_code_detector.rs`: Bit-level sync word detector with Hamming distance threshold
+  - `fll_band_edge.rs`: FLL band-edge coarse frequency sync (band-edge FIR + 2nd-order loop)
+  - `type_conversions.rs`: Complex/Real converters (Mag, MagSq, Arg, Real, Imag, MagPhase)
+  - `stream_control.rs`: Head (first N), SkipHead (drop N), Throttle (rate-limit)
+  - `log_power_fft.rs`: Windowed FFT to dB power with exponential averaging
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -64,7 +73,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 40+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 55+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -173,6 +182,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **DSP Blocks Round 12** - Five modules: Quadrature Demodulator (FM discriminator), Access Code Detector (bit-level sync word with Hamming distance), Fractional Resampler (MMSE interpolating for irrational ratios), FLL Band-Edge (coarse frequency sync), Type Conversions (ComplexToMag/Arg/Real, RealToComplex). 52 new tests. All wired into pipeline builder with property editors and block metadata.
+- **DSP Blocks Round 11** - Five modules: Frequency Xlating FIR Filter (mixing + FIR + decimation), FM Pre-emphasis/De-emphasis (US 75us/EU 50us IIR), CTCSS Tone Squelch (Goertzel-based 38-tone detection), Stream Control (Head/SkipHead/Throttle), Log Power FFT (windowed FFT with dB averaging). 47 new tests. All wired into pipeline builder.
 - **DSP Blocks Round 10** - Constellation Receiver (`constellation_receiver.rs` - combined AGC + Costas loop + symbol demapper for BPSK/QPSK/8PSK, soft/hard decisions). 9 new tests.
 - **DSP Blocks Round 9** - Three modules: Costas Loop (`costas_loop.rs` - decision-directed carrier recovery for BPSK/QPSK/8PSK), Goertzel Algorithm (`goertzel.rs` - efficient single-frequency DFT, MultiGoertzel, full DTMF detector with all 16 digits), Stream Tags (`stream_tags.rs` - metadata propagation with TagStore, range queries, well-known keys). 34 new tests.
 - **DSP Blocks Round 8** - Four modules: CIC Filter (`filters/cic.rs` - multiplier-free decimator/interpolator for high sample rate conversion, compensation filter design), Adaptive Filters (`filters/adaptive.rs` - LMS/NLMS/RLS for equalization/echo cancellation), Burst Detector (`burst_detector.rs` - power-based SOB/EOB detection with hysteresis and holdoff), Colored Noise (`noise.rs` - white/pink/brown/blue/violet generators with AWGN helpers). 38 new tests.

@@ -640,6 +640,11 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
+- **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules bringing the total to 36+ standalone blocks with 307+ unit tests:
+  - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
+  - Type Conversions (Complex to Mag/Arg/Real/Imag), Quadrature Demodulator (FM discriminator), Access Code Detector (sync word search), Fractional Resampler (MMSE), FLL Band-Edge (coarse freq sync)
+  - All blocks wired into the visual pipeline builder (now 55+ blocks) with property editors and block metadata
+
 - **GNSS Pipeline Blocks** — New GNSS category (teal) in the visual pipeline builder with two blocks:
   - `GnssScenarioSource`: Multi-satellite IQ generation with preset selection (OpenSky, UrbanCanyon, Driving, Walking, HighDynamics, MultiConstellation), receiver position (lat/lon/alt), sample rate, duration, noise figure, and elevation mask
   - `GnssAcquisition`: PCPS-based signal detection with configurable Doppler search range, step size, and detection threshold
