@@ -75,6 +75,7 @@ pub mod packet;
 pub mod packet_framing;
 pub mod probe;
 pub mod params;
+pub mod pll;
 pub mod plugin;
 pub mod rt;
 pub mod simd_utils;
