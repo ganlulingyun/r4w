@@ -2925,17 +2925,6 @@ impl PipelineWizardView {
         // Background
         painter.rect_filled(rect, 0.0, Color32::from_rgb(30, 30, 40));
 
-        // Pipeline title at top center
-        if !self.pipeline.name.is_empty() {
-            painter.text(
-                Pos2::new(rect.center().x, rect.top() + 20.0),
-                egui::Align2::CENTER_CENTER,
-                &self.pipeline.name,
-                egui::FontId::proportional(18.0),
-                Color32::from_rgb(180, 180, 200),
-            );
-        }
-
         // Grid
         let grid_spacing = self.grid_size * self.zoom;
         let offset = self.canvas_offset;
@@ -3496,6 +3485,17 @@ impl PipelineWizardView {
             egui::FontId::proportional(11.0),
             Color32::GRAY,
         );
+
+        // Pipeline title at top center (drawn last to appear on top)
+        if !self.pipeline.name.is_empty() {
+            painter.text(
+                Pos2::new(rect.center().x, rect.top() + 20.0),
+                egui::Align2::CENTER_CENTER,
+                &self.pipeline.name,
+                egui::FontId::proportional(18.0),
+                Color32::from_rgb(200, 200, 220),
+            );
+        }
     }
 
     fn draw_bezier(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, color: Color32, width: f32) {
