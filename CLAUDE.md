@@ -28,6 +28,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `equalizer.rs`: Adaptive equalizer (LMS, CMA, Decision-Directed) with Filter trait
   - `signal_source.rs`: Signal generator (Tone, TwoTone, Chirp, Noise, Square, DC, Impulse)
   - `squelch.rs`: Power squelch gate with ramp transitions (equiv. to GNU Radio pwr_squelch_cc)
+  - `ofdm.rs`: OFDM modulator/demodulator (WiFi-like, DVB-T 2K, simple configs)
+  - `pfb_channelizer.rs`: Polyphase filter bank channelizer with windowed-sinc prototype filter
+  - `correlator.rs`: Cross-correlation sync word detector (Barker codes, dynamic threshold, holdoff)
+  - `scrambler.rs`: LFSR scrambler/descrambler (additive/multiplicative, WiFi/DVB-S2/Bluetooth/V.34)
+  - `differential.rs`: Differential encoder/decoder (DBPSK/DQPSK/D8PSK, complex-domain DPSK)
+  - `packet_framing.rs`: Packet formatter/parser (sync word, headers, CRC, AX.25/ISM configs)
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -154,6 +160,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **DSP Blocks Round 4** - Four more r4w-core modules: Correlator (`correlator.rs` - cross-correlation sync word detector with Barker-7/11/13 codes, dynamic threshold, holdoff, phase estimation), LFSR Scrambler (`scrambler.rs` - additive/multiplicative scrambling for WiFi/DVB-S2/Bluetooth/V.34 protocols), Differential Encoder/Decoder (`differential.rs` - symbol-domain and complex-domain DPSK for DBPSK/DQPSK/D8PSK), Packet Framing (`packet_framing.rs` - formatter/parser with sync word detection, configurable headers, CRC-16/32, AX.25/ISM presets). 41 new unit tests.
+- **DSP Blocks Round 3** - Two more r4w-core modules: OFDM modulator/demodulator (`ofdm.rs` - WiFi-like, DVB-T 2K, simple configs with CP insertion/removal, pilot insertion/extraction), Polyphase Filter Bank channelizer (`pfb_channelizer.rs` - windowed-sinc prototype filter design, stateful polyphase sub-filtering, M-point IFFT). 13 new unit tests.
 - **GNSS Pipeline Blocks** - Added GNSS category (teal) to the visual pipeline builder with two blocks: `GnssScenarioSource` (multi-satellite IQ generation with preset selection, receiver position, sample rate, duration) and `GnssAcquisition` (PCPS-based signal acquisition with configurable Doppler search and detection threshold). GnssOpenSky preset pipeline template connects scenario source to acquisition to IQ output. Full property editors, block metadata with formulas and standards references, and processing logic integrated with r4w-core GNSS engine.
 - **DSP Blocks Round 2** - Four more r4w-core modules: Adaptive Equalizer (`equalizer.rs` - LMS/CMA/Decision-Directed with Filter trait), Reed-Solomon codec (`fec/reed_solomon.rs` - GF(2^8) encoder/decoder with BM/Chien/Forney, CCSDS/DVB presets), Signal Source (`signal_source.rs` - Tone/TwoTone/Chirp/Noise/Square/DC/Impulse generators), Power Squelch (`squelch.rs` - signal gating by power level with ramp transitions). Pipeline builder Equalizer block wired to real implementations. 34 new unit tests.
 - **Standalone DSP Blocks** - Six new r4w-core modules implementing GNU Radio-equivalent functionality: AGC (`agc.rs` - three variants: Agc/Agc2/Agc3 matching agc_cc/agc2_cc/agc3_cc), CRC engine (`crc.rs` - CRC-8/16/32/32C with table-based lookup), Convolutional encoder + Viterbi decoder (`fec/convolutional.rs` - configurable K/rate with hard/soft decision, NASA K=7 and 3GPP K=9 presets), Costas loop carrier recovery (`carrier_recovery.rs` - BPSK/QPSK/8PSK with 2nd-order PI loop filter), Mueller & Muller clock recovery (`clock_recovery.rs` - symbol timing with interpolation), FreqXlatingFirFilter (`clock_recovery.rs` - NCO mixing + FIR + decimation). All implement `Filter` trait for pipeline interoperability. 39 new unit tests.
