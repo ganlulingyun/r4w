@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-32)** — 50 new DSP modules bringing the total to ~137+ standalone blocks with ~900+ unit tests:
+- **GNU Radio Feature Parity (Batches 13-38)** — 130+ new DSP modules bringing the total to ~162+ standalone blocks with ~1760+ unit tests:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -665,7 +665,8 @@ Measured with `tokei`:
   - Batch 35: Additive Scrambler (LFSR-based stream scrambling with DVB x^15+x^14+1 and WiFi x^7+x^4+1 presets, auto-reset period), Stretch (signal normalization and range mapping, stretch/stretch_to_range/clip, StreamStretch for windowed streaming), Nlog10 (logarithmic scaling linear↔dB/dBm, to_db/from_db/to_dbm/from_dbm, batch power_to_db/iq_to_db), DPLL (second-order digital PLL with PI loop filter, BinaryDpll for clock recovery from edge transitions, from_bandwidth constructor), Endian Swap (byte order conversion 16/32/64-bit, typed swap_i16/u16/i32/u32/f32/f64, reverse_bits for bit-level reversal)
   - Batch 36: IQ Balance (IqBalanceCorrector fixed gain/phase, AdaptiveIqBalance LMS-based online correction, estimate_iq_imbalance), Peak to Average (papr_db/papr_db_complex, crest_factor, PaprEstimator streaming windowed), Correlate Estimate (cross_correlate/cross_correlate_complex, find_delay, autocorrelate, correlation_coefficient), Bin Statistics (BinStatistics per-FFT-bin min/max/mean/variance, accumulate_max_hold, dynamic_range), Check LFSR (LfsrChecker BER testing, synchronize offset detection, generate_reference, cumulative BER tracking)
   - Batch 37: Random Source (xoshiro256** PRNG with uniform/Gaussian/range distributions, bit/byte/bipolar generation), Magnitude Squared (complex-to-real power conversion: |x|^2, magnitude, dB, RMS, peak power), Interp FIR (interpolating FIR filter with polyphase decomposition, real + complex variants), Tag Share (stream tag propagation, range queries, offset scaling for rate changes), Exponentiate (raise samples to arbitrary power: real/complex, integer/fractional, square, sqrt, reciprocal)
-  - All blocks wired into the visual pipeline builder (now 193+ blocks) with property editors and block metadata
+  - Batch 38: Float to Complex (real/imag ↔ complex conversion with interleaved and polar formats), Stream to Tagged Stream (insert periodic packet-length tags into continuous streams), Skiphead (drop first N samples then pass through for filter transient removal), Vector Map (remap vector elements by index mapping: reverse, select, bit-reversal, circular shift), Tagged Stream Multiply Length (scale length tags for rate changes in interpolation/decimation)
+  - All blocks wired into the visual pipeline builder (now 198+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
