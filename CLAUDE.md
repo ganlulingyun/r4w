@@ -73,6 +73,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `peak_hold.rs`: Signal peak tracking with exponential decay (PeakHold, AbsPeakHold, PeakHoldDb)
   - `multiply_matrix.rs`: Complex and real matrix-vector multiplication (identity, scalar, diagonal, from_rows)
   - `glfsr_source.rs`: Galois and Fibonacci LFSR PN sequence generators (maximal-length polynomials 2-31 bits)
+  - `additive_scrambler.rs`: LFSR-based stream scrambling (DVB x^15+x^14+1, WiFi x^7+x^4+1 presets, auto-reset)
+  - `stretch.rs`: Signal normalization and range mapping (stretch, stretch_to_range, clip, StreamStretch)
+  - `nlog10.rs`: Logarithmic scaling (to_db, from_db, to_dbm, from_dbm, power_to_db, iq_to_db)
+  - `dpll.rs`: Second-order digital PLL with PI loop filter (Dpll carrier tracking, BinaryDpll clock recovery)
+  - `endian_swap.rs`: Byte order conversion (16/32/64-bit swap, typed swap_i16/u16/i32/u32/f32/f64, reverse_bits)
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -91,7 +96,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 178+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 183+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -200,6 +205,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Batch 35 DSP Blocks** - Additive Scrambler (`additive_scrambler.rs` - LFSR-based stream scrambling with DVB x^15+x^14+1 and WiFi x^7+x^4+1 presets, auto-reset period, bool and in-place APIs), Stretch (`stretch.rs` - signal normalization and range mapping, stretch/stretch_to_range/clip, StreamStretch for windowed streaming), Nlog10 (`nlog10.rs` - logarithmic scaling linear↔dB/dBm, nlog10/to_db/from_db/to_dbm/from_dbm, batch power_to_db/iq_to_db), DPLL (`dpll.rs` - second-order digital PLL with PI loop filter, Dpll carrier tracking with from_bandwidth, BinaryDpll for clock recovery from edge transitions), Endian Swap (`endian_swap.rs` - byte order conversion 16/32/64-bit, typed swap_i16/u16/i32/u32/f32/f64, reverse_bits for bit-level reversal). 70 tests. ~147+ DSP modules total, ~183+ pipeline block types.
 - **Batch 34 DSP Blocks** - Patterned Interleaver (`patterned_interleaver.rs` - custom-pattern stream interleaving/deinterleaving of N streams, f64 and bytes), Bitwise Ops (`bitwise_ops.rs` - XOR/AND/OR/NOT for byte and boolean streams, _const/_inplace variants, hamming_distance/popcount/parity), Peak Hold (`peak_hold.rs` - signal peak tracking with exponential decay, PeakHold/AbsPeakHold/PeakHoldDb variants), Multiply Matrix (`multiply_matrix.rs` - complex and real matrix-vector multiplication, identity/scalar/diagonal/from_rows constructors), GLFSR Source (`glfsr_source.rs` - Galois and Fibonacci LFSR PN sequence generators, maximal-length polynomials 2-31 bits, bits/bools/bipolar output). 72 tests. ~142+ DSP modules total, ~178+ pipeline block types.
 - **Batch 32 DSP Blocks** - Stream to Streams (`stream_to_streams.rs` - round-robin demux/mux by index, I/Q deinterleave/interleave, supports real/complex/bytes), Argmax (`argmax.rs` - find max/min index in vectors, ArgmaxBlock for windowed processing, top_k functions), Threshold (`threshold.rs` - hysteresis threshold detector with configurable low/high thresholds, rising/falling edge detection), PDU Filter (`pdu_filter.rs` - metadata-based filtering and routing with Require/Reject modes, first-match PduRouter), Regenerate BB (`regenerate_bb.rs` - bit regeneration pulse stretcher with guard intervals, PulseGenerator for one-shot pulses). 70 tests. GNU Radio equivalents: `stream_to_streams`, `argmax`, `threshold_ff`, `pdu_filter`, `regenerate_bb`. ~137+ DSP modules total, ~173+ pipeline block types.
 - **Batch 31 DSP Blocks** - Keep M in N (`keep_m_in_n.rs` - selective M-of-N sample extraction with configurable offset for OFDM subcarrier extraction/guard removal), Phase Unwrap (`phase_unwrap.rs` - continuous phase tracking removing 2-pi discontinuities, configurable tolerance), Moving Average (`moving_average_block.rs` - O(1) sliding window mean filter, complex + real variants), Probe Avg Mag Sqrd (`probe_avg_mag_sqrd.rs` - exponential power measurement with threshold-based carrier sensing, pass-through design), Constellation Soft Decoder (`constellation_soft_decoder.rs` - LLR soft-decision demapping for BPSK/QPSK/8PSK/16QAM/64QAM). 80 tests + 6 doctests. ~132+ DSP modules total, ~168+ pipeline block types.
