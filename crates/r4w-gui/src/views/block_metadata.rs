@@ -2996,6 +2996,177 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["sps", "ted", "loop_bw"],
         });
 
+    // === Batch 16 blocks ===
+
+    m.insert("PfbClockSync", BlockMetadata {
+            block_type: "PfbClockSync",
+            display_name: "PFB Clock Sync",
+            category: "Recovery",
+            description: "Polyphase filterbank-based clock synchronizer. Uses matched filter and derivative filter for timing error detection. Industrial-grade approach from GNU Radio.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/pfb_clock_sync.rs",
+                line: 35,
+                symbol: "PfbClockSync",
+                description: "PFB clock recovery with RRC matched filter",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Timing Error",
+                    plaintext: "e = Re{d(t) * conj(y(t))}",
+                    latex: Some("e = \\Re\\{d(t) \\cdot y^*(t)\\}"),
+                    variables: &[("d(t)", "Derivative filter output"), ("y(t)", "Matched filter output")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_bpsk_signal", module: "r4w_core::pfb_clock_sync::tests", description: "BPSK timing recovery", expected_runtime_ms: 5 },
+                BlockTest { name: "test_qpsk_signal", module: "r4w_core::pfb_clock_sync::tests", description: "QPSK timing recovery", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n * taps_per_arm)", memory: "O(nfilts * taps)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "fred harris, Multirate Signal Processing", section: Some("Ch. 9: Polyphase Filterbanks"), url: None },
+            ],
+            related_blocks: &["SymbolSync", "ClockRecoveryMm", "TimingRecovery"],
+            input_type: "IQ (oversampled)",
+            output_type: "IQ (symbol-rate)",
+            key_parameters: &["sps", "loop_bw", "nfilts"],
+        });
+
+    m.insert("HeaderPayloadDemux", BlockMetadata {
+            block_type: "HeaderPayloadDemux",
+            display_name: "Header/Payload Demux",
+            category: "Coding",
+            description: "Variable-length packet demultiplexer. Parses a fixed-length header to extract payload length, then reads the declared number of payload bytes. Supports configurable header format, endianness, and length field position.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/header_payload_demux.rs",
+                line: 110,
+                symbol: "HeaderPayloadDemux",
+                description: "Variable-length packet header/payload demux",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Payload Length Extraction",
+                    plaintext: "len = header[offset..offset+size] (LE or BE)",
+                    latex: None,
+                    variables: &[("offset", "Byte offset of length field"), ("size", "Length field width (1/2/4 bytes)")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_simple_packet", module: "r4w_core::header_payload_demux::tests", description: "Basic packet demux", expected_runtime_ms: 1 },
+                BlockTest { name: "test_incremental_feeding", module: "r4w_core::header_payload_demux::tests", description: "Streaming input", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(max_payload)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["HdlcDeframer", "Ax25Decoder", "AccessCodeDetector"],
+            input_type: "Bytes",
+            output_type: "Packets (header + payload)",
+            key_parameters: &["header_len", "length_offset", "length_size", "big_endian"],
+        });
+
+    m.insert("Ax25Decoder", BlockMetadata {
+            block_type: "Ax25Decoder",
+            display_name: "AX.25 Decoder",
+            category: "Coding",
+            description: "AX.25 amateur radio protocol decoder. Parses callsigns (shifted ASCII), SSIDs, digipeater paths, control fields, PIDs, and information fields from HDLC frames. Used by APRS and packet radio.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/ax25.rs",
+                line: 186,
+                symbol: "Ax25Decoder",
+                description: "AX.25 frame parser for amateur radio",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Address Decoding",
+                    plaintext: "callsign[i] = raw[i] >> 1 (shifted ASCII)",
+                    latex: None,
+                    variables: &[("raw[i]", "Raw address byte"), ("callsign[i]", "ASCII character")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_decode_ui_frame", module: "r4w_core::ax25::tests", description: "Decode APRS UI frame", expected_runtime_ms: 1 },
+                BlockTest { name: "test_decode_with_digipeaters", module: "r4w_core::ax25::tests", description: "Decode with digi path", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(frame_size)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "AX.25 Link Access Protocol v2.2", section: Some("Section 3: Frame Structure"), url: Some("https://www.ax25.net/AX25.2.2-Jul%2098-2.pdf") },
+            ],
+            related_blocks: &["HdlcDeframer", "HeaderPayloadDemux"],
+            input_type: "Bytes (HDLC frame)",
+            output_type: "Decoded AX.25 fields",
+            key_parameters: &[],
+        });
+
+    m.insert("RmsPower", BlockMetadata {
+            block_type: "RmsPower",
+            display_name: "RMS Power",
+            category: "Recovery",
+            description: "RMS power measurement with exponential smoothing. Computes running RMS of complex or real signal. Can also normalize output to unit power (RMS AGC). Alpha controls averaging speed.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/rms.rs",
+                line: 37,
+                symbol: "RmsPower",
+                description: "RMS power measurement with IIR smoothing",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Smoothed RMS",
+                    plaintext: "rms^2[n] = alpha * |x[n]|^2 + (1-alpha) * rms^2[n-1]",
+                    latex: Some("\\hat{P}_n = \\alpha |x_n|^2 + (1-\\alpha) \\hat{P}_{n-1}"),
+                    variables: &[("alpha", "Smoothing factor (0..1)"), ("|x[n]|^2", "Instantaneous power")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_rms_constant_signal", module: "r4w_core::rms::tests", description: "Convergence to known RMS", expected_runtime_ms: 1 },
+                BlockTest { name: "test_normalizer_converges", module: "r4w_core::rms::tests", description: "RMS normalization", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["Agc", "PowerSquelch", "SnrEstimator"],
+            input_type: "IQ or Real",
+            output_type: "Real (power level)",
+            key_parameters: &["alpha"],
+        });
+
+    m.insert("CorrelateAndSync", BlockMetadata {
+            block_type: "CorrelateAndSync",
+            display_name: "Correlate & Sync",
+            category: "Synchronization",
+            description: "Cross-correlation-based frame synchronizer. Slides a known preamble/sync word over the input, normalizes by local power (CFAR), and detects peaks above threshold. Reports timing, correlation magnitude, and carrier phase.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/correlate_sync.rs",
+                line: 47,
+                symbol: "CorrelateSync",
+                description: "Cross-correlation frame synchronizer",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Normalized Cross-Correlation",
+                    plaintext: "R(n) = |sum_k(x[n+k] * ref[k]*)| / sqrt(sum_k |x[n+k]|^2)",
+                    latex: Some("R(n) = \\frac{|\\sum_k x[n+k] \\cdot r^*[k]|}{\\sqrt{\\sum_k |x[n+k]|^2}}"),
+                    variables: &[("x[n]", "Input samples"), ("r[k]", "Reference preamble"), ("R(n)", "Normalized correlation")],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_perfect_detection", module: "r4w_core::correlate_sync::tests", description: "Detect embedded preamble", expected_runtime_ms: 1 },
+                BlockTest { name: "test_no_false_alarms", module: "r4w_core::correlate_sync::tests", description: "No detections in noise", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n * ref_len)", memory: "O(ref_len)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["AccessCodeDetector", "PlateauDetector", "PreambleInsert"],
+            input_type: "IQ",
+            output_type: "Real (correlation magnitude)",
+            key_parameters: &["threshold", "min_spacing"],
+        });
+
     m
 }
 

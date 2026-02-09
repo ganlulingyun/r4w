@@ -292,6 +292,13 @@ pub enum BlockType {
     NbfmReceiver { max_deviation: f32, sample_rate: f32 },
     SymbolSync { sps: f32, ted: String, loop_bw: f32 },
 
+    // Batch 16: PFB clock sync, header/payload demux, AX.25, RMS, correlate & sync
+    PfbClockSync { sps: f32, loop_bw: f32, nfilts: u32 },
+    HeaderPayloadDemux { header_len: u32, length_offset: u32, length_size: u32, big_endian: bool },
+    Ax25Decoder,
+    RmsPower { alpha: f32 },
+    CorrelateAndSync { threshold: f32, min_spacing: u32 },
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -399,6 +406,11 @@ impl BlockType {
             Self::ClockRecoveryMm { .. } => "Clock Recovery (M&M)",
             Self::NbfmReceiver { .. } => "NBFM Receiver",
             Self::SymbolSync { .. } => "Symbol Sync",
+            Self::PfbClockSync { .. } => "PFB Clock Sync",
+            Self::HeaderPayloadDemux { .. } => "Header/Payload Demux",
+            Self::Ax25Decoder => "AX.25 Decoder",
+            Self::RmsPower { .. } => "RMS Power",
+            Self::CorrelateAndSync { .. } => "Correlate & Sync",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -442,8 +454,11 @@ impl BlockType {
             Self::PlateauDetector { .. } => BlockCategory::Synchronization,
             Self::BinarySlicer { .. } => BlockCategory::Recovery,
             Self::HdlcDeframer => BlockCategory::Coding,
-            Self::ClockRecoveryMm { .. } | Self::SymbolSync { .. } => BlockCategory::Recovery,
+            Self::ClockRecoveryMm { .. } | Self::SymbolSync { .. } | Self::PfbClockSync { .. } => BlockCategory::Recovery,
             Self::NbfmReceiver { .. } => BlockCategory::Recovery,
+            Self::HeaderPayloadDemux { .. } | Self::Ax25Decoder => BlockCategory::Coding,
+            Self::RmsPower { .. } => BlockCategory::Recovery,
+            Self::CorrelateAndSync { .. } => BlockCategory::Synchronization,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -551,6 +566,13 @@ impl BlockType {
             Self::NbfmReceiver { .. } => vec![PortType::IQ],
             Self::SymbolSync { .. } => vec![PortType::IQ],
 
+            // Batch 16 blocks
+            Self::PfbClockSync { .. } => vec![PortType::IQ],
+            Self::HeaderPayloadDemux { .. } => vec![PortType::Bits],
+            Self::Ax25Decoder => vec![PortType::Bits],
+            Self::RmsPower { .. } => vec![PortType::IQ],
+            Self::CorrelateAndSync { .. } => vec![PortType::IQ],
+
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
 
@@ -647,6 +669,13 @@ impl BlockType {
             Self::ClockRecoveryMm { .. } => vec![PortType::Real],
             Self::NbfmReceiver { .. } => vec![PortType::Real],
             Self::SymbolSync { .. } => vec![PortType::IQ],
+
+            // Batch 16 blocks
+            Self::PfbClockSync { .. } => vec![PortType::IQ],
+            Self::HeaderPayloadDemux { .. } => vec![PortType::Bits],
+            Self::Ax25Decoder => vec![PortType::Bits],
+            Self::RmsPower { .. } => vec![PortType::Real],
+            Self::CorrelateAndSync { .. } => vec![PortType::Real],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2755,6 +2784,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::PackKBits { k: 8 },
             BlockType::UnpackKBits { k: 8 },
             BlockType::HdlcDeframer,
+            BlockType::HeaderPayloadDemux { header_len: 4, length_offset: 0, length_size: 2, big_endian: false },
+            BlockType::Ax25Decoder,
         ]),
         (BlockCategory::Mapping, vec![
             BlockType::GrayMapper { bits_per_symbol: 2 },
@@ -2800,6 +2831,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::TdmaFramer { slots: 4, slot_ms: 10.0 },
             BlockType::AccessCodeDetector { access_code_hex: "E5".to_string(), threshold: 1 },
             BlockType::PlateauDetector { threshold: 0.8, min_width: 4 },
+            BlockType::CorrelateAndSync { threshold: 0.7, min_spacing: 100 },
         ]),
         (BlockCategory::Impairments, vec![
             BlockType::AwgnChannel { snr_db: 20.0 },
@@ -2826,6 +2858,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::ClockRecoveryMm { sps: 4.0, loop_bw: 0.01 },
             BlockType::NbfmReceiver { max_deviation: 5000.0, sample_rate: 48000.0 },
             BlockType::SymbolSync { sps: 4.0, ted: "Gardner".to_string(), loop_bw: 0.045 },
+            BlockType::PfbClockSync { sps: 4.0, loop_bw: 0.0628, nfilts: 32 },
+            BlockType::RmsPower { alpha: 0.01 },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -5972,6 +6006,93 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // PFB Clock Sync
+            BlockType::PfbClockSync { sps, loop_bw, nfilts } => {
+                use r4w_core::pfb_clock_sync::PfbClockSync as CorePfbCs;
+                use num_complex::Complex64;
+                let mut cs = CorePfbCs::new(*sps as f64, *loop_bw as f64, *nfilts as usize);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = cs.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Header/Payload Demux
+            BlockType::HeaderPayloadDemux { header_len, length_offset, length_size, big_endian } => {
+                use r4w_core::header_payload_demux::{HeaderPayloadDemux as CoreHpd, HeaderConfig};
+                let config = HeaderConfig::custom(*header_len as usize, *length_offset as usize, *length_size as usize, *big_endian);
+                let mut demux = CoreHpd::new(config);
+                let bytes: Vec<u8> = input_bits.iter().map(|&b| if b { 1u8 } else { 0u8 }).collect();
+                let packets = demux.process(&bytes);
+                let bits: Vec<bool> = packets.iter()
+                    .flat_map(|p| p.payload.iter().flat_map(|&b| (0..8).rev().map(move |i| (b >> i) & 1 != 0)))
+                    .collect();
+                (bits, Vec::new(), Vec::new())
+            }
+
+            // AX.25 Decoder
+            BlockType::Ax25Decoder => {
+                use r4w_core::ax25::Ax25Decoder as CoreAx25;
+                let mut decoder = CoreAx25::new();
+                // Input bits treated as raw bytes from HDLC
+                let bytes: Vec<u8> = input_bits.chunks(8).map(|chunk| {
+                    let mut byte = 0u8;
+                    for (i, &bit) in chunk.iter().enumerate() {
+                        if bit { byte |= 1 << (7 - i); }
+                    }
+                    byte
+                }).collect();
+                if let Some(frame) = decoder.decode(&bytes) {
+                    let info_bits: Vec<bool> = frame.info.iter()
+                        .flat_map(|&b| (0..8).rev().map(move |i| (b >> i) & 1 != 0))
+                        .collect();
+                    (info_bits, Vec::new(), Vec::new())
+                } else {
+                    (Vec::new(), Vec::new(), Vec::new())
+                }
+            }
+
+            // RMS Power
+            BlockType::RmsPower { alpha } => {
+                use r4w_core::rms::RmsPower as CoreRms;
+                use num_complex::Complex64;
+                let mut rms = CoreRms::new(*alpha as f64);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = rms.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Correlate & Sync
+            BlockType::CorrelateAndSync { threshold, min_spacing } => {
+                use r4w_core::correlate_sync::CorrelateSync as CoreCs;
+                use num_complex::Complex64;
+                // Use first 8 samples as reference preamble
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let ref_len = 8.min(input.len());
+                if ref_len > 0 {
+                    let reference = input[..ref_len].to_vec();
+                    let sync = CoreCs::new(&reference, *threshold as f64);
+                    let corr = sync.correlate_all(&input);
+                    let samples: Vec<(f32, f32)> = corr.iter()
+                        .map(|&v| (v as f32, 0.0))
+                        .collect();
+                    (Vec::new(), Vec::new(), samples)
+                } else {
+                    (Vec::new(), Vec::new(), Vec::new())
+                }
+            }
+
             // PFB Synthesizer: multi-channel → wideband
             BlockType::PfbSynthesizer { num_channels, taps_per_channel, window } => {
                 use r4w_core::pfb_synthesizer::{PfbSynthesizer as CorePfb, PfbSynthConfig};
@@ -7815,8 +7936,75 @@ impl PipelineWizardView {
                     block.block_type = BlockType::SymbolSync { sps: new_sps, ted: new_ted, loop_bw: new_lb };
                 }
             }
+            BlockType::PfbClockSync { sps, loop_bw, nfilts } => {
+                let mut new_sps = sps;
+                let mut new_lb = loop_bw;
+                let mut new_nf = nfilts;
+                ui.horizontal(|ui| {
+                    ui.label("Samples/Symbol:");
+                    ui.add(egui::DragValue::new(&mut new_sps).speed(0.1).range(1.5..=16.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Loop BW:");
+                    ui.add(egui::DragValue::new(&mut new_lb).speed(0.001).range(0.001..=0.5));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Filter Arms:");
+                    ui.add(egui::DragValue::new(&mut new_nf).range(4..=128));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PfbClockSync { sps: new_sps, loop_bw: new_lb, nfilts: new_nf };
+                }
+            }
+            BlockType::HeaderPayloadDemux { header_len, length_offset, length_size, big_endian } => {
+                let mut new_hl = header_len;
+                let mut new_lo = length_offset;
+                let mut new_ls = length_size;
+                let mut new_be = big_endian;
+                ui.horizontal(|ui| {
+                    ui.label("Header Len:");
+                    ui.add(egui::DragValue::new(&mut new_hl).range(1..=256));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Length Offset:");
+                    ui.add(egui::DragValue::new(&mut new_lo).range(0..=255));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Length Size:");
+                    ui.add(egui::DragValue::new(&mut new_ls).range(1..=4));
+                });
+                ui.checkbox(&mut new_be, "Big Endian");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::HeaderPayloadDemux { header_len: new_hl, length_offset: new_lo, length_size: new_ls, big_endian: new_be };
+                }
+            }
+            BlockType::RmsPower { alpha } => {
+                let mut new_alpha = alpha;
+                ui.horizontal(|ui| {
+                    ui.label("Alpha:");
+                    ui.add(egui::DragValue::new(&mut new_alpha).speed(0.001).range(0.0001..=1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::RmsPower { alpha: new_alpha };
+                }
+            }
+            BlockType::CorrelateAndSync { threshold, min_spacing } => {
+                let mut new_th = threshold;
+                let mut new_ms = min_spacing;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::Slider::new(&mut new_th, 0.0..=1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Min Spacing:");
+                    ui.add(egui::DragValue::new(&mut new_ms).range(1..=10000));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::CorrelateAndSync { threshold: new_th, min_spacing: new_ms };
+                }
+            }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |
-            BlockType::DifferentialEncoder | BlockType::MatchedFilter | BlockType::HdlcDeframer |
+            BlockType::DifferentialEncoder | BlockType::MatchedFilter | BlockType::HdlcDeframer | BlockType::Ax25Decoder |
             BlockType::IqOutput | BlockType::BitOutput | BlockType::IqSplit | BlockType::IqMerge => {
                 ui.label(RichText::new("No configurable parameters").italics());
             }
