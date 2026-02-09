@@ -3510,6 +3510,154 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["function"],
         });
 
+        // ===== BATCH 20: HW Impairments, Stream/Vector, Tag Debug, Sample-and-Hold, Null Sink/Source =====
+
+        m.insert("PhaseNoiseBlock", BlockMetadata {
+            block_type: "PhaseNoiseBlock",
+            display_name: "Phase Noise",
+            category: "Impairments",
+            description: "Adds filtered random phase jitter to simulate oscillator phase noise. Uses first-order IIR filtering for 1/f spectral shaping. Preserves signal envelope (constant modulus).",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/hw_impairments.rs", line: 35, symbol: "PhaseNoiseGenerator", description: "Phase noise generator" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Phase Noise", plaintext: "y[n] = x[n] * exp(j*φ_noise[n])", latex: Some("y[n] = x[n] \\cdot e^{j\\phi_{noise}[n]}"), variables: &[("φ_noise", "Filtered random phase"), ("x[n]", "Input signal")] },
+            ],
+            tests: &[BlockTest { name: "test_phase_noise_preserves_envelope", module: "r4w_core::hw_impairments::tests", description: "Envelope preservation", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["IqImbalanceBlock", "DcOffsetBlock", "AwgnChannel"],
+            input_type: "IQ",
+            output_type: "IQ (phase-noisy)",
+            key_parameters: &["magnitude_db", "alpha"],
+        });
+
+        m.insert("IqImbalanceBlock", BlockMetadata {
+            block_type: "IqImbalanceBlock",
+            display_name: "IQ Imbalance",
+            category: "Impairments",
+            description: "Models receiver IQ gain and phase mismatch. Creates image spur at mirror frequency. Gain error: differential amplification of Q vs I. Phase error: imperfect 90-degree LO splitting.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/hw_impairments.rs", line: 110, symbol: "IqImbalanceGenerator", description: "IQ imbalance model" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "IQ Imbalance", plaintext: "I' = I, Q' = g*(Q*cos(φ) + I*sin(φ))", latex: Some("Q' = g(Q\\cos\\phi + I\\sin\\phi)"), variables: &[("g", "Gain error"), ("φ", "Phase error (rad)")] },
+            ],
+            tests: &[BlockTest { name: "test_iq_imbalance_identity", module: "r4w_core::hw_impairments::tests", description: "Zero imbalance = identity", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["PhaseNoiseBlock", "DcOffsetBlock"],
+            input_type: "IQ",
+            output_type: "IQ (imbalanced)",
+            key_parameters: &["magnitude_db", "phase_deg"],
+        });
+
+        m.insert("DcOffsetBlock", BlockMetadata {
+            block_type: "DcOffsetBlock",
+            display_name: "DC Offset",
+            category: "Impairments",
+            description: "Adds constant DC bias to I and/or Q channels. Models LO leakage or ADC offset. Creates a spike at DC in the spectrum.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/hw_impairments.rs", line: 162, symbol: "DcOffset", description: "DC offset generator" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "DC Offset", plaintext: "y[n] = x[n] + (d_I + j*d_Q)", latex: None, variables: &[("d_I", "I-channel offset"), ("d_Q", "Q-channel offset")] },
+            ],
+            tests: &[BlockTest { name: "test_dc_offset_basic", module: "r4w_core::hw_impairments::tests", description: "Basic DC offset", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["PhaseNoiseBlock", "IqImbalanceBlock", "DcBlocker"],
+            input_type: "IQ",
+            output_type: "IQ (with DC bias)",
+            key_parameters: &["i_offset", "q_offset"],
+        });
+
+        m.insert("StreamToVectorBlock", BlockMetadata {
+            block_type: "StreamToVectorBlock",
+            display_name: "Stream to Vector",
+            category: "Filtering",
+            description: "Collects N scalar samples into fixed-size vectors. Essential before FFT-based processing (OFDM, spectral analysis). Buffers partial blocks across calls.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/stream_to_vector.rs", line: 32, symbol: "StreamToVector", description: "Stream to vector conversion" }),
+            related_code: &[CodeLocation { crate_name: "r4w-core", file_path: "src/stream_to_vector.rs", line: 88, symbol: "Interleave", description: "Stream interleaver" }],
+            formulas: &[],
+            tests: &[BlockTest { name: "test_stream_to_vector_basic", module: "r4w_core::stream_to_vector::tests", description: "Basic S2V", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(vector_size)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["LogPowerFft", "OfdmModulator"],
+            input_type: "Real",
+            output_type: "Real (vectors of size N)",
+            key_parameters: &["vector_size"],
+        });
+
+        m.insert("QuantizerBlock", BlockMetadata {
+            block_type: "QuantizerBlock",
+            display_name: "Quantizer",
+            category: "Filtering",
+            description: "Maps continuous signal values to discrete quantization levels. Simulates ADC resolution effects. N-bit quantizer creates 2^N levels in range [-1, 1].",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/sample_and_hold.rs", line: 73, symbol: "Quantizer", description: "Signal quantizer" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Quantization", plaintext: "y = min + (floor((x-min)/step) + 0.5) * step", latex: None, variables: &[("step", "(max-min)/levels"), ("levels", "2^bits")] },
+            ],
+            tests: &[BlockTest { name: "test_quantizer_4_levels", module: "r4w_core::sample_and_hold::tests", description: "4-level quantization", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["RailBlock", "SampleAndHoldBlock"],
+            input_type: "Real",
+            output_type: "Real (quantized)",
+            key_parameters: &["bits"],
+        });
+
+        m.insert("SampleAndHoldBlock", BlockMetadata {
+            block_type: "SampleAndHoldBlock",
+            display_name: "Sample & Hold",
+            category: "Filtering",
+            description: "Holds the last accepted value when control signal is false. Used for zero-order hold interpolation, AGC freezing during preamble, and squelch-driven value holding.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/sample_and_hold.rs", line: 26, symbol: "SampleAndHold", description: "Sample-and-hold block" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "S&H", plaintext: "y[n] = { x[n] if ctrl[n], y[n-1] otherwise }", latex: None, variables: &[("ctrl", "Control signal (bool)"), ("x", "Input"), ("y", "Output")] },
+            ],
+            tests: &[BlockTest { name: "test_sample_and_hold_basic", module: "r4w_core::sample_and_hold::tests", description: "Basic S&H", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["QuantizerBlock", "ValveBlock"],
+            input_type: "Real",
+            output_type: "Real (held)",
+            key_parameters: &[],
+        });
+
+        m.insert("NullSourceBlock", BlockMetadata {
+            block_type: "NullSourceBlock",
+            display_name: "Null Source",
+            category: "Source",
+            description: "Generates zero-valued samples. Used as a placeholder source, for testing pipeline plumbing, or to create silence/baseline signals.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/null_sink_source.rs", line: 31, symbol: "NullSource", description: "Zero-valued sample generator" }),
+            related_code: &[CodeLocation { crate_name: "r4w-core", file_path: "src/null_sink_source.rs", line: 66, symbol: "NullSink", description: "Sample consumer (bit bucket)" }],
+            formulas: &[],
+            tests: &[BlockTest { name: "test_null_source_complex", module: "r4w_core::null_sink_source::tests", description: "Complex zeros", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["VectorSourceBlock", "NoiseSource"],
+            input_type: "None (source)",
+            output_type: "IQ (zeros)",
+            key_parameters: &[],
+        });
+
+        m.insert("VectorSourceBlock", BlockMetadata {
+            block_type: "VectorSourceBlock",
+            display_name: "Vector Source",
+            category: "Source",
+            description: "Outputs a predefined test signal (tone, impulse, or step). Useful for testing pipelines with known inputs. Supports repeat mode for continuous generation.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/null_sink_source.rs", line: 94, symbol: "VectorSource", description: "Predefined vector source" }),
+            related_code: &[],
+            formulas: &[],
+            tests: &[BlockTest { name: "test_vector_source_repeat", module: "r4w_core::null_sink_source::tests", description: "Repeating output", expected_runtime_ms: 1 }],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(data_len)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["NullSourceBlock", "NoiseSource"],
+            input_type: "None (source)",
+            output_type: "IQ (test pattern)",
+            key_parameters: &["pattern"],
+        });
+
         // ===== BATCH 19: FM, Peak Detector, Selector/Valve/Mute/Rail/Threshold =====
 
         m.insert("FrequencyModulatorBlock", BlockMetadata {

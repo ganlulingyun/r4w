@@ -343,6 +343,15 @@ pub enum BlockType {
     ThresholdDetector { threshold: f64 },
     MuteBlock { muted: bool },
     ValveBlock { open: bool },
+    // Batch 20: HW Impairments, Stream/Vector, Tag Debug, Sample-and-Hold, Null Sink/Source
+    PhaseNoiseBlock { magnitude_db: f64, alpha: f64 },
+    IqImbalanceBlock { magnitude_db: f64, phase_deg: f64 },
+    DcOffsetBlock { i_offset: f64, q_offset: f64 },
+    StreamToVectorBlock { vector_size: usize },
+    QuantizerBlock { bits: u32 },
+    SampleAndHoldBlock,
+    NullSourceBlock,
+    VectorSourceBlock { pattern: String },
 }
 
 impl BlockType {
@@ -460,6 +469,14 @@ impl BlockType {
             Self::ThresholdDetector { .. } => "Threshold Detector",
             Self::MuteBlock { .. } => "Mute",
             Self::ValveBlock { .. } => "Valve",
+            Self::PhaseNoiseBlock { .. } => "Phase Noise",
+            Self::IqImbalanceBlock { .. } => "IQ Imbalance",
+            Self::DcOffsetBlock { .. } => "DC Offset",
+            Self::StreamToVectorBlock { .. } => "Stream to Vector",
+            Self::QuantizerBlock { .. } => "Quantizer",
+            Self::SampleAndHoldBlock => "Sample & Hold",
+            Self::NullSourceBlock => "Null Source",
+            Self::VectorSourceBlock { .. } => "Vector Source",
         }
     }
 
@@ -519,13 +536,17 @@ impl BlockType {
             Self::PeakDetectorBlock { .. } | Self::ThresholdDetector { .. } => BlockCategory::Synchronization,
             Self::IntegrateAndDumpBlock { .. } => BlockCategory::Filtering,
             Self::RailBlock { .. } | Self::MuteBlock { .. } | Self::ValveBlock { .. } => BlockCategory::Impairments,
+            Self::PhaseNoiseBlock { .. } | Self::IqImbalanceBlock { .. } | Self::DcOffsetBlock { .. } => BlockCategory::Impairments,
+            Self::StreamToVectorBlock { .. } | Self::QuantizerBlock { .. } | Self::SampleAndHoldBlock => BlockCategory::Filtering,
+            Self::NullSourceBlock | Self::VectorSourceBlock { .. } => BlockCategory::Source,
         }
     }
 
     pub fn num_inputs(&self) -> u32 {
         match self {
             Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } |
-            Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } => 0,
+            Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } |
+            Self::NullSourceBlock | Self::VectorSourceBlock { .. } => 0,
             Self::Merge { num_inputs } => *num_inputs,
             Self::IqMerge => 2,
             _ => 1,
@@ -546,7 +567,8 @@ impl BlockType {
         match self {
             // Source blocks have no inputs
             Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } |
-            Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } => vec![],
+            Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } |
+            Self::NullSourceBlock | Self::VectorSourceBlock { .. } => vec![],
 
             // Coding blocks: bits in, bits out
             Self::Scrambler { .. } | Self::FecEncoder { .. } |
@@ -655,6 +677,9 @@ impl BlockType {
             Self::ThresholdDetector { .. } => vec![PortType::Real],
             Self::RailBlock { .. } => vec![PortType::Real],
             Self::MuteBlock { .. } | Self::ValveBlock { .. } => vec![PortType::IQ],
+            Self::PhaseNoiseBlock { .. } | Self::IqImbalanceBlock { .. } | Self::DcOffsetBlock { .. } => vec![PortType::IQ],
+            Self::StreamToVectorBlock { .. } | Self::QuantizerBlock { .. } => vec![PortType::Real],
+            Self::SampleAndHoldBlock => vec![PortType::Real],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -781,6 +806,10 @@ impl BlockType {
             Self::IntegrateAndDumpBlock { .. } => vec![PortType::Real],
             Self::RailBlock { .. } => vec![PortType::Real],
             Self::MuteBlock { .. } | Self::ValveBlock { .. } => vec![PortType::IQ],
+            Self::PhaseNoiseBlock { .. } | Self::IqImbalanceBlock { .. } | Self::DcOffsetBlock { .. } => vec![PortType::IQ],
+            Self::StreamToVectorBlock { .. } | Self::QuantizerBlock { .. } => vec![PortType::Real],
+            Self::SampleAndHoldBlock => vec![PortType::Real],
+            Self::NullSourceBlock | Self::VectorSourceBlock { .. } => vec![PortType::IQ],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -2876,6 +2905,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::SymbolSource { alphabet_size: 4 },
             BlockType::FileSource { path: String::new() },
             BlockType::NoiseSource { color: "White".to_string(), amplitude: 1.0 },
+            BlockType::NullSourceBlock,
+            BlockType::VectorSourceBlock { pattern: "Tone".to_string() },
             BlockType::PfbSynthesizer { num_channels: 4, taps_per_channel: 8, window: "hamming".to_string() },
         ]),
         (BlockCategory::Coding, vec![
@@ -2926,6 +2957,9 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::MultiplyConjugate,
             BlockType::Transcendental { function: "Abs".to_string() },
             BlockType::IntegrateAndDumpBlock { length: 10, average: false },
+            BlockType::StreamToVectorBlock { vector_size: 64 },
+            BlockType::QuantizerBlock { bits: 8 },
+            BlockType::SampleAndHoldBlock,
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -2954,6 +2988,9 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FadingChannel { model: FadingModel::Rayleigh, doppler_hz: 10.0 },
             BlockType::FrequencyOffset { offset_hz: 100.0 },
             BlockType::IqImbalance { gain_db: 0.5, phase_deg: 2.0 },
+            BlockType::PhaseNoiseBlock { magnitude_db: -30.0, alpha: 0.9 },
+            BlockType::IqImbalanceBlock { magnitude_db: 1.0, phase_deg: 3.0 },
+            BlockType::DcOffsetBlock { i_offset: 0.01, q_offset: -0.01 },
             BlockType::RailBlock { max_amplitude: 1.0 },
             BlockType::MuteBlock { muted: false },
             BlockType::ValveBlock { open: true },
@@ -6600,6 +6637,106 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // Phase Noise: IQ input → IQ output with phase jitter
+            BlockType::PhaseNoiseBlock { magnitude_db, alpha } => {
+                use r4w_core::hw_impairments::PhaseNoiseGenerator;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let mut pn = PhaseNoiseGenerator::new(*magnitude_db, *alpha);
+                let output = pn.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // IQ Imbalance: IQ input → IQ output with gain/phase mismatch
+            BlockType::IqImbalanceBlock { magnitude_db, phase_deg } => {
+                use r4w_core::hw_impairments::IqImbalanceGenerator;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let iq = IqImbalanceGenerator::new(*magnitude_db, *phase_deg);
+                let output = iq.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // DC Offset: IQ input → IQ output with constant bias
+            BlockType::DcOffsetBlock { i_offset, q_offset } => {
+                use r4w_core::hw_impairments::DcOffset;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let dc = DcOffset::new(*i_offset, *q_offset);
+                let output = dc.process(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Quantizer: real input → quantized real output
+            BlockType::QuantizerBlock { bits } => {
+                use r4w_core::sample_and_hold::Quantizer;
+                let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let q = Quantizer::n_bit(*bits);
+                let output = q.quantize_block(&reals);
+                let samples: Vec<(f32, f32)> = output.iter().map(|&v| (v as f32, 0.0)).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Sample and Hold: pass through (control-driven, demo passthrough)
+            BlockType::SampleAndHoldBlock => {
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
+
+            // Stream to Vector: real → real (passthrough for display; actual S2V is structural)
+            BlockType::StreamToVectorBlock { .. } => {
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
+
+            // Null Source: generates zeros
+            BlockType::NullSourceBlock => {
+                use r4w_core::null_sink_source::NullSource;
+                let src = NullSource::new();
+                let output = src.generate(256);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Vector Source: generates a test pattern
+            BlockType::VectorSourceBlock { pattern } => {
+                use num_complex::Complex64;
+                let n = 256;
+                let output: Vec<Complex64> = match pattern.as_str() {
+                    "Impulse" => {
+                        let mut v = vec![Complex64::new(0.0, 0.0); n];
+                        v[0] = Complex64::new(1.0, 0.0);
+                        v
+                    }
+                    "Step" => vec![Complex64::new(1.0, 0.0); n],
+                    _ => { // "Tone"
+                        (0..n).map(|i| {
+                            let phase = 2.0 * std::f64::consts::PI * i as f64 / 16.0;
+                            Complex64::new(phase.cos(), phase.sin())
+                        }).collect()
+                    }
+                };
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // Valve: IQ input → IQ output (empty when closed)
             BlockType::ValveBlock { open } => {
                 use r4w_core::selector::Valve;
@@ -8709,9 +8846,92 @@ impl PipelineWizardView {
                     block.block_type = BlockType::ValveBlock { open: new_open };
                 }
             }
+            BlockType::PhaseNoiseBlock { magnitude_db, alpha } => {
+                let mut new_mag = magnitude_db;
+                let mut new_alpha = alpha;
+                ui.horizontal(|ui| {
+                    ui.label("Magnitude (dBc):");
+                    ui.add(egui::DragValue::new(&mut new_mag).speed(1.0).range(-80.0..=0.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Alpha (shaping):");
+                    ui.add(egui::Slider::new(&mut new_alpha, 0.0..=0.999));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PhaseNoiseBlock { magnitude_db: new_mag, alpha: new_alpha };
+                }
+            }
+            BlockType::IqImbalanceBlock { magnitude_db, phase_deg } => {
+                let mut new_mag = magnitude_db;
+                let mut new_phase = phase_deg;
+                ui.horizontal(|ui| {
+                    ui.label("Gain Error (dB):");
+                    ui.add(egui::DragValue::new(&mut new_mag).speed(0.1).range(-10.0..=10.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Phase Error (deg):");
+                    ui.add(egui::DragValue::new(&mut new_phase).speed(0.1).range(-30.0..=30.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::IqImbalanceBlock { magnitude_db: new_mag, phase_deg: new_phase };
+                }
+            }
+            BlockType::DcOffsetBlock { i_offset, q_offset } => {
+                let mut new_i = i_offset;
+                let mut new_q = q_offset;
+                ui.horizontal(|ui| {
+                    ui.label("I Offset:");
+                    ui.add(egui::DragValue::new(&mut new_i).speed(0.001).range(-1.0..=1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Q Offset:");
+                    ui.add(egui::DragValue::new(&mut new_q).speed(0.001).range(-1.0..=1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DcOffsetBlock { i_offset: new_i, q_offset: new_q };
+                }
+            }
+            BlockType::StreamToVectorBlock { vector_size } => {
+                let mut new_size = vector_size;
+                ui.horizontal(|ui| {
+                    ui.label("Vector Size:");
+                    ui.add(egui::DragValue::new(&mut new_size).range(1..=65536));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::StreamToVectorBlock { vector_size: new_size };
+                }
+            }
+            BlockType::QuantizerBlock { bits } => {
+                let mut new_bits = bits;
+                ui.horizontal(|ui| {
+                    ui.label("Bits:");
+                    ui.add(egui::DragValue::new(&mut new_bits).range(1..=16));
+                });
+                ui.label(RichText::new(format!("{} levels", 1u32 << new_bits)).weak());
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::QuantizerBlock { bits: new_bits };
+                }
+            }
+            BlockType::VectorSourceBlock { pattern } => {
+                let mut new_pattern = pattern.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Pattern:");
+                    egui::ComboBox::from_id_salt("vsrc_pattern")
+                        .selected_text(&new_pattern)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_pattern, "Tone".to_string(), "Tone");
+                            ui.selectable_value(&mut new_pattern, "Impulse".to_string(), "Impulse");
+                            ui.selectable_value(&mut new_pattern, "Step".to_string(), "Step");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::VectorSourceBlock { pattern: new_pattern };
+                }
+            }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |
             BlockType::DifferentialEncoder | BlockType::MatchedFilter | BlockType::HdlcDeframer | BlockType::Ax25Decoder |
             BlockType::Conjugate | BlockType::MultiplyConjugate | BlockType::PhaseUnwrap |
+            BlockType::SampleAndHoldBlock | BlockType::NullSourceBlock |
             BlockType::IqOutput | BlockType::BitOutput | BlockType::IqSplit | BlockType::IqMerge => {
                 ui.label(RichText::new("No configurable parameters").italics());
             }
