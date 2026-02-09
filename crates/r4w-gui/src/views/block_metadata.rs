@@ -1035,9 +1035,9 @@ pub fn format_code_location(loc: &CodeLocation) -> String {
 
 /// Get test command for a block
 pub fn get_test_command(test: &BlockTest) -> String {
-    format!("cargo test --package {} {} -- --nocapture",
-        test.module.split("::").next().unwrap_or("r4w-core"),
-        test.name)
+    // Module names use underscores (r4w_core), but cargo packages use hyphens (r4w-core)
+    let package = test.module.split("::").next().unwrap_or("r4w-core").replace('_', "-");
+    format!("cargo test --package {} {} -- --nocapture", package, test.name)
 }
 
 #[cfg(test)]
