@@ -143,7 +143,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
-- **Pipeline Test Panel** - Collapsible test panel in Pipeline Builder for testing individual blocks. Input patterns: Random, AllZeros, AllOnes, Alternating, PRBS-7. View tabs: Bits (binary display), Time Domain (I/Q waveforms), Constellation (IQ diagram), Spectrum (DFT). Simplified PSK/QAM processing for visualization.
+- **Pipeline Builder Menu Bar** - Traditional dropdown menu bar replacing flat toolbar. Menus: File (New/Load/Save/Export), Edit (Select All/Delete/Validate), View (panels, arrows, zoom), Options (snap, auto-connect, cascade drag, connection styles), Layout (modes), Presets. Resizable test panel with persistent height tracking.
 - **Block Metadata System** - Comprehensive documentation for pipeline blocks (`block_metadata.rs`). Each block has: implementation location (file:line with "View Code" to open in VS Code), mathematical formulas with variable explanations, unit tests with "Run" buttons, performance info (complexity, SIMD/GPU support), standards references with links. Properties panel shows collapsible Documentation/Formulas/Implementation/Tests/Performance/Standards sections.
 - **TX/RX/Channel Pipeline Separation** - Waveform specs v1.1 format with separate `tx`, `rx`, and `channel` sections. Load menu offers TX/RX/Loopback options. Block ID conventions: TX(1-99), RX(100-199), Channel(200-299). Loopback mode auto-connects TX → Channel → RX.
 - **Demodulator Blocks** - Added PskDemodulator, QamDemodulator, FskDemodulator block types with property editors and YAML serialization.

@@ -7024,3 +7024,39 @@ User requested arrowheads on connection lines and fix for grid layout that wasn'
 ### Git Operations
 - Commit a164228: `[AI:claude] feat(gui): add test panel for pipeline block testing`
 - Pushed to origin/master
+
+### Follow-up Request
+User requested:
+1. Make Test Panel resizable without auto-shrinking
+2. Replace flat toolbar with traditional menu bar dropdowns
+
+### Actions Taken
+
+1. **Added test_panel_height Field**
+   - New field to track user's preferred test panel height
+   - Panel response tracks actual height after resize
+   - Increased max height from 400px to 600px
+   - Added show_separator_line for better resize handle visibility
+
+2. **Converted Toolbar to Menu Bar**
+   - Replaced flat horizontal toolbar with `egui::menu::bar`
+   - Organized into dropdown menus:
+     - **File**: New Pipeline, Load Spec (with submenu), Save, Export YAML
+     - **Edit**: Select All, Clear Selection, Delete Selected, Validate Pipeline
+     - **View**: Block Library, Properties Panel, Test Panel, Connection Arrows, Reset Zoom, Center View
+     - **Options**: Snap to Grid, Auto-connect, Cascade Drag, Port Layout (V/H), Connection Style
+     - **Layout**: Flow, Grid, Compact, Fit to View
+     - **Presets**: All pipeline templates with descriptions
+   - Right side shows pipeline name and zoom percentage
+   - Removed obsolete Preset window (now in menu)
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `crates/r4w-gui/src/views/pipeline_wizard.rs` | Rewrote toolbar as menu bar, added test_panel_height |
+| `CLAUDE.md` | Updated recent updates |
+
+### Git Operations
+- Commit e6d1dcd: `[AI:claude] feat(gui): add menu bar and resizable test panel`
+- Pushed to origin/master
