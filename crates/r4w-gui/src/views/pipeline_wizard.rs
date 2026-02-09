@@ -2251,6 +2251,7 @@ pub struct PipelineWizardView {
     pub drag_initial_positions: HashMap<BlockId, Pos2>,  // Initial canvas positions of dragged blocks
     // Test panel state
     pub show_test_panel: bool,
+    pub test_panel_height: f32,  // User-controlled height
     pub test_input_pattern: TestInputPattern,
     pub test_num_bits: usize,
     pub test_view_tab: TestViewTab,
@@ -2292,6 +2293,7 @@ impl Default for PipelineWizardView {
             drag_start_pointer: None,
             drag_initial_positions: HashMap::new(),
             show_test_panel: false,
+            test_panel_height: 200.0,  // Default height, user can resize
             test_input_pattern: TestInputPattern::default(),
             test_num_bits: 32,
             test_view_tab: TestViewTab::default(),
@@ -2576,52 +2578,115 @@ impl PipelineWizardView {
     pub fn render(&mut self, ui: &mut Ui) {
         let ctx = ui.ctx().clone();
 
-        // Top panel: Toolbar (rendered first so side panels appear below it)
-        egui::TopBottomPanel::top("pipeline_toolbar")
+        // Top panel: Menu bar (rendered first so side panels appear below it)
+        egui::TopBottomPanel::top("pipeline_menubar")
             .show(&ctx, |ui| {
-                ui.horizontal(|ui| {
-                    // Exit button to return to main view
+                egui::menu::bar(ui, |ui| {
+                    // Exit button
                     if ui.button("← Exit").clicked() {
                         self.wants_exit = true;
                     }
                     ui.separator();
-                    ui.heading("Pipeline Waveform Builder");
-                    ui.add_space(20.0);
-                    ui.checkbox(&mut self.show_library, "Library");
-                    ui.checkbox(&mut self.show_properties, "Properties");
-                    ui.checkbox(&mut self.snap_to_grid, "Snap");
+                    ui.label(RichText::new("Pipeline Builder").strong());
                     ui.separator();
-                    // Layout orientation toggle
-                    let layout_label = if self.vertical_layout { "↓ Vertical" } else { "→ Horizontal" };
-                    if ui.selectable_label(false, layout_label).clicked() {
-                        self.vertical_layout = !self.vertical_layout;
-                    }
-                    ui.checkbox(&mut self.auto_connect, "Auto-connect");
-                    ui.checkbox(&mut self.cascade_drag, "Cascade drag")
-                        .on_hover_text("Drag a block to also move all downstream connected blocks");
 
-                    // Connection style dropdown
-                    egui::ComboBox::from_id_salt("conn_style")
-                        .selected_text(self.connection_style.name())
-                        .width(90.0)
-                        .show_ui(ui, |ui| {
-                            for style in ConnectionStyle::all() {
-                                ui.selectable_value(&mut self.connection_style, *style, style.name());
-                            }
-                        })
-                        .response.on_hover_text("Connection line routing style");
-
-                    ui.checkbox(&mut self.show_arrowheads, "Arrows")
-                        .on_hover_text("Show arrowheads on connections");
-                    ui.checkbox(&mut self.show_test_panel, "Test")
-                        .on_hover_text("Show test panel to run data through blocks");
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                        if ui.button("Export YAML").clicked() {
-                            self.yaml_output = self.pipeline.to_yaml();
+                    // File menu
+                    ui.menu_button("File", |ui| {
+                        ui.set_min_width(180.0);
+                        if ui.button("New Pipeline").clicked() {
+                            self.pipeline = Pipeline::new();
+                            self.selected_blocks.clear();
+                            self.selected_connection = None;
+                            self.connecting_from = None;
+                            self.last_added_block = None;
+                            ui.close_menu();
                         }
-                        // Save pipeline to file
-                        if ui.button("Save").clicked() {
+                        ui.separator();
+
+                        // Load submenu
+                        ui.menu_button("Load Spec...", |ui| {
+                            // Refresh specs list when menu opens
+                            if self.available_specs.is_empty() {
+                                self.refresh_available_specs();
+                            }
+                            ui.set_min_width(200.0);
+
+                            if !self.available_specs.is_empty() {
+                                let specs: Vec<_> = self.available_specs.clone();
+                                for (name, path) in specs {
+                                    #[cfg(not(target_arch = "wasm32"))]
+                                    {
+                                        if let Ok(yaml) = std::fs::read_to_string(&path) {
+                                            let (has_tx, has_rx, has_channel, has_legacy) = Pipeline::detect_spec_sections(&yaml);
+                                            if has_tx || has_rx {
+                                                ui.menu_button(&name, |ui| {
+                                                    if has_tx && ui.button("📤 TX Pipeline").clicked() {
+                                                        if let Ok(pipeline) = Pipeline::from_yaml_with_mode(&yaml, LoadMode::TxOnly) {
+                                                            self.pipeline = pipeline;
+                                                            self.setup_after_load();
+                                                        }
+                                                        ui.close_menu();
+                                                    }
+                                                    if has_rx && ui.button("📥 RX Pipeline").clicked() {
+                                                        if let Ok(pipeline) = Pipeline::from_yaml_with_mode(&yaml, LoadMode::RxOnly) {
+                                                            self.pipeline = pipeline;
+                                                            self.setup_after_load();
+                                                        }
+                                                        ui.close_menu();
+                                                    }
+                                                    if has_tx && has_rx && ui.button("🔄 Loopback").clicked() {
+                                                        if let Ok(pipeline) = Pipeline::from_yaml_with_mode(&yaml, LoadMode::Loopback) {
+                                                            self.pipeline = pipeline;
+                                                            self.setup_after_load();
+                                                        }
+                                                        ui.close_menu();
+                                                    }
+                                                    if has_channel {
+                                                        ui.separator();
+                                                        if ui.button("📡 Channel Only").clicked() {
+                                                            if let Ok(pipeline) = Pipeline::from_yaml_with_mode(&yaml, LoadMode::ChannelOnly) {
+                                                                self.pipeline = pipeline;
+                                                                self.setup_after_load();
+                                                            }
+                                                            ui.close_menu();
+                                                        }
+                                                    }
+                                                });
+                                            } else if has_legacy && ui.button(&name).clicked() {
+                                                if let Ok(pipeline) = Pipeline::from_yaml(&yaml) {
+                                                    self.pipeline = pipeline;
+                                                    self.setup_after_load();
+                                                }
+                                                ui.close_menu();
+                                            }
+                                        }
+                                    }
+                                }
+                                ui.separator();
+                            }
+
+                            if ui.button("📁 Import from file...").clicked() {
+                                #[cfg(not(target_arch = "wasm32"))]
+                                if let Some(path) = rfd::FileDialog::new()
+                                    .add_filter("YAML", &["yaml", "yml"])
+                                    .pick_file()
+                                {
+                                    if let Ok(yaml) = std::fs::read_to_string(&path) {
+                                        if let Ok(pipeline) = Pipeline::from_yaml(&yaml) {
+                                            self.pipeline = pipeline;
+                                            self.setup_after_load();
+                                        }
+                                    }
+                                }
+                                ui.close_menu();
+                            }
+                            ui.separator();
+                            if ui.button("🔄 Refresh list").clicked() {
+                                self.refresh_available_specs();
+                            }
+                        });
+
+                        if ui.button("Save...").clicked() {
                             #[cfg(not(target_arch = "wasm32"))]
                             if let Some(path) = rfd::FileDialog::new()
                                 .set_file_name(&format!("{}.yaml", self.pipeline.name.replace(' ', "_").to_lowercase()))
@@ -2633,207 +2698,139 @@ impl PipelineWizardView {
                                     log::error!("Failed to save pipeline: {}", e);
                                 }
                             }
+                            ui.close_menu();
                         }
-                        // Load pipeline dropdown menu
-                        egui::menu::menu_button(ui, "Load ▼", |ui| {
-                            // Refresh specs list when menu opens
-                            if self.available_specs.is_empty() {
-                                self.refresh_available_specs();
-                            }
-
-                            ui.set_min_width(200.0);
-
-                            // List available specs with TX/RX/Loopback submenus
-                            if !self.available_specs.is_empty() {
-                                ui.label(RichText::new("Available Specs").strong());
-                                ui.separator();
-
-                                // Clone the specs to avoid borrow issues
-                                let specs: Vec<_> = self.available_specs.clone();
-                                for (name, path) in specs {
-                                    #[cfg(not(target_arch = "wasm32"))]
-                                    {
-                                        // Read file to detect sections
-                                        if let Ok(yaml) = std::fs::read_to_string(&path) {
-                                            let (has_tx, has_rx, has_channel, has_legacy) = Pipeline::detect_spec_sections(&yaml);
-
-                                            if has_tx || has_rx {
-                                                // Show submenu with TX/RX/Loopback options
-                                                ui.menu_button(&name, |ui| {
-                                                    if has_tx {
-                                                        if ui.button("📤 TX Pipeline").clicked() {
-                                                            match Pipeline::from_yaml_with_mode(&yaml, LoadMode::TxOnly) {
-                                                                Ok(pipeline) => {
-                                                                    self.pipeline = pipeline;
-                                                                    self.setup_after_load();
-                                                                }
-                                                                Err(e) => log::error!("Failed to load TX: {}", e),
-                                                            }
-                                                            ui.close_menu();
-                                                        }
-                                                    }
-                                                    if has_rx {
-                                                        if ui.button("📥 RX Pipeline").clicked() {
-                                                            match Pipeline::from_yaml_with_mode(&yaml, LoadMode::RxOnly) {
-                                                                Ok(pipeline) => {
-                                                                    self.pipeline = pipeline;
-                                                                    self.setup_after_load();
-                                                                }
-                                                                Err(e) => log::error!("Failed to load RX: {}", e),
-                                                            }
-                                                            ui.close_menu();
-                                                        }
-                                                    }
-                                                    if has_tx && has_rx {
-                                                        if ui.button("🔄 Loopback (TX→RX)").clicked() {
-                                                            match Pipeline::from_yaml_with_mode(&yaml, LoadMode::Loopback) {
-                                                                Ok(pipeline) => {
-                                                                    self.pipeline = pipeline;
-                                                                    self.setup_after_load();
-                                                                }
-                                                                Err(e) => log::error!("Failed to load Loopback: {}", e),
-                                                            }
-                                                            ui.close_menu();
-                                                        }
-                                                    }
-                                                    if has_channel {
-                                                        ui.separator();
-                                                        if ui.button("📡 Channel Only").clicked() {
-                                                            match Pipeline::from_yaml_with_mode(&yaml, LoadMode::ChannelOnly) {
-                                                                Ok(pipeline) => {
-                                                                    self.pipeline = pipeline;
-                                                                    self.setup_after_load();
-                                                                }
-                                                                Err(e) => log::error!("Failed to load Channel: {}", e),
-                                                            }
-                                                            ui.close_menu();
-                                                        }
-                                                    }
-                                                });
-                                            } else if has_legacy {
-                                                // Legacy format - single button
-                                                if ui.button(&name).clicked() {
-                                                    match Pipeline::from_yaml(&yaml) {
-                                                        Ok(pipeline) => {
-                                                            self.pipeline = pipeline;
-                                                            self.setup_after_load();
-                                                        }
-                                                        Err(e) => log::error!("Failed to parse {}: {}", name, e),
-                                                    }
-                                                    ui.close_menu();
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                ui.separator();
-                            }
-
-                            // Import from file option
-                            if ui.button("📁 Import from file...").clicked() {
-                                #[cfg(not(target_arch = "wasm32"))]
-                                if let Some(path) = rfd::FileDialog::new()
-                                    .add_filter("YAML", &["yaml", "yml"])
-                                    .pick_file()
-                                {
-                                    match std::fs::read_to_string(&path) {
-                                        Ok(yaml) => {
-                                            match Pipeline::from_yaml(&yaml) {
-                                                Ok(pipeline) => {
-                                                    self.pipeline = pipeline;
-                                                    self.setup_after_load();
-                                                }
-                                                Err(e) => log::error!("Failed to parse pipeline: {}", e),
-                                            }
-                                        }
-                                        Err(e) => log::error!("Failed to read file: {}", e),
-                                    }
-                                }
-                                ui.close_menu();
-                            }
-
-                            // Refresh option
-                            ui.separator();
-                            if ui.button("🔄 Refresh list").clicked() {
-                                self.refresh_available_specs();
-                            }
-                        });
-                        ui.separator();
-                        if ui.button("Validate").clicked() {
-                            self.validation_result = self.pipeline.validate();
-                            self.show_validation = true;
-                        }
-                        // Layout dropdown menu - show current layout mode
-                        let current_layout = self.pipeline.layout_mode;
-                        egui::menu::menu_button(ui, format!("Layout: {} ▼", current_layout.name()), |ui| {
-                            ui.set_min_width(150.0);
-                            for mode in LayoutMode::all() {
-                                let is_selected = *mode == current_layout;
-                                let label = if is_selected { format!("✓ {}", mode.name()) } else { mode.name().to_string() };
-                                if ui.button(label).on_hover_text(mode.description()).clicked() {
-                                    // Save layout mode to pipeline
-                                    self.pipeline.layout_mode = *mode;
-                                    // Use a reasonable default canvas size for fit-to-view
-                                    let canvas_size = Vec2::new(800.0, 600.0);
-                                    self.apply_layout(*mode, canvas_size);
-                                    ui.close_menu();
-                                }
-                            }
-                            ui.separator();
-                            if ui.button("Reset Zoom").on_hover_text("Reset zoom to 100%").clicked() {
-                                self.zoom = 1.0;
-                                ui.close_menu();
-                            }
-                            if ui.button("Center View").on_hover_text("Center blocks in view").clicked() {
-                                if let Some(bounds) = self.pipeline.get_bounds() {
-                                    self.canvas_offset = Vec2::new(
-                                        100.0 - bounds.min.x * self.zoom,
-                                        100.0 - bounds.min.y * self.zoom,
-                                    );
-                                }
-                                ui.close_menu();
-                            }
-                        });
-                        if ui.button("Presets").clicked() {
-                            self.show_presets = !self.show_presets;
-                        }
-                        if ui.button("Clear").clicked() {
-                            self.pipeline = Pipeline::new();
-                            self.selected_blocks.clear();
-                            self.selected_connection = None;
-                            self.connecting_from = None;
-                            self.last_added_block = None;
+                        if ui.button("Export YAML...").clicked() {
+                            self.yaml_output = self.pipeline.to_yaml();
+                            ui.close_menu();
                         }
                     });
-                });
-            });
 
-        // Preset selection window
-        if self.show_presets {
-            egui::Window::new("Pipeline Presets")
-                .resizable(false)
-                .collapsible(false)
-                .show(&ctx, |ui| {
-                    ui.label("Load a preset pipeline template:");
-                    ui.add_space(5.0);
-                    for preset in PipelinePreset::all() {
-                        ui.horizontal(|ui| {
-                            if ui.button(preset.name()).clicked() {
+                    // Edit menu
+                    ui.menu_button("Edit", |ui| {
+                        ui.set_min_width(150.0);
+                        if ui.button("Select All    Ctrl+A").clicked() {
+                            self.selected_blocks = self.pipeline.blocks.keys().copied().collect();
+                            ui.close_menu();
+                        }
+                        if ui.button("Clear Selection").clicked() {
+                            self.selected_blocks.clear();
+                            self.selected_connection = None;
+                            ui.close_menu();
+                        }
+                        ui.separator();
+                        let del_label = if self.selected_blocks.len() > 1 {
+                            format!("Delete {} Blocks", self.selected_blocks.len())
+                        } else {
+                            "Delete Selected".to_string()
+                        };
+                        if ui.add_enabled(!self.selected_blocks.is_empty(), egui::Button::new(del_label)).clicked() {
+                            for block_id in self.selected_blocks.drain() {
+                                self.pipeline.remove_block(block_id);
+                            }
+                            ui.close_menu();
+                        }
+                        if ui.button("Validate Pipeline").clicked() {
+                            self.validation_result = self.pipeline.validate();
+                            self.show_validation = true;
+                            ui.close_menu();
+                        }
+                    });
+
+                    // View menu
+                    ui.menu_button("View", |ui| {
+                        ui.set_min_width(150.0);
+                        if ui.checkbox(&mut self.show_library, "Block Library").changed() {
+                            ui.close_menu();
+                        }
+                        if ui.checkbox(&mut self.show_properties, "Properties Panel").changed() {
+                            ui.close_menu();
+                        }
+                        if ui.checkbox(&mut self.show_test_panel, "Test Panel").changed() {
+                            ui.close_menu();
+                        }
+                        ui.separator();
+                        if ui.checkbox(&mut self.show_arrowheads, "Connection Arrows").changed() {
+                            ui.close_menu();
+                        }
+                        ui.separator();
+                        if ui.button("Reset Zoom (100%)").clicked() {
+                            self.zoom = 1.0;
+                            ui.close_menu();
+                        }
+                        if ui.button("Center View").clicked() {
+                            if let Some(bounds) = self.pipeline.get_bounds() {
+                                self.canvas_offset = Vec2::new(
+                                    100.0 - bounds.min.x * self.zoom,
+                                    100.0 - bounds.min.y * self.zoom,
+                                );
+                            }
+                            ui.close_menu();
+                        }
+                    });
+
+                    // Options menu
+                    ui.menu_button("Options", |ui| {
+                        ui.set_min_width(180.0);
+                        ui.checkbox(&mut self.snap_to_grid, "Snap to Grid");
+                        ui.checkbox(&mut self.auto_connect, "Auto-connect New Blocks");
+                        ui.checkbox(&mut self.cascade_drag, "Cascade Drag (move downstream)");
+                        ui.separator();
+                        let layout_label = if self.vertical_layout { "Port Layout: Vertical ↓" } else { "Port Layout: Horizontal →" };
+                        if ui.button(layout_label).clicked() {
+                            self.vertical_layout = !self.vertical_layout;
+                            ui.close_menu();
+                        }
+                        ui.separator();
+                        ui.label("Connection Style:");
+                        for style in ConnectionStyle::all() {
+                            let selected = self.connection_style == *style;
+                            let label = if selected { format!("✓ {}", style.name()) } else { style.name().to_string() };
+                            if ui.button(label).clicked() {
+                                self.connection_style = *style;
+                                ui.close_menu();
+                            }
+                        }
+                    });
+
+                    // Layout menu
+                    ui.menu_button("Layout", |ui| {
+                        ui.set_min_width(150.0);
+                        let current_layout = self.pipeline.layout_mode;
+                        for mode in LayoutMode::all() {
+                            let is_selected = *mode == current_layout;
+                            let label = if is_selected { format!("✓ {}", mode.name()) } else { mode.name().to_string() };
+                            if ui.button(label).on_hover_text(mode.description()).clicked() {
+                                self.pipeline.layout_mode = *mode;
+                                let canvas_size = Vec2::new(800.0, 600.0);
+                                self.apply_layout(*mode, canvas_size);
+                                ui.close_menu();
+                            }
+                        }
+                    });
+
+                    // Presets menu
+                    ui.menu_button("Presets", |ui| {
+                        ui.set_min_width(200.0);
+                        for preset in PipelinePreset::all() {
+                            if ui.button(preset.name()).on_hover_text(preset.description()).clicked() {
                                 self.pipeline = Pipeline::from_preset(*preset);
                                 self.selected_blocks.clear();
                                 self.selected_connection = None;
                                 self.last_added_block = None;
-                                self.show_presets = false;
+                                ui.close_menu();
                             }
-                            ui.label(RichText::new(preset.description()).italics().weak());
-                        });
-                    }
-                    ui.add_space(5.0);
-                    if ui.button("Close").clicked() {
-                        self.show_presets = false;
-                    }
+                        }
+                    });
+
+                    // Right side: pipeline name and zoom
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(format!("Zoom: {:.0}%", self.zoom * 100.0));
+                        ui.separator();
+                        ui.label(&self.pipeline.name);
+                    });
                 });
-        }
+            });
 
         // Validation window
         if self.show_validation {
@@ -2943,16 +2940,19 @@ impl PipelineWizardView {
             }
         }
 
-        // Test panel at bottom (if enabled)
+        // Test panel at bottom (if enabled) - resizable with persisted height
         if self.show_test_panel {
-            egui::TopBottomPanel::bottom("test_panel")
+            let panel_response = egui::TopBottomPanel::bottom("test_panel")
                 .resizable(true)
-                .default_height(200.0)
+                .show_separator_line(true)
                 .min_height(100.0)
-                .max_height(400.0)
+                .max_height(600.0)
+                .default_height(self.test_panel_height)
                 .show(&ctx, |ui| {
                     self.render_test_panel(ui);
                 });
+            // Track the actual height after user resize
+            self.test_panel_height = panel_response.response.rect.height();
         }
 
         // Main canvas takes the remaining central area
