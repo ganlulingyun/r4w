@@ -3817,24 +3817,28 @@ impl PipelineWizardView {
         painter.add(PathShape::line(points, Stroke::new(width, color)));
     }
 
-    /// Draw an arrowhead at the destination point
+    /// Draw an arrowhead at the destination point (stops at port circle edge)
     fn draw_arrowhead(&self, painter: &egui::Painter, tip: Pos2, from_pos: Pos2, color: Color32) {
         // Calculate direction from last segment to tip
         let dir = (tip - from_pos).normalized();
         let arrow_size = 8.0 * self.zoom;
+        let port_radius = 6.0 * self.zoom;
+
+        // Offset the tip to end at the port circle perimeter, not the center
+        let adjusted_tip = tip - dir * port_radius;
 
         // Calculate perpendicular vectors for the arrowhead wings
         let perp = Vec2::new(-dir.y, dir.x);
 
-        // Arrow base point (behind the tip)
-        let base = tip - dir * arrow_size;
+        // Arrow base point (behind the adjusted tip)
+        let base = adjusted_tip - dir * arrow_size;
 
         // Wing points
         let wing1 = base + perp * (arrow_size * 0.5);
         let wing2 = base - perp * (arrow_size * 0.5);
 
         // Draw filled triangle
-        let points = vec![tip, wing1, wing2];
+        let points = vec![adjusted_tip, wing1, wing2];
         painter.add(egui::Shape::convex_polygon(points, color, Stroke::NONE));
     }
 
