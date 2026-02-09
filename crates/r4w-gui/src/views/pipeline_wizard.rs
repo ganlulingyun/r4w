@@ -2325,6 +2325,17 @@ impl PipelineWizardView {
         }
     }
 
+    /// Setup after loading a new pipeline (clear selections, apply layout)
+    fn setup_after_load(&mut self) {
+        self.selected_blocks.clear();
+        self.selected_connection = None;
+        self.last_added_block = None;
+        // Apply the pipeline's saved layout mode (defaults to Grid for specs without it)
+        let canvas_size = Vec2::new(800.0, 600.0);
+        let mode = self.pipeline.layout_mode;
+        self.apply_layout(mode, canvas_size);
+    }
+
     /// Apply a layout mode
     fn apply_layout(&mut self, mode: LayoutMode, canvas_size: Vec2) {
         match mode {
@@ -2549,9 +2560,7 @@ impl PipelineWizardView {
                                                             match Pipeline::from_yaml_with_mode(&yaml, LoadMode::TxOnly) {
                                                                 Ok(pipeline) => {
                                                                     self.pipeline = pipeline;
-                                                                    self.selected_blocks.clear();
-                                                                    self.selected_connection = None;
-                                                                    self.last_added_block = None;
+                                                                    self.setup_after_load();
                                                                 }
                                                                 Err(e) => log::error!("Failed to load TX: {}", e),
                                                             }
@@ -2563,9 +2572,7 @@ impl PipelineWizardView {
                                                             match Pipeline::from_yaml_with_mode(&yaml, LoadMode::RxOnly) {
                                                                 Ok(pipeline) => {
                                                                     self.pipeline = pipeline;
-                                                                    self.selected_blocks.clear();
-                                                                    self.selected_connection = None;
-                                                                    self.last_added_block = None;
+                                                                    self.setup_after_load();
                                                                 }
                                                                 Err(e) => log::error!("Failed to load RX: {}", e),
                                                             }
@@ -2577,9 +2584,7 @@ impl PipelineWizardView {
                                                             match Pipeline::from_yaml_with_mode(&yaml, LoadMode::Loopback) {
                                                                 Ok(pipeline) => {
                                                                     self.pipeline = pipeline;
-                                                                    self.selected_blocks.clear();
-                                                                    self.selected_connection = None;
-                                                                    self.last_added_block = None;
+                                                                    self.setup_after_load();
                                                                 }
                                                                 Err(e) => log::error!("Failed to load Loopback: {}", e),
                                                             }
@@ -2592,9 +2597,7 @@ impl PipelineWizardView {
                                                             match Pipeline::from_yaml_with_mode(&yaml, LoadMode::ChannelOnly) {
                                                                 Ok(pipeline) => {
                                                                     self.pipeline = pipeline;
-                                                                    self.selected_blocks.clear();
-                                                                    self.selected_connection = None;
-                                                                    self.last_added_block = None;
+                                                                    self.setup_after_load();
                                                                 }
                                                                 Err(e) => log::error!("Failed to load Channel: {}", e),
                                                             }
@@ -2608,9 +2611,7 @@ impl PipelineWizardView {
                                                     match Pipeline::from_yaml(&yaml) {
                                                         Ok(pipeline) => {
                                                             self.pipeline = pipeline;
-                                                            self.selected_blocks.clear();
-                                                            self.selected_connection = None;
-                                                            self.last_added_block = None;
+                                                            self.setup_after_load();
                                                         }
                                                         Err(e) => log::error!("Failed to parse {}: {}", name, e),
                                                     }
@@ -2635,9 +2636,7 @@ impl PipelineWizardView {
                                             match Pipeline::from_yaml(&yaml) {
                                                 Ok(pipeline) => {
                                                     self.pipeline = pipeline;
-                                                    self.selected_blocks.clear();
-                                                    self.selected_connection = None;
-                                                    self.last_added_block = None;
+                                                    self.setup_after_load();
                                                 }
                                                 Err(e) => log::error!("Failed to parse pipeline: {}", e),
                                             }
