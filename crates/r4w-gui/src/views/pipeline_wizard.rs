@@ -261,6 +261,16 @@ pub enum BlockType {
     SkipHeadBlock { num_samples: u32 },
     LogPowerFft { fft_size: u32, avg_alpha: f32 },
 
+    // Batch 12: Type conversions, demod, sync
+    QuadratureDemod { gain: f32, mode: String },
+    AccessCodeDetector { access_code_hex: String, threshold: u32 },
+    FractionalResampler { ratio: f32 },
+    FllBandEdge { samples_per_symbol: f32, rolloff: f32, filter_size: u32, loop_bandwidth: f32 },
+    ComplexToMag,
+    ComplexToArg,
+    ComplexToReal,
+    RealToComplex,
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -345,6 +355,14 @@ impl BlockType {
             Self::HeadBlock { .. } => "Head",
             Self::SkipHeadBlock { .. } => "Skip Head",
             Self::LogPowerFft { .. } => "Log Power FFT",
+            Self::QuadratureDemod { .. } => "Quadrature Demod",
+            Self::AccessCodeDetector { .. } => "Access Code Detector",
+            Self::FractionalResampler { .. } => "Fractional Resampler",
+            Self::FllBandEdge { .. } => "FLL Band-Edge",
+            Self::ComplexToMag => "Complex → Mag",
+            Self::ComplexToArg => "Complex → Arg",
+            Self::ComplexToReal => "Complex → Real",
+            Self::RealToComplex => "Real → Complex",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -373,6 +391,11 @@ impl BlockType {
             Self::CtcssSquelch { .. } => BlockCategory::Recovery,
             Self::HeadBlock { .. } | Self::SkipHeadBlock { .. } => BlockCategory::Output,
             Self::LogPowerFft { .. } => BlockCategory::Output,
+            Self::QuadratureDemod { .. } => BlockCategory::Recovery,
+            Self::AccessCodeDetector { .. } => BlockCategory::Synchronization,
+            Self::FractionalResampler { .. } => BlockCategory::RateConversion,
+            Self::FllBandEdge { .. } => BlockCategory::Recovery,
+            Self::ComplexToMag | Self::ComplexToArg | Self::ComplexToReal | Self::RealToComplex => BlockCategory::Output,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -456,6 +479,12 @@ impl BlockType {
             Self::CtcssSquelch { .. } => vec![PortType::Real],
             Self::HeadBlock { .. } | Self::SkipHeadBlock { .. } => vec![PortType::IQ],
             Self::LogPowerFft { .. } => vec![PortType::IQ],
+            Self::QuadratureDemod { .. } => vec![PortType::IQ],
+            Self::AccessCodeDetector { .. } => vec![PortType::Bits],
+            Self::FractionalResampler { .. } => vec![PortType::IQ],
+            Self::FllBandEdge { .. } => vec![PortType::IQ],
+            Self::ComplexToMag | Self::ComplexToArg | Self::ComplexToReal => vec![PortType::IQ],
+            Self::RealToComplex => vec![PortType::Real],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::IQ],
@@ -530,6 +559,12 @@ impl BlockType {
             Self::CtcssSquelch { .. } => vec![PortType::Real],
             Self::HeadBlock { .. } | Self::SkipHeadBlock { .. } => vec![PortType::IQ],
             Self::LogPowerFft { .. } => vec![PortType::Real],
+            Self::QuadratureDemod { .. } => vec![PortType::Real],
+            Self::AccessCodeDetector { .. } => vec![PortType::Bits],
+            Self::FractionalResampler { .. } => vec![PortType::IQ],
+            Self::FllBandEdge { .. } => vec![PortType::IQ],
+            Self::ComplexToMag | Self::ComplexToArg | Self::ComplexToReal => vec![PortType::Real],
+            Self::RealToComplex => vec![PortType::IQ],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2666,12 +2701,14 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::RationalResampler { up: 3, down: 2 },
             BlockType::PolyphaseResampler { up: 4, down: 1, taps_per_phase: 16 },
             BlockType::CicDecimator { rate: 10, stages: 3 },
+            BlockType::FractionalResampler { ratio: 0.91875 },
         ]),
         (BlockCategory::Synchronization, vec![
             BlockType::PreambleInsert { pattern: "alternating".to_string(), length: 32 },
             BlockType::SyncWordInsert { word: "0x7E".to_string() },
             BlockType::FrameBuilder { header_bits: 32, payload_bits: 256 },
             BlockType::TdmaFramer { slots: 4, slot_ms: 10.0 },
+            BlockType::AccessCodeDetector { access_code_hex: "E5".to_string(), threshold: 1 },
         ]),
         (BlockCategory::Impairments, vec![
             BlockType::AwgnChannel { snr_db: 20.0 },
@@ -2691,6 +2728,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::ConstellationRx { modulation: "QPSK".to_string(), loop_bw: 0.05 },
             BlockType::BurstDetector { high_threshold_db: -20.0, low_threshold_db: -30.0 },
             BlockType::CtcssSquelch { tone_freq: 100.0, sample_rate_hz: 48000.0, threshold: 2.0 },
+            BlockType::QuadratureDemod { gain: 1.0, mode: "FM".to_string() },
+            BlockType::FllBandEdge { samples_per_symbol: 4.0, rolloff: 0.35, filter_size: 45, loop_bandwidth: 0.02 },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -2703,6 +2742,10 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::HeadBlock { num_samples: 1000 },
             BlockType::SkipHeadBlock { num_samples: 100 },
             BlockType::LogPowerFft { fft_size: 1024, avg_alpha: 0.3 },
+            BlockType::ComplexToMag,
+            BlockType::ComplexToArg,
+            BlockType::ComplexToReal,
+            BlockType::RealToComplex,
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -5565,6 +5608,122 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // Quadrature Demod: FM discriminator
+            BlockType::QuadratureDemod { gain, mode } => {
+                use r4w_core::quadrature_demod::QuadratureDemod as CoreQd;
+                use num_complex::Complex64;
+                let g = if mode == "FM" { *gain as f64 * 48000.0 / (2.0 * std::f64::consts::PI * 5000.0) } else { *gain as f64 };
+                let mut qd = CoreQd::new(g);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = qd.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Access Code Detector: bit-level sync word search
+            BlockType::AccessCodeDetector { access_code_hex, threshold } => {
+                use r4w_core::access_code_detector::{AccessCodeDetector as CoreAcd, AccessCodeDetectorConfig};
+                let bits: Vec<bool> = input_bits.to_vec();
+                let config = AccessCodeDetectorConfig {
+                    access_code: {
+                        let mut v = Vec::new();
+                        for i in (0..access_code_hex.len()).step_by(2) {
+                            let end = (i + 2).min(access_code_hex.len());
+                            if let Ok(byte) = u8::from_str_radix(&access_code_hex[i..end], 16) {
+                                for j in (0..8).rev() { v.push((byte >> j) & 1 == 1); }
+                            }
+                        }
+                        if v.is_empty() { vec![true; 8] } else { v }
+                    },
+                    threshold: *threshold as usize,
+                };
+                let mut det = CoreAcd::new(config);
+                let _detections = det.process_block(&bits);
+                // Pass through bits unchanged
+                (input_bits.to_vec(), Vec::new(), Vec::new())
+            }
+
+            // Fractional Resampler: arbitrary rate conversion
+            BlockType::FractionalResampler { ratio } => {
+                use r4w_core::filters::FractionalResampler as CoreFr;
+                use num_complex::Complex64;
+                let mut fr = CoreFr::new(*ratio as f64);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = fr.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // FLL Band-Edge: coarse frequency synchronization
+            BlockType::FllBandEdge { samples_per_symbol, rolloff, filter_size, loop_bandwidth } => {
+                use r4w_core::fll_band_edge::{FllBandEdge as CoreFll, FllBandEdgeConfig};
+                use num_complex::Complex64;
+                let mut fll = CoreFll::new(FllBandEdgeConfig {
+                    samples_per_symbol: *samples_per_symbol as f64,
+                    rolloff: *rolloff as f64,
+                    filter_size: *filter_size as usize,
+                    loop_bandwidth: *loop_bandwidth as f64,
+                });
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = fll.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Type Converters
+            BlockType::ComplexToMag => {
+                use r4w_core::type_conversions::ComplexToMag as CoreCtm;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = CoreCtm.convert_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            BlockType::ComplexToArg => {
+                use r4w_core::type_conversions::ComplexToArg as CoreCta;
+                use num_complex::Complex64;
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = CoreCta.convert_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|&v| (v as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            BlockType::ComplexToReal => {
+                let samples: Vec<(f32, f32)> = input_samples.iter()
+                    .map(|&(i, _)| (i, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            BlockType::RealToComplex => {
+                // Real input comes as (value, 0) pairs
+                let samples: Vec<(f32, f32)> = input_samples.iter()
+                    .map(|&(r, _)| (r, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -7065,6 +7224,78 @@ impl PipelineWizardView {
                     block.block_type = BlockType::LogPowerFft { fft_size: new_fft, avg_alpha: new_alpha };
                 }
             }
+            BlockType::QuadratureDemod { gain, mode } => {
+                let mut new_gain = gain;
+                let mut new_mode = mode.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Mode:");
+                    egui::ComboBox::from_id_salt("qd_mode")
+                        .selected_text(&new_mode)
+                        .show_ui(ui, |ui| {
+                            for m in &["FM", "FSK", "Custom"] {
+                                ui.selectable_value(&mut new_mode, m.to_string(), *m);
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Gain:");
+                    ui.add(egui::DragValue::new(&mut new_gain).speed(0.1).range(0.01..=1000.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::QuadratureDemod { gain: new_gain, mode: new_mode };
+                }
+            }
+            BlockType::AccessCodeDetector { access_code_hex, threshold } => {
+                let mut new_hex = access_code_hex.clone();
+                let mut new_thresh = threshold;
+                ui.horizontal(|ui| {
+                    ui.label("Access Code (hex):");
+                    ui.text_edit_singleline(&mut new_hex);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    ui.add(egui::DragValue::new(&mut new_thresh).range(0..=8));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::AccessCodeDetector { access_code_hex: new_hex, threshold: new_thresh };
+                }
+            }
+            BlockType::FractionalResampler { ratio } => {
+                let mut new_ratio = ratio;
+                ui.horizontal(|ui| {
+                    ui.label("Ratio (out/in):");
+                    ui.add(egui::DragValue::new(&mut new_ratio).speed(0.01).range(0.01..=10.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FractionalResampler { ratio: new_ratio };
+                }
+            }
+            BlockType::FllBandEdge { samples_per_symbol, rolloff, filter_size, loop_bandwidth } => {
+                let mut new_sps = samples_per_symbol;
+                let mut new_ro = rolloff;
+                let mut new_fs = filter_size;
+                let mut new_lb = loop_bandwidth;
+                ui.horizontal(|ui| {
+                    ui.label("Samples/Symbol:");
+                    ui.add(egui::DragValue::new(&mut new_sps).speed(0.1).range(2.0..=16.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Rolloff:");
+                    ui.add(egui::Slider::new(&mut new_ro, 0.01..=1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Filter Size:");
+                    ui.add(egui::DragValue::new(&mut new_fs).range(11..=127));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Loop BW:");
+                    ui.add(egui::DragValue::new(&mut new_lb).speed(0.001).range(0.001..=0.2));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FllBandEdge { samples_per_symbol: new_sps, rolloff: new_ro, filter_size: new_fs, loop_bandwidth: new_lb };
+                }
+            }
+            BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |
             BlockType::DifferentialEncoder | BlockType::MatchedFilter |
             BlockType::IqOutput | BlockType::BitOutput | BlockType::IqSplit | BlockType::IqMerge => {
                 ui.label(RichText::new("No configurable parameters").italics());

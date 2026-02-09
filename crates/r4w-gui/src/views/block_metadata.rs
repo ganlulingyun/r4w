@@ -2199,6 +2199,289 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["fft_size", "avg_alpha", "window"],
         });
 
+    // --- Batch 12: Type conversions, Quad Demod, Access Code, Fractional Resampler, FLL Band-Edge ---
+
+    m.insert("QuadratureDemod", BlockMetadata {
+            block_type: "QuadratureDemod",
+            display_name: "Quadrature Demodulator",
+            category: "Recovery",
+            description: "FM discriminator. Computes instantaneous frequency by measuring phase difference between consecutive samples. Fundamental block for FM, NBFM, WBFM, FSK, GFSK, GMSK reception.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/quadrature_demod.rs",
+                line: 49,
+                symbol: "QuadratureDemod",
+                description: "FM discriminator: y[n] = gain * arg(x[n] * conj(x[n-1]))",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Quadrature Demodulation",
+                    plaintext: "y[n] = gain * arg(x[n] * conj(x[n-1]))",
+                    latex: Some("y[n] = g \\cdot \\arg(x[n] \\cdot x^*[n-1])"),
+                    variables: &[
+                        ("g", "gain = fs / (2*pi*max_deviation) for FM"),
+                        ("arg", "complex argument (atan2)"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_dc_input_zero_output", module: "r4w_core::quadrature_demod::tests", description: "DC gives zero", expected_runtime_ms: 5 },
+                BlockTest { name: "test_positive_frequency", module: "r4w_core::quadrature_demod::tests", description: "Positive tone detection", expected_runtime_ms: 5 },
+                BlockTest { name: "test_fm_gain_normalization", module: "r4w_core::quadrature_demod::tests", description: "FM gain normalization", expected_runtime_ms: 5 },
+                BlockTest { name: "test_fsk_binary", module: "r4w_core::quadrature_demod::tests", description: "FSK mark/space", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) prev sample", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["DeEmphasis", "FskDemodulator", "PLL"],
+            input_type: "IQ samples",
+            output_type: "Real (instantaneous frequency)",
+            key_parameters: &["gain", "mode"],
+        });
+
+    m.insert("AccessCodeDetector", BlockMetadata {
+            block_type: "AccessCodeDetector",
+            display_name: "Access Code Detector",
+            category: "Synchronization",
+            description: "Bit-level sync word detector. Searches a binary stream for a specified access code using a shift register and Hamming distance threshold for bit error tolerance.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/access_code_detector.rs",
+                line: 56,
+                symbol: "AccessCodeDetector",
+                description: "Shift register correlator with Hamming distance",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Hamming Distance",
+                    plaintext: "d(a,b) = popcount(a XOR b) <= threshold",
+                    latex: Some("d(a,b) = \\text{popcount}(a \\oplus b) \\leq T"),
+                    variables: &[
+                        ("a", "shift register contents"),
+                        ("b", "access code pattern"),
+                        ("T", "maximum allowed bit errors"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_exact_match", module: "r4w_core::access_code_detector::tests", description: "Exact code detection", expected_runtime_ms: 5 },
+                BlockTest { name: "test_threshold_tolerance", module: "r4w_core::access_code_detector::tests", description: "Bit error tolerance", expected_runtime_ms: 5 },
+                BlockTest { name: "test_multiple_detections", module: "r4w_core::access_code_detector::tests", description: "Multiple matches", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n) per bit", memory: "O(1) shift register", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["Correlator", "SyncWordInsert", "PreambleInsert"],
+            input_type: "Bits",
+            output_type: "Bits (with detection tags)",
+            key_parameters: &["access_code_hex", "threshold"],
+        });
+
+    m.insert("FractionalResampler", BlockMetadata {
+            block_type: "FractionalResampler",
+            display_name: "Fractional Resampler",
+            category: "Rate Conversion",
+            description: "Arbitrary (non-rational) sample rate conversion using linear interpolation. Supports irrational ratios (e.g., 48kHz to 44.1kHz) and variable-rate operation.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/filters/fractional_resampler.rs",
+                line: 30,
+                symbol: "FractionalResampler",
+                description: "MMSE interpolating resampler",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Linear Interpolation",
+                    plaintext: "y[m] = (1-mu)*x[n] + mu*x[n+1], mu += step per output",
+                    latex: Some("y[m] = (1-\\mu)x[n] + \\mu x[n+1]"),
+                    variables: &[
+                        ("mu", "fractional delay (0 to 1)"),
+                        ("step", "1/ratio = input samples per output"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_unity_ratio_passthrough", module: "r4w_core::filters::fractional_resampler::tests", description: "Unity ratio", expected_runtime_ms: 5 },
+                BlockTest { name: "test_downsample_2x", module: "r4w_core::filters::fractional_resampler::tests", description: "2x downsample", expected_runtime_ms: 5 },
+                BlockTest { name: "test_irrational_ratio", module: "r4w_core::filters::fractional_resampler::tests", description: "48k to 44.1k", expected_runtime_ms: 5 },
+                BlockTest { name: "test_tone_preservation", module: "r4w_core::filters::fractional_resampler::tests", description: "Tone frequency preserved", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) history", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["Upsampler", "Downsampler", "RationalResampler", "PolyphaseResampler"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (resampled)",
+            key_parameters: &["ratio"],
+        });
+
+    m.insert("FllBandEdge", BlockMetadata {
+            block_type: "FllBandEdge",
+            display_name: "FLL Band-Edge",
+            category: "Recovery",
+            description: "Coarse frequency synchronization using band-edge FIR filters. Power difference between upper/lower band-edge filter outputs generates frequency error for NCO correction.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/fll_band_edge.rs",
+                line: 66,
+                symbol: "FllBandEdge",
+                description: "Band-edge FLL with 2nd-order loop filter",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Band-Edge Frequency Error",
+                    plaintext: "error = |x_lower|^2 - |x_upper|^2",
+                    latex: Some("e = |x_l|^2 - |x_u|^2"),
+                    variables: &[
+                        ("x_l", "lower band-edge filter output"),
+                        ("x_u", "upper band-edge filter output"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_dc_no_correction", module: "r4w_core::fll_band_edge::tests", description: "DC stability", expected_runtime_ms: 5 },
+                BlockTest { name: "test_frequency_correction_convergence", module: "r4w_core::fll_band_edge::tests", description: "Freq offset correction", expected_runtime_ms: 10 },
+                BlockTest { name: "test_band_edge_filters_symmetric", module: "r4w_core::fll_band_edge::tests", description: "Filter symmetry", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n * T) per sample", memory: "O(T) filter taps + delay line", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["CostasLoop", "CarrierRecovery", "PLL"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (frequency-corrected)",
+            key_parameters: &["samples_per_symbol", "rolloff", "filter_size", "loop_bandwidth"],
+        });
+
+    m.insert("ComplexToMag", BlockMetadata {
+            block_type: "ComplexToMag",
+            display_name: "Complex to Magnitude",
+            category: "Type Conversion",
+            description: "Extracts magnitude (envelope) from complex samples: |z| = sqrt(re^2 + im^2). Use ComplexToMagSq for power without sqrt.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/type_conversions.rs",
+                line: 39,
+                symbol: "ComplexToMag",
+                description: "Complex to magnitude conversion",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Magnitude",
+                    plaintext: "|z| = sqrt(re^2 + im^2)",
+                    latex: Some("|z| = \\sqrt{\\text{re}^2 + \\text{im}^2}"),
+                    variables: &[],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_complex_to_mag", module: "r4w_core::type_conversions::tests", description: "3+4j -> 5", expected_runtime_ms: 5 },
+                BlockTest { name: "test_mag_phase_roundtrip", module: "r4w_core::type_conversions::tests", description: "Mag/phase roundtrip", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["ComplexToArg", "ComplexToReal", "IqSplit"],
+            input_type: "IQ samples",
+            output_type: "Real (magnitude)",
+            key_parameters: &[],
+        });
+
+    m.insert("ComplexToArg", BlockMetadata {
+            block_type: "ComplexToArg",
+            display_name: "Complex to Phase",
+            category: "Type Conversion",
+            description: "Extracts phase angle from complex samples: arg(z) = atan2(im, re). Range: (-pi, pi].",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/type_conversions.rs",
+                line: 56,
+                symbol: "ComplexToArg",
+                description: "Complex to phase angle",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Phase Angle",
+                    plaintext: "arg(z) = atan2(im, re)",
+                    latex: Some("\\arg(z) = \\text{atan2}(\\text{im}, \\text{re})"),
+                    variables: &[],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_complex_to_arg", module: "r4w_core::type_conversions::tests", description: "Phase extraction", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["ComplexToMag", "ComplexToReal", "QuadratureDemod"],
+            input_type: "IQ samples",
+            output_type: "Real (phase in radians)",
+            key_parameters: &[],
+        });
+
+    m.insert("ComplexToReal", BlockMetadata {
+            block_type: "ComplexToReal",
+            display_name: "Complex to Real",
+            category: "Type Conversion",
+            description: "Extracts the real (in-phase) component from complex samples, discarding the imaginary (quadrature) part.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/type_conversions.rs",
+                line: 66,
+                symbol: "ComplexToReal",
+                description: "Extract real part",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Real Part",
+                    plaintext: "y = re(z)",
+                    latex: Some("y = \\text{Re}(z)"),
+                    variables: &[],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_complex_to_real", module: "r4w_core::type_conversions::tests", description: "Real extraction", expected_runtime_ms: 5 },
+                BlockTest { name: "test_real_imag_roundtrip", module: "r4w_core::type_conversions::tests", description: "Re/Im roundtrip", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["ComplexToImag", "ComplexToMag", "IqSplit"],
+            input_type: "IQ samples",
+            output_type: "Real",
+            key_parameters: &[],
+        });
+
+    m.insert("RealToComplex", BlockMetadata {
+            block_type: "RealToComplex",
+            display_name: "Real to Complex",
+            category: "Type Conversion",
+            description: "Converts real samples to complex by setting imaginary part to zero: re -> re + j*0.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/type_conversions.rs",
+                line: 76,
+                symbol: "RealToComplex",
+                description: "Real to complex conversion",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Real to Complex",
+                    plaintext: "z = re + j*0",
+                    latex: Some("z = x + j \\cdot 0"),
+                    variables: &[],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_real_to_complex", module: "r4w_core::type_conversions::tests", description: "Real to complex", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["ComplexToReal", "IqMerge"],
+            input_type: "Real",
+            output_type: "IQ samples",
+            key_parameters: &[],
+        });
+
     m
 }
 
