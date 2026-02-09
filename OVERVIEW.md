@@ -648,7 +648,8 @@ Measured with `tokei`:
   - Batch 17: Rotator (NCO freq shift), Puncture/Depuncture (FEC rate adaptation), Symbol Slicer (hard decision), Frame Sync (sync word detection), Vector Sink (data capture)
   - Batch 18: Arithmetic (Add/Subtract/Divide + const variants), Conjugate/MultiplyConjugate, Phase Wrap/Unwrap, Transcendental (Abs/Log/Exp/Normalize), Chunks to Symbols (LUT mapper + soft-bit LLR)
   - Batch 19: FM Modulator (continuous-phase + FSK), Peak Detector (parabolic interpolation), Integrate & Dump, Rail (clamp), Threshold Detector, Mute, Valve (gate)
-  - All blocks wired into the visual pipeline builder (now 91+ blocks) with property editors and block metadata
+  - Batch 20: HW Impairments (Phase Noise, IQ Imbalance, DC Offset), Stream-to-Vector/Interleave/Deinterleave, Tag Debug/Gate/Strobe, Sample-and-Hold + Quantizer (ADC sim), Null Source/Sink + Vector Source + Tee
+  - All blocks wired into the visual pipeline builder (now 99+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
