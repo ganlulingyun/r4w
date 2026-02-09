@@ -4874,11 +4874,19 @@ impl PipelineWizardView {
             }
 
             // Coding: Bits → Bits
-            BlockType::Scrambler { polynomial: _, seed: _ } => {
-                let output: Vec<bool> = input_bits.iter()
-                    .enumerate()
-                    .map(|(i, &b)| b ^ (i % 2 == 0))
-                    .collect();
+            BlockType::Scrambler { polynomial, seed } => {
+                use r4w_core::scrambler::{Scrambler, ScramblerConfig, ScramblerType};
+                let config = ScramblerConfig {
+                    mask: *polynomial as u64,
+                    length: 32 - (*polynomial).leading_zeros(),
+                    seed: *seed as u64,
+                    scrambler_type: ScramblerType::Additive,
+                    reset_period: 0,
+                };
+                let mut scrambler = Scrambler::new(config);
+                let bits_u8: Vec<u8> = input_bits.iter().map(|&b| b as u8).collect();
+                let scrambled = scrambler.scramble_bits(&bits_u8);
+                let output: Vec<bool> = scrambled.iter().map(|&b| b != 0).collect();
                 (output, Vec::new(), Vec::new())
             }
 
@@ -5177,6 +5185,45 @@ impl PipelineWizardView {
                     .map(|s| (s.re as f32, s.im as f32))
                     .collect();
                 (Vec::new(), Vec::new(), samples)
+            }
+
+            // OFDM Modulator: IQ → IQ (maps symbols to subcarriers)
+            BlockType::OfdmModulator { fft_size, cp_len, data_carriers } => {
+                use r4w_core::ofdm::{OfdmModulator as OfdmMod, OfdmConfig};
+                let config = OfdmConfig::simple(*fft_size as usize, *cp_len as usize);
+                let tx = OfdmMod::new(config);
+                let data: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = tx.modulate(&data);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Differential Encoder: Symbols → Symbols
+            BlockType::DifferentialEncoder => {
+                use r4w_core::differential::DiffEncoder;
+                let modulus = if !input_symbols.is_empty() {
+                    (*input_symbols.iter().max().unwrap_or(&1) + 1).max(2) as u8
+                } else {
+                    2
+                };
+                let mut enc = DiffEncoder::new(modulus);
+                if !input_symbols.is_empty() {
+                    let encoded: Vec<u32> = input_symbols.iter()
+                        .map(|&s| enc.encode(s as u8) as u32)
+                        .collect();
+                    (Vec::new(), encoded, Vec::new())
+                } else {
+                    // Bits mode: treat as DBPSK
+                    let mut enc = DiffEncoder::new(2);
+                    let encoded: Vec<bool> = input_bits.iter()
+                        .map(|&b| enc.encode(b as u8) != 0)
+                        .collect();
+                    (encoded, Vec::new(), Vec::new())
+                }
             }
 
             // Default: pass through based on likely output type

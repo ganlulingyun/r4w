@@ -829,29 +829,35 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
                 configurable polynomial.",
             implementation: Some(CodeLocation {
                 crate_name: "r4w-core",
-                file_path: "src/whitening.rs",
-                line: 40,
-                symbol: "Whitening",
-                description: "LFSR-based whitening/scrambling",
+                file_path: "src/scrambler.rs",
+                line: 1,
+                symbol: "Scrambler",
+                description: "LFSR-based additive/multiplicative scrambler",
             }),
             related_code: &[],
             formulas: &[
                 BlockFormula {
-                    name: "LFSR Operation",
-                    plaintext: "out[n] = data[n] XOR state XOR feedback(state)",
+                    name: "Additive Scrambler",
+                    plaintext: "out[n] = data[n] XOR LFSR_output[n]",
                     latex: Some(r"\text{out}_n = \text{data}_n \oplus \text{LFSR}_n"),
                     variables: &[
                         ("data[n]", "Input bit"),
-                        ("state", "LFSR state"),
-                        ("feedback", "Polynomial feedback"),
+                        ("LFSR_output", "Pseudo-random sequence from LFSR"),
+                        ("mask", "Feedback polynomial taps"),
                     ],
                 },
             ],
             tests: &[
                 BlockTest {
-                    name: "test_scrambler_descrambler",
-                    module: "r4w_core::coding::scrambler::tests",
-                    description: "Verify round-trip scrambling",
+                    name: "test_additive_roundtrip",
+                    module: "r4w_core::scrambler::tests",
+                    description: "Verify scramble/descramble roundtrip",
+                    expected_runtime_ms: 10,
+                },
+                BlockTest {
+                    name: "test_byte_roundtrip",
+                    module: "r4w_core::scrambler::tests",
+                    description: "Byte-level scramble/descramble",
                     expected_runtime_ms: 10,
                 },
             ],
@@ -1503,6 +1509,118 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             input_type: "IQ",
             output_type: "IQ (equalized)",
             key_parameters: &["eq_type (LMS/CMA/DD)", "taps", "mu (step size)"],
+        });
+
+        m.insert("OfdmModulator", BlockMetadata {
+            block_type: "OfdmModulator",
+            display_name: "OFDM Modulator",
+            category: "Modulation",
+            description: "Orthogonal Frequency Division Multiplexing modulator. Maps data symbols \
+                to subcarriers via IFFT, adds cyclic prefix and pilot tones. Used in WiFi, \
+                LTE, DVB-T, and DAB.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/ofdm.rs",
+                line: 120,
+                symbol: "OfdmModulator",
+                description: "OFDM IFFT-based modulator with CP insertion",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "OFDM Symbol",
+                    plaintext: "x[n] = (1/sqrt(N)) * sum_k(X[k] * exp(j*2*pi*k*n/N)), n = 0..N-1",
+                    latex: Some(r"x[n] = \frac{1}{\sqrt{N}} \sum_{k=0}^{N-1} X[k] e^{j2\pi kn/N}"),
+                    variables: &[
+                        ("X[k]", "Frequency-domain subcarrier values"),
+                        ("N", "FFT size (number of subcarriers)"),
+                        ("x[n]", "Time-domain OFDM symbol samples"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_ofdm_wifi_roundtrip",
+                    module: "r4w_core::ofdm::tests",
+                    description: "WiFi-like OFDM modulate/demodulate roundtrip",
+                    expected_runtime_ms: 50,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(N^2) naive DFT, O(N log N) with FFT",
+                memory: "O(N) for FFT buffer",
+                simd_optimized: false,
+                gpu_accelerable: true,
+            }),
+            standards: &[
+                StandardReference {
+                    name: "IEEE 802.11a",
+                    section: Some("Section 17: OFDM PHY"),
+                    url: None,
+                },
+                StandardReference {
+                    name: "ETSI EN 300 744",
+                    section: Some("DVB-T OFDM system"),
+                    url: None,
+                },
+            ],
+            related_blocks: &["PskModulator", "QamModulator", "FirFilter"],
+            input_type: "IQ (subcarrier symbols)",
+            output_type: "IQ (time-domain OFDM)",
+            key_parameters: &["fft_size", "cp_len", "data_carriers"],
+        });
+
+        m.insert("DifferentialEncoder", BlockMetadata {
+            block_type: "DifferentialEncoder",
+            display_name: "Differential Encoder",
+            category: "Mapping",
+            description: "Encodes information in phase transitions rather than absolute phase. \
+                Resolves phase ambiguity in PSK systems without needing absolute phase reference.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/differential.rs",
+                line: 1,
+                symbol: "DiffEncoder",
+                description: "Differential encoder/decoder for DBPSK/DQPSK/D8PSK",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Differential Encoding",
+                    plaintext: "y[n] = (x[n] + y[n-1]) mod M",
+                    latex: Some(r"y[n] = (x[n] + y[n-1]) \bmod M"),
+                    variables: &[
+                        ("x[n]", "Input symbol (0 to M-1)"),
+                        ("y[n]", "Encoded output symbol"),
+                        ("M", "Constellation size (modulus)"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_dqpsk_roundtrip",
+                    module: "r4w_core::differential::tests",
+                    description: "DQPSK encode/decode roundtrip",
+                    expected_runtime_ms: 10,
+                },
+                BlockTest {
+                    name: "test_phase_ambiguity_resolution",
+                    module: "r4w_core::differential::tests",
+                    description: "Phase ambiguity resolution after rotation",
+                    expected_runtime_ms: 10,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(1) per symbol",
+                memory: "O(1)",
+                simd_optimized: false,
+                gpu_accelerable: false,
+            }),
+            standards: &[],
+            related_blocks: &["PskModulator", "ConstellationMapper", "CarrierRecovery"],
+            input_type: "Symbols or Bits",
+            output_type: "Symbols or Bits (differentially encoded)",
+            key_parameters: &["modulus"],
         });
 
     m
