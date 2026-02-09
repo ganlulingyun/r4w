@@ -26,7 +26,9 @@
 //! ```
 
 pub mod convolutional;
+pub mod polar;
 pub mod reed_solomon;
 
 pub use convolutional::{ConvCodeConfig, ConvolutionalEncoder, ViterbiDecoder};
+pub use polar::{PolarConfig, PolarDecoder, PolarDecoderType, PolarEncoder};
 pub use reed_solomon::{ReedSolomon, RsConfig, RsError};

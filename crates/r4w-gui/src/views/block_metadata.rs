@@ -3987,6 +3987,170 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["wavelet", "levels", "method"],
         });
 
+    // === Batch 22 ===
+
+    m.insert("CPM Modulator", BlockMetadata {
+            block_type: "CpmModulatorBlock",
+            display_name: "CPM Modulator",
+            category: "Modulation",
+            description: "Continuous Phase Modulation — GMSK (GSM), GFSK (Bluetooth), MSK. Constant-envelope, smooth phase transitions for spectral efficiency.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/cpm.rs", line: 117, symbol: "CpmModulator", description: "CPM modulator with configurable phase pulse" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Instantaneous Phase", plaintext: "φ(t) = 2πh ∫ Σ_k a_k * g(t - kT) dt", latex: Some("\\varphi(t) = 2\\pi h \\int \\sum_k a_k g(t - kT) dt"), variables: &[("h", "modulation index"), ("a_k", "symbol"), ("g(t)", "frequency pulse"), ("T", "symbol period")] },
+                BlockFormula { name: "Gaussian Pulse", plaintext: "g(t) = Q(2πBT(t-T/2)/√ln2) - Q(2πBT(t+T/2)/√ln2)", latex: Some("g(t) = Q\\left(\\frac{2\\pi BT(t-T/2)}{\\sqrt{\\ln 2}}\\right) - Q\\left(\\frac{2\\pi BT(t+T/2)}{\\sqrt{\\ln 2}}\\right)"), variables: &[("BT", "bandwidth-time product"), ("Q", "complementary Gaussian CDF")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_msk_constant_envelope", module: "r4w_core::cpm::tests", description: "MSK constant envelope verification", expected_runtime_ms: 1 },
+                BlockTest { name: "test_msk_roundtrip", module: "r4w_core::cpm::tests", description: "MSK modulation/demodulation roundtrip", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n*L*sps)", memory: "O(L*sps)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "3GPP TS 45.004", section: Some("GMSK for GSM"), url: None },
+                StandardReference { name: "IEEE 802.15.1", section: Some("GFSK for Bluetooth"), url: None },
+            ],
+            related_blocks: &["CpmDemodulatorBlock", "FrequencyModulatorBlock"],
+            input_type: "Bits",
+            output_type: "IQ",
+            key_parameters: &["cpm_type", "mod_index", "sps", "pulse_duration"],
+        });
+
+    m.insert("CPM Demodulator", BlockMetadata {
+            block_type: "CpmDemodulatorBlock",
+            display_name: "CPM Demodulator",
+            category: "Recovery",
+            description: "Non-coherent CPM demodulation using differential phase detection and integrate-and-dump.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/cpm.rs", line: 223, symbol: "CpmDemodulator", description: "CPM demodulator via quadrature detection" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Phase Difference", plaintext: "Δφ[n] = arg(x[n] * conj(x[n-1]))", latex: Some("\\Delta\\varphi[n] = \\arg(x[n] \\cdot x^*[n-1])"), variables: &[("x[n]", "received IQ sample")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_demod_reset", module: "r4w_core::cpm::tests", description: "Demodulator reset", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["CpmModulatorBlock", "QuadratureDemod"],
+            input_type: "IQ",
+            output_type: "Bits",
+            key_parameters: &["cpm_type", "mod_index", "sps", "pulse_duration"],
+        });
+
+    m.insert("Dynamic Channel", BlockMetadata {
+            block_type: "DynamicChannelBlock",
+            display_name: "Dynamic Channel",
+            category: "Impairments",
+            description: "Composite time-varying channel: multipath fading + CFO drift + SRO drift + AWGN. Presets: Indoor, Urban, Vehicular, Satellite.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/dynamic_channel.rs", line: 281, symbol: "DynamicChannel", description: "Composite dynamic channel model" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Channel Output", plaintext: "y(t) = Σ_l h_l(t) * x(t-τ_l) * exp(j2πΔf*t) + n(t)", latex: Some("y(t) = \\sum_l h_l(t) x(t-\\tau_l) e^{j2\\pi\\Delta f \\cdot t} + n(t)"), variables: &[("h_l(t)", "time-varying tap gain"), ("τ_l", "tap delay"), ("Δf", "CFO drift"), ("n(t)", "AWGN")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_no_fading_passthrough", module: "r4w_core::dynamic_channel::tests", description: "No-impairment passthrough", expected_runtime_ms: 1 },
+                BlockTest { name: "test_random_walk_bounded", module: "r4w_core::dynamic_channel::tests", description: "CFO/SRO drift bounds", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n*K)", memory: "O(K)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "3GPP TS 36.104", section: Some("EPA, EVA, ETU channel models"), url: None },
+            ],
+            related_blocks: &["AwgnChannel", "FadingChannel", "FrequencyOffset"],
+            input_type: "IQ",
+            output_type: "IQ",
+            key_parameters: &["preset", "noise_amplitude"],
+        });
+
+    m.insert("Polar Encoder", BlockMetadata {
+            block_type: "PolarEncoderBlock",
+            display_name: "Polar Encoder",
+            category: "Coding",
+            description: "Polar code encoder (5G NR control channel FEC). Capacity-achieving codes with Bhattacharyya-based frozen bit selection.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/fec/polar.rs", line: 79, symbol: "PolarEncoder", description: "Polar code encoder with butterfly transform" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Polar Transform", plaintext: "x = u * F^⊗n, F = [[1,0],[1,1]]", latex: Some("\\mathbf{x} = \\mathbf{u} \\cdot F^{\\otimes n}, \\quad F = \\begin{bmatrix} 1 & 0 \\\\ 1 & 1 \\end{bmatrix}"), variables: &[("u", "input (info + frozen)"), ("F", "kernel matrix"), ("n", "log2(N)")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_polar_roundtrip_n8_k4", module: "r4w_core::fec::polar::tests", description: "N=8 K=4 encode/decode roundtrip", expected_runtime_ms: 1 },
+                BlockTest { name: "test_polar_roundtrip_n16_k8", module: "r4w_core::fec::polar::tests", description: "N=16 K=8 roundtrip", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(N log N)", memory: "O(N)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "3GPP TS 38.212", section: Some("Section 5.3.1 - Polar coding"), url: None },
+                StandardReference { name: "Arikan (2009)", section: Some("Channel Polarization"), url: None },
+            ],
+            related_blocks: &["PolarDecoderBlock", "FecEncoder"],
+            input_type: "Bits",
+            output_type: "Bits",
+            key_parameters: &["block_size", "info_bits"],
+        });
+
+    m.insert("Polar Decoder", BlockMetadata {
+            block_type: "PolarDecoderBlock",
+            display_name: "Polar Decoder",
+            category: "Coding",
+            description: "Polar code SC/SCL decoder. Successive cancellation decodes frozen and info bits sequentially.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/fec/polar.rs", line: 125, symbol: "PolarDecoder", description: "SC and SCL polar decoder" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "f function (min-sum)", plaintext: "f(a,b) = sign(a)*sign(b)*min(|a|,|b|)", latex: Some("f(a,b) = \\text{sgn}(a) \\cdot \\text{sgn}(b) \\cdot \\min(|a|,|b|)"), variables: &[("a,b", "LLR inputs")] },
+                BlockFormula { name: "g function", plaintext: "g(a,b,u) = b + (1-2u)*a", latex: Some("g(a,b,u) = b + (1-2u) \\cdot a"), variables: &[("u", "partial sum bit")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_polar_soft_decode", module: "r4w_core::fec::polar::tests", description: "Soft LLR decoding", expected_runtime_ms: 1 },
+                BlockTest { name: "test_polar_n32_k16", module: "r4w_core::fec::polar::tests", description: "N=32 K=16 roundtrip", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(N log N)", memory: "O(N log N)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[
+                StandardReference { name: "3GPP TS 38.212", section: Some("Section 5.3.1 - Polar coding"), url: None },
+            ],
+            related_blocks: &["PolarEncoderBlock", "FecEncoder"],
+            input_type: "Bits (or soft LLR)",
+            output_type: "Bits",
+            key_parameters: &["block_size", "info_bits"],
+        });
+
+    m.insert("Burst Tagger", BlockMetadata {
+            block_type: "BurstTaggerBlock",
+            display_name: "Burst Tagger",
+            category: "Synchronization",
+            description: "Power-based burst detection with holdoff. Segments continuous IQ stream into tagged bursts for packet processing.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/burst_tagger.rs", line: 54, symbol: "BurstTagger", description: "Power-based burst segmentation" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Power Detection", plaintext: "P[n] = 10*log10(|x[n]|²)", latex: Some("P[n] = 10 \\log_{10}(|x[n]|^2)"), variables: &[("x[n]", "input sample"), ("P[n]", "power in dB")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_burst_tagger_single_burst", module: "r4w_core::burst_tagger::tests", description: "Single burst detection", expected_runtime_ms: 1 },
+                BlockTest { name: "test_holdoff_extends_burst", module: "r4w_core::burst_tagger::tests", description: "Holdoff bridges short gaps", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(burst_len)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["BurstDetector", "PowerSquelch", "TaggedStreamMuxBlock"],
+            input_type: "IQ",
+            output_type: "IQ (tagged bursts)",
+            key_parameters: &["threshold_db", "min_burst_len", "holdoff"],
+        });
+
+    m.insert("Tagged Stream Mux", BlockMetadata {
+            block_type: "TaggedStreamMuxBlock",
+            display_name: "Tagged Stream Mux",
+            category: "Synchronization",
+            description: "Multiplex multiple tagged burst streams into a single output stream.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/burst_tagger.rs", line: 168, symbol: "TaggedStreamMux", description: "Tagged stream multiplexer" }),
+            related_code: &[],
+            formulas: &[],
+            tests: &[
+                BlockTest { name: "test_tagged_stream_mux", module: "r4w_core::burst_tagger::tests", description: "Mux two bursts", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["BurstTaggerBlock", "StreamMux"],
+            input_type: "IQ (multiple)",
+            output_type: "IQ",
+            key_parameters: &["num_inputs"],
+        });
+
     m
 }
 

@@ -360,6 +360,14 @@ pub enum BlockType {
     SsbDemodulatorBlock { mode: String },
     DwtAnalyzerBlock { wavelet: String, levels: usize },
     WaveletDenoiserBlock { wavelet: String, levels: usize, method: String },
+    // Batch 22
+    CpmModulatorBlock { cpm_type: String, mod_index: f64, sps: usize, pulse_duration: usize },
+    CpmDemodulatorBlock { cpm_type: String, mod_index: f64, sps: usize, pulse_duration: usize },
+    DynamicChannelBlock { preset: String, noise_amplitude: f64 },
+    PolarEncoderBlock { block_size: usize, info_bits: usize },
+    PolarDecoderBlock { block_size: usize, info_bits: usize },
+    BurstTaggerBlock { threshold_db: f64, min_burst_len: usize, holdoff: usize },
+    TaggedStreamMuxBlock { num_inputs: usize },
 }
 
 impl BlockType {
@@ -492,6 +500,13 @@ impl BlockType {
             Self::SsbDemodulatorBlock { .. } => "SSB Demodulator",
             Self::DwtAnalyzerBlock { .. } => "DWT Analyzer",
             Self::WaveletDenoiserBlock { .. } => "Wavelet Denoiser",
+            Self::CpmModulatorBlock { .. } => "CPM Modulator",
+            Self::CpmDemodulatorBlock { .. } => "CPM Demodulator",
+            Self::DynamicChannelBlock { .. } => "Dynamic Channel",
+            Self::PolarEncoderBlock { .. } => "Polar Encoder",
+            Self::PolarDecoderBlock { .. } => "Polar Decoder",
+            Self::BurstTaggerBlock { .. } => "Burst Tagger",
+            Self::TaggedStreamMuxBlock { .. } => "Tagged Stream Mux",
         }
     }
 
@@ -559,6 +574,11 @@ impl BlockType {
             Self::SsbModulatorBlock { .. } => BlockCategory::Modulation,
             Self::SsbDemodulatorBlock { .. } => BlockCategory::Recovery,
             Self::DwtAnalyzerBlock { .. } | Self::WaveletDenoiserBlock { .. } => BlockCategory::Filtering,
+            Self::CpmModulatorBlock { .. } => BlockCategory::Modulation,
+            Self::CpmDemodulatorBlock { .. } => BlockCategory::Recovery,
+            Self::DynamicChannelBlock { .. } => BlockCategory::Impairments,
+            Self::PolarEncoderBlock { .. } | Self::PolarDecoderBlock { .. } => BlockCategory::Coding,
+            Self::BurstTaggerBlock { .. } | Self::TaggedStreamMuxBlock { .. } => BlockCategory::Synchronization,
         }
     }
 
@@ -707,6 +727,12 @@ impl BlockType {
             Self::SsbModulatorBlock { .. } => vec![PortType::Real],
             Self::SsbDemodulatorBlock { .. } => vec![PortType::IQ],
             Self::DwtAnalyzerBlock { .. } | Self::WaveletDenoiserBlock { .. } => vec![PortType::Real],
+            Self::CpmModulatorBlock { .. } => vec![PortType::Bits],
+            Self::CpmDemodulatorBlock { .. } => vec![PortType::IQ],
+            Self::DynamicChannelBlock { .. } => vec![PortType::IQ],
+            Self::PolarEncoderBlock { .. } | Self::PolarDecoderBlock { .. } => vec![PortType::Bits],
+            Self::BurstTaggerBlock { .. } => vec![PortType::IQ],
+            Self::TaggedStreamMuxBlock { num_inputs } => vec![PortType::IQ; *num_inputs],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -846,6 +872,14 @@ impl BlockType {
             Self::SsbDemodulatorBlock { .. } => vec![PortType::Real],
             Self::DwtAnalyzerBlock { .. } => vec![PortType::Real],
             Self::WaveletDenoiserBlock { .. } => vec![PortType::Real],
+
+            // Batch 22 blocks
+            Self::CpmModulatorBlock { .. } => vec![PortType::IQ],
+            Self::CpmDemodulatorBlock { .. } => vec![PortType::Bits],
+            Self::DynamicChannelBlock { .. } => vec![PortType::IQ],
+            Self::PolarEncoderBlock { .. } | Self::PolarDecoderBlock { .. } => vec![PortType::Bits],
+            Self::BurstTaggerBlock { .. } => vec![PortType::IQ],
+            Self::TaggedStreamMuxBlock { .. } => vec![PortType::IQ],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -2959,6 +2993,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::Depuncturer { rate: "3/4".to_string() },
             BlockType::PduToTaggedStreamBlock { length_tag_key: "packet_len".to_string() },
             BlockType::TaggedStreamToPduBlock { length_tag_key: "packet_len".to_string() },
+            BlockType::PolarEncoderBlock { block_size: 128, info_bits: 64 },
+            BlockType::PolarDecoderBlock { block_size: 128, info_bits: 64 },
         ]),
         (BlockCategory::Mapping, vec![
             BlockType::GrayMapper { bits_per_symbol: 2 },
@@ -2977,6 +3013,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::CssModulator { sf: 7, bw_hz: 125000 },
             BlockType::FrequencyModulatorBlock { sensitivity_hz: 5000.0, sample_rate_hz: 48000.0 },
             BlockType::SsbModulatorBlock { mode: "USB".to_string(), hilbert_order: 31 },
+            BlockType::CpmModulatorBlock { cpm_type: "GMSK".to_string(), mod_index: 0.5, sps: 8, pulse_duration: 3 },
         ]),
         (BlockCategory::Filtering, vec![
             BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 10000.0, num_taps: 64 },
@@ -3023,6 +3060,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FrameSync { sync_word_hex: "A5".to_string(), frame_length: 64, max_hamming: 1 },
             BlockType::PeakDetectorBlock { threshold: 0.5, min_spacing: 10 },
             BlockType::ThresholdDetector { threshold: 0.5 },
+            BlockType::BurstTaggerBlock { threshold_db: -20.0, min_burst_len: 10, holdoff: 5 },
+            BlockType::TaggedStreamMuxBlock { num_inputs: 2 },
         ]),
         (BlockCategory::Impairments, vec![
             BlockType::AwgnChannel { snr_db: 20.0 },
@@ -3035,6 +3074,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::RailBlock { max_amplitude: 1.0 },
             BlockType::MuteBlock { muted: false },
             BlockType::ValveBlock { open: true },
+            BlockType::DynamicChannelBlock { preset: "Indoor".to_string(), noise_amplitude: 0.01 },
         ]),
         (BlockCategory::Recovery, vec![
             BlockType::Agc { mode: AgcMode::Adaptive, target_db: -20.0 },
@@ -3058,6 +3098,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::PfbClockSync { sps: 4.0, loop_bw: 0.0628, nfilts: 32 },
             BlockType::OfdmChannelEstBlock { method: "LeastSquares".to_string(), averaging_alpha: 0.0 },
             BlockType::SsbDemodulatorBlock { mode: "USB".to_string() },
+            BlockType::CpmDemodulatorBlock { cpm_type: "GMSK".to_string(), mod_index: 0.5, sps: 8, pulse_duration: 3 },
             BlockType::RmsPower { alpha: 0.01 },
             BlockType::SymbolSlicer { modulation: "QPSK".to_string() },
             BlockType::PhaseUnwrap,
@@ -6907,6 +6948,105 @@ impl PipelineWizardView {
                 }
             }
 
+            // Batch 22 blocks
+            BlockType::CpmModulatorBlock { cpm_type, mod_index, sps, pulse_duration } => {
+                use r4w_core::cpm::{CpmModulator, CpmConfig, CpmType as Ct};
+                let ct = match cpm_type.as_str() {
+                    "MSK" => Ct::Lrec,
+                    "LRC" => Ct::Lrc,
+                    _ => Ct::Gaussian { bt: 0.3 }, // GMSK default
+                };
+                let config = CpmConfig::new(ct, *mod_index, *sps, *pulse_duration, 2);
+                let mut modulator = CpmModulator::new(config);
+                let symbols: Vec<i8> = input_bits.iter().map(|&b| if b { 1 } else { -1 }).collect();
+                let iq = modulator.modulate(&symbols);
+                let samples: Vec<(f32, f32)> = iq.iter().map(|c| (c.re as f32, c.im as f32)).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+            BlockType::CpmDemodulatorBlock { cpm_type, mod_index, sps, pulse_duration } => {
+                use r4w_core::cpm::{CpmDemodulator, CpmConfig, CpmType as Ct};
+                let ct = match cpm_type.as_str() {
+                    "MSK" => Ct::Lrec,
+                    "LRC" => Ct::Lrc,
+                    _ => Ct::Gaussian { bt: 0.3 },
+                };
+                let config = CpmConfig::new(ct, *mod_index, *sps, *pulse_duration, 2);
+                let mut demod = CpmDemodulator::new(config);
+                let iq: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let symbols = demod.demodulate_noncoherent(&iq);
+                let bits: Vec<bool> = symbols.iter().map(|&s| s > 0).collect();
+                (bits, Vec::new(), Vec::new())
+            }
+            BlockType::DynamicChannelBlock { preset, noise_amplitude } => {
+                use r4w_core::dynamic_channel::{DynamicChannel, DynamicChannelConfig};
+                let config = match preset.as_str() {
+                    "Urban" => DynamicChannelConfig::urban_pedestrian(48000.0),
+                    "Vehicular" => DynamicChannelConfig::vehicular(1000000.0),
+                    "Satellite" => DynamicChannelConfig::satellite(48000.0),
+                    "AWGN" => DynamicChannelConfig::awgn_only(48000.0, *noise_amplitude),
+                    _ => DynamicChannelConfig::indoor_office(48000.0),
+                };
+                let mut channel = DynamicChannel::new(config);
+                let iq: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = channel.apply(&iq);
+                let samples: Vec<(f32, f32)> = output.iter().map(|c| (c.re as f32, c.im as f32)).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+            BlockType::PolarEncoderBlock { block_size, info_bits } => {
+                use r4w_core::fec::polar::{PolarEncoder, PolarConfig};
+                let config = PolarConfig::new(*block_size, *info_bits, 0.0);
+                let encoder = PolarEncoder::new(config);
+                let chunks: Vec<Vec<bool>> = input_bits.chunks(*info_bits).map(|c| c.to_vec()).collect();
+                let mut encoded = Vec::new();
+                for chunk in chunks {
+                    if chunk.len() == *info_bits {
+                        encoded.extend(encoder.encode(&chunk));
+                    }
+                }
+                (encoded, Vec::new(), Vec::new())
+            }
+            BlockType::PolarDecoderBlock { block_size, info_bits } => {
+                use r4w_core::fec::polar::{PolarDecoder, PolarConfig, PolarDecoderType};
+                let config = PolarConfig::new(*block_size, *info_bits, 0.0);
+                let decoder = PolarDecoder::new(config, PolarDecoderType::SC);
+                let chunks: Vec<Vec<bool>> = input_bits.chunks(*block_size).map(|c| c.to_vec()).collect();
+                let mut decoded = Vec::new();
+                for chunk in chunks {
+                    if chunk.len() == *block_size {
+                        decoded.extend(decoder.decode_hard(&chunk));
+                    }
+                }
+                (decoded, Vec::new(), Vec::new())
+            }
+            BlockType::BurstTaggerBlock { threshold_db, min_burst_len, holdoff } => {
+                use r4w_core::burst_tagger::BurstTagger;
+                let mut tagger = BurstTagger::new(*threshold_db, *min_burst_len);
+                tagger.set_holdoff(*holdoff);
+                let iq: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let mut bursts = tagger.process(&iq);
+                if let Some(pending) = tagger.flush() {
+                    bursts.push(pending);
+                }
+                // Output: concatenated burst samples
+                let mut output = Vec::new();
+                for burst in &bursts {
+                    for s in &burst.data {
+                        output.push((s.re as f32, s.im as f32));
+                    }
+                }
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::TaggedStreamMuxBlock { .. } => {
+                // Pass through (in a real pipeline, this would combine multiple inputs)
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -9209,6 +9349,125 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::WaveletDenoiserBlock { wavelet: new_wavelet, levels: new_levels as usize, method: new_method };
+                }
+            }
+            BlockType::CpmModulatorBlock { cpm_type, mod_index, sps, pulse_duration } |
+            BlockType::CpmDemodulatorBlock { cpm_type, mod_index, sps, pulse_duration } => {
+                let mut new_type = cpm_type.clone();
+                let mut new_h = mod_index;
+                let mut new_sps = sps as f64;
+                let mut new_pd = pulse_duration as f64;
+                ui.horizontal(|ui| {
+                    ui.label("CPM Type:");
+                    egui::ComboBox::from_id_salt("cpm_type")
+                        .selected_text(&new_type)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_type, "MSK".to_string(), "MSK");
+                            ui.selectable_value(&mut new_type, "GMSK".to_string(), "GMSK (GSM)");
+                            ui.selectable_value(&mut new_type, "GFSK".to_string(), "GFSK (Bluetooth)");
+                            ui.selectable_value(&mut new_type, "LRC".to_string(), "Raised Cosine");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Mod Index (h):");
+                    ui.add(egui::DragValue::new(&mut new_h).range(0.1..=2.0).speed(0.05));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Samples/Symbol:");
+                    ui.add(egui::DragValue::new(&mut new_sps).range(2.0..=32.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Pulse Duration (L):");
+                    ui.add(egui::DragValue::new(&mut new_pd).range(1.0..=5.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    let is_mod = matches!(block.block_type, BlockType::CpmModulatorBlock { .. });
+                    if is_mod {
+                        block.block_type = BlockType::CpmModulatorBlock { cpm_type: new_type, mod_index: new_h, sps: new_sps as usize, pulse_duration: new_pd as usize };
+                    } else {
+                        block.block_type = BlockType::CpmDemodulatorBlock { cpm_type: new_type, mod_index: new_h, sps: new_sps as usize, pulse_duration: new_pd as usize };
+                    }
+                }
+            }
+            BlockType::DynamicChannelBlock { preset, noise_amplitude } => {
+                let mut new_preset = preset.clone();
+                let mut new_noise = noise_amplitude;
+                ui.horizontal(|ui| {
+                    ui.label("Preset:");
+                    egui::ComboBox::from_id_salt("dyn_ch_preset")
+                        .selected_text(&new_preset)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_preset, "Indoor".to_string(), "Indoor Office");
+                            ui.selectable_value(&mut new_preset, "Urban".to_string(), "Urban Pedestrian");
+                            ui.selectable_value(&mut new_preset, "Vehicular".to_string(), "Vehicular Highway");
+                            ui.selectable_value(&mut new_preset, "Satellite".to_string(), "Satellite");
+                            ui.selectable_value(&mut new_preset, "AWGN".to_string(), "AWGN Only");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Noise Amplitude:");
+                    ui.add(egui::DragValue::new(&mut new_noise).range(0.0..=1.0).speed(0.001));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DynamicChannelBlock { preset: new_preset, noise_amplitude: new_noise };
+                }
+            }
+            BlockType::PolarEncoderBlock { block_size, info_bits } |
+            BlockType::PolarDecoderBlock { block_size, info_bits } => {
+                let mut new_n = block_size as f64;
+                let mut new_k = info_bits as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Block Size (N):");
+                    egui::ComboBox::from_id_salt("polar_n")
+                        .selected_text(format!("{}", block_size))
+                        .show_ui(ui, |ui| {
+                            for &n in &[8, 16, 32, 64, 128, 256, 512, 1024] {
+                                ui.selectable_value(&mut new_n, n as f64, format!("{}", n));
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Info Bits (K):");
+                    ui.add(egui::DragValue::new(&mut new_k).range(1.0..=new_n).speed(1.0));
+                });
+                ui.label(format!("Rate: {:.3}", new_k / new_n));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    let is_enc = matches!(block.block_type, BlockType::PolarEncoderBlock { .. });
+                    if is_enc {
+                        block.block_type = BlockType::PolarEncoderBlock { block_size: new_n as usize, info_bits: new_k as usize };
+                    } else {
+                        block.block_type = BlockType::PolarDecoderBlock { block_size: new_n as usize, info_bits: new_k as usize };
+                    }
+                }
+            }
+            BlockType::BurstTaggerBlock { threshold_db, min_burst_len, holdoff } => {
+                let mut new_thresh = threshold_db;
+                let mut new_min = min_burst_len as f64;
+                let mut new_holdoff = holdoff as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold (dB):");
+                    ui.add(egui::DragValue::new(&mut new_thresh).range(-60.0..=0.0).speed(0.5));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Min Burst Len:");
+                    ui.add(egui::DragValue::new(&mut new_min).range(1.0..=10000.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Holdoff:");
+                    ui.add(egui::DragValue::new(&mut new_holdoff).range(0.0..=1000.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::BurstTaggerBlock { threshold_db: new_thresh, min_burst_len: new_min as usize, holdoff: new_holdoff as usize };
+                }
+            }
+            BlockType::TaggedStreamMuxBlock { num_inputs } => {
+                let mut new_n = num_inputs as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Num Inputs:");
+                    ui.add(egui::DragValue::new(&mut new_n).range(2.0..=8.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::TaggedStreamMuxBlock { num_inputs: new_n as usize };
                 }
             }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |
