@@ -654,7 +654,9 @@ Measured with `tokei`:
   - Batch 23: Feedforward AGC (non-causal lookahead), Vector Insert/Remove (periodic pilot insertion), Cyclic Prefix Add/Remove (OFDM guard interval, WiFi/LTE/DVB-T configs), File Meta I/O (self-describing IQ files with JSON header), PN Sync (LFSR m-sequence/Gold code gen + normalized cross-correlator)
   - Batch 24: DTMF Decoder (Goertzel filter bank, 4x4 tone grid, twist checking), Noise Blanker (impulse detection, Zero/Hold/Interpolate modes), Stream Arithmetic (element-wise add/subtract/multiply/divide), Probe Avg Mag² (running power measurement, threshold gating), Envelope Detector (Magnitude/Smoothed/PeakHold, AM demodulator)
   - Batch 25: Decimating FIR (combined lowpass + decimation, auto-design), Interleaved Conversions (i16/i8/u8/f32 ↔ Complex64 for USRP/HackRF/RTL-SDR), AFC (closed-loop frequency tracking), Moving Average Decimator (boxcar + decimate, power measurement), DC Blocker (single-pole IIR highpass)
-  - All blocks wired into the visual pipeline builder (now 134+ blocks) with property editors and block metadata
+  - Batch 26: Adaptive Notch (AdaptiveNotch + FixedNotch, LMS-like gradient frequency tracking), Signal Detector (energy detection, noise floor estimation, hysteresis), Preamble Generator (Alternating, Barker codes, PN sequences, Zadoff-Chu), Packet Encoder (sync word/length/CRC-8/16/32/whitening), Arbitrary Resampler (cubic Hermite interpolation, non-rational rate conversion)
+  - Batch 27: Phase Modulator (instantaneous PM + ContinuousPhaseModulator), VCO (VcoC complex + VcoF real frequency-controlled oscillators), File I/O (IqFileReader/Writer with cf64/cf32/ci16/ci8/cu8 auto-detection), Message Strobe (periodic PDU generation, Message/MessageFilter/MessageCounter/MessageBurst), Throttle (rate-limiting for simulation + ThroughputMonitor)
+  - All blocks wired into the visual pipeline builder (now 152+ blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT

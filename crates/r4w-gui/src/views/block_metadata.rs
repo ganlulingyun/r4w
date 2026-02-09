@@ -4910,6 +4910,52 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
         key_parameters: &["sample_rate (target rate in Hz)"],
     });
 
+    // ── Batch 28: Rail, UDP Source/Sink, Repeat, Head, Integrate ──
+
+    m.insert("UDP Source", BlockMetadata {
+        block_type: "UdpSourceBlock",
+        display_name: "UDP Source",
+        category: "Source",
+        description: "Receives IQ samples over UDP for network-based SDR. Supports optional sequence number headers for packet loss detection. Compatible with GNU Radio, GQRX, and USRP streaming tools.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/udp_source_sink.rs", line: 213, symbol: "UdpSource", description: "UDP IQ receiver" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Packet Loss", plaintext: "loss_ratio = dropped_packets / (total_packets + dropped_packets)", latex: None, variables: &[("dropped_packets", "sequence gaps"), ("total_packets", "received")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_udp_loopback", module: "r4w_core::udp_source_sink::tests", description: "Loopback send/receive", expected_runtime_ms: 10 },
+            BlockTest { name: "test_udp_source_timeout", module: "r4w_core::udp_source_sink::tests", description: "Timeout returns None", expected_runtime_ms: 10 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(MTU)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["UdpSinkBlock", "FileIqSourceBlock"],
+        input_type: "None (source)",
+        output_type: "IQ",
+        key_parameters: &["host (bind address)", "port (UDP port)", "has_header (sequence numbers)"],
+    });
+
+    m.insert("UDP Sink", BlockMetadata {
+        block_type: "UdpSinkBlock",
+        display_name: "UDP Sink",
+        category: "Output",
+        description: "Sends IQ samples over UDP for network-based SDR streaming. Auto-packetizes to fit MTU. Compatible with GNU Radio UDP source blocks and GQRX.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/udp_source_sink.rs", line: 146, symbol: "UdpSink", description: "UDP IQ sender" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Max Samples per Packet", plaintext: "max_samples = (payload_size - header_size) / 4", latex: None, variables: &[("payload_size", "MTU bytes"), ("header_size", "4 if header, 0 otherwise")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_packet_roundtrip_with_header", module: "r4w_core::udp_source_sink::tests", description: "Packet serialization roundtrip", expected_runtime_ms: 1 },
+            BlockTest { name: "test_sink_packetization", module: "r4w_core::udp_source_sink::tests", description: "Payload size calculation", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(MTU)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["UdpSourceBlock", "FileIqSinkBlock"],
+        input_type: "IQ",
+        output_type: "None (sink)",
+        key_parameters: &["host (destination address)", "port (UDP port)", "add_header (sequence numbers)"],
+    });
+
     m
 }
 

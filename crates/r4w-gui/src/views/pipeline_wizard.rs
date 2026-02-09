@@ -408,6 +408,9 @@ pub enum BlockType {
     FileIqSinkBlock { path: String, format: String },
     MessageStrobeBlock { period_ms: f64 },
     ThrottleBlock { sample_rate: f64 },
+    // Batch 28: UDP networking
+    UdpSourceBlock { host: String, port: u16, has_header: bool },
+    UdpSinkBlock { host: String, port: u16, add_header: bool },
 }
 
 impl BlockType {
@@ -580,6 +583,8 @@ impl BlockType {
             Self::FileIqSinkBlock { .. } => "File IQ Sink",
             Self::MessageStrobeBlock { .. } => "Message Strobe",
             Self::ThrottleBlock { .. } => "Throttle",
+            Self::UdpSourceBlock { .. } => "UDP Source",
+            Self::UdpSinkBlock { .. } => "UDP Sink",
         }
     }
 
@@ -677,6 +682,8 @@ impl BlockType {
             Self::FileIqSinkBlock { .. } => BlockCategory::Output,
             Self::MessageStrobeBlock { .. } => BlockCategory::Source,
             Self::ThrottleBlock { .. } => BlockCategory::RateConversion,
+            Self::UdpSourceBlock { .. } => BlockCategory::Source,
+            Self::UdpSinkBlock { .. } => BlockCategory::Output,
         }
     }
 
@@ -686,7 +693,8 @@ impl BlockType {
             Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } |
             Self::NullSourceBlock | Self::VectorSourceBlock { .. } |
             Self::PreambleGeneratorBlock { .. } |
-            Self::FileIqSourceBlock { .. } | Self::MessageStrobeBlock { .. } => 0,
+            Self::FileIqSourceBlock { .. } | Self::MessageStrobeBlock { .. } |
+            Self::UdpSourceBlock { .. } => 0,
             Self::Merge { num_inputs } => *num_inputs,
             Self::IqMerge => 2,
             Self::StreamAddBlock | Self::StreamSubtractBlock => 2,
@@ -696,7 +704,8 @@ impl BlockType {
 
     pub fn num_outputs(&self) -> u32 {
         match self {
-            Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => 0,
+            Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } |
+            Self::UdpSinkBlock { .. } => 0,
             Self::Split { num_outputs } => *num_outputs,
             Self::IqSplit => 2,
             _ => 1,
@@ -863,6 +872,8 @@ impl BlockType {
             Self::FileIqSinkBlock { .. } => vec![PortType::IQ],
             Self::MessageStrobeBlock { .. } => vec![],
             Self::ThrottleBlock { .. } => vec![PortType::IQ],
+            Self::UdpSourceBlock { .. } => vec![],
+            Self::UdpSinkBlock { .. } => vec![PortType::IQ],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -1039,6 +1050,8 @@ impl BlockType {
             Self::FileIqSinkBlock { .. } => vec![],
             Self::MessageStrobeBlock { .. } => vec![PortType::Bits],
             Self::ThrottleBlock { .. } => vec![PortType::IQ],
+            Self::UdpSourceBlock { .. } => vec![PortType::IQ],
+            Self::UdpSinkBlock { .. } => vec![],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -3142,6 +3155,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FileIqSourceBlock { path: String::new(), format: "cf32".to_string() },
             BlockType::VcoBlock { sensitivity: 1000.0, sample_rate: 48000.0 },
             BlockType::MessageStrobeBlock { period_ms: 100.0 },
+            BlockType::UdpSourceBlock { host: "127.0.0.1".to_string(), port: 7355, has_header: false },
         ]),
         (BlockCategory::Coding, vec![
             BlockType::Scrambler { polynomial: 0x48, seed: 0xFF },
@@ -3313,6 +3327,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::InterleavedShortToComplexBlock,
             BlockType::ComplexToInterleavedShortBlock,
             BlockType::FileIqSinkBlock { path: "output.iq".to_string(), format: "cf32".to_string() },
+            BlockType::UdpSinkBlock { host: "127.0.0.1".to_string(), port: 7355, add_header: false },
         ]),
         (BlockCategory::Gnss, vec![
             BlockType::GnssScenarioSource {
@@ -7614,6 +7629,18 @@ impl PipelineWizardView {
                 // Pass-through in test panel (throttle is only for timing)
                 (Vec::new(), Vec::new(), input_samples.to_vec())
             }
+            BlockType::UdpSourceBlock { .. } => {
+                // Generate noise placeholder in test panel
+                let output: Vec<(f32, f32)> = (0..256).map(|i| {
+                    let t = i as f32 / 256.0;
+                    ((t * std::f32::consts::TAU).sin() * 0.1, (t * std::f32::consts::TAU).cos() * 0.1)
+                }).collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::UdpSinkBlock { .. } => {
+                // Pass-through in test panel (actual UDP send only in runtime)
+                (Vec::new(), Vec::new(), input_samples.to_vec())
+            }
 
             // Default: pass through based on likely output type
             _ => {
@@ -10515,6 +10542,50 @@ impl PipelineWizardView {
                 ui.label("Limits throughput to simulate real-time.");
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::ThrottleBlock { sample_rate: new_sr };
+                }
+            }
+            BlockType::UdpSourceBlock { host, port, has_header } => {
+                let mut new_host = host;
+                let mut new_port = port as f64;
+                let mut new_header = has_header;
+                ui.horizontal(|ui| {
+                    ui.label("Bind Host:");
+                    ui.text_edit_singleline(&mut new_host);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Port:");
+                    ui.add(egui::DragValue::new(&mut new_port).range(1.0..=65535.0).speed(1.0));
+                });
+                ui.checkbox(&mut new_header, "Packets have sequence header");
+                ui.label("Receives IQ samples over UDP.");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::UdpSourceBlock {
+                        host: new_host,
+                        port: new_port as u16,
+                        has_header: new_header,
+                    };
+                }
+            }
+            BlockType::UdpSinkBlock { host, port, add_header } => {
+                let mut new_host = host;
+                let mut new_port = port as f64;
+                let mut new_header = add_header;
+                ui.horizontal(|ui| {
+                    ui.label("Dest Host:");
+                    ui.text_edit_singleline(&mut new_host);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Port:");
+                    ui.add(egui::DragValue::new(&mut new_port).range(1.0..=65535.0).speed(1.0));
+                });
+                ui.checkbox(&mut new_header, "Add sequence header");
+                ui.label("Sends IQ samples over UDP.");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::UdpSinkBlock {
+                        host: new_host,
+                        port: new_port as u16,
+                        add_header: new_header,
+                    };
                 }
             }
             BlockType::FileSource { path } => {
