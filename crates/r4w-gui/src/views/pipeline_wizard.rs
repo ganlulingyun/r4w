@@ -3767,16 +3767,17 @@ impl PipelineWizardView {
         let arrow_size = 8.0 * self.zoom;
 
         // Calculate the effective endpoint (shortened if arrowheads are shown)
+        // Use the arrival direction based on connection orientation, not the straight-line direction
         let effective_to = if self.show_arrowheads {
-            // Shorten the line to end at the base of the arrowhead
-            let dir = if is_vertical {
-                Vec2::new(0.0, 1.0) // Pointing down (for top input port)
+            // For bezier/curved connections, the line arrives perpendicular to the port
+            // Vertical: arrives from above (pointing down into top port)
+            // Horizontal: arrives from left (pointing right into left port)
+            let arrival_dir = if is_vertical {
+                Vec2::new(0.0, 1.0) // Coming from above, pointing down
             } else {
-                Vec2::new(1.0, 0.0) // Pointing right (for left input port)
+                Vec2::new(1.0, 0.0) // Coming from left, pointing right
             };
-            // Adjust based on actual direction
-            let actual_dir = (to_pos - from_pos).normalized();
-            to_pos - actual_dir * (port_radius + arrow_size)
+            to_pos - arrival_dir * (port_radius + arrow_size)
         } else {
             to_pos
         };
