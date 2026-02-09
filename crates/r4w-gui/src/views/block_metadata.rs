@@ -1623,6 +1623,302 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["modulus"],
         });
 
+        // ===== NEW DSP BLOCKS (Batch 7-10) =====
+
+        m.insert("NoiseSource", BlockMetadata {
+            block_type: "NoiseSource",
+            display_name: "Noise Source",
+            category: "Source",
+            description: "Generates colored noise signals (white, pink, brown, blue, violet). \
+                Uses Voss-McCartney algorithm for pink noise and integration/differentiation \
+                for other colors. Useful for testing, SNR calibration, and dithering.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/noise.rs",
+                line: 77,
+                symbol: "NoiseGenerator::new",
+                description: "Colored noise generator with configurable spectral shape",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Power Spectral Density",
+                    plaintext: "S(f) ∝ 1/f^α where α=0 (white), α=1 (pink), α=2 (brown)",
+                    latex: Some(r"S(f) \propto \frac{1}{f^\alpha}"),
+                    variables: &[
+                        ("α", "Spectral slope: 0=white, 1=pink, 2=brown, -1=blue, -2=violet"),
+                        ("f", "Frequency"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_white_noise_stats", module: "r4w_core::noise::tests", description: "White noise mean/variance", expected_runtime_ms: 5 },
+                BlockTest { name: "test_pink_noise_spectrum", module: "r4w_core::noise::tests", description: "Pink noise 1/f slope", expected_runtime_ms: 10 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) state per generator", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["AwgnChannel", "BitSource"],
+            input_type: "None (source)",
+            output_type: "IQ samples",
+            key_parameters: &["color", "amplitude"],
+        });
+
+        m.insert("DcBlocker", BlockMetadata {
+            block_type: "DcBlocker",
+            display_name: "DC Blocker",
+            category: "Filtering",
+            description: "High-pass IIR filter that removes DC offset from signals. \
+                Uses a simple first-order IIR: y[n] = x[n] - x[n-1] + α*y[n-1]. \
+                Higher alpha values provide narrower notch at DC but slower convergence.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/pll.rs",
+                line: 228,
+                symbol: "DcBlocker",
+                description: "First-order IIR DC removal filter",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "DC Blocker Transfer",
+                    plaintext: "y[n] = x[n] - x[n-1] + α·y[n-1]",
+                    latex: Some(r"H(z) = \frac{1 - z^{-1}}{1 - \alpha z^{-1}}"),
+                    variables: &[
+                        ("α", "Pole location, typically 0.99-0.999"),
+                        ("x[n]", "Input sample"),
+                        ("y[n]", "Output sample (DC removed)"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_dc_blocker_removes_dc", module: "r4w_core::pll::tests", description: "DC removal convergence", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) (2 state variables)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[],
+            related_blocks: &["FirFilter", "IirFilter"],
+            input_type: "IQ samples",
+            output_type: "IQ samples",
+            key_parameters: &["alpha"],
+        });
+
+        m.insert("CicDecimator", BlockMetadata {
+            block_type: "CicDecimator",
+            display_name: "CIC Decimator",
+            category: "Rate Conversion",
+            description: "Cascaded Integrator-Comb decimation filter. Multiplier-free architecture \
+                using only additions and subtractions. Ideal for high decimation ratios in \
+                front-end processing (e.g., SDR receivers). Passband droop can be compensated \
+                with a short FIR filter.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/filters/cic.rs",
+                line: 1,
+                symbol: "CicDecimator",
+                description: "CIC decimation filter with integer arithmetic",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "CIC Transfer Function",
+                    plaintext: "H(z) = [(1 - z^(-RM)) / (1 - z^(-1))]^N",
+                    latex: Some(r"H(z) = \left[\frac{1 - z^{-RM}}{1 - z^{-1}}\right]^N"),
+                    variables: &[
+                        ("R", "Decimation rate"),
+                        ("M", "Differential delay (typically 1)"),
+                        ("N", "Number of stages"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_cic_decimation_basic", module: "r4w_core::filters::cic::tests", description: "Basic CIC decimation", expected_runtime_ms: 5 },
+                BlockTest { name: "test_cic_passband_droop", module: "r4w_core::filters::cic::tests", description: "Passband droop calculation", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n·N)", memory: "O(N) integrator state", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[
+                StandardReference { name: "Hogenauer, 1981", section: Some("An economical class of digital filters for decimation and interpolation"), url: None },
+            ],
+            related_blocks: &["Downsampler", "PolyphaseResampler"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (decimated)",
+            key_parameters: &["rate", "stages"],
+        });
+
+        m.insert("BurstDetector", BlockMetadata {
+            block_type: "BurstDetector",
+            display_name: "Burst Detector",
+            category: "Recovery",
+            description: "Power-based burst detection with dual-threshold hysteresis. \
+                Detects signal bursts by comparing smoothed power against high/low thresholds. \
+                Supports minimum burst length filtering and holdoff between bursts. \
+                Can gate input signals (zero non-burst samples).",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/burst_detector.rs",
+                line: 1,
+                symbol: "BurstDetector",
+                description: "Power-based burst detection with hysteresis",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Power Estimate",
+                    plaintext: "P[n] = (1-α)·P[n-1] + α·|x[n]|², α_attack > α_release",
+                    latex: Some(r"P[n] = (1-\alpha)P[n-1] + \alpha|x[n]|^2"),
+                    variables: &[
+                        ("P[n]", "Smoothed power estimate (dB)"),
+                        ("α", "Smoothing factor (asymmetric attack/release)"),
+                        ("x[n]", "Input sample"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_burst_detection_basic", module: "r4w_core::burst_detector::tests", description: "Basic burst detection", expected_runtime_ms: 5 },
+                BlockTest { name: "test_burst_gating", module: "r4w_core::burst_detector::tests", description: "Signal gating", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) state", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["Agc", "AwgnChannel"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (gated)",
+            key_parameters: &["high_threshold_db", "low_threshold_db"],
+        });
+
+        m.insert("GoertzelDetector", BlockMetadata {
+            block_type: "GoertzelDetector",
+            display_name: "Goertzel Detector",
+            category: "Filtering",
+            description: "Efficient single-frequency DFT using the Goertzel algorithm. \
+                Computes the magnitude at one specific frequency bin with O(N) operations, \
+                much faster than a full FFT when only one frequency is needed. \
+                Includes a built-in DTMF detector for telephony applications.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/goertzel.rs",
+                line: 1,
+                symbol: "Goertzel",
+                description: "Single-frequency DFT using second-order IIR",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Goertzel Recurrence",
+                    plaintext: "s[n] = x[n] + 2·cos(2πk/N)·s[n-1] - s[n-2]",
+                    latex: Some(r"s[n] = x[n] + 2\cos\left(\frac{2\pi k}{N}\right)s[n-1] - s[n-2]"),
+                    variables: &[
+                        ("k", "Target frequency bin index = f_target/f_s × N"),
+                        ("N", "Block size (DFT length)"),
+                        ("s[n]", "IIR state variable"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_goertzel_single_tone", module: "r4w_core::goertzel::tests", description: "Single tone detection", expected_runtime_ms: 5 },
+                BlockTest { name: "test_dtmf_detection", module: "r4w_core::goertzel::tests", description: "DTMF digit detection", expected_runtime_ms: 10 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(N) per frequency", memory: "O(1) per frequency", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "ITU-T Q.23/Q.24", section: Some("DTMF signaling"), url: None },
+            ],
+            related_blocks: &["FirFilter"],
+            input_type: "IQ samples",
+            output_type: "Real (magnitude per block)",
+            key_parameters: &["target_freq_hz", "sample_rate_hz", "block_size"],
+        });
+
+        m.insert("CostasLoop", BlockMetadata {
+            block_type: "CostasLoop",
+            display_name: "Costas Loop",
+            category: "Recovery",
+            description: "Decision-directed carrier recovery loop for PSK signals. \
+                Uses modulation-specific phase detectors: BPSK (re·im), QPSK (cross-product), \
+                8PSK (8th-power). Tracks both phase and frequency offset with a second-order \
+                PI loop filter.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/costas_loop.rs",
+                line: 96,
+                symbol: "CostasLoop",
+                description: "Decision-directed carrier recovery (BPSK/QPSK/8PSK)",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "QPSK Phase Detector",
+                    plaintext: "e = Re(y)·sgn(Im(y)) - Im(y)·sgn(Re(y))",
+                    latex: Some(r"e = \text{Re}(y)\text{sgn}(\text{Im}(y)) - \text{Im}(y)\text{sgn}(\text{Re}(y))"),
+                    variables: &[
+                        ("y", "De-rotated input symbol"),
+                        ("e", "Phase error"),
+                        ("sgn", "Sign function"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_bpsk_costas_tracks_offset", module: "r4w_core::costas_loop::tests", description: "BPSK carrier tracking", expected_runtime_ms: 5 },
+                BlockTest { name: "test_qpsk_costas_reduces_error", module: "r4w_core::costas_loop::tests", description: "QPSK convergence", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) loop state", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "Costas, 1956", section: Some("Synchronous communications"), url: None },
+            ],
+            related_blocks: &["CarrierRecovery", "ConstellationRx"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (carrier-corrected)",
+            key_parameters: &["order", "loop_bw"],
+        });
+
+        m.insert("ConstellationRx", BlockMetadata {
+            block_type: "ConstellationRx",
+            display_name: "Constellation Receiver",
+            category: "Recovery",
+            description: "Combined receiver block: AGC → Costas Loop → Symbol Demapper. \
+                Performs amplitude normalization, carrier recovery, and symbol decisions \
+                in a single processing chain. Supports BPSK/QPSK/8PSK/16QAM with hard \
+                or soft (LLR) output.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/constellation_receiver.rs",
+                line: 129,
+                symbol: "ConstellationReceiver",
+                description: "Combined AGC + carrier recovery + demapper receiver",
+            }),
+            related_code: &[
+                CodeLocation {
+                    crate_name: "r4w-core",
+                    file_path: "src/costas_loop.rs",
+                    line: 96,
+                    symbol: "CostasLoop",
+                    description: "Carrier recovery component",
+                },
+                CodeLocation {
+                    crate_name: "r4w-core",
+                    file_path: "src/symbol_mapping.rs",
+                    line: 1,
+                    symbol: "SymbolMapper",
+                    description: "Symbol demapping component",
+                },
+            ],
+            formulas: &[
+                BlockFormula {
+                    name: "Signal Flow",
+                    plaintext: "input → AGC → Costas Loop → Symbol Decision → bits/LLRs",
+                    latex: None,
+                    variables: &[],
+                },
+            ],
+            tests: &[
+                BlockTest { name: "test_bpsk_receiver_basic", module: "r4w_core::constellation_receiver::tests", description: "BPSK reception", expected_runtime_ms: 5 },
+                BlockTest { name: "test_qpsk_receiver", module: "r4w_core::constellation_receiver::tests", description: "QPSK reception", expected_runtime_ms: 5 },
+                BlockTest { name: "test_soft_output", module: "r4w_core::constellation_receiver::tests", description: "LLR soft decisions", expected_runtime_ms: 5 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1) receiver state", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["CostasLoop", "Agc", "PskDemodulator"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (corrected symbols)",
+            key_parameters: &["modulation", "loop_bw"],
+        });
+
     m
 }
 

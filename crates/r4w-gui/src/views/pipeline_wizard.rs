@@ -243,6 +243,15 @@ pub enum BlockType {
     IqSplit,
     IqMerge,
 
+    // New DSP blocks (batch 7-10)
+    NoiseSource { color: String, amplitude: f32 },
+    DcBlocker { alpha: f32 },
+    CicDecimator { rate: u32, stages: u32 },
+    BurstDetector { high_threshold_db: f32, low_threshold_db: f32 },
+    GoertzelDetector { target_freq_hz: f32, sample_rate_hz: f32, block_size: u32 },
+    CostasLoop { order: u32, loop_bw: f32 },
+    ConstellationRx { modulation: String, loop_bw: f32 },
+
     // GNSS blocks
     GnssScenarioSource {
         preset: String,
@@ -313,6 +322,13 @@ impl BlockType {
             Self::Merge { .. } => "Merge",
             Self::IqSplit => "I/Q Split",
             Self::IqMerge => "I/Q Merge",
+            Self::NoiseSource { .. } => "Noise Source",
+            Self::DcBlocker { .. } => "DC Blocker",
+            Self::CicDecimator { .. } => "CIC Decimator",
+            Self::BurstDetector { .. } => "Burst Detector",
+            Self::GoertzelDetector { .. } => "Goertzel Detector",
+            Self::CostasLoop { .. } => "Costas Loop",
+            Self::ConstellationRx { .. } => "Constellation Rx",
             Self::GnssScenarioSource { .. } => "GNSS Scenario Source",
             Self::GnssAcquisition { .. } => "GNSS Acquisition",
         }
@@ -330,7 +346,12 @@ impl BlockType {
             Self::PreambleInsert { .. } | Self::SyncWordInsert { .. } | Self::FrameBuilder { .. } | Self::TdmaFramer { .. } => BlockCategory::Synchronization,
             Self::AwgnChannel { .. } | Self::FadingChannel { .. } | Self::FrequencyOffset { .. } | Self::IqImbalance { .. } => BlockCategory::Impairments,
             Self::PskDemodulator { .. } | Self::QamDemodulator { .. } | Self::FskDemodulator { .. } |
-            Self::Agc { .. } | Self::TimingRecovery { .. } | Self::CarrierRecovery { .. } | Self::Equalizer { .. } => BlockCategory::Recovery,
+            Self::Agc { .. } | Self::TimingRecovery { .. } | Self::CarrierRecovery { .. } | Self::Equalizer { .. } |
+            Self::CostasLoop { .. } | Self::ConstellationRx { .. } | Self::BurstDetector { .. } => BlockCategory::Recovery,
+            Self::NoiseSource { .. } => BlockCategory::Source,
+            Self::DcBlocker { .. } => BlockCategory::Filtering,
+            Self::CicDecimator { .. } => BlockCategory::RateConversion,
+            Self::GoertzelDetector { .. } => BlockCategory::Filtering,
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } | Self::Split { .. } | Self::Merge { .. } | Self::IqSplit | Self::IqMerge => BlockCategory::Output,
             Self::GnssScenarioSource { .. } | Self::GnssAcquisition { .. } => BlockCategory::Gnss,
         }
@@ -339,7 +360,7 @@ impl BlockType {
     pub fn num_inputs(&self) -> u32 {
         match self {
             Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } |
-            Self::GnssScenarioSource { .. } => 0,
+            Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } => 0,
             Self::Merge { num_inputs } => *num_inputs,
             Self::IqMerge => 2,
             _ => 1,
@@ -360,7 +381,7 @@ impl BlockType {
         match self {
             // Source blocks have no inputs
             Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } |
-            Self::GnssScenarioSource { .. } => vec![],
+            Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } => vec![],
 
             // Coding blocks: bits in, bits out
             Self::Scrambler { .. } | Self::FecEncoder { .. } |
@@ -377,11 +398,13 @@ impl BlockType {
 
             // Filters: IQ in, IQ out (or Real in, Real out)
             Self::FirFilter { .. } | Self::IirFilter { .. } |
-            Self::PulseShaper { .. } | Self::MatchedFilter => vec![PortType::IQ],
+            Self::PulseShaper { .. } | Self::MatchedFilter |
+            Self::DcBlocker { .. } | Self::GoertzelDetector { .. } => vec![PortType::IQ],
 
             // Rate conversion: IQ in, IQ out
             Self::Upsampler { .. } | Self::Downsampler { .. } |
-            Self::RationalResampler { .. } | Self::PolyphaseResampler { .. } => vec![PortType::IQ],
+            Self::RationalResampler { .. } | Self::PolyphaseResampler { .. } |
+            Self::CicDecimator { .. } => vec![PortType::IQ],
 
             // Synchronization: bits in (frame building)
             Self::PreambleInsert { .. } | Self::SyncWordInsert { .. } |
@@ -397,7 +420,9 @@ impl BlockType {
 
             // Recovery blocks: IQ in
             Self::Agc { .. } | Self::TimingRecovery { .. } |
-            Self::CarrierRecovery { .. } | Self::Equalizer { .. } => vec![PortType::IQ],
+            Self::CarrierRecovery { .. } | Self::Equalizer { .. } |
+            Self::CostasLoop { .. } | Self::ConstellationRx { .. } |
+            Self::BurstDetector { .. } => vec![PortType::IQ],
 
             // Output blocks
             Self::IqOutput => vec![PortType::IQ],
@@ -422,6 +447,7 @@ impl BlockType {
             Self::BitSource { .. } => vec![PortType::Bits],
             Self::SymbolSource { .. } => vec![PortType::Symbols],
             Self::FileSource { .. } => vec![PortType::IQ],
+            Self::NoiseSource { .. } => vec![PortType::IQ],
             Self::GnssScenarioSource { .. } => vec![PortType::IQ],
 
             // Coding blocks: bits in, bits out
@@ -439,11 +465,16 @@ impl BlockType {
 
             // Filters: IQ in, IQ out
             Self::FirFilter { .. } | Self::IirFilter { .. } |
-            Self::PulseShaper { .. } | Self::MatchedFilter => vec![PortType::IQ],
+            Self::PulseShaper { .. } | Self::MatchedFilter |
+            Self::DcBlocker { .. } => vec![PortType::IQ],
+
+            // Goertzel: IQ in, Real out (magnitude at frequency)
+            Self::GoertzelDetector { .. } => vec![PortType::Real],
 
             // Rate conversion: IQ in, IQ out
             Self::Upsampler { .. } | Self::Downsampler { .. } |
-            Self::RationalResampler { .. } | Self::PolyphaseResampler { .. } => vec![PortType::IQ],
+            Self::RationalResampler { .. } | Self::PolyphaseResampler { .. } |
+            Self::CicDecimator { .. } => vec![PortType::IQ],
 
             // Synchronization: bits in, bits out (with framing)
             Self::PreambleInsert { .. } | Self::SyncWordInsert { .. } |
@@ -459,7 +490,11 @@ impl BlockType {
 
             // Recovery blocks: IQ in, IQ out
             Self::Agc { .. } | Self::TimingRecovery { .. } |
-            Self::CarrierRecovery { .. } | Self::Equalizer { .. } => vec![PortType::IQ],
+            Self::CarrierRecovery { .. } | Self::Equalizer { .. } |
+            Self::CostasLoop { .. } | Self::BurstDetector { .. } => vec![PortType::IQ],
+
+            // Constellation Rx: IQ in, Symbols out
+            Self::ConstellationRx { .. } => vec![PortType::Symbols],
 
             // GNSS blocks
             Self::GnssAcquisition { .. } => vec![PortType::Real],
@@ -2557,6 +2592,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::BitSource { pattern: "random".to_string() },
             BlockType::SymbolSource { alphabet_size: 4 },
             BlockType::FileSource { path: String::new() },
+            BlockType::NoiseSource { color: "White".to_string(), amplitude: 1.0 },
         ]),
         (BlockCategory::Coding, vec![
             BlockType::Scrambler { polynomial: 0x48, seed: 0xFF },
@@ -2583,12 +2619,15 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::IirFilter { design: IirDesign::Butterworth, cutoff_hz: 10000.0, order: 4 },
             BlockType::PulseShaper { shape: PulseShape::RootRaisedCosine, rolloff: 0.35, span: 8 },
             BlockType::MatchedFilter,
+            BlockType::DcBlocker { alpha: 0.998 },
+            BlockType::GoertzelDetector { target_freq_hz: 1000.0, sample_rate_hz: 48000.0, block_size: 205 },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
             BlockType::Downsampler { factor: 4 },
             BlockType::RationalResampler { up: 3, down: 2 },
             BlockType::PolyphaseResampler { up: 4, down: 1, taps_per_phase: 16 },
+            BlockType::CicDecimator { rate: 10, stages: 3 },
         ]),
         (BlockCategory::Synchronization, vec![
             BlockType::PreambleInsert { pattern: "alternating".to_string(), length: 32 },
@@ -2610,6 +2649,9 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::QamDemodulator { order: 16 },
             BlockType::FskDemodulator { order: 2 },
             BlockType::Equalizer { eq_type: EqualizerType::Lms, taps: 11, mu: 0.01 },
+            BlockType::CostasLoop { order: 4, loop_bw: 0.05 },
+            BlockType::ConstellationRx { modulation: "QPSK".to_string(), loop_bw: 0.05 },
+            BlockType::BurstDetector { high_threshold_db: -20.0, low_threshold_db: -30.0 },
         ]),
         (BlockCategory::Output, vec![
             BlockType::IqOutput,
@@ -5226,6 +5268,150 @@ impl PipelineWizardView {
                 }
             }
 
+            // Noise Source: generate colored noise IQ
+            BlockType::NoiseSource { color, amplitude } => {
+                use r4w_core::noise::{NoiseGenerator, NoiseColor};
+                let nc = match color.as_str() {
+                    "Pink" => NoiseColor::Pink,
+                    "Brown" => NoiseColor::Brown,
+                    "Blue" => NoiseColor::Blue,
+                    "Violet" => NoiseColor::Violet,
+                    _ => NoiseColor::White,
+                };
+                let mut gen_i = NoiseGenerator::new(nc, 42);
+                let mut gen_q = NoiseGenerator::new(nc, 137);
+                let n = 256;
+                let amp = *amplitude as f64;
+                let samples: Vec<(f32, f32)> = (0..n).map(|_| {
+                    let i = gen_i.sample() * amp;
+                    let q = gen_q.sample() * amp;
+                    (i as f32, q as f32)
+                }).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // DC Blocker: remove DC offset from IQ
+            BlockType::DcBlocker { alpha } => {
+                use r4w_core::pll::DcBlocker as CoreDcBlocker;
+                use num_complex::Complex64;
+                let mut blocker = CoreDcBlocker::new(*alpha as f64);
+                let samples: Vec<(f32, f32)> = input_samples.iter().map(|&(i, q)| {
+                    let out = blocker.process(Complex64::new(i as f64, q as f64));
+                    (out.re as f32, out.im as f32)
+                }).collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // CIC Decimator: efficient decimation
+            BlockType::CicDecimator { rate, stages } => {
+                use r4w_core::filters::CicDecimator as CoreCic;
+                use num_complex::Complex64;
+                let mut cic = CoreCic::new(*rate as usize, *stages as usize);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = cic.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Burst Detector: detect signal bursts
+            BlockType::BurstDetector { high_threshold_db, low_threshold_db } => {
+                use r4w_core::burst_detector::{BurstDetector as CoreBurst, BurstConfig};
+                use num_complex::Complex64;
+                let config = BurstConfig {
+                    high_threshold_db: *high_threshold_db as f64,
+                    low_threshold_db: *low_threshold_db as f64,
+                    ..Default::default()
+                };
+                let mut det = CoreBurst::new(config);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let gated = det.gate(&input);
+                let samples: Vec<(f32, f32)> = gated.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Goertzel Detector: single-frequency power
+            BlockType::GoertzelDetector { target_freq_hz, sample_rate_hz, block_size } => {
+                use r4w_core::goertzel::Goertzel;
+                let goertzel = Goertzel::new(*target_freq_hz as f64, *sample_rate_hz as f64, *block_size as usize);
+                let reals: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                // Process in blocks, output power per block as Real samples
+                let mut powers = Vec::new();
+                for chunk in reals.chunks(*block_size as usize) {
+                    if chunk.len() == *block_size as usize {
+                        let mag = goertzel.process(chunk);
+                        powers.push((mag as f32, 0.0f32));
+                    }
+                }
+                if powers.is_empty() && !reals.is_empty() {
+                    // Partial block — still process
+                    let g2 = Goertzel::new(*target_freq_hz as f64, *sample_rate_hz as f64, reals.len());
+                    let mag = g2.process(&reals);
+                    powers.push((mag as f32, 0.0f32));
+                }
+                (Vec::new(), Vec::new(), powers)
+            }
+
+            // Costas Loop: carrier recovery
+            BlockType::CostasLoop { order, loop_bw } => {
+                use r4w_core::costas_loop::{CostasLoop as CoreCostas, CostasConfig};
+                use num_complex::Complex64;
+                let config = CostasConfig {
+                    order: *order as u8,
+                    loop_bw: *loop_bw as f64,
+                    damping: 0.707,
+                    ..Default::default()
+                };
+                let mut costas = CoreCostas::new(config);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = costas.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Constellation Receiver: AGC + Costas + demapper
+            BlockType::ConstellationRx { modulation, loop_bw } => {
+                use r4w_core::constellation_receiver::{ConstellationReceiver, ReceiverConfig};
+                use r4w_core::symbol_mapping::Modulation;
+                use num_complex::Complex64;
+                let mod_type = match modulation.as_str() {
+                    "BPSK" => Modulation::Bpsk,
+                    "8PSK" => Modulation::Psk8,
+                    "16QAM" => Modulation::Qam16,
+                    _ => Modulation::Qpsk,
+                };
+                let config = ReceiverConfig {
+                    modulation: mod_type,
+                    loop_bw: *loop_bw as f64,
+                    damping: 0.707,
+                    agc_target: 1.0,
+                    agc_rate: 0.01,
+                    soft_output: false,
+                    noise_variance: 0.1,
+                };
+                let mut rx = ConstellationReceiver::new(config);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let result = rx.process_block(&input);
+                // Output corrected symbols as IQ
+                let samples: Vec<(f32, f32)> = result.symbols.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -6456,6 +6642,138 @@ impl PipelineWizardView {
                         signal: new_signal, prn: new_prn,
                         doppler_max_hz: new_dmax, doppler_step_hz: new_dstep, threshold: new_thr,
                     };
+                }
+            }
+            BlockType::NoiseSource { color, amplitude } => {
+                let mut new_color = color;
+                let mut new_amp = amplitude;
+                ui.horizontal(|ui| {
+                    ui.label("Color:");
+                    egui::ComboBox::from_id_salt("noise_color")
+                        .selected_text(&new_color)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_color, "White".to_string(), "White");
+                            ui.selectable_value(&mut new_color, "Pink".to_string(), "Pink");
+                            ui.selectable_value(&mut new_color, "Brown".to_string(), "Brown");
+                            ui.selectable_value(&mut new_color, "Blue".to_string(), "Blue");
+                            ui.selectable_value(&mut new_color, "Violet".to_string(), "Violet");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Amplitude:");
+                    ui.add(egui::Slider::new(&mut new_amp, 0.01..=10.0).logarithmic(true));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::NoiseSource { color: new_color, amplitude: new_amp };
+                }
+            }
+            BlockType::DcBlocker { alpha } => {
+                let mut new_alpha = alpha;
+                ui.horizontal(|ui| {
+                    ui.label("Alpha:");
+                    ui.add(egui::Slider::new(&mut new_alpha, 0.9..=0.9999).logarithmic(true));
+                });
+                ui.label(format!("Time constant: {:.0} samples", 1.0 / (1.0 - new_alpha)));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DcBlocker { alpha: new_alpha };
+                }
+            }
+            BlockType::CicDecimator { rate, stages } => {
+                let mut new_rate = rate;
+                let mut new_stages = stages;
+                ui.horizontal(|ui| {
+                    ui.label("Decimation Rate:");
+                    ui.add(egui::DragValue::new(&mut new_rate).range(2..=256));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Stages:");
+                    ui.add(egui::DragValue::new(&mut new_stages).range(1..=7));
+                });
+                ui.label(format!("Bit growth: {} bits", (new_stages as f64 * (new_rate as f64).log2()).ceil() as u32));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::CicDecimator { rate: new_rate, stages: new_stages };
+                }
+            }
+            BlockType::BurstDetector { high_threshold_db, low_threshold_db } => {
+                let mut new_high = high_threshold_db;
+                let mut new_low = low_threshold_db;
+                ui.horizontal(|ui| {
+                    ui.label("High Threshold:");
+                    ui.add(egui::DragValue::new(&mut new_high).speed(0.5).suffix(" dB"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Low Threshold:");
+                    ui.add(egui::DragValue::new(&mut new_low).speed(0.5).suffix(" dB"));
+                });
+                if new_low > new_high {
+                    ui.colored_label(Color32::YELLOW, "Low should be <= High for hysteresis");
+                }
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::BurstDetector { high_threshold_db: new_high, low_threshold_db: new_low };
+                }
+            }
+            BlockType::GoertzelDetector { target_freq_hz, sample_rate_hz, block_size } => {
+                let mut new_freq = target_freq_hz;
+                let mut new_sr = sample_rate_hz;
+                let mut new_bs = block_size;
+                ui.horizontal(|ui| {
+                    ui.label("Target Freq:");
+                    ui.add(egui::DragValue::new(&mut new_freq).speed(10.0).suffix(" Hz"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate:");
+                    ui.add(egui::DragValue::new(&mut new_sr).speed(1000.0).suffix(" Hz"));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Block Size:");
+                    ui.add(egui::DragValue::new(&mut new_bs).range(16..=4096));
+                });
+                ui.label(format!("Resolution: {:.1} Hz", new_sr / new_bs as f32));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::GoertzelDetector { target_freq_hz: new_freq, sample_rate_hz: new_sr, block_size: new_bs };
+                }
+            }
+            BlockType::CostasLoop { order, loop_bw } => {
+                let mut new_order = order;
+                let mut new_bw = loop_bw;
+                ui.horizontal(|ui| {
+                    ui.label("Order:");
+                    egui::ComboBox::from_id_salt("costas_order")
+                        .selected_text(format!("{}", new_order))
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_order, 2, "2 (BPSK)");
+                            ui.selectable_value(&mut new_order, 4, "4 (QPSK)");
+                            ui.selectable_value(&mut new_order, 8, "8 (8PSK)");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Loop BW:");
+                    ui.add(egui::Slider::new(&mut new_bw, 0.001..=0.2).logarithmic(true));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::CostasLoop { order: new_order, loop_bw: new_bw };
+                }
+            }
+            BlockType::ConstellationRx { modulation, loop_bw } => {
+                let mut new_mod = modulation;
+                let mut new_bw = loop_bw;
+                ui.horizontal(|ui| {
+                    ui.label("Modulation:");
+                    egui::ComboBox::from_id_salt("constrx_mod")
+                        .selected_text(&new_mod)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_mod, "BPSK".to_string(), "BPSK");
+                            ui.selectable_value(&mut new_mod, "QPSK".to_string(), "QPSK");
+                            ui.selectable_value(&mut new_mod, "8PSK".to_string(), "8PSK");
+                            ui.selectable_value(&mut new_mod, "16QAM".to_string(), "16-QAM");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Loop BW:");
+                    ui.add(egui::Slider::new(&mut new_bw, 0.001..=0.2).logarithmic(true));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ConstellationRx { modulation: new_mod, loop_bw: new_bw };
                 }
             }
             BlockType::DifferentialEncoder | BlockType::MatchedFilter |
