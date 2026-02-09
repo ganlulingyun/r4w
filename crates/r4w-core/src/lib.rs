@@ -45,7 +45,11 @@
 //! ```
 
 pub mod agent;
+pub mod agc;
+pub mod carrier_recovery;
+pub mod clock_recovery;
 pub mod coordinates;
+pub mod crc;
 pub mod analysis;
 pub mod anti_jam;
 pub mod benchmark;
@@ -53,6 +57,7 @@ pub mod chirp;
 pub mod coding;
 pub mod config;
 pub mod demodulation;
+pub mod fec;
 pub mod fft_utils;
 pub mod filters;
 pub mod gps_time;

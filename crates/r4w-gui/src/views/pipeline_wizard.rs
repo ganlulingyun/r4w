@@ -4999,6 +4999,143 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), output_samples)
             }
 
+            // AGC: IQ → IQ (normalize amplitude using r4w-core AGC)
+            BlockType::Agc { mode, target_db } => {
+                use r4w_core::agc::{Agc as CoreAgc, AgcConfig, Agc2, Agc2Config, Agc3, Agc3Config};
+                use num_complex::Complex64;
+
+                let target_amplitude = 10.0f64.powf(*target_db as f64 / 20.0);
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+
+                let output = match mode {
+                    AgcMode::Fast => {
+                        let mut agc = Agc3::new(Agc3Config {
+                            target_amplitude,
+                            attack_rate: 0.5,
+                            decay_rate: 0.01,
+                            acquisition_samples: 50,
+                            ..Default::default()
+                        });
+                        agc.process_block(&input)
+                    }
+                    AgcMode::Slow => {
+                        let mut agc = CoreAgc::new(AgcConfig {
+                            target_amplitude,
+                            rate: 0.001,
+                            ..Default::default()
+                        });
+                        agc.process_block(&input)
+                    }
+                    AgcMode::Adaptive => {
+                        let mut agc = Agc2::new(Agc2Config {
+                            target_amplitude,
+                            attack_rate: 0.1,
+                            decay_rate: 0.01,
+                            ..Default::default()
+                        });
+                        agc.process_block(&input)
+                    }
+                };
+
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Carrier Recovery: IQ → IQ (Costas loop)
+            BlockType::CarrierRecovery { algorithm, loop_bw } => {
+                use r4w_core::carrier_recovery::{CostasLoop, CostasConfig};
+                use num_complex::Complex64;
+
+                let config = match algorithm {
+                    CarrierAlgo::CostasLoop => CostasConfig::bpsk(*loop_bw as f64),
+                    CarrierAlgo::PilotAided => CostasConfig::qpsk(*loop_bw as f64),
+                    _ => CostasConfig::bpsk(*loop_bw as f64),
+                };
+                let mut costas = CostasLoop::new(config);
+
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let output = costas.process_block(&input);
+                let samples: Vec<(f32, f32)> = output.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // Timing Recovery: IQ → IQ (Mueller & Muller)
+            BlockType::TimingRecovery { algorithm: _, loop_bw } => {
+                use r4w_core::clock_recovery::{MuellerMuller, MuellerMullerConfig};
+                use num_complex::Complex64;
+
+                let mut mm = MuellerMuller::new(MuellerMullerConfig {
+                    sps: 4.0,
+                    loop_bw: *loop_bw as f64,
+                    damping: 0.707,
+                    max_deviation: 1.5,
+                });
+
+                let input: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let (symbols, _errors) = mm.process_block(&input);
+                let samples: Vec<(f32, f32)> = symbols.iter()
+                    .map(|s| (s.re as f32, s.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // FEC Encoder: Bits → Bits (convolutional encoding)
+            BlockType::FecEncoder { code_type, rate } => {
+                use r4w_core::fec::{ConvolutionalEncoder, ConvCodeConfig};
+
+                let config = match rate.as_str() {
+                    "1/3" => ConvCodeConfig::k9_rate_third(),
+                    _ => ConvCodeConfig::nasa_k7_rate_half(),
+                };
+                let mut encoder = ConvolutionalEncoder::new(config);
+                let encoded = encoder.encode(input_bits);
+                (encoded, Vec::new(), Vec::new())
+            }
+
+            // CRC Generator: Bits → Bits (append CRC)
+            BlockType::CrcGenerator { crc_type } => {
+                use r4w_core::crc::{Crc32, Crc16, Crc8, CrcComputer};
+
+                // Pack input bits into bytes for CRC computation
+                let bytes: Vec<u8> = input_bits.chunks(8).map(|chunk| {
+                    let mut byte = 0u8;
+                    for (i, &bit) in chunk.iter().enumerate() {
+                        if bit { byte |= 1 << i; }
+                    }
+                    byte
+                }).collect();
+
+                // Compute CRC and append as bits
+                let crc_bits: Vec<bool> = match crc_type {
+                    CrcType::Crc8 => {
+                        let checksum = Crc8::compute(&bytes);
+                        (0..8).map(|i| (checksum >> i) & 1 == 1).collect()
+                    }
+                    CrcType::Crc16Ccitt | CrcType::Crc16Ibm => {
+                        let checksum = Crc16::compute(&bytes);
+                        (0..16).map(|i| (checksum >> i) & 1 == 1).collect()
+                    }
+                    CrcType::Crc32 => {
+                        let checksum = Crc32::compute(&bytes);
+                        (0..32).map(|i| (checksum >> i) & 1 == 1).collect()
+                    }
+                };
+
+                let mut output = input_bits.to_vec();
+                output.extend(crc_bits);
+                (output, Vec::new(), Vec::new())
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {

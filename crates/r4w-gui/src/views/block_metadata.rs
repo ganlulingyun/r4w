@@ -1154,6 +1154,286 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["signal", "prn", "doppler_max_hz", "doppler_step_hz", "threshold"],
         });
 
+        // ==================== Recovery Blocks ====================
+
+        m.insert("Agc", BlockMetadata {
+            block_type: "Agc",
+            display_name: "Automatic Gain Control",
+            category: "Recovery",
+            description: "Normalizes signal amplitude to a target level. Essential for any receiver \
+                chain where input power varies due to distance, fading, or interference. Three \
+                modes: Fast (AGC3 - linear acquisition then log tracking), Adaptive (AGC2 - \
+                separate attack/decay rates), Slow (AGC - single exponential rate).",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/agc.rs",
+                line: 1,
+                symbol: "Agc",
+                description: "AGC implementations (Agc, Agc2, Agc3)",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Gain Update (AGC)",
+                    plaintext: "gain += rate * (target - |output|)",
+                    latex: Some(r"g[n+1] = g[n] + \mu \cdot (A_{target} - |y[n]|)"),
+                    variables: &[
+                        ("g[n]", "Current gain"),
+                        ("mu", "Update rate"),
+                        ("A_target", "Target output amplitude"),
+                        ("y[n]", "Output sample = g[n] * x[n]"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_agc_basic_convergence",
+                    module: "r4w_core::agc::tests",
+                    description: "Verify AGC converges to target amplitude",
+                    expected_runtime_ms: 10,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(1) per sample",
+                memory: "O(1) state",
+                simd_optimized: false,
+                gpu_accelerable: false,
+            }),
+            standards: &[],
+            related_blocks: &["CarrierRecovery", "TimingRecovery"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (amplitude-normalized)",
+            key_parameters: &["mode (Fast/Adaptive/Slow)", "target_db"],
+        });
+
+        m.insert("CarrierRecovery", BlockMetadata {
+            block_type: "CarrierRecovery",
+            display_name: "Carrier Recovery (Costas Loop)",
+            category: "Recovery",
+            description: "Costas loop for carrier frequency and phase recovery in PSK signals. \
+                Uses a modulation-order-aware phase error detector with a 2nd-order \
+                proportional-integral loop filter. Supports BPSK, QPSK, and 8PSK modes.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/carrier_recovery.rs",
+                line: 1,
+                symbol: "CostasLoop",
+                description: "Costas loop carrier recovery",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "BPSK Phase Error",
+                    plaintext: "e[n] = I[n] * Q[n]",
+                    latex: Some(r"e[n] = \text{Re}\{y[n]\} \cdot \text{Im}\{y[n]\}"),
+                    variables: &[
+                        ("e[n]", "Phase error signal"),
+                        ("I[n]", "In-phase component of derotated sample"),
+                        ("Q[n]", "Quadrature component of derotated sample"),
+                    ],
+                },
+                BlockFormula {
+                    name: "Loop Filter Update",
+                    plaintext: "freq += beta * error; phase += freq + alpha * error",
+                    latex: Some(r"\omega[n+1] = \omega[n] + \beta \cdot e[n]; \quad \phi[n+1] = \phi[n] + \omega[n] + \alpha \cdot e[n]"),
+                    variables: &[
+                        ("omega", "Frequency estimate (rad/sample)"),
+                        ("phi", "Phase estimate (rad)"),
+                        ("alpha", "Proportional gain"),
+                        ("beta", "Integral gain"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_bpsk_frequency_offset_tracking",
+                    module: "r4w_core::carrier_recovery::tests",
+                    description: "Verify Costas loop tracks frequency offset",
+                    expected_runtime_ms: 10,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(1) per sample",
+                memory: "O(1) state (phase, freq, gains)",
+                simd_optimized: false,
+                gpu_accelerable: false,
+            }),
+            standards: &[
+                StandardReference {
+                    name: "Proakis & Salehi",
+                    section: Some("Digital Communications, Ch. 6 - Carrier Recovery"),
+                    url: None,
+                },
+            ],
+            related_blocks: &["Agc", "TimingRecovery"],
+            input_type: "IQ samples",
+            output_type: "IQ samples (phase-corrected)",
+            key_parameters: &["algorithm (CostasLoop/PilotAided)", "loop_bw"],
+        });
+
+        m.insert("TimingRecovery", BlockMetadata {
+            block_type: "TimingRecovery",
+            display_name: "Symbol Timing Recovery",
+            category: "Recovery",
+            description: "Mueller & Muller symbol timing recovery. Takes oversampled IQ input and \
+                outputs symbol-rate samples at the optimal sampling instants. Uses a timing error \
+                detector with proportional-integral loop filter for clock offset tracking.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/clock_recovery.rs",
+                line: 1,
+                symbol: "MuellerMuller",
+                description: "Mueller & Muller clock recovery",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "M&M Timing Error",
+                    plaintext: "e[n] = Re{ conj(x[n]) * d[n-1] - conj(x[n-1]) * d[n] }",
+                    latex: Some(r"e[n] = \text{Re}\{ x^*[n] \cdot d[n-1] - x^*[n-1] \cdot d[n] \}"),
+                    variables: &[
+                        ("e[n]", "Timing error signal"),
+                        ("x[n]", "Interpolated sample at estimated optimal point"),
+                        ("d[n]", "Decision (nearest constellation point)"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_mm_basic_recovery",
+                    module: "r4w_core::clock_recovery::tests",
+                    description: "Verify M&M recovers symbols from oversampled BPSK",
+                    expected_runtime_ms: 10,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(1) per input sample",
+                memory: "O(1) state",
+                simd_optimized: false,
+                gpu_accelerable: false,
+            }),
+            standards: &[
+                StandardReference {
+                    name: "Mueller & Muller (1976)",
+                    section: Some("Timing Recovery in Digital Synchronous Data Receivers"),
+                    url: None,
+                },
+            ],
+            related_blocks: &["Agc", "CarrierRecovery"],
+            input_type: "IQ samples (oversampled)",
+            output_type: "IQ samples (symbol-rate)",
+            key_parameters: &["algorithm", "loop_bw"],
+        });
+
+        m.insert("FecEncoder", BlockMetadata {
+            block_type: "FecEncoder",
+            display_name: "Convolutional Encoder",
+            category: "Coding",
+            description: "Convolutional encoder with configurable constraint length and generator \
+                polynomials. Appends tail bits to terminate the trellis. Supports NASA K=7 rate 1/2 \
+                (CCSDS standard), GSM K=5 rate 1/2, and rate 1/3 K=9 codes.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/fec/convolutional.rs",
+                line: 1,
+                symbol: "ConvolutionalEncoder",
+                description: "Convolutional FEC encoder",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "Output Bit Computation",
+                    plaintext: "y_i[n] = parity( state AND g_i )",
+                    latex: Some(r"y_i[n] = \bigoplus_{k=0}^{K-1} s_k \cdot g_{i,k}"),
+                    variables: &[
+                        ("y_i[n]", "i-th output bit for input n"),
+                        ("state", "K-bit shift register"),
+                        ("g_i", "i-th generator polynomial"),
+                        ("K", "Constraint length"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_nasa_k7_encode_decode",
+                    module: "r4w_core::fec::convolutional::tests",
+                    description: "Verify NASA K=7 rate 1/2 roundtrip encode/decode",
+                    expected_runtime_ms: 10,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(n) encoding, O(n * 2^K) Viterbi decoding",
+                memory: "O(2^K * n) for traceback",
+                simd_optimized: false,
+                gpu_accelerable: true,
+            }),
+            standards: &[
+                StandardReference {
+                    name: "CCSDS 131.0-B-3",
+                    section: Some("TM Synchronization and Channel Coding"),
+                    url: None,
+                },
+            ],
+            related_blocks: &["CrcGenerator", "Interleaver"],
+            input_type: "Bits",
+            output_type: "Bits (coded, rate 1/n)",
+            key_parameters: &["code_type", "rate"],
+        });
+
+        m.insert("CrcGenerator", BlockMetadata {
+            block_type: "CrcGenerator",
+            display_name: "CRC Generator",
+            category: "Coding",
+            description: "Appends a CRC (Cyclic Redundancy Check) to the input bit stream for \
+                error detection. Supports CRC-8, CRC-16 CCITT, CRC-16 IBM, and CRC-32. \
+                Uses table-based lookup for efficient computation.",
+            implementation: Some(CodeLocation {
+                crate_name: "r4w-core",
+                file_path: "src/crc.rs",
+                line: 1,
+                symbol: "Crc32",
+                description: "CRC computation engine",
+            }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula {
+                    name: "CRC Division",
+                    plaintext: "CRC = data(x) mod g(x) over GF(2)",
+                    latex: Some(r"\text{CRC} = M(x) \cdot x^r \mod G(x)"),
+                    variables: &[
+                        ("M(x)", "Message polynomial"),
+                        ("G(x)", "Generator polynomial"),
+                        ("r", "CRC width in bits"),
+                    ],
+                },
+            ],
+            tests: &[
+                BlockTest {
+                    name: "test_crc32_known_values",
+                    module: "r4w_core::crc::tests",
+                    description: "Verify CRC-32 against known test vectors",
+                    expected_runtime_ms: 1,
+                },
+            ],
+            performance: Some(PerformanceInfo {
+                complexity: "O(n) with table lookup",
+                memory: "O(256) for CRC table",
+                simd_optimized: false,
+                gpu_accelerable: false,
+            }),
+            standards: &[
+                StandardReference {
+                    name: "ISO 3309",
+                    section: Some("CRC-32 for HDLC"),
+                    url: None,
+                },
+            ],
+            related_blocks: &["FecEncoder", "Scrambler"],
+            input_type: "Bits",
+            output_type: "Bits (with CRC appended)",
+            key_parameters: &["crc_type (CRC-8/CRC-16/CRC-32)"],
+        });
+
     m
 }
 

@@ -21,6 +21,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     - `remez.rs`: Parks-McClellan equiripple FIR design (RemezSpec builder)
     - `pulse_shaping.rs`: RRC, RC, Gaussian filters (also implement Filter traits)
     - `windows.rs`: Hamming, Hann, Blackman, Kaiser window functions
+  - `agc.rs`: Automatic Gain Control (Agc, Agc2, Agc3 - basic/dual-rate/fast-acquisition)
+  - `carrier_recovery.rs`: Costas loop for BPSK/QPSK/8PSK carrier recovery
+  - `clock_recovery.rs`: Mueller & Muller symbol timing recovery, FreqXlatingFirFilter
+  - `crc.rs`: CRC engine (CRC-8, CRC-16 CCITT/IBM, CRC-32, CRC-32C) with table lookup
+  - `fec/`: Forward Error Correction
+    - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
+    - Standard codes: NASA K=7 rate 1/2, GSM K=5, 3GPP K=9 rate 1/3
   - `analysis/`: Spectrum analyzer, waterfall generator, signal statistics, peak detection
   - `timing.rs`: Multi-clock model (SampleClock, WallClock, HardwareClock, SyncedTime)
   - `rt/`: Lock-free ring buffers, buffer pools, RT thread spawning
@@ -144,6 +151,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 ### Recent Updates
 
 - **GNSS Pipeline Blocks** - Added GNSS category (teal) to the visual pipeline builder with two blocks: `GnssScenarioSource` (multi-satellite IQ generation with preset selection, receiver position, sample rate, duration) and `GnssAcquisition` (PCPS-based signal acquisition with configurable Doppler search and detection threshold). GnssOpenSky preset pipeline template connects scenario source to acquisition to IQ output. Full property editors, block metadata with formulas and standards references, and processing logic integrated with r4w-core GNSS engine.
+- **Standalone DSP Blocks** - Six new r4w-core modules implementing GNU Radio-equivalent functionality: AGC (`agc.rs` - three variants: Agc/Agc2/Agc3 matching agc_cc/agc2_cc/agc3_cc), CRC engine (`crc.rs` - CRC-8/16/32/32C with table-based lookup), Convolutional encoder + Viterbi decoder (`fec/convolutional.rs` - configurable K/rate with hard/soft decision, NASA K=7 and 3GPP K=9 presets), Costas loop carrier recovery (`carrier_recovery.rs` - BPSK/QPSK/8PSK with 2nd-order PI loop filter), Mueller & Muller clock recovery (`clock_recovery.rs` - symbol timing with interpolation), FreqXlatingFirFilter (`clock_recovery.rs` - NCO mixing + FIR + decimation). All implement `Filter` trait for pipeline interoperability. 39 new unit tests.
+- **Pipeline Builder DSP Integration** - Wired existing pipeline builder stub blocks (AGC, CarrierRecovery, TimingRecovery, FecEncoder, CrcGenerator) to real r4w-core implementations. Test panel now produces live output for all synchronization, FEC, and integrity blocks.
 - **Meshtastic Interop Crypto Fix** - Fixed 7 critical compatibility bugs for real-device interoperability (MESH-012 through MESH-015). Nonce now matches firmware CryptoEngine.cpp: `[pkt_id_u64_LE, node_id_u32_LE, zeros]`. PSK used directly as AES key (no SHA-256 derivation). Channel hash uses XOR fold (`xorHash(name)^xorHash(psk)`). Removed MIC for CTR mode. Fixed Position proto field tags (fix_quality=17, fix_type=18, sats_in_view=19). Added missing PortNums (Alert, KeyVerification, etc.). Added Data.bitfield, User.public_key. CLI features: `crypto`, `meshtastic-interop`. Removed sha2/hmac dependencies.
 - **Type-Aware Test Panel** - Test panel adapts to selected block's input type. Shows BitPattern options (Random, AllZeros, AllOnes, Alternating, Prbs7) for Bits inputs, SymbolPattern (Random, Sequential, AllZero, Alternating) for Symbols, IqPattern (Noise, Tone, Chirp, Impulse) for IQ. Block output caching enables pipeline chaining (use previous block's output as input).
 - **Typed Port Support** - Port type system for pipeline connections. Types: Bits (blue), Symbols (purple), IQ (orange), Real (cyan), Any (gray). Visual feedback during connection: compatible ports brighten, incompatible show red with X. Type mismatch warnings in validation. Port types shown in Properties panel.
