@@ -3817,6 +3817,176 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
             key_parameters: &["open"],
         });
 
+    // === Batch 21: PDU Conversion, OFDM Channel Est, SSB Modem, Wavelet ===
+
+    m.insert("PDU to Tagged Stream", BlockMetadata {
+            block_type: "PduToTaggedStreamBlock",
+            display_name: "PDU to Tagged Stream",
+            category: "Coding",
+            description: "Converts PDU messages into a contiguous byte stream with packet_len tags at each packet boundary.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/pdu.rs", line: 69, symbol: "PduToTaggedStream", description: "PDU to tagged stream converter" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "Tag Insertion", plaintext: "tag[i] = (offset=sum(len[0..i]), length=len[i])", latex: None, variables: &[("len[i]", "PDU i length"), ("offset", "cumulative byte position")] }],
+            tests: &[
+                BlockTest { name: "test_pdu_to_tagged_stream_basic", module: "r4w_core::pdu::tests", description: "Two PDUs → tagged stream", expected_runtime_ms: 1 },
+                BlockTest { name: "test_roundtrip_byte_pdus", module: "r4w_core::pdu::tests", description: "PDU roundtrip", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["TaggedStreamToPduBlock", "HeaderPayloadDemux"],
+            input_type: "Bits (PDU bytes)",
+            output_type: "Bits (tagged stream)",
+            key_parameters: &["length_tag_key"],
+        });
+
+    m.insert("Tagged Stream to PDU", BlockMetadata {
+            block_type: "TaggedStreamToPduBlock",
+            display_name: "Tagged Stream to PDU",
+            category: "Coding",
+            description: "Collects samples from a tagged stream back into PDU messages using packet_len tags.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/pdu.rs", line: 123, symbol: "TaggedStreamToPdu", description: "Tagged stream to PDU collector" }),
+            related_code: &[],
+            formulas: &[BlockFormula { name: "PDU Collection", plaintext: "pdu[i] = stream[tag[i].offset .. tag[i].offset + tag[i].length]", latex: None, variables: &[("tag[i]", "packet boundary tag")] }],
+            tests: &[
+                BlockTest { name: "test_tagged_stream_to_pdu_basic", module: "r4w_core::pdu::tests", description: "Tagged stream → PDUs", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(max_pdu)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["PduToTaggedStreamBlock", "HeaderPayloadDemux"],
+            input_type: "Bits (tagged stream)",
+            output_type: "Bits (PDU bytes)",
+            key_parameters: &["length_tag_key"],
+        });
+
+    m.insert("OFDM Channel Estimator", BlockMetadata {
+            block_type: "OfdmChannelEstBlock",
+            display_name: "OFDM Channel Estimator",
+            category: "Recovery",
+            description: "Pilot-based channel estimation and zero-forcing/MMSE equalization for OFDM systems.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/ofdm_channel_est.rs", line: 91, symbol: "OfdmChannelEstimator", description: "OFDM pilot-based channel estimator" }),
+            related_code: &[
+                CodeLocation { crate_name: "r4w-core", file_path: "src/ofdm.rs", line: 1, symbol: "ofdm", description: "OFDM modulator/demodulator" },
+            ],
+            formulas: &[
+                BlockFormula { name: "LS Estimation", plaintext: "H_hat[k] = Y_pilot[k] / X_pilot[k]", latex: Some("\\hat{H}[k] = \\frac{Y_{pilot}[k]}{X_{pilot}[k]}"), variables: &[("Y_pilot", "received pilot"), ("X_pilot", "known pilot")] },
+                BlockFormula { name: "ZF Equalization", plaintext: "X_hat[k] = Y[k] / H_hat[k]", latex: Some("\\hat{X}[k] = \\frac{Y[k]}{\\hat{H}[k]}"), variables: &[("Y", "received data"), ("H_hat", "channel estimate")] },
+                BlockFormula { name: "MMSE Equalization", plaintext: "X_hat[k] = Y[k] * H*[k] / (|H[k]|^2 + sigma^2)", latex: Some("\\hat{X}[k] = Y[k] \\cdot \\frac{H^*[k]}{|H[k]|^2 + \\sigma^2}"), variables: &[("sigma^2", "noise variance")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_ls_estimation_identity_channel", module: "r4w_core::ofdm_channel_est::tests", description: "Identity channel", expected_runtime_ms: 1 },
+                BlockTest { name: "test_zero_forcing_equalization", module: "r4w_core::ofdm_channel_est::tests", description: "ZF equalization", expected_runtime_ms: 1 },
+                BlockTest { name: "test_mmse_equalization", module: "r4w_core::ofdm_channel_est::tests", description: "MMSE equalization", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(N)", memory: "O(N)", simd_optimized: false, gpu_accelerable: true }),
+            standards: &[
+                StandardReference { name: "IEEE 802.11", section: Some("Pilot-based channel estimation"), url: None },
+            ],
+            related_blocks: &["OfdmModulator", "Equalizer"],
+            input_type: "IQ (freq domain)",
+            output_type: "IQ (equalized)",
+            key_parameters: &["method", "averaging_alpha"],
+        });
+
+    m.insert("SSB Modulator", BlockMetadata {
+            block_type: "SsbModulatorBlock",
+            display_name: "SSB Modulator",
+            category: "Modulation",
+            description: "Single-sideband modulation using Hilbert transform (phasing method). USB or LSB.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/ssb_modem.rs", line: 122, symbol: "SsbModulator", description: "SSB modulator with Hilbert transform" }),
+            related_code: &[
+                CodeLocation { crate_name: "r4w-core", file_path: "src/ssb_modem.rs", line: 50, symbol: "HilbertTransform", description: "FIR Hilbert transform" },
+            ],
+            formulas: &[
+                BlockFormula { name: "USB", plaintext: "z(t) = x(t) + j*H{x(t)}", latex: Some("z(t) = x(t) + j \\cdot \\mathcal{H}\\{x(t)\\}"), variables: &[("H{}", "Hilbert transform"), ("x(t)", "audio input")] },
+                BlockFormula { name: "LSB", plaintext: "z(t) = x(t) - j*H{x(t)}", latex: Some("z(t) = x(t) - j \\cdot \\mathcal{H}\\{x(t)\\}"), variables: &[] },
+            ],
+            tests: &[
+                BlockTest { name: "test_ssb_roundtrip", module: "r4w_core::ssb_modem::tests", description: "SSB modulate/demodulate roundtrip", expected_runtime_ms: 5 },
+                BlockTest { name: "test_ssb_usb_vs_lsb_conjugate", module: "r4w_core::ssb_modem::tests", description: "USB/LSB conjugate relationship", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n*K)", memory: "O(K)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "ITU Radio Regulations", section: Some("J3E emission designator"), url: None },
+            ],
+            related_blocks: &["SsbDemodulatorBlock", "FrequencyModulatorBlock"],
+            input_type: "Real (audio)",
+            output_type: "IQ",
+            key_parameters: &["mode", "hilbert_order"],
+        });
+
+    m.insert("SSB Demodulator", BlockMetadata {
+            block_type: "SsbDemodulatorBlock",
+            display_name: "SSB Demodulator",
+            category: "Recovery",
+            description: "Recovers audio from SSB signal using product detection with DC removal.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/ssb_modem.rs", line: 152, symbol: "SsbDemodulator", description: "SSB demodulator with BFO support" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Product Detection", plaintext: "audio(t) = Re{z(t)}", latex: Some("audio(t) = \\text{Re}\\{z(t)\\}"), variables: &[("z(t)", "received baseband IQ")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_ssb_demodulator_basic", module: "r4w_core::ssb_modem::tests", description: "Basic demodulation", expected_runtime_ms: 1 },
+                BlockTest { name: "test_ssb_demod_with_bfo", module: "r4w_core::ssb_modem::tests", description: "BFO demodulation", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[],
+            related_blocks: &["SsbModulatorBlock", "QuadratureDemod"],
+            input_type: "IQ",
+            output_type: "Real (audio)",
+            key_parameters: &["mode"],
+        });
+
+    m.insert("DWT Analyzer", BlockMetadata {
+            block_type: "DwtAnalyzerBlock",
+            display_name: "DWT Analyzer",
+            category: "Filtering",
+            description: "Discrete Wavelet Transform decomposition for multi-resolution signal analysis.",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/wavelet.rs", line: 161, symbol: "DwtAnalyzer", description: "Forward DWT decomposition" }),
+            related_code: &[
+                CodeLocation { crate_name: "r4w-core", file_path: "src/wavelet.rs", line: 230, symbol: "DwtSynthesizer", description: "Inverse DWT reconstruction" },
+            ],
+            formulas: &[
+                BlockFormula { name: "Analysis", plaintext: "a[n] = Σk lo[k]*x[2n+k], d[n] = Σk hi[k]*x[2n+k]", latex: Some("a[n] = \\sum_k h_0[k] x[2n+k], \\quad d[n] = \\sum_k h_1[k] x[2n+k]"), variables: &[("a", "approximation"), ("d", "detail"), ("lo/hi", "filter bank")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_haar_roundtrip", module: "r4w_core::wavelet::tests", description: "Haar DWT roundtrip", expected_runtime_ms: 1 },
+                BlockTest { name: "test_dwt_coefficient_structure", module: "r4w_core::wavelet::tests", description: "Coefficient structure", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n*L)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "Mallat, A Wavelet Tour of Signal Processing", section: Some("Ch. 7: Wavelet Bases"), url: None },
+            ],
+            related_blocks: &["WaveletDenoiserBlock", "FirFilter"],
+            input_type: "Real",
+            output_type: "Real (coefficients)",
+            key_parameters: &["wavelet", "levels"],
+        });
+
+    m.insert("Wavelet Denoiser", BlockMetadata {
+            block_type: "WaveletDenoiserBlock",
+            display_name: "Wavelet Denoiser",
+            category: "Filtering",
+            description: "Wavelet-domain denoising via soft/hard thresholding with automatic threshold estimation (MAD).",
+            implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/wavelet.rs", line: 293, symbol: "WaveletDenoiser", description: "DWT-based signal denoiser" }),
+            related_code: &[],
+            formulas: &[
+                BlockFormula { name: "Universal Threshold", plaintext: "λ = σ * √(2*ln(N))", latex: Some("\\lambda = \\sigma \\sqrt{2 \\ln N}"), variables: &[("σ", "noise std (MAD estimate)"), ("N", "signal length")] },
+                BlockFormula { name: "Soft Threshold", plaintext: "c_hat = sign(c) * max(|c| - λ, 0)", latex: Some("\\hat{c} = \\text{sgn}(c) \\cdot \\max(|c| - \\lambda, 0)"), variables: &[("c", "wavelet coefficient"), ("λ", "threshold")] },
+            ],
+            tests: &[
+                BlockTest { name: "test_hard_threshold_denoising", module: "r4w_core::wavelet::tests", description: "Hard threshold denoising", expected_runtime_ms: 1 },
+                BlockTest { name: "test_soft_threshold_denoising", module: "r4w_core::wavelet::tests", description: "Soft threshold denoising", expected_runtime_ms: 1 },
+            ],
+            performance: Some(PerformanceInfo { complexity: "O(n*L)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+            standards: &[
+                StandardReference { name: "Donoho & Johnstone (1994)", section: Some("Ideal spatial adaptation"), url: None },
+            ],
+            related_blocks: &["DwtAnalyzerBlock", "MovingAverage"],
+            input_type: "Real",
+            output_type: "Real (denoised)",
+            key_parameters: &["wavelet", "levels", "method"],
+        });
+
     m
 }
 

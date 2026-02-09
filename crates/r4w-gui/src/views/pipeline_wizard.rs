@@ -352,6 +352,14 @@ pub enum BlockType {
     SampleAndHoldBlock,
     NullSourceBlock,
     VectorSourceBlock { pattern: String },
+    // Batch 21: PDU, OFDM Channel Est, SSB, Wavelet
+    PduToTaggedStreamBlock { length_tag_key: String },
+    TaggedStreamToPduBlock { length_tag_key: String },
+    OfdmChannelEstBlock { method: String, averaging_alpha: f64 },
+    SsbModulatorBlock { mode: String, hilbert_order: usize },
+    SsbDemodulatorBlock { mode: String },
+    DwtAnalyzerBlock { wavelet: String, levels: usize },
+    WaveletDenoiserBlock { wavelet: String, levels: usize, method: String },
 }
 
 impl BlockType {
@@ -477,6 +485,13 @@ impl BlockType {
             Self::SampleAndHoldBlock => "Sample & Hold",
             Self::NullSourceBlock => "Null Source",
             Self::VectorSourceBlock { .. } => "Vector Source",
+            Self::PduToTaggedStreamBlock { .. } => "PDU to Tagged Stream",
+            Self::TaggedStreamToPduBlock { .. } => "Tagged Stream to PDU",
+            Self::OfdmChannelEstBlock { .. } => "OFDM Channel Estimator",
+            Self::SsbModulatorBlock { .. } => "SSB Modulator",
+            Self::SsbDemodulatorBlock { .. } => "SSB Demodulator",
+            Self::DwtAnalyzerBlock { .. } => "DWT Analyzer",
+            Self::WaveletDenoiserBlock { .. } => "Wavelet Denoiser",
         }
     }
 
@@ -539,6 +554,11 @@ impl BlockType {
             Self::PhaseNoiseBlock { .. } | Self::IqImbalanceBlock { .. } | Self::DcOffsetBlock { .. } => BlockCategory::Impairments,
             Self::StreamToVectorBlock { .. } | Self::QuantizerBlock { .. } | Self::SampleAndHoldBlock => BlockCategory::Filtering,
             Self::NullSourceBlock | Self::VectorSourceBlock { .. } => BlockCategory::Source,
+            Self::PduToTaggedStreamBlock { .. } | Self::TaggedStreamToPduBlock { .. } => BlockCategory::Coding,
+            Self::OfdmChannelEstBlock { .. } => BlockCategory::Recovery,
+            Self::SsbModulatorBlock { .. } => BlockCategory::Modulation,
+            Self::SsbDemodulatorBlock { .. } => BlockCategory::Recovery,
+            Self::DwtAnalyzerBlock { .. } | Self::WaveletDenoiserBlock { .. } => BlockCategory::Filtering,
         }
     }
 
@@ -681,6 +701,13 @@ impl BlockType {
             Self::StreamToVectorBlock { .. } | Self::QuantizerBlock { .. } => vec![PortType::Real],
             Self::SampleAndHoldBlock => vec![PortType::Real],
 
+            // Batch 21 blocks
+            Self::PduToTaggedStreamBlock { .. } | Self::TaggedStreamToPduBlock { .. } => vec![PortType::Bits],
+            Self::OfdmChannelEstBlock { .. } => vec![PortType::IQ],
+            Self::SsbModulatorBlock { .. } => vec![PortType::Real],
+            Self::SsbDemodulatorBlock { .. } => vec![PortType::IQ],
+            Self::DwtAnalyzerBlock { .. } | Self::WaveletDenoiserBlock { .. } => vec![PortType::Real],
+
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
             Self::Merge { num_inputs } => vec![PortType::Any; *num_inputs as usize],
@@ -810,6 +837,15 @@ impl BlockType {
             Self::StreamToVectorBlock { .. } | Self::QuantizerBlock { .. } => vec![PortType::Real],
             Self::SampleAndHoldBlock => vec![PortType::Real],
             Self::NullSourceBlock | Self::VectorSourceBlock { .. } => vec![PortType::IQ],
+
+            // Batch 21 blocks
+            Self::PduToTaggedStreamBlock { .. } => vec![PortType::Bits],
+            Self::TaggedStreamToPduBlock { .. } => vec![PortType::Bits],
+            Self::OfdmChannelEstBlock { .. } => vec![PortType::IQ],
+            Self::SsbModulatorBlock { .. } => vec![PortType::IQ],
+            Self::SsbDemodulatorBlock { .. } => vec![PortType::Real],
+            Self::DwtAnalyzerBlock { .. } => vec![PortType::Real],
+            Self::WaveletDenoiserBlock { .. } => vec![PortType::Real],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -2921,6 +2957,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::Ax25Decoder,
             BlockType::Puncturer { rate: "3/4".to_string() },
             BlockType::Depuncturer { rate: "3/4".to_string() },
+            BlockType::PduToTaggedStreamBlock { length_tag_key: "packet_len".to_string() },
+            BlockType::TaggedStreamToPduBlock { length_tag_key: "packet_len".to_string() },
         ]),
         (BlockCategory::Mapping, vec![
             BlockType::GrayMapper { bits_per_symbol: 2 },
@@ -2938,6 +2976,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::FhssHop { num_channels: 50, hop_rate: 100.0 },
             BlockType::CssModulator { sf: 7, bw_hz: 125000 },
             BlockType::FrequencyModulatorBlock { sensitivity_hz: 5000.0, sample_rate_hz: 48000.0 },
+            BlockType::SsbModulatorBlock { mode: "USB".to_string(), hilbert_order: 31 },
         ]),
         (BlockCategory::Filtering, vec![
             BlockType::FirFilter { filter_type: FilterType::Lowpass, cutoff_hz: 10000.0, num_taps: 64 },
@@ -2960,6 +2999,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::StreamToVectorBlock { vector_size: 64 },
             BlockType::QuantizerBlock { bits: 8 },
             BlockType::SampleAndHoldBlock,
+            BlockType::DwtAnalyzerBlock { wavelet: "Haar".to_string(), levels: 3 },
+            BlockType::WaveletDenoiserBlock { wavelet: "Haar".to_string(), levels: 3, method: "Soft".to_string() },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -3015,6 +3056,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::NbfmReceiver { max_deviation: 5000.0, sample_rate: 48000.0 },
             BlockType::SymbolSync { sps: 4.0, ted: "Gardner".to_string(), loop_bw: 0.045 },
             BlockType::PfbClockSync { sps: 4.0, loop_bw: 0.0628, nfilts: 32 },
+            BlockType::OfdmChannelEstBlock { method: "LeastSquares".to_string(), averaging_alpha: 0.0 },
+            BlockType::SsbDemodulatorBlock { mode: "USB".to_string() },
             BlockType::RmsPower { alpha: 0.01 },
             BlockType::SymbolSlicer { modulation: "QPSK".to_string() },
             BlockType::PhaseUnwrap,
@@ -6752,6 +6795,118 @@ impl PipelineWizardView {
                 (Vec::new(), Vec::new(), samples)
             }
 
+            // PDU to Tagged Stream: pass through bytes
+            BlockType::PduToTaggedStreamBlock { .. } | BlockType::TaggedStreamToPduBlock { .. } => {
+                // PDU conversion is a pass-through for demo purposes
+                (input_bits.to_vec(), Vec::new(), Vec::new())
+            }
+
+            // OFDM Channel Estimator: IQ in → equalized IQ out
+            BlockType::OfdmChannelEstBlock { method, averaging_alpha } => {
+                use r4w_core::ofdm_channel_est::{OfdmChannelEstimator, EstimationMethod};
+                use num_complex::Complex64;
+                let est_method = if method == "Smoothed" {
+                    EstimationMethod::Smoothed { window_size: 3 }
+                } else {
+                    EstimationMethod::LeastSquares
+                };
+                let fft_size = input_samples.len().max(16).next_power_of_two();
+                let pilot_spacing = 4;
+                let pilot_indices: Vec<usize> = (0..fft_size).step_by(pilot_spacing).collect();
+                let pilot_values = vec![Complex64::new(1.0, 0.0); pilot_indices.len()];
+                let mut estimator = OfdmChannelEstimator::new(fft_size, pilot_indices, pilot_values, est_method);
+                if *averaging_alpha > 0.0 {
+                    estimator.set_averaging(*averaging_alpha);
+                }
+                let input_c: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let mut padded = input_c;
+                padded.resize(fft_size, Complex64::new(0.0, 0.0));
+                let estimate = estimator.estimate(&padded);
+                let equalized = estimator.equalize(&padded, &estimate);
+                let samples: Vec<(f32, f32)> = equalized.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // SSB Modulator: Real input → IQ output
+            BlockType::SsbModulatorBlock { mode, hilbert_order } => {
+                use r4w_core::ssb_modem::{SsbModulator, SidebandMode};
+                let ssb_mode = if mode == "LSB" { SidebandMode::Lsb } else { SidebandMode::Usb };
+                let mut modulator = SsbModulator::new(ssb_mode, *hilbert_order);
+                let real_input: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                let iq = modulator.modulate(&real_input);
+                let samples: Vec<(f32, f32)> = iq.iter()
+                    .map(|z| (z.re as f32, z.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // SSB Demodulator: IQ input → Real output
+            BlockType::SsbDemodulatorBlock { mode } => {
+                use r4w_core::ssb_modem::{SsbDemodulator, SidebandMode};
+                use num_complex::Complex64;
+                let ssb_mode = if mode == "LSB" { SidebandMode::Lsb } else { SidebandMode::Usb };
+                let mut demod = SsbDemodulator::new(ssb_mode);
+                let input_c: Vec<Complex64> = input_samples.iter()
+                    .map(|&(i, q)| Complex64::new(i as f64, q as f64))
+                    .collect();
+                let audio = demod.demodulate(&input_c);
+                let samples: Vec<(f32, f32)> = audio.iter()
+                    .map(|&x| (x as f32, 0.0))
+                    .collect();
+                (Vec::new(), Vec::new(), samples)
+            }
+
+            // DWT Analyzer: Real input → wavelet coefficients as Real output
+            BlockType::DwtAnalyzerBlock { wavelet, levels } => {
+                use r4w_core::wavelet::{DwtAnalyzer, WaveletType as WvType};
+                let wv = match wavelet.as_str() {
+                    "Db4" => WvType::Db4,
+                    "Sym4" => WvType::Sym4,
+                    _ => WvType::Haar,
+                };
+                let analyzer = DwtAnalyzer::new(wv, *levels);
+                let real_input: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                if real_input.len() >= (1 << *levels) {
+                    let coeffs = analyzer.analyze(&real_input);
+                    let mut all_coeffs = coeffs.approximation.clone();
+                    for detail in &coeffs.details {
+                        all_coeffs.extend(detail);
+                    }
+                    let samples: Vec<(f32, f32)> = all_coeffs.iter()
+                        .map(|&x| (x as f32, 0.0))
+                        .collect();
+                    (Vec::new(), Vec::new(), samples)
+                } else {
+                    (Vec::new(), Vec::new(), input_samples.to_vec())
+                }
+            }
+
+            // Wavelet Denoiser: Real input → denoised Real output
+            BlockType::WaveletDenoiserBlock { wavelet, levels, method } => {
+                use r4w_core::wavelet::{WaveletDenoiser, WaveletType as WvType, ThresholdMethod};
+                let wv = match wavelet.as_str() {
+                    "Db4" => WvType::Db4,
+                    "Sym4" => WvType::Sym4,
+                    _ => WvType::Haar,
+                };
+                let thresh = if method == "Hard" { ThresholdMethod::Hard } else { ThresholdMethod::Soft };
+                let denoiser = WaveletDenoiser::new(wv, *levels, thresh);
+                let real_input: Vec<f64> = input_samples.iter().map(|&(i, _)| i as f64).collect();
+                if real_input.len() >= (1 << *levels) {
+                    let denoised = denoiser.denoise(&real_input);
+                    let samples: Vec<(f32, f32)> = denoised.iter()
+                        .map(|&x| (x as f32, 0.0))
+                        .collect();
+                    (Vec::new(), Vec::new(), samples)
+                } else {
+                    (Vec::new(), Vec::new(), input_samples.to_vec())
+                }
+            }
+
             // Default: pass through based on likely output type
             _ => {
                 if !input_samples.is_empty() {
@@ -8926,6 +9081,134 @@ impl PipelineWizardView {
                 });
                 if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
                     block.block_type = BlockType::VectorSourceBlock { pattern: new_pattern };
+                }
+            }
+            BlockType::PduToTaggedStreamBlock { length_tag_key } => {
+                let mut new_key = length_tag_key;
+                ui.horizontal(|ui| {
+                    ui.label("Tag Key:");
+                    ui.text_edit_singleline(&mut new_key);
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PduToTaggedStreamBlock { length_tag_key: new_key };
+                }
+            }
+            BlockType::TaggedStreamToPduBlock { length_tag_key } => {
+                let mut new_key = length_tag_key;
+                ui.horizontal(|ui| {
+                    ui.label("Tag Key:");
+                    ui.text_edit_singleline(&mut new_key);
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::TaggedStreamToPduBlock { length_tag_key: new_key };
+                }
+            }
+            BlockType::OfdmChannelEstBlock { method, averaging_alpha } => {
+                let mut new_method = method.clone();
+                let mut new_alpha = averaging_alpha;
+                ui.horizontal(|ui| {
+                    ui.label("Method:");
+                    egui::ComboBox::from_id_salt("ofdm_est_method")
+                        .selected_text(&new_method)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_method, "LeastSquares".to_string(), "Least Squares");
+                            ui.selectable_value(&mut new_method, "Smoothed".to_string(), "Smoothed");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Averaging α:");
+                    ui.add(egui::DragValue::new(&mut new_alpha).range(0.0..=0.99).speed(0.01));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::OfdmChannelEstBlock { method: new_method, averaging_alpha: new_alpha };
+                }
+            }
+            BlockType::SsbModulatorBlock { mode, hilbert_order } => {
+                let mut new_mode = mode.clone();
+                let mut new_order = hilbert_order as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Sideband:");
+                    egui::ComboBox::from_id_salt("ssb_mod_mode")
+                        .selected_text(&new_mode)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_mode, "USB".to_string(), "Upper (USB)");
+                            ui.selectable_value(&mut new_mode, "LSB".to_string(), "Lower (LSB)");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Hilbert Order:");
+                    ui.add(egui::DragValue::new(&mut new_order).range(7.0..=127.0).speed(2.0));
+                });
+                let order_val = ((new_order as usize) | 1).max(7); // Ensure odd
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SsbModulatorBlock { mode: new_mode, hilbert_order: order_val };
+                }
+            }
+            BlockType::SsbDemodulatorBlock { mode } => {
+                let mut new_mode = mode.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Sideband:");
+                    egui::ComboBox::from_id_salt("ssb_demod_mode")
+                        .selected_text(&new_mode)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_mode, "USB".to_string(), "Upper (USB)");
+                            ui.selectable_value(&mut new_mode, "LSB".to_string(), "Lower (LSB)");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SsbDemodulatorBlock { mode: new_mode };
+                }
+            }
+            BlockType::DwtAnalyzerBlock { wavelet, levels } => {
+                let mut new_wavelet = wavelet.clone();
+                let mut new_levels = levels as f64;
+                ui.horizontal(|ui| {
+                    ui.label("Wavelet:");
+                    egui::ComboBox::from_id_salt("dwt_wavelet")
+                        .selected_text(&new_wavelet)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_wavelet, "Haar".to_string(), "Haar (db1)");
+                            ui.selectable_value(&mut new_wavelet, "Db4".to_string(), "Daubechies-4");
+                            ui.selectable_value(&mut new_wavelet, "Sym4".to_string(), "Symlet-4");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Levels:");
+                    ui.add(egui::DragValue::new(&mut new_levels).range(1.0..=10.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::DwtAnalyzerBlock { wavelet: new_wavelet, levels: new_levels as usize };
+                }
+            }
+            BlockType::WaveletDenoiserBlock { wavelet, levels, method } => {
+                let mut new_wavelet = wavelet.clone();
+                let mut new_levels = levels as f64;
+                let mut new_method = method.clone();
+                ui.horizontal(|ui| {
+                    ui.label("Wavelet:");
+                    egui::ComboBox::from_id_salt("denoise_wavelet")
+                        .selected_text(&new_wavelet)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_wavelet, "Haar".to_string(), "Haar (db1)");
+                            ui.selectable_value(&mut new_wavelet, "Db4".to_string(), "Daubechies-4");
+                            ui.selectable_value(&mut new_wavelet, "Sym4".to_string(), "Symlet-4");
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Levels:");
+                    ui.add(egui::DragValue::new(&mut new_levels).range(1.0..=10.0).speed(1.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Threshold:");
+                    egui::ComboBox::from_id_salt("denoise_method")
+                        .selected_text(&new_method)
+                        .show_ui(ui, |ui| {
+                            ui.selectable_value(&mut new_method, "Soft".to_string(), "Soft");
+                            ui.selectable_value(&mut new_method, "Hard".to_string(), "Hard");
+                        });
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::WaveletDenoiserBlock { wavelet: new_wavelet, levels: new_levels as usize, method: new_method };
                 }
             }
             BlockType::ComplexToMag | BlockType::ComplexToArg | BlockType::ComplexToReal | BlockType::RealToComplex |
