@@ -323,6 +323,7 @@ pub mod udp_source_sink;
 pub mod unscented_kalman_filter;
 pub mod valve;
 pub mod vco;
+pub mod viterbi_decoder;
 pub mod vector_insert;
 pub mod vector_map;
 pub mod vector_sink;
