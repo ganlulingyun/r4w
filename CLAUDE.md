@@ -34,7 +34,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 40+ blocks, TX/RX/Channel loading, test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 40+ blocks, TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -143,6 +143,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Type-Aware Test Panel** - Test panel adapts to selected block's input type. Shows BitPattern options (Random, AllZeros, AllOnes, Alternating, Prbs7) for Bits inputs, SymbolPattern (Random, Sequential, AllZero, Alternating) for Symbols, IqPattern (Noise, Tone, Chirp, Impulse) for IQ. Block output caching enables pipeline chaining (use previous block's output as input).
 - **Typed Port Support** - Port type system for pipeline connections. Types: Bits (blue), Symbols (purple), IQ (orange), Real (cyan), Any (gray). Visual feedback during connection: compatible ports brighten, incompatible show red with X. Type mismatch warnings in validation. Port types shown in Properties panel.
 - **Pipeline Builder Menu Bar** - Traditional dropdown menu bar replacing flat toolbar. Menus: File (New/Load/Save/Export), Edit (Select All/Delete/Validate), View (panels, arrows, zoom), Options (snap, auto-connect, cascade drag, connection styles), Layout (modes), Presets. Resizable test panel with persistent height tracking.
 - **Block Metadata System** - Comprehensive documentation for pipeline blocks (`block_metadata.rs`). Each block has: implementation location (file:line with "View Code" to open in VS Code), mathematical formulas with variable explanations, unit tests with "Run" buttons, performance info (complexity, SIMD/GPU support), standards references with links. Properties panel shows collapsible Documentation/Formulas/Implementation/Tests/Performance/Standards sections.

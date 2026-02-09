@@ -7108,3 +7108,58 @@ User observed that QPSK Modulator outputs I/Q samples but the next block (TX RRC
 ### Git Operations
 - Commit c95e173: `[AI:claude] feat(gui): add typed port support for pipeline builder`
 - Pushed to origin/master
+
+### Follow-up Request
+User observed that clicking on QPSK Modulator (In: Symbols, Out: IQ) should change the Test Panel's input options to match the block's input type. Also requested ability to use previous block's output as input for pipeline chaining.
+
+### Actions Taken
+
+1. **Added Type-Aware Input Patterns**
+   - `TestInputSource` enum: Generated, PreviousBlock
+   - `BitPattern` enum: Random, AllZeros, AllOnes, Alternating, Prbs7 (renamed from TestInputPattern)
+   - `SymbolPattern` enum: Random, Sequential, AllZero, Alternating
+   - `IqPattern` enum: Noise, Tone, Chirp, Impulse
+
+2. **Enhanced TestResults Struct**
+   - Added block_id, input_type, output_type fields
+   - Added input_symbols, output_symbols for symbol data
+   - Added input_samples for IQ input data
+   - Supports tracking what data type was used
+
+3. **Added Block Output Caching**
+   - `block_output_cache: HashMap<BlockId, TestResults>` stores test results
+   - `find_previous_block()` discovers upstream blocks from connections
+   - Allows "Previous Block" option to use cached output as input
+
+4. **Type-Aware Test Panel UI**
+   - Pattern dropdown adapts based on selected block's input type
+   - Shows BitPattern options for Bits inputs
+   - Shows SymbolPattern options for Symbols inputs
+   - Shows IqPattern options for IQ inputs
+   - "Previous Block" source option when upstream block has cached output
+
+5. **Type-Aware Block Processing**
+   - `process_block_typed()` handles all input/output type combinations
+   - Proper constellation size detection for symbol generation
+   - Pattern generators for each data type
+
+6. **Updated render_bits_view()**
+   - Shows input/output types with color coding
+   - Displays appropriate data type (bits, symbols, or IQ samples)
+   - Color matches PortType colors for visual consistency
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `crates/r4w-gui/src/views/pipeline_wizard.rs` | Added type-aware test panel (478 additions, 85 deletions) |
+
+### Key Design Decisions
+- Test panel adapts to block's first input port type
+- SymbolPattern generates values in range [0, constellation_size)
+- IqPattern includes common test signals: noise, tone, chirp, impulse
+- Previous block output caching enables pipeline chaining tests
+
+### Git Operations
+- Commit dae23bf: `[AI:claude] feat(gui): add type-aware test panel for pipeline builder`
+- Pushed to origin/master
