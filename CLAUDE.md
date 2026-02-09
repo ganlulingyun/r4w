@@ -63,6 +63,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `cpm.rs`: CPM/GMSK/GFSK/MSK modulation (constant-envelope, Gaussian/LRC pulse shapes)
   - `dynamic_channel.rs`: Composite time-varying channel (fading + CFO/SRO drift + AWGN)
   - `burst_tagger.rs`: Power-based burst detection, tagged stream mux/align
+  - `stream_to_streams.rs`: Round-robin stream demux/mux (StreamToStreams, StreamsToStream), I/Q deinterleave
+  - `argmax.rs`: Index-of-max (argmax/argmin for f64 and mag_sqrd), ArgmaxBlock, top_k functions
+  - `threshold.rs`: Hysteresis threshold detector, rising/falling edge detection, stateless comparison
+  - `pdu_filter.rs`: PDU metadata filtering (FilterRule, PduFilter AND-logic, PduRouter first-match)
+  - `regenerate_bb.rs`: Bit regeneration pulse stretcher, PulseGenerator, rect/trapezoidal pulses
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -81,7 +86,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 168+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 173+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -190,6 +195,7 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Batch 32 DSP Blocks** - Stream to Streams (`stream_to_streams.rs` - round-robin demux/mux by index, I/Q deinterleave/interleave, supports real/complex/bytes), Argmax (`argmax.rs` - find max/min index in vectors, ArgmaxBlock for windowed processing, top_k functions), Threshold (`threshold.rs` - hysteresis threshold detector with configurable low/high thresholds, rising/falling edge detection), PDU Filter (`pdu_filter.rs` - metadata-based filtering and routing with Require/Reject modes, first-match PduRouter), Regenerate BB (`regenerate_bb.rs` - bit regeneration pulse stretcher with guard intervals, PulseGenerator for one-shot pulses). 70 tests. GNU Radio equivalents: `stream_to_streams`, `argmax`, `threshold_ff`, `pdu_filter`, `regenerate_bb`. ~137+ DSP modules total, ~173+ pipeline block types.
 - **Batch 31 DSP Blocks** - Keep M in N (`keep_m_in_n.rs` - selective M-of-N sample extraction with configurable offset for OFDM subcarrier extraction/guard removal), Phase Unwrap (`phase_unwrap.rs` - continuous phase tracking removing 2-pi discontinuities, configurable tolerance), Moving Average (`moving_average_block.rs` - O(1) sliding window mean filter, complex + real variants), Probe Avg Mag Sqrd (`probe_avg_mag_sqrd.rs` - exponential power measurement with threshold-based carrier sensing, pass-through design), Constellation Soft Decoder (`constellation_soft_decoder.rs` - LLR soft-decision demapping for BPSK/QPSK/8PSK/16QAM/64QAM). 80 tests + 6 doctests. ~132+ DSP modules total, ~168+ pipeline block types.
 - **Batch 30 DSP Blocks** - TCP Source/Sink (`tcp_source_sink.rs` - reliable network IQ streaming over TCP with buffered writes and reconnection), FFT Filter (`fft_filter.rs` - frequency-domain FIR filtering via overlap-save/overlap-add for long kernels), WAV Source/Sink (`wav_source_sink.rs` - PCM audio file I/O supporting 8/16/24/32-bit and float32/64 formats), Channel Model (`channel_model.rs` - composable AWGN + frequency offset + timing offset + multipath with preset scenarios), BER Tool (`ber_tool.rs` - bit/symbol/frame error rate measurement with confidence intervals and error pattern analysis). 75 tests + 5 doctests. ~127+ DSP modules total, ~163+ pipeline block types.
 - **Batch 29 DSP Blocks** - AM Demodulator (`am_demod.rs` - envelope detection + DC block + audio lowpass, GNU Radio `am_demod_cf`), Hilbert Transform (`hilbert.rs` - Hamming-windowed FIR real-to-analytic conversion, group delay compensation, GNU Radio `hilbert_fc`), Single-Pole IIR (`single_pole_iir.rs` - EMA smoothing H(z)=α/(1-(1-α)z⁻¹), real + complex variants, alpha or tau construction, GNU Radio `single_pole_iir_filter_ff`/`_cc`), Complex to Mag/Phase (`complex_to_mag_phase.rs` - simultaneous extraction + inverse MagPhaseToComplex, GNU Radio `complex_to_mag_phase`), Tagged Stream PDU (`tagged_stream_pdu.rs` - tagged stream ↔ PDU bridging with metadata, GNU Radio `tagged_stream_to_pdu`/`pdu_to_tagged_stream`). 77 tests + 5 doctests. 4 pipeline blocks. ~122+ DSP modules total, ~158+ pipeline block types.
