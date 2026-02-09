@@ -392,6 +392,14 @@ pub enum BlockType {
     DcBlockerBlock { alpha: f64 },
     InterleavedShortToComplexBlock,
     ComplexToInterleavedShortBlock,
+
+    // Batch 26: Adaptive notch, signal detector, preamble gen, packet encoder, arbitrary resampler
+    AdaptiveNotchBlock { r: f64, mu: f64 },
+    FixedNotchBlock { frequency_hz: f64, sample_rate: f64, r: f64 },
+    SignalDetectorBlock { threshold_db: f64, alpha: f64 },
+    PreambleGeneratorBlock { pattern: String, length: usize },
+    PacketEncoderBlock { sync_word_hex: String, include_crc: bool },
+    ArbitraryResamplerBlock { ratio: f64 },
 }
 
 impl BlockType {
@@ -552,6 +560,12 @@ impl BlockType {
             Self::DcBlockerBlock { .. } => "DC Blocker",
             Self::InterleavedShortToComplexBlock => "Short to Complex",
             Self::ComplexToInterleavedShortBlock => "Complex to Short",
+            Self::AdaptiveNotchBlock { .. } => "Adaptive Notch",
+            Self::FixedNotchBlock { .. } => "Fixed Notch",
+            Self::SignalDetectorBlock { .. } => "Signal Detector",
+            Self::PreambleGeneratorBlock { .. } => "Preamble Generator",
+            Self::PacketEncoderBlock { .. } => "Packet Encoder",
+            Self::ArbitraryResamplerBlock { .. } => "Arbitrary Resampler",
         }
     }
 
@@ -638,6 +652,11 @@ impl BlockType {
             Self::DecimatingFirBlock { .. } | Self::MovingAvgDecimBlock { .. } => BlockCategory::RateConversion,
             Self::AfcBlock { .. } | Self::DcBlockerBlock { .. } => BlockCategory::Recovery,
             Self::InterleavedShortToComplexBlock | Self::ComplexToInterleavedShortBlock => BlockCategory::Output,
+            Self::AdaptiveNotchBlock { .. } | Self::FixedNotchBlock { .. } => BlockCategory::Filtering,
+            Self::SignalDetectorBlock { .. } => BlockCategory::Synchronization,
+            Self::PreambleGeneratorBlock { .. } => BlockCategory::Source,
+            Self::PacketEncoderBlock { .. } => BlockCategory::Coding,
+            Self::ArbitraryResamplerBlock { .. } => BlockCategory::RateConversion,
         }
     }
 
@@ -645,7 +664,8 @@ impl BlockType {
         match self {
             Self::BitSource { .. } | Self::SymbolSource { .. } | Self::FileSource { .. } |
             Self::NoiseSource { .. } | Self::GnssScenarioSource { .. } |
-            Self::NullSourceBlock | Self::VectorSourceBlock { .. } => 0,
+            Self::NullSourceBlock | Self::VectorSourceBlock { .. } |
+            Self::PreambleGeneratorBlock { .. } => 0,
             Self::Merge { num_inputs } => *num_inputs,
             Self::IqMerge => 2,
             Self::StreamAddBlock | Self::StreamSubtractBlock => 2,
@@ -811,6 +831,11 @@ impl BlockType {
             Self::DcBlockerBlock { .. } => vec![PortType::IQ],
             Self::InterleavedShortToComplexBlock => vec![PortType::Real],
             Self::ComplexToInterleavedShortBlock => vec![PortType::IQ],
+            Self::AdaptiveNotchBlock { .. } | Self::FixedNotchBlock { .. } => vec![PortType::IQ],
+            Self::SignalDetectorBlock { .. } => vec![PortType::IQ],
+            Self::PreambleGeneratorBlock { .. } => vec![],
+            Self::PacketEncoderBlock { .. } => vec![PortType::Bits],
+            Self::ArbitraryResamplerBlock { .. } => vec![PortType::IQ],
 
             // Control flow
             Self::Split { .. } => vec![PortType::Any],
@@ -976,6 +1001,11 @@ impl BlockType {
             Self::DcBlockerBlock { .. } => vec![PortType::IQ],
             Self::InterleavedShortToComplexBlock => vec![PortType::IQ],
             Self::ComplexToInterleavedShortBlock => vec![PortType::Real],
+            Self::AdaptiveNotchBlock { .. } | Self::FixedNotchBlock { .. } => vec![PortType::IQ],
+            Self::SignalDetectorBlock { .. } => vec![PortType::Real],
+            Self::PreambleGeneratorBlock { .. } => vec![PortType::Bits],
+            Self::PacketEncoderBlock { .. } => vec![PortType::Bits],
+            Self::ArbitraryResamplerBlock { .. } => vec![PortType::IQ],
 
             // Output blocks have no outputs
             Self::IqOutput | Self::BitOutput | Self::FileOutput { .. } => vec![],
@@ -3075,6 +3105,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::VectorSourceBlock { pattern: "Tone".to_string() },
             BlockType::PfbSynthesizer { num_channels: 4, taps_per_channel: 8, window: "hamming".to_string() },
             BlockType::FileMetaSourceBlock { path: String::new(), data_type: "cf64".to_string() },
+            BlockType::PreambleGeneratorBlock { pattern: "Alternating".to_string(), length: 32 },
         ]),
         (BlockCategory::Coding, vec![
             BlockType::Scrambler { polynomial: 0x48, seed: 0xFF },
@@ -3092,6 +3123,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::TaggedStreamToPduBlock { length_tag_key: "packet_len".to_string() },
             BlockType::PolarEncoderBlock { block_size: 128, info_bits: 64 },
             BlockType::PolarDecoderBlock { block_size: 128, info_bits: 64 },
+            BlockType::PacketEncoderBlock { sync_word_hex: "7E7E".to_string(), include_crc: true },
         ]),
         (BlockCategory::Mapping, vec![
             BlockType::GrayMapper { bits_per_symbol: 2 },
@@ -3137,6 +3169,8 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::SampleAndHoldBlock,
             BlockType::DwtAnalyzerBlock { wavelet: "Haar".to_string(), levels: 3 },
             BlockType::WaveletDenoiserBlock { wavelet: "Haar".to_string(), levels: 3, method: "Soft".to_string() },
+            BlockType::AdaptiveNotchBlock { r: 0.95, mu: 0.01 },
+            BlockType::FixedNotchBlock { frequency_hz: 1000.0, sample_rate: 48000.0, r: 0.95 },
         ]),
         (BlockCategory::RateConversion, vec![
             BlockType::Upsampler { factor: 4 },
@@ -3151,6 +3185,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::StreamSubtractBlock,
             BlockType::DecimatingFirBlock { decimation: 4, num_taps: 33 },
             BlockType::MovingAvgDecimBlock { length: 16 },
+            BlockType::ArbitraryResamplerBlock { ratio: 0.91875 },
         ]),
         (BlockCategory::Synchronization, vec![
             BlockType::PreambleInsert { pattern: "alternating".to_string(), length: 32 },
@@ -3168,6 +3203,7 @@ pub fn get_block_templates() -> Vec<(BlockCategory, Vec<BlockType>)> {
             BlockType::VectorInsertBlock { period: 10, offset: 0 },
             BlockType::VectorRemoveBlock { vector_len: 1, period: 10, offset: 0 },
             BlockType::PnCorrelatorBlock { length: 5, polynomial: "0x25".to_string() },
+            BlockType::SignalDetectorBlock { threshold_db: 6.0, alpha: 0.01 },
         ]),
         (BlockCategory::Impairments, vec![
             BlockType::AwgnChannel { snr_db: 20.0 },
@@ -7406,6 +7442,95 @@ impl PipelineWizardView {
                     .collect();
                 (Vec::new(), Vec::new(), output)
             }
+            BlockType::AdaptiveNotchBlock { r, mu } => {
+                use r4w_core::adaptive_notch::AdaptiveNotch;
+                let mut notch = AdaptiveNotch::new(*r, *mu);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let filtered = notch.process(&complex);
+                let output: Vec<(f32, f32)> = filtered.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::FixedNotchBlock { frequency_hz, sample_rate, r } => {
+                use r4w_core::adaptive_notch::FixedNotch;
+                let mut notch = FixedNotch::from_hz(*frequency_hz, *sample_rate, *r);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let filtered = notch.process(&complex);
+                let output: Vec<(f32, f32)> = filtered.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::SignalDetectorBlock { threshold_db, alpha } => {
+                use r4w_core::signal_detector::SignalDetector;
+                let mut det = SignalDetector::new(*threshold_db, *alpha);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                // Process in blocks and output detection result per block
+                let block_size = 64.min(complex.len());
+                let mut output = Vec::new();
+                for chunk in complex.chunks(block_size.max(1)) {
+                    let result = det.process(chunk);
+                    let val = if result.detected { 1.0_f32 } else { 0.0_f32 };
+                    output.push((val, result.snr_db as f32));
+                }
+                (Vec::new(), Vec::new(), output)
+            }
+            BlockType::PreambleGeneratorBlock { pattern, length } => {
+                use r4w_core::preamble_gen::{PreambleGenerator, PreamblePattern};
+                let pat = match pattern.as_str() {
+                    "AllOnes" => PreamblePattern::AllOnes,
+                    "Barker7" => PreamblePattern::Barker7,
+                    "Barker11" => PreamblePattern::Barker11,
+                    "Barker13" => PreamblePattern::Barker13,
+                    "PnSequence" => PreamblePattern::PnSequence,
+                    _ => PreamblePattern::Alternating,
+                };
+                let gen = PreambleGenerator::new(pat, *length);
+                let bits = gen.generate_bits();
+                (bits, Vec::new(), Vec::new())
+            }
+            BlockType::PacketEncoderBlock { sync_word_hex, include_crc } => {
+                use r4w_core::packet_encoder::{PacketEncoder, PacketFormat, CrcType};
+                let sync_bytes: Vec<u8> = (0..sync_word_hex.len()/2)
+                    .filter_map(|i| u8::from_str_radix(&sync_word_hex[i*2..i*2+2], 16).ok())
+                    .collect();
+                let format = PacketFormat {
+                    sync_word: if sync_bytes.is_empty() { vec![0x7E, 0x7E] } else { sync_bytes },
+                    include_crc: *include_crc,
+                    crc_type: if *include_crc { CrcType::Crc16Ccitt } else { CrcType::None },
+                    ..PacketFormat::default()
+                };
+                let enc = PacketEncoder::new(format);
+                // Convert input bits to bytes, then encode
+                let bytes: Vec<u8> = input_bits.chunks(8).map(|chunk| {
+                    let mut byte = 0u8;
+                    for (i, &bit) in chunk.iter().enumerate() {
+                        if bit { byte |= 1 << (7 - i); }
+                    }
+                    byte
+                }).collect();
+                let packet_bits = enc.encode_bits(&bytes);
+                (packet_bits, Vec::new(), Vec::new())
+            }
+            BlockType::ArbitraryResamplerBlock { ratio } => {
+                use r4w_core::arbitrary_resampler::ArbitraryResampler;
+                let mut resampler = ArbitraryResampler::new(*ratio);
+                let complex: Vec<num_complex::Complex64> = input_samples.iter()
+                    .map(|&(i, q)| num_complex::Complex64::new(i as f64, q as f64))
+                    .collect();
+                let resampled = resampler.process(&complex);
+                let output: Vec<(f32, f32)> = resampled.iter()
+                    .map(|c| (c.re as f32, c.im as f32))
+                    .collect();
+                (Vec::new(), Vec::new(), output)
+            }
 
             // Default: pass through based on likely output type
             _ => {
@@ -10113,6 +10238,109 @@ impl PipelineWizardView {
             BlockType::ComplexToInterleavedShortBlock => {
                 ui.label("Converts complex to interleaved i16 [I,Q,I,Q,...].");
                 ui.label("Scale: ×32767, clamped to [-32768, 32767]");
+            }
+            BlockType::AdaptiveNotchBlock { r, mu } => {
+                let mut new_r = r;
+                let mut new_mu = mu;
+                ui.horizontal(|ui| {
+                    ui.label("Pole Radius (r):");
+                    ui.add(egui::DragValue::new(&mut new_r).range(0.8..=0.999).speed(0.001));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Step Size (μ):");
+                    ui.add(egui::DragValue::new(&mut new_mu).range(0.0001..=0.1).speed(0.001));
+                });
+                ui.label(format!("Notch BW: ~{:.1}% of fs", (1.0 - new_r) * 100.0));
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::AdaptiveNotchBlock { r: new_r, mu: new_mu };
+                }
+            }
+            BlockType::FixedNotchBlock { frequency_hz, sample_rate, r } => {
+                let mut new_freq = frequency_hz;
+                let mut new_sr = sample_rate;
+                let mut new_r = r;
+                ui.horizontal(|ui| {
+                    ui.label("Frequency (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_freq).range(1.0..=100_000.0).speed(10.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Sample Rate (Hz):");
+                    ui.add(egui::DragValue::new(&mut new_sr).range(1000.0..=100_000_000.0).speed(1000.0));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Pole Radius (r):");
+                    ui.add(egui::DragValue::new(&mut new_r).range(0.8..=0.999).speed(0.001));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::FixedNotchBlock { frequency_hz: new_freq, sample_rate: new_sr, r: new_r };
+                }
+            }
+            BlockType::SignalDetectorBlock { threshold_db, alpha } => {
+                let mut new_thr = threshold_db;
+                let mut new_alpha = alpha;
+                ui.horizontal(|ui| {
+                    ui.label("Threshold (dB):");
+                    ui.add(egui::DragValue::new(&mut new_thr).range(0.0..=30.0).speed(0.5));
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Alpha:");
+                    ui.add(egui::DragValue::new(&mut new_alpha).range(0.001..=0.5).speed(0.001));
+                });
+                ui.label("Output: (detected, SNR_dB) per block.");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::SignalDetectorBlock { threshold_db: new_thr, alpha: new_alpha };
+                }
+            }
+            BlockType::PreambleGeneratorBlock { pattern, length } => {
+                let mut new_pat = pattern.clone();
+                let mut new_len = length as f64;
+                let patterns = ["Alternating", "AllOnes", "Barker7", "Barker11", "Barker13", "PnSequence"];
+                ui.horizontal(|ui| {
+                    ui.label("Pattern:");
+                    egui::ComboBox::from_id_salt("preamble_pattern")
+                        .selected_text(&new_pat)
+                        .show_ui(ui, |ui| {
+                            for &p in &patterns {
+                                ui.selectable_value(&mut new_pat, p.to_string(), p);
+                            }
+                        });
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Length (bits):");
+                    ui.add(egui::DragValue::new(&mut new_len).range(1.0..=1024.0).speed(1.0));
+                });
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PreambleGeneratorBlock { pattern: new_pat, length: new_len as usize };
+                }
+            }
+            BlockType::PacketEncoderBlock { sync_word_hex, include_crc } => {
+                let mut new_sync = sync_word_hex.clone();
+                let mut new_crc = include_crc;
+                ui.horizontal(|ui| {
+                    ui.label("Sync Word (hex):");
+                    ui.text_edit_singleline(&mut new_sync);
+                });
+                ui.checkbox(&mut new_crc, "Include CRC-16");
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::PacketEncoderBlock { sync_word_hex: new_sync, include_crc: new_crc };
+                }
+            }
+            BlockType::ArbitraryResamplerBlock { ratio } => {
+                let mut new_ratio = ratio;
+                ui.horizontal(|ui| {
+                    ui.label("Ratio (out/in):");
+                    ui.add(egui::DragValue::new(&mut new_ratio).range(0.01..=100.0).speed(0.01));
+                });
+                if new_ratio < 1.0 {
+                    ui.label(format!("Downsample: {:.4}x", new_ratio));
+                } else if new_ratio > 1.0 {
+                    ui.label(format!("Upsample: {:.4}x", new_ratio));
+                } else {
+                    ui.label("Pass-through (1:1)");
+                }
+                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                    block.block_type = BlockType::ArbitraryResamplerBlock { ratio: new_ratio };
+                }
             }
             BlockType::FileSource { path } => {
                 let mut new_path = path;

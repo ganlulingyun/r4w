@@ -44,9 +44,11 @@
 //! let decoded = demodulator.demodulate(&samples);
 //! ```
 
+pub mod adaptive_notch;
 pub mod afc;
 pub mod agent;
 pub mod agc;
+pub mod arbitrary_resampler;
 pub mod arithmetic;
 pub mod carrier_recovery;
 pub mod clock_recovery;
@@ -114,7 +116,9 @@ pub mod pfb_channelizer;
 pub mod pfb_synthesizer;
 pub mod plateau_detector;
 pub mod power_squelch;
+pub mod preamble_gen;
 pub mod packet;
+pub mod packet_encoder;
 pub mod packet_framing;
 pub mod pfb_clock_sync;
 pub mod probe;
@@ -139,6 +143,7 @@ pub mod scrambler;
 pub mod scheduler;
 pub mod selector;
 pub mod rt_scheduler;
+pub mod signal_detector;
 pub mod signal_source;
 pub mod snr_estimator;
 pub mod squelch;

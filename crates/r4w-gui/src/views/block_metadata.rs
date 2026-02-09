@@ -4637,6 +4637,151 @@ fn init_block_metadata() -> HashMap<&'static str, BlockMetadata> {
         key_parameters: &[],
     });
 
+    // ── Batch 26: Adaptive Notch, Signal Detector, Preamble Gen, Packet Encoder, Arbitrary Resampler ──
+
+    m.insert("Adaptive Notch", BlockMetadata {
+        block_type: "AdaptiveNotchBlock",
+        display_name: "Adaptive Notch Filter",
+        category: "Filtering",
+        description: "Removes narrowband interferers using an adaptive IIR notch filter. The notch frequency is estimated from the input signal and tracks slowly-varying interference. Uses a second-order biquad with LMS-like gradient adaptation.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/adaptive_notch.rs", line: 51, symbol: "AdaptiveNotch", description: "Adaptive IIR notch filter" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Notch Transfer Function", plaintext: "H(z) = (1 - 2cos(ω)z⁻¹ + z⁻²) / (1 - 2r·cos(ω)z⁻¹ + r²z⁻²)", latex: None, variables: &[("ω", "notch frequency"), ("r", "pole radius (bandwidth)")] },
+            BlockFormula { name: "Frequency Update", plaintext: "ω[n+1] = ω[n] - μ · ∂|y|²/∂ω", latex: None, variables: &[("μ", "adaptation step size"), ("y", "filter output")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_output_length", module: "r4w_core::adaptive_notch::tests", description: "Output length matches input", expected_runtime_ms: 1 },
+            BlockTest { name: "test_fixed_notch_removes_tone", module: "r4w_core::adaptive_notch::tests", description: "Notch suppresses target tone", expected_runtime_ms: 1 },
+            BlockTest { name: "test_adaptive_frequency_tracking", module: "r4w_core::adaptive_notch::tests", description: "Adapts to interferer frequency", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["FixedNotch", "FirFilter", "IirFilter", "DcBlocker"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["r (pole radius 0.8-0.999, narrower = closer to 1)", "μ (adaptation rate 0.001-0.1)"],
+    });
+
+    m.insert("Fixed Notch", BlockMetadata {
+        block_type: "FixedNotchBlock",
+        display_name: "Fixed Notch Filter",
+        category: "Filtering",
+        description: "Second-order IIR notch filter at a fixed frequency. Removes a single known frequency component (spur, carrier, power line hum). Non-adaptive variant of AdaptiveNotch.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/adaptive_notch.rs", line: 141, symbol: "FixedNotch", description: "Fixed-frequency IIR notch" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Notch Transfer Function", plaintext: "H(z) = (1 - 2cos(ω)z⁻¹ + z⁻²) / (1 - 2r·cos(ω)z⁻¹ + r²z⁻²)", latex: None, variables: &[("ω", "notch frequency (rad)"), ("r", "pole radius")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_fixed_notch_removes_tone", module: "r4w_core::adaptive_notch::tests", description: "Removes tone at notch frequency", expected_runtime_ms: 1 },
+            BlockTest { name: "test_fixed_notch_passes_other_frequencies", module: "r4w_core::adaptive_notch::tests", description: "Passes non-notch frequencies", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["AdaptiveNotch", "FirFilter", "IirFilter"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["frequency_hz (notch center in Hz)", "r (pole radius 0.8-0.999)"],
+    });
+
+    m.insert("Signal Detector", BlockMetadata {
+        block_type: "SignalDetectorBlock",
+        display_name: "Signal Detector",
+        category: "Synchronization",
+        description: "Energy-based signal presence detection. Estimates noise floor from quiet periods and compares instantaneous block power against a threshold. Supports hysteresis and minimum consecutive detections to prevent false triggers. Used for spectrum sensing, cognitive radio, and burst detection.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/signal_detector.rs", line: 61, symbol: "SignalDetector", description: "Energy-based signal detector" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Block Power", plaintext: "P = (1/N) Σ|x[n]|²", latex: None, variables: &[("x", "input samples"), ("N", "block length")] },
+            BlockFormula { name: "Detection", plaintext: "detected = P > N_floor · 10^(threshold_dB/10)", latex: None, variables: &[("N_floor", "estimated noise floor"), ("threshold_dB", "detection threshold")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_no_signal", module: "r4w_core::signal_detector::tests", description: "No false detection on noise", expected_runtime_ms: 1 },
+            BlockTest { name: "test_detects_signal", module: "r4w_core::signal_detector::tests", description: "Detects strong signal", expected_runtime_ms: 1 },
+            BlockTest { name: "test_returns_to_no_signal", module: "r4w_core::signal_detector::tests", description: "Returns to idle after signal", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["PowerSquelch", "BurstDetector", "ThresholdDetector"],
+        input_type: "IQ",
+        output_type: "Real",
+        key_parameters: &["threshold_db (above noise floor in dB)", "alpha (noise floor averaging, 0.001=slow, 0.1=fast)"],
+    });
+
+    m.insert("Preamble Generator", BlockMetadata {
+        block_type: "PreambleGeneratorBlock",
+        display_name: "Preamble Generator",
+        category: "Source",
+        description: "Generates common preamble sequences for packet-based communications. Supports alternating bits (clock recovery), Barker codes (low autocorrelation sidelobes), PN sequences, and Zadoff-Chu. Preambles enable timing synchronization and AGC settling at the receiver.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/preamble_gen.rs", line: 50, symbol: "PreambleGenerator", description: "Preamble bit pattern generator" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Alternating", plaintext: "b[n] = n mod 2 == 0", latex: None, variables: &[("b", "output bit"), ("n", "bit index")] },
+            BlockFormula { name: "Barker-7", plaintext: "[+1,+1,+1,-1,-1,+1,-1] repeated", latex: None, variables: &[] },
+        ],
+        tests: &[
+            BlockTest { name: "test_alternating", module: "r4w_core::preamble_gen::tests", description: "1010 pattern", expected_runtime_ms: 1 },
+            BlockTest { name: "test_barker7", module: "r4w_core::preamble_gen::tests", description: "Barker-7 code", expected_runtime_ms: 1 },
+            BlockTest { name: "test_zadoff_chu_autocorrelation", module: "r4w_core::preamble_gen::tests", description: "ZC ideal autocorrelation", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[
+            StandardReference { name: "3GPP TS 36.211", section: Some("5.7 (PRACH preamble, Zadoff-Chu)"), url: None },
+        ],
+        related_blocks: &["PreambleInsert", "SyncWordInsert", "PnCorrelator"],
+        input_type: "None",
+        output_type: "Bits",
+        key_parameters: &["pattern (Alternating|AllOnes|Barker7|Barker11|Barker13|PnSequence)", "length (output bits)"],
+    });
+
+    m.insert("Packet Encoder", BlockMetadata {
+        block_type: "PacketEncoderBlock",
+        display_name: "Packet Encoder",
+        category: "Coding",
+        description: "Assembles data bytes into framed packets with preamble, sync word, length field, payload, and CRC. Supports CRC-8, CRC-16 CCITT, CRC-32, and optional LFSR whitening. Complementary to packet_framing which handles parsing.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/packet_encoder.rs", line: 72, symbol: "PacketEncoder", description: "Packet framing encoder" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Packet Structure", plaintext: "Preamble | Sync Word | Length | Payload | CRC", latex: None, variables: &[] },
+            BlockFormula { name: "CRC-16 CCITT", plaintext: "x¹⁶ + x¹² + x⁵ + 1, init=0xFFFF", latex: None, variables: &[] },
+        ],
+        tests: &[
+            BlockTest { name: "test_default_format", module: "r4w_core::packet_encoder::tests", description: "Default packet size", expected_runtime_ms: 1 },
+            BlockTest { name: "test_crc_appended", module: "r4w_core::packet_encoder::tests", description: "CRC differs per payload", expected_runtime_ms: 1 },
+            BlockTest { name: "test_whitening", module: "r4w_core::packet_encoder::tests", description: "LFSR whitening scrambles payload", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n)", memory: "O(n)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["CrcGenerator", "Scrambler", "HdlcDeframer", "Ax25Decoder"],
+        input_type: "Bits",
+        output_type: "Bits",
+        key_parameters: &["sync_word_hex (e.g. 7E7E)", "include_crc (append CRC-16 CCITT)"],
+    });
+
+    m.insert("Arbitrary Resampler", BlockMetadata {
+        block_type: "ArbitraryResamplerBlock",
+        display_name: "Arbitrary Resampler",
+        category: "Rate Conversion",
+        description: "Non-rational sample rate conversion using cubic (Hermite) interpolation. Unlike the polyphase rational resampler, this handles any conversion ratio including irrational values (e.g., 48000→44100 Hz without computing 147/160). Streaming with state preservation across blocks.",
+        implementation: Some(CodeLocation { crate_name: "r4w-core", file_path: "src/arbitrary_resampler.rs", line: 40, symbol: "ArbitraryResampler", description: "Cubic interpolation resampler" }),
+        related_code: &[],
+        formulas: &[
+            BlockFormula { name: "Cubic Interpolation", plaintext: "y(μ) = ((a₀μ + a₁)μ + a₂)μ + a₃", latex: None, variables: &[("μ", "fractional sample position"), ("a₀..a₃", "Hermite coefficients from 4 samples")] },
+        ],
+        tests: &[
+            BlockTest { name: "test_downsample_ratio", module: "r4w_core::arbitrary_resampler::tests", description: "2:1 downsample count", expected_runtime_ms: 1 },
+            BlockTest { name: "test_upsample_ratio", module: "r4w_core::arbitrary_resampler::tests", description: "1:2 upsample count", expected_runtime_ms: 1 },
+            BlockTest { name: "test_irrational_ratio", module: "r4w_core::arbitrary_resampler::tests", description: "sqrt(2) ratio", expected_runtime_ms: 1 },
+        ],
+        performance: Some(PerformanceInfo { complexity: "O(n·ratio)", memory: "O(1)", simd_optimized: false, gpu_accelerable: false }),
+        standards: &[],
+        related_blocks: &["FractionalResampler", "RationalResampler", "PolyphaseResampler", "DecimatingFir"],
+        input_type: "IQ",
+        output_type: "IQ",
+        key_parameters: &["ratio (output/input, <1=downsample, >1=upsample)"],
+    });
+
     m
 }
 
