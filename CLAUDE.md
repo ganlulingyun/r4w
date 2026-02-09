@@ -118,6 +118,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `lattice_filter.rs`: Lattice and lattice-ladder filter structures, Levinson-Durbin recursion, Burg's method for AR estimation, PARCOR coefficients, LSF
   - `prony_method.rs`: Prony's method for parametric exponential signal modeling, matrix pencil method, companion matrix eigenvalue solver, MDL order estimation, parametric PSD
   - `cepstral_analysis.rs`: Real/power/complex cepstrum, pitch detection, homomorphic filtering (source-filter separation), MFCCs, mel filterbank, spectral envelope
+  - `blind_source_separation.rs`: FastICA with deflation, PCA whitening, 3 nonlinearities (LogCosh, Exp, Cube), kurtosis, negentropy, correlation metrics
+  - `phase_vocoder.rs`: STFT-based time-stretch, pitch-shift, spectrogram, robotize, whisperize effects with overlap-add synthesis
+  - `compressive_sensing.rs`: OMP (greedy), ISTA/FISTA (proximal gradient) sparse recovery from underdetermined systems, random/DCT sensing matrices, RIP constant estimation
+  - `zero_crossing_detector.rs`: ZCR computation, frequency estimation, ZcrAnalyzer with energy, VoiceActivityDetector (energy+ZCR with hangover), spectral centroid/flatness, modulation classification
+  - `subspace_tracker.rs`: PAST/OPAST adaptive rank-d subspace tracking, projection, projection error, dimension estimation, subspace angle
   - `fec/`: Forward Error Correction
     - `convolutional.rs`: Convolutional encoder + Viterbi decoder (hard/soft decision)
     - `reed_solomon.rs`: RS encoder/decoder over GF(2^8) (CCSDS, DVB, custom configs)
@@ -136,7 +141,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 238+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 243+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -244,6 +249,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 51 DSP Blocks** - Blind Source Separation (`blind_source_separation.rs` - FastICA with deflation, PCA whitening, 3 nonlinearities LogCosh/Exp/Cube, kurtosis, negentropy, correlation metrics), Phase Vocoder (`phase_vocoder.rs` - STFT-based time-stretch, pitch-shift, spectrogram, robotize, whisperize effects with overlap-add synthesis), Compressive Sensing (`compressive_sensing.rs` - OMP greedy and ISTA/FISTA proximal gradient sparse recovery from underdetermined systems, random/DCT sensing matrices, RIP constant estimation), Zero Crossing Detector (`zero_crossing_detector.rs` - ZCR computation, frequency estimation, ZcrAnalyzer with energy, VoiceActivityDetector energy+ZCR with hangover, spectral centroid/flatness, modulation classification), Subspace Tracker (`subspace_tracker.rs` - PAST/OPAST adaptive rank-d subspace tracking, projection, projection error, dimension estimation, subspace angle). ~227+ DSP modules total, ~2500+ unit tests.
 
 - **Batch 50 DSP Blocks** - Teager-Kaiser Energy Operator (`teager_kaiser_energy.rs` - TKEO instantaneous energy operator Psi[x(n)] = x(n)^2 - x(n-1)*x(n+1), AM/FM demodulation via TKEO, streaming processor, transient detection), Wigner-Ville Distribution (`wigner_ville_distribution.rs` - WVD/PWVD/SPWVD time-frequency analysis, analytic signal computation, instantaneous frequency extraction, 2D time-frequency surface with marginals), Lattice Filter (`lattice_filter.rs` - lattice and lattice-ladder filter structures, Levinson-Durbin recursion, Burg's method for AR estimation, PARCOR coefficients, step-up/step-down recursion, lattice predictor, lattice-ladder ARMA filter, PSD from reflection coefficients, Line Spectral Frequencies LSF), Prony's Method (`prony_method.rs` - parametric exponential signal modeling, standard and least-squares variants, matrix pencil method, companion matrix eigenvalue solver with QR iteration, MDL order estimation, parametric PSD), Cepstral Analysis (`cepstral_analysis.rs` - real/power/complex cepstrum with phase unwrapping, pitch detection via cepstral peak picking, homomorphic filtering for source-filter separation, MFCCs for speech/audio, mel filterbank, spectral envelope). 57 tests + 5 doctests. ~222+ DSP modules total, ~2443+ unit tests.
 
