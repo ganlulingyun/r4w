@@ -1840,17 +1840,22 @@ pipeline:
         self.grid_layout_with_cols(4);
     }
 
-    /// Grid layout with configurable columns
+    /// Grid layout with configurable columns, using topological order for signal flow
     pub fn grid_layout_with_cols(&mut self, cols: usize) {
-        let mut block_ids: Vec<_> = self.blocks.keys().cloned().collect();
-        block_ids.sort();
+        if self.blocks.is_empty() {
+            return;
+        }
+
+        // Use topological sort to respect signal flow
+        let sorted_ids = self.topological_sort();
 
         let block_width = 150.0;
         let block_height = 80.0;
         let h_spacing = 20.0;
         let v_spacing = 20.0;
 
-        for (idx, id) in block_ids.iter().enumerate() {
+        // Always left-to-right reading order
+        for (idx, id) in sorted_ids.iter().enumerate() {
             let col = idx % cols;
             let row = idx / cols;
             if let Some(block) = self.blocks.get_mut(id) {
@@ -1860,6 +1865,52 @@ pipeline:
                 );
             }
         }
+    }
+
+    /// Topological sort of blocks based on connections (for signal flow order)
+    fn topological_sort(&self) -> Vec<BlockId> {
+        // Find source blocks (no inputs or no incoming connections)
+        let source_blocks: Vec<BlockId> = self.blocks.iter()
+            .filter(|(id, block)| {
+                block.block_type.num_inputs() == 0 ||
+                !self.connections.iter().any(|c| c.to_block == **id)
+            })
+            .map(|(id, _)| *id)
+            .collect();
+
+        let mut result = Vec::new();
+        let mut visited = HashSet::new();
+        let mut queue: Vec<BlockId> = source_blocks;
+
+        while let Some(block_id) = queue.pop() {
+            if visited.contains(&block_id) {
+                continue;
+            }
+            visited.insert(block_id);
+            result.push(block_id);
+
+            // Find all blocks that this block connects to
+            let mut next_blocks: Vec<BlockId> = self.connections.iter()
+                .filter(|c| c.from_block == block_id && !visited.contains(&c.to_block))
+                .map(|c| c.to_block)
+                .collect();
+            // Sort to get deterministic order
+            next_blocks.sort();
+            // Add in reverse so we pop in order
+            for id in next_blocks.into_iter().rev() {
+                queue.push(id);
+            }
+        }
+
+        // Add any unvisited blocks (disconnected) at the end, sorted by ID
+        let mut unvisited: Vec<BlockId> = self.blocks.keys()
+            .filter(|id| !visited.contains(id))
+            .cloned()
+            .collect();
+        unvisited.sort();
+        result.extend(unvisited);
+
+        result
     }
 
     /// Compact layout - minimize spacing while respecting signal flow
@@ -2094,6 +2145,7 @@ pub struct PipelineWizardView {
     pub cascade_drag: bool,  // When true, dragging a block also drags all downstream blocks
     pub status_message: Option<(String, std::time::Instant)>,  // (message, when) for temporary notifications
     pub connection_style: ConnectionStyle,  // Visual routing style for connections
+    pub show_arrowheads: bool,  // Show direction arrows on connections
     // Multi-selection state
     pub selection_mode: SelectionMode,
     pub selection_start: Option<Pos2>,  // Start point of rectangle/lasso
@@ -2128,6 +2180,7 @@ impl Default for PipelineWizardView {
             cascade_drag: true,  // Default to cascading drag
             status_message: None,
             connection_style: ConnectionStyle::default(),
+            show_arrowheads: true,  // Show direction arrows by default
             selection_mode: SelectionMode::None,
             selection_start: None,
             lasso_points: Vec::new(),
@@ -2370,6 +2423,9 @@ impl PipelineWizardView {
                             }
                         })
                         .response.on_hover_text("Connection line routing style");
+
+                    ui.checkbox(&mut self.show_arrowheads, "Arrows")
+                        .on_hover_text("Show arrowheads on connections");
 
                     ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                         if ui.button("Export YAML").clicked() {
@@ -3590,19 +3646,68 @@ impl PipelineWizardView {
 
     /// Draw a connection line with the current style
     fn draw_connection(&self, painter: &egui::Painter, from_pos: Pos2, to_pos: Pos2, is_vertical: bool, color: Color32, width: f32) {
-        match self.connection_style {
+        // Get the point before the destination for arrowhead direction
+        let arrow_from = match self.connection_style {
             ConnectionStyle::Bezier => {
                 self.draw_bezier_connection(painter, from_pos, to_pos, is_vertical, color, width);
+                // For bezier, approximate with control point direction
+                let offset = 50.0 * self.zoom;
+                if is_vertical {
+                    Pos2::new(to_pos.x, to_pos.y - offset)
+                } else {
+                    Pos2::new(to_pos.x - offset, to_pos.y)
+                }
             }
             ConnectionStyle::Straight => {
                 painter.line_segment([from_pos, to_pos], Stroke::new(width, color));
+                from_pos
             }
             ConnectionStyle::Orthogonal => {
                 self.draw_orthogonal_connection(painter, from_pos, to_pos, is_vertical, color, width);
+                // Last segment is horizontal or vertical
+                let min_offset = 20.0 * self.zoom;
+                if is_vertical {
+                    let mid_y = if to_pos.y > from_pos.y {
+                        from_pos.y + (to_pos.y - from_pos.y) / 2.0
+                    } else {
+                        from_pos.y + min_offset
+                    };
+                    Pos2::new(to_pos.x, mid_y)
+                } else {
+                    let mid_x = if to_pos.x > from_pos.x {
+                        from_pos.x + (to_pos.x - from_pos.x) / 2.0
+                    } else {
+                        from_pos.x + min_offset
+                    };
+                    Pos2::new(mid_x, to_pos.y)
+                }
             }
             ConnectionStyle::Angled => {
                 self.draw_angled_connection(painter, from_pos, to_pos, is_vertical, color, width);
+                // Estimate the last segment direction
+                let dx = to_pos.x - from_pos.x;
+                let dy = to_pos.y - from_pos.y;
+                if is_vertical {
+                    let angle_dist = dx.abs().min(dy.abs() / 2.0);
+                    if dy > 0.0 {
+                        Pos2::new(from_pos.x, from_pos.y + (dy - angle_dist))
+                    } else {
+                        from_pos
+                    }
+                } else {
+                    let angle_dist = dy.abs().min(dx.abs() / 2.0);
+                    if dx > 0.0 {
+                        Pos2::new(from_pos.x + (dx - angle_dist), from_pos.y)
+                    } else {
+                        from_pos
+                    }
+                }
             }
+        };
+
+        // Draw arrowhead if enabled
+        if self.show_arrowheads {
+            self.draw_arrowhead(painter, to_pos, arrow_from, color);
         }
     }
 
@@ -3710,6 +3815,27 @@ impl PipelineWizardView {
         };
 
         painter.add(PathShape::line(points, Stroke::new(width, color)));
+    }
+
+    /// Draw an arrowhead at the destination point
+    fn draw_arrowhead(&self, painter: &egui::Painter, tip: Pos2, from_pos: Pos2, color: Color32) {
+        // Calculate direction from last segment to tip
+        let dir = (tip - from_pos).normalized();
+        let arrow_size = 8.0 * self.zoom;
+
+        // Calculate perpendicular vectors for the arrowhead wings
+        let perp = Vec2::new(-dir.y, dir.x);
+
+        // Arrow base point (behind the tip)
+        let base = tip - dir * arrow_size;
+
+        // Wing points
+        let wing1 = base + perp * (arrow_size * 0.5);
+        let wing2 = base - perp * (arrow_size * 0.5);
+
+        // Draw filled triangle
+        let points = vec![tip, wing1, wing2];
+        painter.add(egui::Shape::convex_polygon(points, color, Stroke::NONE));
     }
 
     fn render_properties_content(&mut self, ui: &mut Ui) {
