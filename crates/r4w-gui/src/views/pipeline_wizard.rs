@@ -2150,6 +2150,9 @@ pub struct PipelineWizardView {
     pub selection_mode: SelectionMode,
     pub selection_start: Option<Pos2>,  // Start point of rectangle/lasso
     pub lasso_points: Vec<Pos2>,        // Points for lasso selection
+    // Block drag state (for accurate tracking)
+    pub drag_start_pointer: Option<Pos2>,  // Screen position where drag started
+    pub drag_initial_positions: HashMap<BlockId, Pos2>,  // Initial canvas positions of dragged blocks
 }
 
 impl Default for PipelineWizardView {
@@ -2184,6 +2187,8 @@ impl Default for PipelineWizardView {
             selection_mode: SelectionMode::None,
             selection_start: None,
             lasso_points: Vec::new(),
+            drag_start_pointer: None,
+            drag_initial_positions: HashMap::new(),
         }
     }
 }
@@ -3156,6 +3161,25 @@ impl PipelineWizardView {
                     self.selection_mode = SelectionMode::None;
                     self.selection_start = None;
                     self.lasso_points.clear();
+
+                    // Store initial drag state for accurate tracking
+                    self.drag_start_pointer = Some(start_pos);
+
+                    // Calculate all blocks that will be moved
+                    let mut blocks_to_move: HashSet<BlockId> = self.selected_blocks.clone();
+                    if self.cascade_drag {
+                        for &sel_id in &self.selected_blocks {
+                            blocks_to_move.extend(self.get_downstream_blocks(sel_id));
+                        }
+                    }
+
+                    // Store initial positions
+                    self.drag_initial_positions.clear();
+                    for &block_id in &blocks_to_move {
+                        if let Some(block) = self.pipeline.blocks.get(&block_id) {
+                            self.drag_initial_positions.insert(block_id, block.position);
+                        }
+                    }
                 } else {
                     // Starting drag on empty canvas - start selection mode
                     let shift_held = ui.input(|i| i.modifiers.shift);
@@ -3194,30 +3218,26 @@ impl PipelineWizardView {
                         // Rectangle is defined by start and current pointer - no special handling needed
                     }
                     SelectionMode::None => {
-                        // Move selected blocks
-                        if !self.selected_blocks.is_empty() {
-                            let delta = response.drag_delta() / self.zoom;
+                        // Move selected blocks using position-based tracking (not delta accumulation)
+                        if !self.drag_initial_positions.is_empty() {
+                            if let (Some(start_ptr), Some(current_ptr)) = (self.drag_start_pointer, pointer_pos) {
+                                // Calculate total offset from drag start
+                                let total_offset = (current_ptr - start_ptr) / self.zoom;
 
-                            // Get blocks to move: all selected + downstream if cascade_drag enabled
-                            let mut blocks_to_move: HashSet<BlockId> = self.selected_blocks.clone();
-                            if self.cascade_drag {
-                                for &id in &self.selected_blocks {
-                                    blocks_to_move.extend(self.get_downstream_blocks(id));
-                                }
-                            }
-
-                            // Move all blocks
-                            for block_id in blocks_to_move {
-                                if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
-                                    let mut new_pos = block.position + delta;
-                                    if self.snap_to_grid {
-                                        new_pos.x = (new_pos.x / self.grid_size).round() * self.grid_size;
-                                        new_pos.y = (new_pos.y / self.grid_size).round() * self.grid_size;
+                                // Move all blocks relative to their initial positions
+                                for (&block_id, &initial_pos) in &self.drag_initial_positions {
+                                    if let Some(block) = self.pipeline.blocks.get_mut(&block_id) {
+                                        let mut new_pos = initial_pos + total_offset;
+                                        if self.snap_to_grid {
+                                            new_pos.x = (new_pos.x / self.grid_size).round() * self.grid_size;
+                                            new_pos.y = (new_pos.y / self.grid_size).round() * self.grid_size;
+                                        }
+                                        block.position = new_pos;
                                     }
-                                    block.position = new_pos;
                                 }
                             }
-                        } else {
+                        } else if self.selected_blocks.is_empty() {
+                            // No blocks being dragged - pan the canvas
                             self.canvas_offset += response.drag_delta();
                         }
                     }
@@ -3248,7 +3268,11 @@ impl PipelineWizardView {
                     self.selection_start = None;
                     self.lasso_points.clear();
                 }
-                SelectionMode::None => {}
+                SelectionMode::None => {
+                    // Clear block drag state
+                    self.drag_start_pointer = None;
+                    self.drag_initial_positions.clear();
+                }
             }
         }
 
