@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 379+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 454+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -293,6 +293,15 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batches 84-90 DSP Blocks** - 35 new modules (454 total, 90 batches complete). New categories: radar/EW, satellite, propagation, broadcast:
+  - Batch 84: Convolutional Encoder, Delay Lock Loop, Blind Timing Recovery, Time Domain Equalizer, ML Sequence Detector (72 tests)
+  - Batch 85: Constellation Encoder, Log Likelihood Ratio, Comb Filter, Repetition Code, Overlap Add (88 tests)
+  - Batch 86: Range Doppler Detector, Frequency Domain Equalizer, Wiener Filter, Burst Gating Controller, Spectral Subtraction Denoiser (74 tests)
+  - Batch 87: Network Analyzer, Interference Excision, Jitter Analyzer, Sparse FIR Filter, Multiband Compressor (85 tests)
+  - Batch 88: NOAA Weather Decoder, Beam Steering Controller, Link Budget Optimizer, Dynamic Spectrum Manager, Timing Advance Estimator (81 tests)
+  - Batch 89: Emitter Localization, Adaptive Nulling Beamformer, Radar Waveform Classifier, Satellite Link Predictor, DVB-S2 Deframer (78 tests)
+  - Batch 90: Transmission Line Simulator, Radar Cross Section Estimator, ESM Receiver, Spectral Mask Painter, RF Propagation Model (91 tests)
 
 - **Batches 69-75 DSP Blocks** - 35 new modules (379 total, 75 batches complete):
   - Batch 69: AGC Attack/Decay (`agc_attack_decay.rs` - dual-rate AGC with separate attack/decay time constants), Noise Gate (`noise_gate.rs` - amplitude-gated noise suppression with threshold hysteresis), Signal Clipper (`signal_clipper.rs` - hard/soft clipping for peak limiting), Cross Correlator (`cross_correlator.rs` - streaming cross-correlation with lag output), Symbol Demapper (`symbol_demapper.rs` - constellation-to-bits with hard/soft decisions)

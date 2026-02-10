@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-75)** — 329+ new DSP modules bringing the total to 379 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-90)** — 404+ new DSP modules bringing the total to 454 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -700,7 +700,14 @@ Measured with `tokei`:
   - Batch 73: Barker Code (Barker sequence generator for all standard lengths 2-13), Zadoff-Chu Generator (CAZAC sequence generator for LTE/5G preambles), Gold Code Generator (Gold sequence generator from preferred pair LFSRs), Sync Word Detector (correlator-based frame synchronization with configurable threshold), Group Delay Equalizer (all-pass filter for group delay compensation)
   - Batch 74: SC-FDMA (Single-Carrier FDMA modulator/demodulator for LTE uplink), Spectral Mask (out-of-band emission compliance checker), Power Control (open/closed-loop transmit power control with TPC commands), HARQ Manager (Hybrid ARQ process manager with Chase combining/incremental redundancy), Rate Matcher (circular buffer rate matching for turbo/LDPC codes)
   - Batch 75: Alamouti Codec (Alamouti 2x1/2x2 space-time block coding encoder/decoder), Channel Capacity (Shannon capacity, MIMO capacity, waterfilling allocation), MIMO Precoder (SVD/ZF/MMSE precoding for spatial multiplexing), Waterfilling (optimal power allocation across parallel channels), Antenna Array Response (ULA/UCA steering vectors, array factor, beampattern visualization)
-  - All blocks wired into the visual pipeline builder (now 379 blocks) with property editors and block metadata
+  - Batch 84: Convolutional Encoder (configurable constraint length/code rate FEC encoding), Delay Lock Loop (code tracking for GNSS/DSSS with early-minus-late discriminator), Blind Timing Recovery (non-data-aided burst-mode symbol timing), Time Domain Equalizer (channel shortening for multipath), ML Sequence Detector (MLSE via Viterbi for ISI channels)
+  - Batch 85: Constellation Encoder (flexible constellation mapping for arbitrary modulation), Log Likelihood Ratio (LLR computation for soft-decision FEC), Comb Filter (feedforward/feedback for audio and spectral processing), Repetition Code (ultra-reliable low-rate coding), Overlap Add (efficient block-based convolution)
+  - Batch 86: Range Doppler Detector (range-Doppler map processing with target detection for pulsed radar), Frequency Domain Equalizer (OFDM frequency-domain ZF/MMSE equalization), Wiener Filter (optimal noise reduction and signal estimation), Burst Gating Controller (burst-mode gating with timing control for TDMA), Spectral Subtraction Denoiser (spectral subtraction for speech and radio)
+  - Batch 87: Network Analyzer (S-parameter measurement and frequency response for RF networks), Interference Excision (narrowband interference detection/removal for wideband receivers), Jitter Analyzer (clock jitter RJ/DJ/TJ decomposition), Sparse FIR Filter (memory-efficient FIR exploiting tap sparsity), Multiband Compressor (multi-band dynamic range compression for broadcast audio)
+  - Batch 88: NOAA Weather Decoder (SAME/EAS emergency alert decoding), Beam Steering Controller (phased array steering with configurable scan patterns), Link Budget Optimizer (automated RF link budget optimization with margin analysis), Dynamic Spectrum Manager (DSA coordination for cognitive radio networks), Timing Advance Estimator (round-trip delay for cellular timing advance)
+  - Batch 89: Emitter Localization (RF emitter geolocation via TDOA/AOA/hybrid), Adaptive Nulling Beamformer (adaptive beamforming with null steering for interference suppression), Radar Waveform Classifier (radar emission ID for ESM/ELINT), Satellite Link Predictor (LEO/MEO/GEO link budget prediction with orbital mechanics), DVB-S2 Deframer (DVB-S2 baseband frame deframing per ETSI EN 302 307)
+  - Batch 90: Transmission Line Simulator (impedance matching and VSWR analysis), Radar Cross Section Estimator (RCS estimation for radar target modeling), ESM Receiver (Electronic Support Measures for radar signal intercept), Spectral Mask Painter (spectral mask visualization and compliance checking), RF Propagation Model (Free-space/Hata/COST-231/ITU-R path loss models for link planning)
+  - All blocks wired into the visual pipeline builder (now 454 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
