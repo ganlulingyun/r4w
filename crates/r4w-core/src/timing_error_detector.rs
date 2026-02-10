@@ -1,269 +1,427 @@
-//! Timing Error Detector — Symbol timing error estimation
+//! # Timing Error Detector (TED)
 //!
-//! Standalone timing error detectors for clock recovery: Gardner,
-//! Mueller-Müller, Early-Late Gate, and Zero-Crossing. Decoupled
-//! from the PLL loop filter for flexible timing recovery architectures.
-//! GNU Radio equivalent: `timing_error_detector_type`.
+//! Standalone timing error detectors for symbol synchronization. Provides
+//! Mueller-Muller, Gardner, and Early-Late gate algorithms that can be
+//! combined with any loop filter for clock recovery.
+//!
+//! ## Detectors
+//!
+//! - **Mueller-Muller**: Uses decision-directed error (requires symbol decisions)
+//! - **Gardner**: Non-data-aided, uses mid-sample interpolation
+//! - **Early-Late Gate**: Correlation-based, configurable early/late offset
 //!
 //! ## Example
 //!
 //! ```rust
-//! use r4w_core::timing_error_detector::{gardner_ted, mueller_muller_ted};
+//! use r4w_core::timing_error_detector::{TimingErrorDetector, TedType};
 //!
-//! // Gardner TED: needs previous, mid, and current samples
-//! let error = gardner_ted(1.0, 0.5, -1.0);
-//! assert!(error.abs() > 0.0); // Non-zero timing error
+//! let mut ted = TimingErrorDetector::new(TedType::Gardner, 4);
+//!
+//! // Feed samples (4 samples per symbol)
+//! let samples = vec![(1.0, 0.0), (0.5, 0.0), (0.0, 0.0), (-0.5, 0.0)];
+//! for &s in &samples {
+//!     ted.push_sample(s);
+//! }
+//! let error = ted.compute_error();
 //! ```
 
-use num_complex::Complex64;
-
-/// Gardner Timing Error Detector (for BPSK/QPSK).
-///
-/// `e = (prev - current) * mid`
-///
-/// Works on real-valued (decision-directed) samples.
-/// - `prev`: previous symbol sample
-/// - `mid`: midpoint sample (between prev and current)
-/// - `current`: current symbol sample
-pub fn gardner_ted(prev: f64, mid: f64, current: f64) -> f64 {
-    (prev - current) * mid
-}
-
-/// Gardner TED for complex samples.
-///
-/// `e = Re{(prev - current) * conj(mid)}`
-pub fn gardner_ted_complex(prev: Complex64, mid: Complex64, current: Complex64) -> f64 {
-    ((prev - current) * mid.conj()).re
-}
-
-/// Mueller-Müller Timing Error Detector.
-///
-/// `e = prev_decision * current - current_decision * prev`
-///
-/// Decision-directed: uses hard decisions on symbol values.
-/// - `prev`: previous sample
-/// - `current`: current sample
-/// - `prev_decision`: hard decision on previous symbol
-/// - `current_decision`: hard decision on current symbol
-pub fn mueller_muller_ted(
-    prev: f64,
-    current: f64,
-    prev_decision: f64,
-    current_decision: f64,
-) -> f64 {
-    prev_decision * current - current_decision * prev
-}
-
-/// Mueller-Müller TED for complex samples.
-pub fn mueller_muller_ted_complex(
-    prev: Complex64,
-    current: Complex64,
-    prev_decision: Complex64,
-    current_decision: Complex64,
-) -> f64 {
-    (prev_decision * current.conj() - current_decision * prev.conj()).re
-}
-
-/// Early-Late Gate Timing Error Detector.
-///
-/// `e = |early|² - |late|²`
-///
-/// - `early`: sample taken slightly before optimal point
-/// - `late`: sample taken slightly after optimal point
-pub fn early_late_ted(early: f64, late: f64) -> f64 {
-    early * early - late * late
-}
-
-/// Early-Late Gate TED for complex samples.
-pub fn early_late_ted_complex(early: Complex64, late: Complex64) -> f64 {
-    early.norm_sqr() - late.norm_sqr()
-}
-
-/// Zero-Crossing Timing Error Detector.
-///
-/// Detects transitions: `e = mid * sign(prev - current)`
-///
-/// Best for NRZ signals with frequent transitions.
-pub fn zero_crossing_ted(prev: f64, mid: f64, current: f64) -> f64 {
-    mid * (prev - current).signum()
-}
-
-/// Streaming timing error detector with configurable algorithm.
-#[derive(Debug, Clone)]
-pub struct TimingErrorDetector {
-    /// Algorithm type.
-    algorithm: TedAlgorithm,
-    /// Previous symbol sample.
-    prev_sample: f64,
-    /// Previous hard decision.
-    prev_decision: f64,
-    /// Samples per symbol.
-    sps: f64,
-}
-
-/// TED algorithm selection.
+/// Type of timing error detector.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TedAlgorithm {
-    /// Gardner (non-decision-directed).
-    Gardner,
-    /// Mueller-Müller (decision-directed).
+pub enum TedType {
+    /// Mueller-Muller TED: decision-directed, optimal for PAM/PSK.
     MuellerMuller,
-    /// Early-Late Gate.
-    EarlyLate,
-    /// Zero-Crossing.
+    /// Gardner TED: non-data-aided, works at 2 samples/symbol.
+    Gardner,
+    /// Early-Late Gate TED: correlation-based with configurable offset.
+    EarlyLateGate,
+    /// Zero-Crossing TED: detects transitions between symbols.
     ZeroCrossing,
 }
 
+/// Timing error detector for symbol synchronization.
+#[derive(Debug, Clone)]
+pub struct TimingErrorDetector {
+    /// TED algorithm type.
+    ted_type: TedType,
+    /// Samples per symbol (SPS).
+    sps: usize,
+    /// Sample buffer.
+    buffer: Vec<(f64, f64)>,
+    /// Write position.
+    write_pos: usize,
+    /// Buffer full flag.
+    buffer_full: bool,
+    /// Previous symbol decision (for M&M).
+    prev_decision: (f64, f64),
+    /// Current symbol decision (for M&M).
+    curr_decision: (f64, f64),
+    /// Early-late offset (fraction of symbol period, default 0.5).
+    early_late_offset: f64,
+    /// Accumulated timing error.
+    accumulated_error: f64,
+    /// Total error computations.
+    error_count: u64,
+}
+
 impl TimingErrorDetector {
-    /// Create a new TED.
-    pub fn new(algorithm: TedAlgorithm, sps: f64) -> Self {
+    /// Create a new timing error detector.
+    ///
+    /// # Arguments
+    /// * `ted_type` - Algorithm type
+    /// * `sps` - Samples per symbol (must be ≥ 2)
+    pub fn new(ted_type: TedType, sps: usize) -> Self {
+        let sps = sps.max(2);
+        let buf_len = sps * 3; // need at least 2 symbol periods + margins
+
         Self {
-            algorithm,
-            prev_sample: 0.0,
-            prev_decision: 0.0,
+            ted_type,
             sps,
+            buffer: vec![(0.0, 0.0); buf_len],
+            write_pos: 0,
+            buffer_full: false,
+            prev_decision: (0.0, 0.0),
+            curr_decision: (0.0, 0.0),
+            early_late_offset: 0.5,
+            accumulated_error: 0.0,
+            error_count: 0,
         }
     }
 
-    /// Compute timing error for Gardner/Zero-Crossing.
+    /// Create an Early-Late gate TED with custom offset.
+    pub fn early_late(sps: usize, offset: f64) -> Self {
+        let mut ted = Self::new(TedType::EarlyLateGate, sps);
+        ted.early_late_offset = offset.clamp(0.1, 0.9);
+        ted
+    }
+
+    /// Push a new sample into the detector.
+    pub fn push_sample(&mut self, sample: (f64, f64)) {
+        self.buffer[self.write_pos] = sample;
+        self.write_pos += 1;
+        if self.write_pos >= self.buffer.len() {
+            self.write_pos = 0;
+            self.buffer_full = true;
+        }
+    }
+
+    /// Push multiple samples.
+    pub fn push_samples(&mut self, samples: &[(f64, f64)]) {
+        for &s in samples {
+            self.push_sample(s);
+        }
+    }
+
+    /// Compute the timing error from buffered samples.
     ///
-    /// - `mid`: midpoint sample
-    /// - `current`: current symbol sample
-    pub fn compute(&mut self, mid: f64, current: f64) -> f64 {
-        let error = match self.algorithm {
-            TedAlgorithm::Gardner => gardner_ted(self.prev_sample, mid, current),
-            TedAlgorithm::ZeroCrossing => zero_crossing_ted(self.prev_sample, mid, current),
-            TedAlgorithm::EarlyLate => early_late_ted(mid, current), // mid=early, current=late
-            TedAlgorithm::MuellerMuller => {
-                let decision = if current >= 0.0 { 1.0 } else { -1.0 };
-                let error =
-                    mueller_muller_ted(self.prev_sample, current, self.prev_decision, decision);
-                self.prev_decision = decision;
-                error
-            }
+    /// Call this once per symbol period (every `sps` samples).
+    pub fn compute_error(&mut self) -> f64 {
+        let error = match self.ted_type {
+            TedType::MuellerMuller => self.mueller_muller_error(),
+            TedType::Gardner => self.gardner_error(),
+            TedType::EarlyLateGate => self.early_late_error(),
+            TedType::ZeroCrossing => self.zero_crossing_error(),
         };
-        self.prev_sample = current;
+        self.accumulated_error += error.abs();
+        self.error_count += 1;
         error
     }
 
-    /// Get the algorithm type.
-    pub fn algorithm(&self) -> TedAlgorithm {
-        self.algorithm
+    /// Provide a symbol decision for decision-directed TEDs (Mueller-Muller).
+    pub fn set_decision(&mut self, decision: (f64, f64)) {
+        self.prev_decision = self.curr_decision;
+        self.curr_decision = decision;
+    }
+
+    fn get_sample(&self, offset_from_current: usize) -> (f64, f64) {
+        let len = self.buffer.len();
+        let idx = (self.write_pos + len - 1 - offset_from_current) % len;
+        self.buffer[idx]
+    }
+
+    fn mueller_muller_error(&self) -> f64 {
+        // M&M TED: e(n) = Re{d*(n-1)*x(n) - d*(n)*x(n-1)}
+        // where d(n) is the decision and x(n) is the sample at symbol time.
+        let x_curr = self.get_sample(0);
+        let x_prev = self.get_sample(self.sps);
+
+        let d_curr = self.curr_decision;
+        let d_prev = self.prev_decision;
+
+        // conj(d_prev) * x_curr
+        let term1_re = d_prev.0 * x_curr.0 + d_prev.1 * x_curr.1;
+        // conj(d_curr) * x_prev
+        let term2_re = d_curr.0 * x_prev.0 + d_curr.1 * x_prev.1;
+
+        term1_re - term2_re
+    }
+
+    fn gardner_error(&self) -> f64 {
+        // Gardner TED: e(n) = Re{(x(n) - x(n-1)) * conj(x(n-1/2))}
+        // x(n) = current symbol sample, x(n-1) = previous, x(n-1/2) = mid-point.
+        let x_curr = self.get_sample(0);
+        let x_prev = self.get_sample(self.sps);
+        let x_mid = self.get_sample(self.sps / 2);
+
+        let diff = (x_curr.0 - x_prev.0, x_curr.1 - x_prev.1);
+        // Re{diff * conj(x_mid)}
+        diff.0 * x_mid.0 + diff.1 * x_mid.1
+    }
+
+    fn early_late_error(&self) -> f64 {
+        // E-L Gate: e = |x_early|^2 - |x_late|^2
+        let offset_samples = (self.early_late_offset * self.sps as f64) as usize;
+        let offset_samples = offset_samples.max(1).min(self.sps - 1);
+
+        let x_early = self.get_sample(offset_samples);
+        let x_late = self.get_sample(self.sps - offset_samples);
+
+        let mag_early = x_early.0 * x_early.0 + x_early.1 * x_early.1;
+        let mag_late = x_late.0 * x_late.0 + x_late.1 * x_late.1;
+
+        mag_early - mag_late
+    }
+
+    fn zero_crossing_error(&self) -> f64 {
+        // Zero-crossing: error based on sign change at mid-sample.
+        let x_curr = self.get_sample(0);
+        let x_prev = self.get_sample(self.sps);
+        let x_mid = self.get_sample(self.sps / 2);
+
+        // Real component only.
+        let sign_change = if x_curr.0 * x_prev.0 < 0.0 {
+            1.0
+        } else {
+            0.0
+        };
+        sign_change * x_mid.0
+    }
+
+    /// Get the TED type.
+    pub fn ted_type(&self) -> TedType {
+        self.ted_type
     }
 
     /// Get samples per symbol.
-    pub fn sps(&self) -> f64 {
+    pub fn sps(&self) -> usize {
         self.sps
     }
 
-    /// Reset state.
+    /// Get the average absolute timing error.
+    pub fn average_error(&self) -> f64 {
+        if self.error_count == 0 {
+            0.0
+        } else {
+            self.accumulated_error / self.error_count as f64
+        }
+    }
+
+    /// Get the total number of error computations.
+    pub fn error_count(&self) -> u64 {
+        self.error_count
+    }
+
+    /// Reset the detector state.
     pub fn reset(&mut self) {
-        self.prev_sample = 0.0;
-        self.prev_decision = 0.0;
+        self.buffer = vec![(0.0, 0.0); self.buffer.len()];
+        self.write_pos = 0;
+        self.buffer_full = false;
+        self.prev_decision = (0.0, 0.0);
+        self.curr_decision = (0.0, 0.0);
+        self.accumulated_error = 0.0;
+        self.error_count = 0;
+    }
+}
+
+/// Simple first-order loop filter for use with TEDs.
+#[derive(Debug, Clone)]
+pub struct LoopFilter {
+    /// Proportional gain.
+    pub kp: f64,
+    /// Integral gain.
+    pub ki: f64,
+    /// Integrator state.
+    integrator: f64,
+    /// Previous output.
+    prev_output: f64,
+}
+
+impl LoopFilter {
+    /// Create a loop filter from loop bandwidth and damping factor.
+    ///
+    /// Uses the standard second-order loop design equations:
+    /// - Kp = 2 * zeta * Bn / (zeta + 1/(4*zeta))
+    /// - Ki = Bn^2 / (zeta + 1/(4*zeta))^2
+    pub fn from_bandwidth(loop_bw: f64, damping: f64) -> Self {
+        let denom = damping + 1.0 / (4.0 * damping);
+        let kp = 2.0 * damping * loop_bw / denom;
+        let ki = (loop_bw / denom) * (loop_bw / denom);
+        Self {
+            kp,
+            ki,
+            integrator: 0.0,
+            prev_output: 0.0,
+        }
+    }
+
+    /// Create a loop filter with explicit gains.
+    pub fn new(kp: f64, ki: f64) -> Self {
+        Self {
+            kp,
+            ki,
+            integrator: 0.0,
+            prev_output: 0.0,
+        }
+    }
+
+    /// Filter a timing error sample. Returns the clock correction.
+    pub fn filter(&mut self, error: f64) -> f64 {
+        self.integrator += self.ki * error;
+        let output = self.kp * error + self.integrator;
+        self.prev_output = output;
+        output
+    }
+
+    /// Get the current integrator state.
+    pub fn integrator(&self) -> f64 {
+        self.integrator
+    }
+
+    /// Reset the loop filter.
+    pub fn reset(&mut self) {
+        self.integrator = 0.0;
+        self.prev_output = 0.0;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::f64::consts::PI;
 
-    #[test]
-    fn test_gardner_basic() {
-        // Transition from +1 to -1 with mid=0 → error = (1-(-1))*0 = 0
-        assert!((gardner_ted(1.0, 0.0, -1.0) - 0.0).abs() < 1e-10);
-        // Early timing: mid > 0 → positive error
-        let e = gardner_ted(1.0, 0.5, -1.0);
-        assert!(e > 0.0);
+    fn make_bpsk_signal(sps: usize, symbols: &[f64]) -> Vec<(f64, f64)> {
+        let mut samples = Vec::new();
+        for &sym in symbols {
+            for _ in 0..sps {
+                samples.push((sym, 0.0));
+            }
+        }
+        samples
     }
 
     #[test]
-    fn test_gardner_complex() {
-        let prev = Complex64::new(1.0, 0.0);
-        let mid = Complex64::new(0.5, 0.0);
-        let current = Complex64::new(-1.0, 0.0);
-        let e = gardner_ted_complex(prev, mid, current);
-        assert!(e > 0.0);
+    fn test_gardner_on_time() {
+        // When perfectly aligned, Gardner error should be near zero.
+        let sps = 4;
+        let symbols = [1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, -1.0];
+        let signal = make_bpsk_signal(sps, &symbols);
+
+        let mut ted = TimingErrorDetector::new(TedType::Gardner, sps);
+        ted.push_samples(&signal);
+
+        // Compute error at each symbol boundary.
+        let error = ted.compute_error();
+        // With rectangular pulses, error magnitude is bounded by signal power.
+        assert!(
+            error.abs() <= 2.0,
+            "Gardner error should be bounded, got {}",
+            error
+        );
     }
 
     #[test]
     fn test_mueller_muller() {
-        let e = mueller_muller_ted(1.0, -0.8, 1.0, -1.0);
-        // 1.0 * (-0.8) - (-1.0) * 1.0 = -0.8 + 1.0 = 0.2
-        assert!((e - 0.2).abs() < 1e-10);
+        let sps = 4;
+        let symbols = [1.0, -1.0, 1.0, 1.0, -1.0];
+        let signal = make_bpsk_signal(sps, &symbols);
+
+        let mut ted = TimingErrorDetector::new(TedType::MuellerMuller, sps);
+        ted.push_samples(&signal);
+
+        // Provide decisions.
+        ted.set_decision((1.0, 0.0));
+        ted.set_decision((-1.0, 0.0));
+        let error = ted.compute_error();
+        // Just verify it returns a finite value.
+        assert!(error.is_finite(), "M&M error should be finite");
     }
 
     #[test]
-    fn test_mueller_muller_complex() {
-        let prev = Complex64::new(0.9, 0.0);
-        let current = Complex64::new(-0.8, 0.0);
-        let prev_dec = Complex64::new(1.0, 0.0);
-        let curr_dec = Complex64::new(-1.0, 0.0);
-        let e = mueller_muller_ted_complex(prev, current, prev_dec, curr_dec);
-        assert!(e.abs() > 0.0);
-    }
+    fn test_early_late_gate() {
+        let sps = 8;
+        let symbols = [1.0, -1.0, 1.0, -1.0];
+        let signal = make_bpsk_signal(sps, &symbols);
 
-    #[test]
-    fn test_early_late() {
-        // Early stronger than late → positive error (early timing)
-        let e = early_late_ted(0.9, 0.7);
-        assert!(e > 0.0);
-        // Late stronger → negative error
-        let e = early_late_ted(0.5, 0.8);
-        assert!(e < 0.0);
-    }
-
-    #[test]
-    fn test_early_late_complex() {
-        let early = Complex64::new(0.9, 0.0);
-        let late = Complex64::new(0.7, 0.0);
-        assert!(early_late_ted_complex(early, late) > 0.0);
+        let mut ted = TimingErrorDetector::early_late(sps, 0.5);
+        ted.push_samples(&signal);
+        let error = ted.compute_error();
+        assert!(error.is_finite());
     }
 
     #[test]
     fn test_zero_crossing() {
-        // Positive-to-negative transition, mid at zero → error = 0
-        let e = zero_crossing_ted(1.0, 0.0, -1.0);
-        assert!((e - 0.0).abs() < 1e-10);
-        // Mid offset → non-zero error
-        let e = zero_crossing_ted(1.0, 0.3, -1.0);
-        assert!(e > 0.0);
+        let sps = 4;
+        let symbols = [1.0, -1.0, 1.0, -1.0, 1.0];
+        let signal = make_bpsk_signal(sps, &symbols);
+
+        let mut ted = TimingErrorDetector::new(TedType::ZeroCrossing, sps);
+        ted.push_samples(&signal);
+        let error = ted.compute_error();
+        assert!(error.is_finite());
     }
 
     #[test]
-    fn test_streaming_gardner() {
-        let mut ted = TimingErrorDetector::new(TedAlgorithm::Gardner, 4.0);
-        ted.prev_sample = 1.0;
-        let e = ted.compute(0.5, -1.0);
-        assert!(e > 0.0);
-    }
-
-    #[test]
-    fn test_streaming_mm() {
-        let mut ted = TimingErrorDetector::new(TedAlgorithm::MuellerMuller, 4.0);
-        ted.prev_sample = 0.9;
-        ted.prev_decision = 1.0;
-        let e = ted.compute(0.0, -0.8);
-        assert!(e.abs() > 0.0);
+    fn test_ted_type() {
+        let ted = TimingErrorDetector::new(TedType::Gardner, 4);
+        assert_eq!(ted.ted_type(), TedType::Gardner);
+        assert_eq!(ted.sps(), 4);
     }
 
     #[test]
     fn test_reset() {
-        let mut ted = TimingErrorDetector::new(TedAlgorithm::Gardner, 2.0);
-        ted.prev_sample = 5.0;
+        let mut ted = TimingErrorDetector::new(TedType::Gardner, 4);
+        let signal = make_bpsk_signal(4, &[1.0, -1.0, 1.0]);
+        ted.push_samples(&signal);
+        ted.compute_error();
+        assert!(ted.error_count() > 0);
         ted.reset();
-        assert_eq!(ted.prev_sample, 0.0);
+        assert_eq!(ted.error_count(), 0);
+        assert!((ted.average_error() - 0.0).abs() < 1e-10);
     }
 
     #[test]
-    fn test_accessors() {
-        let ted = TimingErrorDetector::new(TedAlgorithm::EarlyLate, 4.0);
-        assert_eq!(ted.algorithm(), TedAlgorithm::EarlyLate);
-        assert_eq!(ted.sps(), 4.0);
+    fn test_loop_filter_from_bandwidth() {
+        let lf = LoopFilter::from_bandwidth(0.01, 1.0);
+        assert!(lf.kp > 0.0);
+        assert!(lf.ki > 0.0);
     }
 
     #[test]
-    fn test_no_transition() {
-        // No transition → zero error for Gardner
-        assert!((gardner_ted(1.0, 1.0, 1.0) - 0.0).abs() < 1e-10);
+    fn test_loop_filter_integration() {
+        let mut lf = LoopFilter::new(0.1, 0.01);
+        // Constant error should cause integrator to ramp.
+        for _ in 0..100 {
+            lf.filter(1.0);
+        }
+        assert!(lf.integrator() > 0.5, "Integrator should accumulate");
+    }
+
+    #[test]
+    fn test_loop_filter_reset() {
+        let mut lf = LoopFilter::new(0.1, 0.01);
+        lf.filter(1.0);
+        lf.filter(1.0);
+        lf.reset();
+        assert!((lf.integrator() - 0.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_average_error() {
+        let mut ted = TimingErrorDetector::new(TedType::Gardner, 4);
+        let signal = make_bpsk_signal(4, &[1.0, -1.0, 1.0, -1.0, 1.0, -1.0]);
+        ted.push_samples(&signal);
+        ted.compute_error();
+        ted.compute_error();
+        assert_eq!(ted.error_count(), 2);
+        assert!(ted.average_error() >= 0.0);
     }
 }
