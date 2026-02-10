@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-105) — 479+ new DSP modules bringing the total to 529 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-110) — 504+ new DSP modules bringing the total to 554 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -719,7 +719,12 @@ Measured with `tokei`:
   - Batch 103: Photonic Processing (optical signal processing and modulation), Oscilloscope Trigger (digital oscilloscope triggering modes), Psychoacoustic Codec (perceptual audio coding with masking models), Quantum Key Distribution (BB84 quantum key exchange simulation), Ultra Wideband Ranging (UWB time-of-flight distance measurement)
   - Batch 104: Wavelength Division Mux (WDM optical channel multiplexing), IMU-Aided Tracking (inertial measurement unit sensor fusion for tracking), RF Impedance Tuner (automated antenna impedance matching), Bistatic Radar Processor (bistatic radar geometry and signal processing), Frequency Domain Oversampled DFT (oversampled DFT filterbank for channelization)
   - Batch 105: Acoustic Echo Canceller (adaptive echo cancellation for voice communications), Welch Periodogram (Welch method PSD estimation with segment averaging), Pulse Doppler Processor (pulsed radar Doppler processing for moving target detection), DTMF Detector (dual-tone multi-frequency signaling detection), Wavelet Denoiser (wavelet-based signal denoising with thresholding)
-  - All blocks wired into the visual pipeline builder (now 529 blocks) with property editors and block metadata
+  - Batch 106: RF Environment Mapper (RF environment characterization and spatial mapping), Antenna Diversity Combiner (multi-antenna diversity combining MRC/EGC), Modulation Fingerprinter (automatic modulation classification via fingerprinting), Adaptive Power Controller (closed-loop transmit power control), Noise Shaping Quantizer (noise-shaped quantization for ADC/DAC)
+  - Batch 107: Bispectrum Analyzer (higher-order spectral analysis via bispectrum/bicoherence), Adaptive Eigenvalue Tracker (online eigenvalue decomposition for adaptive subspace methods), Matched Filter Pulse Radar (matched filtering for pulsed radar detection), Speech Formant Tracker (formant frequency tracking for speech analysis), Range Migration Correction (RCMC for SAR and high-resolution radar)
+  - Batch 108: Periodic Autocorrelator (cyclostationary signal detection and period estimation), Successive Interference Canceller (SIC for multi-user detection and NOMA), Entropy Calculator (Shannon/Renyi/min-entropy estimation), Trilateration Solver (position estimation from range measurements), Uniform Scalar Quantizer (mid-rise/mid-tread quantization with configurable bit depth)
+  - Batch 109: Meteor Burst Decoder (meteor burst communication signal decoding), Troposcatter Propagation (tropospheric scatter propagation modeling), Rain Attenuation Predictor (ITU-R rain attenuation for satellite/microwave links), Inverse Synthetic Aperture Imager (ISAR imaging for target classification), Ionospheric Scintillation Analyzer (S4/sigma-phi scintillation index computation)
+  - Batch 110: Vibration Bearing Fault Detector (bearing fault detection from vibration envelope analysis), Magnetometer Vector Rotator (3-axis magnetometer heading computation), LiDAR Peak Matcher (LiDAR return pulse peak detection and matching), Power Quality Harmonics Analyzer (THD computation and power quality per IEC 61000), Time Series Changepoint Detector (CUSUM/PELT/Bayesian changepoint detection)
+  - All blocks wired into the visual pipeline builder (now 554 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT

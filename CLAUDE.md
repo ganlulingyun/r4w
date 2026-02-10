@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 529+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 554+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -295,6 +295,12 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 ### Recent Updates
 
 
+- **Batches 106-110 DSP Blocks** - 25 new modules (554 total, 110 batches complete). New categories: higher-order statistics, radar imaging, atmospheric propagation, bearing fault detection, LiDAR, power quality, changepoint detection:
+  - Batch 106: RF Environment Mapper, Antenna Diversity Combiner, Modulation Fingerprinter, Adaptive Power Controller, Noise Shaping Quantizer (534 total)
+  - Batch 107: Bispectrum Analyzer, Adaptive Eigenvalue Tracker, Matched Filter Pulse Radar, Speech Formant Tracker, Range Migration Correction (539 total)
+  - Batch 108: Periodic Autocorrelator, Successive Interference Canceller, Entropy Calculator, Trilateration Solver, Uniform Scalar Quantizer (544 total)
+  - Batch 109: Meteor Burst Decoder, Troposcatter Propagation, Rain Attenuation Predictor, Inverse Synthetic Aperture Imager, Ionospheric Scintillation Analyzer (549 total)
+  - Batch 110: Vibration Bearing Fault Detector, Magnetometer Vector Rotator, LiDAR Peak Matcher, Power Quality Harmonics Analyzer, Time Series Changepoint Detector (554 total)
 - **Batches 101-105 DSP Blocks** - 25 new modules (529 total, 105 batches complete). New categories: photonics, quantum, automotive, acoustics, wavelets:
   - Batch 101: Blind Spectrum Sensing, Companding Codec, Subcarrier Allocator, Multipath Equalizer Sparse, Injection Locking Detector (509 total)
   - Batch 102: Cyclic Spectral Analysis, RF Impairment Calibrator, Spectrogram Anomaly Detector, Network Time Synchronizer, Pulse Descriptor Extractor (514 total)
