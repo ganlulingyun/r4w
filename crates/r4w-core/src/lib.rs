@@ -44,6 +44,7 @@
 //! let decoded = demodulator.demodulate(&samples);
 //! ```
 
+pub mod acoustic_echo_canceller;
 pub mod adaptive_filter_rls;
 pub mod adaptive_interference_canceller;
 pub mod adaptive_modcod;
@@ -172,6 +173,7 @@ pub mod depuncture;
 pub mod doppler_pre_correction;
 pub mod dpll;
 pub mod dtmf;
+pub mod dtmf_detector;
 pub mod dynamic_channel;
 pub mod dynamic_spectrum_manager;
 pub mod dynamic_range_compressor;
@@ -364,6 +366,7 @@ pub mod probe_rate;
 pub mod psychoacoustic_codec;
 pub mod pulse_compressor;
 pub mod pulse_descriptor_extractor;
+pub mod pulse_doppler_processor;
 pub mod puncture;
 pub mod params;
 pub mod particle_filter_tracker;
@@ -553,10 +556,12 @@ pub mod vocoder;
 pub mod voice_activity_detector;
 pub mod wav_source_sink;
 pub mod wavelet;
+pub mod wavelet_denoiser;
 pub mod waveform;
 pub mod waveform_diversity_scheduler;
 pub mod wavelength_division_mux;
 pub mod welch_psd;
+pub mod welch_periodogram;
 pub mod wiener_filter;
 pub mod whitening;
 pub mod wigner_ville_distribution;
