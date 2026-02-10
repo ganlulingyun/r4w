@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 300+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 330+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -293,6 +293,14 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 65 DSP Blocks** - Logarithm (`log_blk.rs` - base-10 and natural logarithm for signal power analysis), Addition (`add_blk.rs` - element-wise addition of two streams), Tapped Delay Line (`tapped_delay_line.rs` - multichannel FIR with configurable tap coefficients), Interpolating Resampler (`interpolating_resampler.rs` - Farrow polynomial structure for fractional sample rate conversion), Socket PDU (`socket_pdu.rs` - UDP socket source/sink for PDU network transport). 330 DSP modules total, 65 batches complete.
+
+- **Batch 64 DSP Blocks** - Absolute Value (`abs_blk.rs` - complex magnitude and real absolute value), Character to Float (`char_to_float.rs` - byte/ASCII conversion for text protocol data), Interleave (`interleave.rs` - multiplex N streams with round-robin scheduling), File Descriptor Source/Sink (`file_descriptor_source_sink.rs` - low-level file I/O for /dev/null and pipe integration). 325 DSP modules total.
+
+- **Batch 63 DSP Blocks** - Unpacked to Packed (`unpacked_to_packed.rs` - boolean bit stream → byte packing with MSB/LSB ordering), Tagged Stream to PDU (`tagged_stream_to_pdu.rs` - reverse of pdu_to_tagged_stream, metadata-driven framing), Complex to Argument (`complex_to_arg.rs` - phase angle extraction atan2(Q,I)), Maximum Block (`max_blk.rs` - element-wise and windowed max finder), Frequency Shift (`frequency_shift.rs` - NCO-based frequency translation without mixing artifacts). 320 DSP modules total.
+
+- **Batch 62 DSP Blocks** - Stream Demultiplexer (`stream_demux.rs` - demux single stream to N based on metadata), Tagged Stream Align (`tagged_stream_align.rs` - synchronize aligned frame streams), PDU Set (`pdu_set.rs` - PDU metadata key-value assignment), Moving Variance (`moving_variance.rs` - O(1) sliding window variance calculator), Vector to Stream (`vector_to_stream.rs` - convert vectors to sample-by-sample streaming). 315 DSP modules total.
 
 - **Batch 61 DSP Blocks** - Adaptive Filter RLS (`adaptive_filter_rls.rs` - RLS adaptive filter with O(N²) matrix updates, exponential forgetting factor lambda, inverse covariance matrix recursion, step-size normalization, convergence acceleration for echo cancellation/equalization), Signal Generator (`signal_generator.rs` - multi-waveform test source: Tone, TwoTone, Chirp, Noise, Impulse, Square, Sawtooth, DC with configurable amplitude/frequency/phase), IQ Imbalance Estimator (`iq_imbalance_estimator.rs` - statistical moments-based IQ gain/phase imbalance estimation, Imbalance Ratio IRR calculation, estimator convergence tracking), Packet Decoder (`packet_decoder.rs` - generic sync-word detection + configurable field extraction with Fixed/Length/Payload/CRC field types, packet framing and validation), Multi-Rate Clock (`multi_rate_clock.rs` - accumulator-based multi-domain clock divider/multiplier, NCO-style phase accumulation, frequency control without explicit counter logic). 310 DSP modules total.
 
