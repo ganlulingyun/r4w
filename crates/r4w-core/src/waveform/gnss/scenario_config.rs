@@ -166,6 +166,19 @@ pub struct SatelliteConfig {
     /// Doppler shift in Hz at scenario start time
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub doppler_hz: Option<f64>,
+    /// Doppler rate in Hz/s (linear drift). When set with doppler_hz, Doppler
+    /// evolves as: f(t) = doppler_hz + doppler_rate_hz_per_s * elapsed_s.
+    /// Typical MEO values: 0.1–0.5 Hz/s. Ignored when orbital_dynamics is true.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub doppler_rate_hz_per_s: Option<f64>,
+    /// Enable orbital dynamics for time-varying Doppler and range.
+    /// When true, Doppler and range evolve from Keplerian/SP3 orbital mechanics,
+    /// anchored to the initial doppler_hz and range_m values at t=0:
+    ///   doppler(t) = doppler_hz + (orbital_doppler(t) - orbital_doppler(t0))
+    ///   range(t)   = range_m   + (orbital_range(t)   - orbital_range(t0))
+    /// This gives exact match to table values at t=0 with realistic non-linear dynamics.
+    #[serde(default)]
+    pub orbital_dynamics: bool,
     /// Carrier-to-noise density in dB-Hz at scenario start time
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub cn0_dbhz: Option<f64>,
@@ -273,6 +286,8 @@ impl SatelliteConfig {
             range_m: None,
             range_rate_mps: None,
             doppler_hz: None,
+            doppler_rate_hz_per_s: None,
+            orbital_dynamics: false,
             cn0_dbhz: None,
             iono_delay_m: None,
             tropo_delay_m: None,
@@ -280,10 +295,94 @@ impl SatelliteConfig {
     }
 }
 
+/// Receiver trajectory for moving platforms.
+///
+/// Defines a great-circle path from `start` to `end` at constant altitude,
+/// traversed at constant speed over the scenario duration.
+/// The receiver position is linearly interpolated along this path.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReceiverTrajectory {
+    /// Start position (lat/lon/alt)
+    pub start: LlaPosition,
+    /// End position (lat/lon/alt)
+    pub end: LlaPosition,
+    /// Speed in m/s (informational — actual speed is derived from distance/duration)
+    #[serde(default)]
+    pub speed_mps: Option<f64>,
+    /// Description (e.g., "Mach 3 Fort Wayne to Berne IN")
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+impl ReceiverTrajectory {
+    /// Interpolate receiver LLA position at fractional time t ∈ [0, 1].
+    /// Uses great-circle interpolation for lat/lon and linear for altitude.
+    pub fn position_at(&self, frac: f64) -> LlaPosition {
+        let frac = frac.clamp(0.0, 1.0);
+
+        // Great-circle interpolation (spherical linear interpolation)
+        let lat1 = self.start.lat_deg.to_radians();
+        let lon1 = self.start.lon_deg.to_radians();
+        let lat2 = self.end.lat_deg.to_radians();
+        let lon2 = self.end.lon_deg.to_radians();
+
+        let d_lat = lat2 - lat1;
+        let d_lon = lon2 - lon1;
+        let a = (d_lat / 2.0).sin().powi(2)
+            + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
+        let angular_dist = 2.0 * a.sqrt().asin();
+
+        let (lat, lon) = if angular_dist.abs() < 1e-12 {
+            // Start and end are the same point
+            (lat1, lon1)
+        } else {
+            let a_coeff = ((1.0 - frac) * angular_dist).sin() / angular_dist.sin();
+            let b_coeff = (frac * angular_dist).sin() / angular_dist.sin();
+
+            let x = a_coeff * lat1.cos() * lon1.cos() + b_coeff * lat2.cos() * lon2.cos();
+            let y = a_coeff * lat1.cos() * lon1.sin() + b_coeff * lat2.cos() * lon2.sin();
+            let z = a_coeff * lat1.sin() + b_coeff * lat2.sin();
+
+            (z.atan2((x * x + y * y).sqrt()), y.atan2(x))
+        };
+
+        let alt = self.start.alt_m + frac * (self.end.alt_m - self.start.alt_m);
+
+        LlaPosition::new(lat.to_degrees(), lon.to_degrees(), alt)
+    }
+
+    /// Compute great-circle distance in meters between start and end.
+    pub fn distance_m(&self) -> f64 {
+        let r = 6_371_000.0; // Earth mean radius
+        let lat1 = self.start.lat_deg.to_radians();
+        let lon1 = self.start.lon_deg.to_radians();
+        let lat2 = self.end.lat_deg.to_radians();
+        let lon2 = self.end.lon_deg.to_radians();
+
+        let d_lat = lat2 - lat1;
+        let d_lon = lon2 - lon1;
+        let a = (d_lat / 2.0).sin().powi(2)
+            + lat1.cos() * lat2.cos() * (d_lon / 2.0).sin().powi(2);
+        let c = 2.0 * a.sqrt().asin();
+        r * c
+    }
+
+    /// Compute heading (initial bearing) in degrees from North.
+    pub fn heading_deg(&self) -> f64 {
+        let lat1 = self.start.lat_deg.to_radians();
+        let lat2 = self.end.lat_deg.to_radians();
+        let d_lon = (self.end.lon_deg - self.start.lon_deg).to_radians();
+
+        let y = d_lon.sin() * lat2.cos();
+        let x = lat1.cos() * lat2.sin() - lat1.sin() * lat2.cos() * d_lon.cos();
+        y.atan2(x).to_degrees().rem_euclid(360.0)
+    }
+}
+
 /// Receiver configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReceiverConfig {
-    /// Receiver position
+    /// Receiver position (static, or start position if trajectory is set)
     pub position: LlaPosition,
     /// Receiver antenna pattern
     pub antenna: AntennaPattern,
@@ -293,6 +392,12 @@ pub struct ReceiverConfig {
     pub noise_figure_db: f64,
     /// Front-end bandwidth in Hz
     pub bandwidth_hz: f64,
+    /// Moving receiver trajectory (optional). When set, the receiver moves
+    /// along a great-circle path from trajectory.start to trajectory.end
+    /// over the scenario duration. The `position` field is used as the
+    /// initial position for satellite discovery.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub trajectory: Option<ReceiverTrajectory>,
 }
 
 impl Default for ReceiverConfig {
@@ -303,6 +408,7 @@ impl Default for ReceiverConfig {
             elevation_mask_deg: 5.0,
             noise_figure_db: 2.0,
             bandwidth_hz: 5_000_000.0,
+            trajectory: None,
         }
     }
 }

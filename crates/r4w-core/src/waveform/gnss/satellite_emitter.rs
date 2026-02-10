@@ -234,6 +234,13 @@ impl SatelliteEmitter {
         let code_length = self.code.len() as f64;
         let initial_code_phase = chips_delay % code_length;
 
+        // Full epoch offset from propagation delay — needed for secondary code.
+        // initial_code_phase (above) only preserves the within-period phase via modulo.
+        // The secondary code needs to know which primary code epoch we're in,
+        // so we track the full epochs lost by the modulo operation.
+        // E.g., range 23646 km → delay ~78.9 ms → 19.7 epochs → epoch offset 19.
+        let initial_epoch_offset = (chips_delay / code_length) as usize;
+
         // Generate samples with correct code phase
         let samples_per_chip = sample_rate / self.chipping_rate;
         let mut output = Vec::with_capacity(num_samples);
@@ -255,7 +262,6 @@ impl SatelliteEmitter {
         let e1c_secondary = super::prn::GalileoE1CodeGenerator::secondary_code();
 
         for i in 0..num_samples {
-            let t_sample = t + i as f64 / sample_rate;
             // Use global sample index (sample_offset + i) so code phase
             // continues correctly across block boundaries
             let global_i = sample_offset + i;
@@ -263,10 +269,13 @@ impl SatelliteEmitter {
             let chip_idx = (chip_idx_f % code_length) as usize;
             let chip_phase = chip_idx_f - chip_idx_f.floor();
 
-            // Primary code epoch index based on transmit time (receive_time - delay)
-            // This keeps secondary code synchronized with the delayed primary code
-            let transmit_time = t_sample - total_delay_s;
-            let code_epoch_idx = (transmit_time / self.code_period_s) as usize;
+            // Primary code epoch index — derived from chip_idx_f so the secondary
+            // code transitions EXACTLY at primary code boundaries (chip 4091→0).
+            // initial_epoch_offset restores the full-epoch count lost when
+            // initial_code_phase was computed via modulo. This ensures the
+            // secondary code (25 chips × 4ms = 100ms) reflects the propagation
+            // delay, placing the correlation peak at the correct time offset.
+            let code_epoch_idx = initial_epoch_offset + (chip_idx_f / code_length) as usize;
 
             // E1B code value (used for I-channel, or single channel for E1B-only)
             let code_val_e1b = self.code[chip_idx.min(self.code.len() - 1)] as f64;
@@ -283,35 +292,47 @@ impl SatelliteEmitter {
             // E1C secondary code chip (changes every 4ms, 25-chip period = 100ms)
             let secondary_chip = e1c_secondary[code_epoch_idx % 25] as f64;
 
+            // BOC(1,1) subcarrier for Galileo E1 signals:
+            // Square wave at 1.023 MHz, 2 half-periods per chip → ±1
+            // This is the dominant spectral component. BOC(6,1) from full CBOC
+            // is omitted because it aliases at typical sample rates (fs ≤ 5 MHz).
+            // After the receiver's LPF, the despread output looks like clean BPSK.
+            let boc11 = if is_composite || is_e1c
+                || self.signal == GnssSignal::GalileoE1
+            {
+                let half_periods = 2.0; // BOC(1,1): m=1, n=1 → 2*1/1
+                let sub_phase = (chip_phase * half_periods) % 2.0;
+                if sub_phase < 1.0 { 1.0 } else { -1.0 }
+            } else {
+                1.0 // Non-Galileo: no subcarrier
+            };
+
             if is_composite {
-                // E1OS: E1B on I-channel, E1C on Q-channel
-                // Per Galileo ICD: E1 = (1/√2) * [e_E1B(t) - e_E1C(t)]  (simplified baseband)
-                // We output: I = E1B*CBOC_B*nav, Q = E1C*CBOC_C*secondary
+                // E1OS: Per Galileo ICD, E1 = (1/√2) * [e_E1B(t) - e_E1C(t)]
+                // Both components include BOC(1,1) subcarrier on the REAL axis.
 
-                let cboc_e1b = self.cboc.as_ref().map(|c| c.subcarrier(chip_phase)).unwrap_or(1.0);
-                let i_val = code_val_e1b * nav_bit * cboc_e1b;
-
-                // E1C code value for Q-channel (with secondary code)
+                // E1C code value (with secondary code)
                 let code_val_e1c = self.code_e1c.as_ref()
                     .map(|c| c[chip_idx.min(c.len() - 1)] as f64)
                     .unwrap_or(0.0);
-                let cboc_e1c = self.cboc_e1c.as_ref().map(|c| c.subcarrier(chip_phase)).unwrap_or(1.0);
-                let q_val = code_val_e1c * cboc_e1c * secondary_chip;
 
-                // Scale each by 1/√2 to maintain total power
+                let e1b_val = code_val_e1b * nav_bit * boc11;
+                let e1c_val = code_val_e1c * secondary_chip * boc11;
+
+                // ICD: s_E1(t) = (1/√2) * [e_E1B - e_E1C], both on I axis
                 let scale = 1.0 / 2.0_f64.sqrt();
-                output.push(Complex64::new(i_val * scale, q_val * scale));
+                output.push(Complex64::new((e1b_val - e1c_val) * scale, 0.0));
             } else if is_e1c {
-                // E1C only: apply secondary code
-                let modulated_val = if let Some(ref cboc) = self.cboc {
-                    code_val_e1b * cboc.subcarrier(chip_phase) * secondary_chip
-                } else {
-                    code_val_e1b * secondary_chip
-                };
+                // E1C only: code × BOC(1,1) × secondary code on I channel, Q=0
+                // The LPF removes high-frequency BOC spectrum; after despreading
+                // with a BOC(1,1) replica, output is clean BPSK.
+                let modulated_val = code_val_e1b * boc11 * secondary_chip;
                 output.push(Complex64::new(modulated_val, 0.0));
             } else {
-                // E1B or other signals (no secondary code)
-                let modulated_val = if let Some(ref cboc) = self.cboc {
+                // E1B (data channel): code × BOC(1,1) × nav_bit on I channel
+                let modulated_val = if self.signal == GnssSignal::GalileoE1 {
+                    code_val_e1b * nav_bit * boc11
+                } else if let Some(ref cboc) = self.cboc {
                     code_val_e1b * nav_bit * cboc.subcarrier(chip_phase)
                 } else {
                     // Plain BPSK for GPS L1 C/A, GLONASS, etc.

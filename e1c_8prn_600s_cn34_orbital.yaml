@@ -1,8 +1,6 @@
-# Galileo E1C - 8 visible PRNs, 20 seconds, HIGH C/N0, exact Doppler, NO degradations
-# Doppler values from Fort Wayne 10-min capture (image 8 lower CSV)
-# No iono, no tropo, no multipath - ONLY Doppler offsets applied
-# Generate: cargo run --bin r4w -- gnss scenario --config e1c_8prn_20s_clean.yaml
-
+# Generate: cargo run --release --bin r4w -- gnss scenario --config e1c_8prn_600s_cn34_orbital.yaml
+# 8 PRNs, with Doppler, orbital dynamics enabled, C/N0 34 dB-Hz, 10 minutes
+# Expected file size: ~24 GB (cf32, 8 bytes/sample, 5 MHz, 600s)
 satellites:
 - signal: GalileoE1C
   prn: 3
@@ -13,12 +11,12 @@ satellites:
   elevation_deg: 68.4172
   azimuth_deg: 59.5847
   range_m: 23646351.5
-  range_rate_mps: 0.0         # zero - using doppler_hz directly
+  range_rate_mps: 0.0
   doppler_hz: -457.3938
-  cn0_dbhz: 65.0
+  orbital_dynamics: true
+  cn0_dbhz: 34.0
   iono_delay_m: 0.0
   tropo_delay_m: 0.0
-
 - signal: GalileoE1C
   prn: 25
   plane: 0
@@ -30,10 +28,10 @@ satellites:
   range_m: 24405430.8
   range_rate_mps: 0.0
   doppler_hz: 399.4032
-  cn0_dbhz: 65.0
+  orbital_dynamics: true
+  cn0_dbhz: 34.0
   iono_delay_m: 0.0
   tropo_delay_m: 0.0
-
 - signal: GalileoE1C
   prn: 8
   plane: 2
@@ -45,10 +43,10 @@ satellites:
   range_m: 24818588.9
   range_rate_mps: 0.0
   doppler_hz: 1590.8425
-  cn0_dbhz: 65.0
+  orbital_dynamics: true
+  cn0_dbhz: 34.0
   iono_delay_m: 0.0
   tropo_delay_m: 0.0
-
 - signal: GalileoE1C
   prn: 2
   plane: 0
@@ -60,10 +58,10 @@ satellites:
   range_m: 25458771.1
   range_rate_mps: 0.0
   doppler_hz: 2779.3718
-  cn0_dbhz: 65.0
+  orbital_dynamics: true
+  cn0_dbhz: 34.0
   iono_delay_m: 0.0
   tropo_delay_m: 0.0
-
 - signal: GalileoE1C
   prn: 5
   plane: 2
@@ -75,10 +73,10 @@ satellites:
   range_m: 25248617.6
   range_rate_mps: 0.0
   doppler_hz: -2036.2635
-  cn0_dbhz: 65.0
+  orbital_dynamics: true
+  cn0_dbhz: 34.0
   iono_delay_m: 0.0
   tropo_delay_m: 0.0
-
 - signal: GalileoE1C
   prn: 16
   plane: 0
@@ -90,10 +88,10 @@ satellites:
   range_m: 25274401.9
   range_rate_mps: 0.0
   doppler_hz: -910.535
-  cn0_dbhz: 65.0
+  orbital_dynamics: true
+  cn0_dbhz: 34.0
   iono_delay_m: 0.0
   tropo_delay_m: 0.0
-
 - signal: GalileoE1C
   prn: 13
   plane: 1
@@ -105,10 +103,10 @@ satellites:
   range_m: 26605684.1
   range_rate_mps: 0.0
   doppler_hz: -1247.3831
-  cn0_dbhz: 65.0
+  orbital_dynamics: true
+  cn0_dbhz: 34.0
   iono_delay_m: 0.0
   tropo_delay_m: 0.0
-
 - signal: GalileoE1C
   prn: 15
   plane: 1
@@ -120,10 +118,10 @@ satellites:
   range_m: 27369377.8
   range_rate_mps: 0.0
   doppler_hz: -2830.9795
-  cn0_dbhz: 65.0
+  orbital_dynamics: true
+  cn0_dbhz: 34.0
   iono_delay_m: 0.0
   tropo_delay_m: 0.0
-
 receiver:
   position:
     lat_deg: 41.07115833333334
@@ -135,7 +133,6 @@ receiver:
   elevation_mask_deg: 5.0
   noise_figure_db: 2.0
   bandwidth_hz: 5000000.0
-
 environment:
   ionosphere_enabled: false
   ionosphere_model: null
@@ -147,13 +144,12 @@ environment:
   multipath_enabled: false
   ephemeris_source:
     type: Nominal
-
 output:
-  sample_rate: 5000000.0     # 5 MHz
-  duration_s: 20.0           # 20 seconds
-  format: cf32
-  lpf_cutoff_hz: 2500000.0    # 2.5 MHz anti-aliasing LPF
+  sample_rate: 5000000.0
+  duration_s: 600.0
   block_size: 0
   seed: 42
   start_time_gps_s: 1442003372.627
-  output_path: "{ts}_{signal}_{n_sats}prn_{duration}.sigmf-data"
+  format: cf32
+  lpf_cutoff_hz: 2500000.0
+  output_path: '{ts}_{signal}_{n_sats}prn_{duration}_cn34_orbital.sigmf-data'

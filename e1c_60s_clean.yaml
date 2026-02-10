@@ -1,6 +1,7 @@
 # Galileo E1C (Pilot) PRN3 - 60 seconds, clean signal
 # Same as e1c_with_secondary but extended to 60s
 # C/N0 = 60 dB, Doppler = 0 Hz, no channel effects
+# Generate: cargo run --bin r4w -- gnss scenario --config e1c_60s_clean.yaml
 
 satellites:
 - signal: GalileoE1C

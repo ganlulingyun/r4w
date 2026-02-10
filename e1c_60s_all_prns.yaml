@@ -3,6 +3,7 @@
 # Time: 2025-09-15T20:29:14Z, GPS 1442003372.627 s
 # Receiver: Fort Wayne, IN (41.0712°N, 85.2268°W, 263.6m)
 # Values from precise ephemeris computation (lower CSV table)
+# Generate: cargo run --bin r4w -- gnss scenario --config e1c_60s_all_prns.yaml
 
 satellites:
 # PRN 3 - highest elevation (near zenith)

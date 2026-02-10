@@ -1,5 +1,6 @@
 # Galileo E1C (Pilot) PRN3 - 60 seconds, realistic C/N0 + channel effects
 # C/N0 = 34 dB-Hz, Doppler from orbital motion, Klobuchar iono, Saastamoinen tropo
+# Generate: cargo run --bin r4w -- gnss scenario --config e1c_60s_cn34_effects.yaml
 
 satellites:
 - signal: GalileoE1C

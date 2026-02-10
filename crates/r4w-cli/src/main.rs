@@ -4035,6 +4035,8 @@ fn cmd_gnss_scenario(
                     range_m: None,
                     range_rate_mps: None,
                     doppler_hz: None,
+                    doppler_rate_hz_per_s: None,
+                    orbital_dynamics: false,
                     cn0_dbhz: None,
                     iono_delay_m: None,
                     tropo_delay_m: None,
@@ -4156,6 +4158,8 @@ fn cmd_gnss_scenario(
                 range_m: None,
                 range_rate_mps: None,
                 doppler_hz: None,
+                doppler_rate_hz_per_s: None,
+                orbital_dynamics: false,
                 cn0_dbhz: None,
                 iono_delay_m: None,
                 tropo_delay_m: None,
@@ -4408,10 +4412,31 @@ fn cmd_gnss_scenario(
         PathBuf::from(expand_output_template(auto_tmpl, &config, &format_str))
     };
 
+    // Apply CLI LPF override to config before creating scenario
+    // (scenario applies LPF per-block in generate_block)
+    if let Some(lpf_hz) = lpf_cutoff {
+        config.output.lpf_cutoff_hz = lpf_hz;
+    }
+
     println!("Duration:    {} ms", config.output.duration_s * 1000.0);
     println!("Sample rate: {} MHz", config.output.sample_rate / 1e6);
     println!("Format:      {}", iq_format.display_name());
     println!("Output:      {}", output.display());
+    if let Some(ref traj) = config.receiver.trajectory {
+        let dist = traj.distance_m();
+        let heading = traj.heading_deg();
+        let speed = traj.speed_mps.unwrap_or(dist / config.output.duration_s);
+        let travel_time = dist / speed;
+        println!("Trajectory:  {:.1} km, heading {:.1}°, {:.0} m/s ({:.1} Mach), travel {:.1}s",
+            dist / 1000.0, heading, speed, speed / 343.0, travel_time);
+        if let Some(ref desc) = traj.description {
+            println!("             {}", desc);
+        }
+        println!("  Start:     {:.6}°N, {:.6}°W, {:.0}m",
+            traj.start.lat_deg, -traj.start.lon_deg, traj.start.alt_m);
+        println!("  End:       {:.6}°N, {:.6}°W, {:.0}m",
+            traj.end.lat_deg, -traj.end.lon_deg, traj.end.alt_m);
+    }
     println!();
 
     let mut scenario = GnssScenario::new(config);
@@ -4419,10 +4444,18 @@ fn cmd_gnss_scenario(
     // Show satellite status
     let statuses = scenario.satellite_status();
     println!("Satellites ({} configured):", statuses.len());
-    println!("  {:>4} {:>10} {:>7} {:>7} {:>11} {:>10} {:>10} {:>7} {:>7} {:>7} {:>10}",
-        "PRN", "Signal", "El(°)", "Az(°)", "Range(km)", "Rate(m/s)", "Dopp(Hz)", "C/N0", "Iono", "Tropo", "Clk(μs)");
+    println!("  {:>4} {:>10} {:>7} {:>7} {:>11} {:>10} {:>10} {:>7} {:>10} {:>9} {:>8}",
+        "PRN", "Signal", "El(°)", "Az(°)", "Range(km)", "Rate(m/s)", "Dopp(Hz)", "C/N0", "Delay(ms)", "CodePhase", "SecEpoch");
     for s in &statuses {
-        println!("  {:>4} {:>10} {:>7.2} {:>7.2} {:>11.1} {:>10.2} {:>10.1} {:>7.1} {:>7.2} {:>7.2} {:>10.3}",
+        let c = 299_792_458.0_f64;
+        let delay_s = s.range_m / c + s.iono_delay_m / c + s.tropo_delay_m / c;
+        let delay_ms = delay_s * 1000.0;
+        let chipping_rate = s.signal.chipping_rate();
+        let code_length = s.signal.code_length() as f64;
+        let chips_delay = delay_s * chipping_rate;
+        let code_phase = chips_delay % code_length;
+        let sec_epoch = (chips_delay / code_length) as usize % 25;
+        println!("  {:>4} {:>10} {:>7.2} {:>7.2} {:>11.1} {:>10.2} {:>10.1} {:>7.1} {:>10.3} {:>9.1} {:>8}",
             s.prn,
             format!("{}", s.signal),
             s.elevation_deg,
@@ -4431,42 +4464,48 @@ fn cmd_gnss_scenario(
             s.range_rate_mps,
             s.doppler_hz,
             s.cn0_dbhz,
-            s.iono_delay_m,
-            s.tropo_delay_m,
-            s.clock_correction_s * 1e6, // Convert seconds to microseconds
+            delay_ms,
+            code_phase,
+            sec_epoch,
         );
     }
     println!();
 
-    // Generate IQ
+    // Generate IQ — streaming block-by-block to disk to avoid OOM on long scenarios
     let total = scenario.total_samples();
+    let block_size = scenario.block_size();
     println!("Generating {} samples...", total);
-    let mut samples = scenario.generate();
-    println!("Generated {} IQ samples", samples.len());
 
-    // Apply lowpass anti-aliasing filter
-    // Priority: CLI --lpf-cutoff > config YAML lpf_cutoff_hz > disabled
+    // LPF is applied inside GnssScenario::generate_block() per-block
     let effective_lpf = lpf_cutoff.unwrap_or(scenario.config().output.lpf_cutoff_hz);
-    if effective_lpf > 0.0 {
-        use r4w_core::filters::{FirFilter, Filter};
-        let sample_rate = scenario.config().output.sample_rate;
-        // Use 63 taps for good stopband attenuation (~50 dB)
-        let num_taps = 63;
-        let mut filter = FirFilter::lowpass(effective_lpf, sample_rate, num_taps);
-        println!("Applying lowpass filter: {:.2} MHz cutoff, {} taps", effective_lpf / 1e6, num_taps);
-        filter.process_inplace(&mut samples);
-    }
+    // (filter already applied in generate_block — just track effective value for config export)
 
-    // Write output in requested format
-    let mut file = std::fs::File::create(&output)?;
-    iq_format.write_samples(&mut file, &samples)?;
-    let file_size = samples.len() * iq_format.bytes_per_sample();
-    println!("Written {} bytes to {} ({})", file_size, output.display(), iq_format.display_name());
+    let mut file = BufWriter::new(std::fs::File::create(&output)?);
+    let mut total_written: usize = 0;
+    let mut power_sum: f64 = 0.0;
+    let mut sample_count: usize = 0;
+
+    while !scenario.is_done() {
+        let block = scenario.generate_block(block_size);
+        if block.is_empty() {
+            break;
+        }
+        // Accumulate power stats
+        for s in &block {
+            power_sum += s.re * s.re + s.im * s.im;
+        }
+        sample_count += block.len();
+        total_written += block.len() * iq_format.bytes_per_sample();
+        iq_format.write_samples(&mut file, &block)?;
+    }
+    file.flush()?;
+    drop(file);
+
+    println!("Generated {} IQ samples", sample_count);
+    println!("Written {} bytes to {} ({})", total_written, output.display(), iq_format.display_name());
 
     // Stats
-    let avg_power: f64 = samples.iter()
-        .map(|s| s.re * s.re + s.im * s.im)
-        .sum::<f64>() / samples.len() as f64;
+    let avg_power: f64 = if sample_count > 0 { power_sum / sample_count as f64 } else { 0.0 };
     println!("Average power: {:.2} dB", 10.0 * avg_power.log10());
 
     // Save effective config as companion YAML alongside output file

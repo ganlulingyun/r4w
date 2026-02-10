@@ -67,3 +67,5 @@ ephemeris = ["r4w-core/ephemeris"]
 crypto = ["r4w-core/crypto"]
 # Full Meshtastic interoperability (crypto + protobuf wire format)
 meshtastic-interop = ["r4w-core/meshtastic-interop"]
+# Enable parallel per-satellite processing with rayon
+parallel = ["r4w-core/parallel"]

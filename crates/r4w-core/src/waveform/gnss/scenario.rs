@@ -25,14 +25,26 @@ use crate::coordinates::{
 use crate::types::IQSample;
 use crate::waveform::gnss::{GalileoE1, GlonassL1of, GpsL1Ca, GpsL5};
 use crate::waveform::Waveform;
+use crate::filters::fir::FirFilter;
+use crate::filters::traits::Filter;
 use num_complex::Complex64;
 use std::f64::consts::PI;
-use std::sync::Arc;
 
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
+
+#[cfg(feature = "ephemeris")]
+use std::sync::Arc;
 #[cfg(feature = "ephemeris")]
 use super::sp3::Sp3Ephemeris;
 #[cfg(feature = "ephemeris")]
 use super::ionex::IonexTec;
+
+/// Oversample factor for baseband generation.
+/// Baseband IQ is generated at OVERSAMPLE × output_rate, then LPF'd and decimated.
+/// This prevents BOC(1,1) harmonics (3rd at 3.069 MHz, 5th at 5.115 MHz, etc.)
+/// from aliasing into the output band.
+const BASEBAND_OVERSAMPLE: usize = 8;
 
 /// GNSS Scenario: generates composite multi-satellite IQ signal
 // trace:FR-041 | ai:claude
@@ -44,6 +56,13 @@ pub struct GnssScenario {
     total_samples: usize,
     /// Per-emitter Doppler phase accumulators (persisted across blocks)
     doppler_phases: Vec<f64>,
+    /// Per-emitter orbital Doppler at t=0 (Hz) for anchored dynamics
+    orbital_doppler_t0: Vec<f64>,
+    /// Per-emitter orbital range at t=0 (m) for anchored dynamics
+    orbital_range_t0: Vec<f64>,
+    /// Per-emitter anti-aliasing LPFs operating at oversampled rate.
+    /// Filter state persists across blocks for continuity.
+    baseband_lpfs: Vec<FirFilter>,
     /// Simple PRNG state for noise generation (xorshift64)
     rng_state: u64,
     /// SP3 precise ephemeris (optional, feature-gated)
@@ -136,6 +155,69 @@ impl GnssScenario {
         let rng_state = config.output.seed.max(1);
         let num_emitters = emitters.len();
 
+        // Pre-compute orbital Doppler and range at t=0 for anchored dynamics
+        let t0 = config.output.start_time_gps_s;
+        let rx_lla_t0 = if let Some(ref traj) = config.receiver.trajectory {
+            traj.position_at(0.0) // Start of trajectory
+        } else {
+            config.receiver.position
+        };
+        let rx_ecef_t0 = lla_to_ecef(&rx_lla_t0);
+
+        // Compute receiver ECEF velocity at t=0 from trajectory (if moving)
+        let rx_vel_t0 = if let Some(ref traj) = config.receiver.trajectory {
+            let dist = traj.distance_m();
+            let speed = traj.speed_mps.unwrap_or(dist / config.output.duration_s);
+            let travel_time_s = dist / speed;
+            let dt = 0.01_f64.min(travel_time_s * 0.001);
+            let frac_dt = dt / travel_time_s;
+            let pos_dt = traj.position_at(frac_dt);
+            let ecef_dt = lla_to_ecef(&pos_dt);
+            EcefVelocity::new(
+                (ecef_dt.x - rx_ecef_t0.x) / dt,
+                (ecef_dt.y - rx_ecef_t0.y) / dt,
+                (ecef_dt.z - rx_ecef_t0.z) / dt,
+            )
+        } else {
+            EcefVelocity::zero()
+        };
+
+        // Log trajectory info
+        if let Some(ref traj) = config.receiver.trajectory {
+            let dist = traj.distance_m();
+            let heading = traj.heading_deg();
+            let speed = traj.speed_mps.unwrap_or(dist / config.output.duration_s);
+            let travel_time_s = dist / speed;
+            eprintln!("Trajectory: {:.1} km, heading {:.1}°, speed {:.0} m/s ({:.1} Mach), travel {:.1}s",
+                dist / 1000.0, heading, speed, speed / 343.0, travel_time_s);
+        }
+
+        let mut orbital_doppler_t0 = Vec::with_capacity(num_emitters);
+        let mut orbital_range_t0 = Vec::with_capacity(num_emitters);
+        for emitter in &emitters {
+            let (sat_pos, sat_vel) = emitter.position_velocity_at(t0);
+            let la = look_angle(&rx_ecef_t0, &rx_lla_t0, &sat_pos);
+            let rr = range_rate(&rx_ecef_t0, &rx_vel_t0, &sat_pos, &sat_vel);
+            let carrier_hz = emitter.signal.carrier_frequency_hz();
+            orbital_doppler_t0.push(-rr * carrier_hz / SPEED_OF_LIGHT);
+            orbital_range_t0.push(la.range_m);
+        }
+
+        // Initialize per-emitter anti-aliasing LPFs at oversampled rate.
+        // Cutoff at output Nyquist (sample_rate / 2) removes BOC harmonics
+        // before decimation back to output rate.
+        let oversampled_rate = sample_rate * BASEBAND_OVERSAMPLE as f64;
+        let lpf_cutoff = if config.output.lpf_cutoff_hz > 0.0 {
+            config.output.lpf_cutoff_hz
+        } else {
+            sample_rate / 2.0 // Default: output Nyquist
+        };
+        let baseband_lpfs: Vec<FirFilter> = (0..num_emitters)
+            .map(|_| FirFilter::lowpass(lpf_cutoff, oversampled_rate, 63))
+            .collect();
+        eprintln!("Baseband: {}× oversample ({:.1} MHz), LPF {:.1} kHz cutoff, 63 taps, decimate to {:.1} MHz",
+            BASEBAND_OVERSAMPLE, oversampled_rate / 1e6, lpf_cutoff / 1e3, sample_rate / 1e6);
+
         Self {
             config,
             emitters,
@@ -143,6 +225,9 @@ impl GnssScenario {
             sample_rate,
             total_samples,
             doppler_phases: vec![0.0; num_emitters],
+            orbital_doppler_t0,
+            orbital_range_t0,
+            baseband_lpfs,
             rng_state,
             #[cfg(feature = "ephemeris")]
             sp3,
@@ -229,85 +314,208 @@ impl GnssScenario {
 
         let t_offset = self.config.output.start_time_gps_s;
         let t_start = t_offset + self.current_sample as f64 / self.sample_rate;
-        let rx_lla = &self.config.receiver.position;
-        let rx_ecef = lla_to_ecef(rx_lla);
+        let elapsed_s = self.current_sample as f64 / self.sample_rate;
+        let duration_s = self.config.output.duration_s;
+
+        // Compute receiver position from trajectory (or use static position)
+        let (rx_lla, rx_ecef, rx_vel) = if let Some(ref traj) = self.config.receiver.trajectory {
+            // Travel time is distance / speed. If speed not specified, use distance / duration.
+            let dist = traj.distance_m();
+            let speed = traj.speed_mps.unwrap_or(dist / duration_s);
+            let travel_time_s = dist / speed;
+
+            // Position along trajectory: frac = elapsed / travel_time
+            // Clamp to 1.0 so receiver stops at end point if scenario runs longer than travel
+            let frac = (elapsed_s / travel_time_s).clamp(0.0, 1.0);
+            let lla = traj.position_at(frac);
+            let ecef = lla_to_ecef(&lla);
+
+            // Velocity via finite difference (position at frac + small delta)
+            let vel = if frac < 1.0 {
+                let dt = 0.01_f64.min(travel_time_s * 0.001);
+                let frac_dt = ((elapsed_s + dt) / travel_time_s).clamp(0.0, 1.0);
+                let lla_dt = traj.position_at(frac_dt);
+                let ecef_dt = lla_to_ecef(&lla_dt);
+                EcefVelocity::new(
+                    (ecef_dt.x - ecef.x) / dt,
+                    (ecef_dt.y - ecef.y) / dt,
+                    (ecef_dt.z - ecef.z) / dt,
+                )
+            } else {
+                EcefVelocity::zero() // Stopped at endpoint
+            };
+
+            (lla, ecef, vel)
+        } else {
+            let lla = self.config.receiver.position;
+            let ecef = lla_to_ecef(&lla);
+            (lla, ecef, EcefVelocity::zero())
+        };
 
         let mut composite = vec![Complex64::new(0.0, 0.0); n];
 
         let t_end = t_start + n as f64 / self.sample_rate;
+        let elapsed_end = elapsed_s + n as f64 / self.sample_rate;
+        let os = BASEBAND_OVERSAMPLE;
+        let oversampled_rate = self.sample_rate * os as f64;
+        let oversampled_n = n * os;
+        let oversampled_offset = self.current_sample * os;
+
+        // --- Phase 1: Compute per-emitter parameters (sequential, fast) ---
+        // Collects geometry, Doppler, range, amplitude, and delay for each visible satellite.
+        struct EmitterWork {
+            idx: usize,
+            range_m: f64,
+            iono_delay_s: f64,
+            tropo_delay_s: f64,
+            rx_amplitude: f64,
+            doppler_start_hz: f64,
+            doppler_end_hz: f64,
+        }
+
+        let mut work_items: Vec<EmitterWork> = Vec::new();
 
         for (emitter_idx, emitter) in self.emitters.iter().enumerate() {
-            // Get config overrides for this emitter
             let sat_config = &self.config.satellites[emitter_idx];
 
-            // Compute geometry at block start and end for per-sample Doppler interpolation
-            // Use SP3 if available, otherwise Keplerian
             let (sat_pos_start, sat_vel_start) = self.get_satellite_position(emitter, t_start);
             let (sat_pos_end, sat_vel_end) = self.get_satellite_position(emitter, t_end);
 
-            // Elevation check at block start (use config override if present)
-            let la = look_angle(&rx_ecef, rx_lla, &sat_pos_start);
+            let la = look_angle(&rx_ecef, &rx_lla, &sat_pos_start);
             let elevation_deg = sat_config.elevation_deg.unwrap_or(la.elevation_deg);
             if elevation_deg < self.config.receiver.elevation_mask_deg {
                 continue;
             }
 
-            let range_m = sat_config.range_m.unwrap_or(la.range_m);
-
-            // Doppler at block start and end for linear interpolation
-            // Priority: doppler_hz override > range_rate_mps override > orbital mechanics
             let carrier_hz = emitter.signal.carrier_frequency_hz();
-            let (doppler_start_hz, doppler_end_hz) = if let Some(doppler_override) = sat_config.doppler_hz {
-                (doppler_override, doppler_override) // Constant Doppler when overridden
+            let rr_orbital_start = range_rate(&rx_ecef, &rx_vel, &sat_pos_start, &sat_vel_start);
+            let rr_orbital_end = range_rate(&rx_ecef, &rx_vel, &sat_pos_end, &sat_vel_end);
+            let orbital_doppler_start = -rr_orbital_start * carrier_hz / SPEED_OF_LIGHT;
+            let orbital_doppler_end = -rr_orbital_end * carrier_hz / SPEED_OF_LIGHT;
+
+            let range_m = if sat_config.orbital_dynamics {
+                if let Some(r0) = sat_config.range_m {
+                    r0 + (la.range_m - self.orbital_range_t0[emitter_idx])
+                } else {
+                    la.range_m
+                }
+            } else if let (Some(r0), Some(rr)) = (sat_config.range_m, sat_config.range_rate_mps) {
+                r0 + rr * elapsed_s
+            } else {
+                sat_config.range_m.unwrap_or(la.range_m)
+            };
+
+            let (doppler_start_hz, doppler_end_hz) = if sat_config.orbital_dynamics {
+                if let Some(doppler_initial) = sat_config.doppler_hz {
+                    let delta_start = orbital_doppler_start - self.orbital_doppler_t0[emitter_idx];
+                    let delta_end = orbital_doppler_end - self.orbital_doppler_t0[emitter_idx];
+                    (doppler_initial + delta_start, doppler_initial + delta_end)
+                } else {
+                    (orbital_doppler_start, orbital_doppler_end)
+                }
+            } else if let Some(doppler_initial) = sat_config.doppler_hz {
+                if let Some(rate) = sat_config.doppler_rate_hz_per_s {
+                    (doppler_initial + rate * elapsed_s,
+                     doppler_initial + rate * elapsed_end)
+                } else {
+                    (doppler_initial, doppler_initial)
+                }
             } else if let Some(rr_override) = sat_config.range_rate_mps {
-                // Use configured range rate for constant Doppler
                 let doppler = -rr_override * carrier_hz / SPEED_OF_LIGHT;
                 (doppler, doppler)
             } else {
-                // Compute from orbital mechanics (time-varying across block)
-                let rx_vel = EcefVelocity::zero();
-                let rr_start = range_rate(&rx_ecef, &rx_vel, &sat_pos_start, &sat_vel_start);
-                let rr_end = range_rate(&rx_ecef, &rx_vel, &sat_pos_end, &sat_vel_end);
-                (-rr_start * carrier_hz / SPEED_OF_LIGHT, -rr_end * carrier_hz / SPEED_OF_LIGHT)
+                (orbital_doppler_start, orbital_doppler_end)
             };
 
-            // Atmospheric delays (computed once per block — vary slowly)
-            // Use config override if present, else IONEX if available, else Klobuchar
             let iono_delay_m = sat_config.iono_delay_m.unwrap_or_else(||
-                self.get_iono_delay_m(emitter, t_start, rx_lla, elevation_deg, la.azimuth_deg)
+                self.get_iono_delay_m(emitter, t_start, &rx_lla, elevation_deg, la.azimuth_deg)
             );
             let iono_delay_s = iono_delay_m / SPEED_OF_LIGHT;
 
-            // Tropospheric delay (use config override if present)
             let tropo_delay_m = sat_config.tropo_delay_m.unwrap_or_else(|| {
-                let tropo_status = emitter.status_at(t_start, &rx_ecef, rx_lla, &self.config.receiver.antenna);
+                let tropo_status = emitter.status_at(t_start, &rx_ecef, &rx_lla, &self.config.receiver.antenna);
                 tropo_status.tropo_delay_m
             });
             let tropo_delay_s = tropo_delay_m / SPEED_OF_LIGHT;
 
-            // C/N0 calculation - use config override if present
             let cn0_dbhz = sat_config.cn0_dbhz.unwrap_or_else(|| {
                 let fspl = crate::coordinates::fspl_db(range_m, carrier_hz);
                 let antenna_gain_dbi = self.config.receiver.antenna.gain_dbi(elevation_deg);
-                let tx_power_dbw = sat_config.tx_power_dbw;
-                tx_power_dbw - fspl + antenna_gain_dbi + 204.0
+                sat_config.tx_power_dbw - fspl + antenna_gain_dbi + 204.0
             });
             let rx_power_dbw = cn0_dbhz - 204.0;
-            // Scale to reasonable baseband amplitude
-            let rx_amplitude = 10.0_f64.powf((rx_power_dbw + 160.0) / 20.0); // shift to reasonable range
+            let rx_amplitude = 10.0_f64.powf((rx_power_dbw + 160.0) / 20.0);
 
-            // Generate baseband IQ with correct code phase
-            // Pass current_sample so code phase continues across block boundaries
-            let baseband = emitter.generate_baseband_iq(
-                t_start, n, self.sample_rate,
-                range_m, iono_delay_s, tropo_delay_s,
-                self.current_sample,
-            );
+            work_items.push(EmitterWork {
+                idx: emitter_idx,
+                range_m, iono_delay_s, tropo_delay_s, rx_amplitude,
+                doppler_start_hz, doppler_end_hz,
+            });
+        }
 
-            // Apply per-sample Doppler shift (linearly interpolated across block)
-            // Phase accumulator persists across blocks to avoid 1 kHz discontinuities
+        // --- Phase 2: Generate baseband IQ + LPF + decimate ---
+        // Each emitter's baseband generation is independent and can be parallelized.
+        // LPF filter state must persist across blocks, so LPF is always applied sequentially.
+        // With rayon: generate all baseband in parallel, then LPF+decimate sequentially.
+        // Without rayon: generate+LPF+decimate sequentially per emitter.
+        type BasebandResult = (usize, Vec<Complex64>, f64, f64, f64);
+
+        // Temporarily take LPFs out of self so we can pass them to closures
+        let mut lpfs = std::mem::take(&mut self.baseband_lpfs);
+
+        #[cfg(feature = "parallel")]
+        let baseband_results: Vec<BasebandResult> = {
+            // Phase 2a: Generate oversampled baseband in parallel (no LPF yet)
+            let emitters = &self.emitters;
+            let oversampled_buffers: Vec<(usize, Vec<Complex64>, f64, f64, f64)> = work_items
+                .par_iter()
+                .map(|work| {
+                    let emitter = &emitters[work.idx];
+                    let baseband_os = emitter.generate_baseband_iq(
+                        t_start, oversampled_n, oversampled_rate,
+                        work.range_m, work.iono_delay_s, work.tropo_delay_s,
+                        oversampled_offset,
+                    );
+                    (work.idx, baseband_os, work.rx_amplitude, work.doppler_start_hz, work.doppler_end_hz)
+                })
+                .collect();
+
+            // Phase 2b: Apply LPF + decimate sequentially (filter state must be continuous)
+            oversampled_buffers.into_iter().map(|(idx, mut baseband_os, rx_amplitude, doppler_start, doppler_end)| {
+                lpfs[idx].process_inplace(&mut baseband_os);
+                let baseband: Vec<Complex64> = baseband_os.iter()
+                    .step_by(os)
+                    .copied()
+                    .collect();
+                (idx, baseband, rx_amplitude, doppler_start, doppler_end)
+            }).collect()
+        };
+
+        #[cfg(not(feature = "parallel"))]
+        let baseband_results: Vec<BasebandResult> = {
+            work_items.iter().map(|work| {
+                let emitter = &self.emitters[work.idx];
+                let mut baseband_os = emitter.generate_baseband_iq(
+                    t_start, oversampled_n, oversampled_rate,
+                    work.range_m, work.iono_delay_s, work.tropo_delay_s,
+                    oversampled_offset,
+                );
+                lpfs[work.idx].process_inplace(&mut baseband_os);
+                let baseband: Vec<Complex64> = baseband_os.iter()
+                    .step_by(os)
+                    .copied()
+                    .collect();
+                (work.idx, baseband, work.rx_amplitude, work.doppler_start_hz, work.doppler_end_hz)
+            }).collect()
+        };
+
+        // Put LPFs back
+        self.baseband_lpfs = lpfs;
+
+        // --- Phase 3: Apply Doppler and accumulate (sequential, needs phase state) ---
+        for (emitter_idx, baseband, rx_amplitude, doppler_start_hz, doppler_end_hz) in &baseband_results {
             let n_f64 = n as f64;
-            let mut phase = self.doppler_phases[emitter_idx];
+            let mut phase = self.doppler_phases[*emitter_idx];
             for (i, &sample) in baseband.iter().enumerate() {
                 let frac = i as f64 / n_f64;
                 let doppler_hz = doppler_start_hz + frac * (doppler_end_hz - doppler_start_hz);
@@ -316,7 +524,7 @@ impl GnssScenario {
                 let doppler_shift = Complex64::new(phase.cos(), phase.sin());
                 composite[i] += sample * doppler_shift * rx_amplitude;
             }
-            self.doppler_phases[emitter_idx] = phase;
+            self.doppler_phases[*emitter_idx] = phase;
         }
 
         // Add thermal noise using Box-Muller with xorshift64 PRNG
@@ -429,6 +637,9 @@ impl GnssScenario {
         self.current_sample = 0;
         self.rng_state = self.config.output.seed.max(1);
         self.doppler_phases.fill(0.0);
+        for lpf in &mut self.baseband_lpfs {
+            lpf.reset();
+        }
     }
 
     /// Whether generation is complete
@@ -450,6 +661,16 @@ impl GnssScenario {
     /// Total samples to generate
     pub fn total_samples(&self) -> usize {
         self.total_samples
+    }
+
+    /// Block size for streaming generation
+    pub fn block_size(&self) -> usize {
+        if self.config.output.block_size > 0 {
+            self.config.output.block_size
+        } else {
+            // Default: 1 ms worth of samples
+            (self.sample_rate * 0.001).ceil() as usize
+        }
     }
 
     /// Write IQ output to file (raw interleaved f64 I/Q pairs)
