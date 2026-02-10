@@ -127,6 +127,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `oqpsk_modulator.rs`: Offset QPSK modulator/demodulator (Q delayed by T/2, +-pi/2 phase transitions, PAPR analysis, ZigBee 802.15.4, CDMA IS-95)
   - `frequency_hopping.rs`: FHSS controller (Pseudorandom/Sequential/Fixed/Adaptive hop patterns, Bluetooth 79ch/1600hps and military HF presets, processing gain)
   - `digital_down_converter.rs`: DDC with NCO mixer, 3-stage CIC decimation, windowed-sinc FIR compensation filter, retuning, reset
+  - `digital_up_converter.rs`: DUC with CIC interpolation, FIR compensation filter, NCO mixer for baseband-to-IF upconversion
+  - `sigma_delta_modulator.rs`: Sigma-delta modulation/demodulation for ADC/DAC, configurable order (1st-3rd), oversampling ratio
+  - `reed_solomon.rs`: Reed-Solomon codec over GF(2^8), generator polynomial 0x11D, configurable t-symbol error correction
+  - `fmcw_radar.rs`: FMCW radar processor with chirp generation, beat frequency mixing, range/Doppler FFT processing, range-Doppler map, automotive 77 GHz preset
+  - `viterbi_decoder.rs`: Convolutional encoder (rate 1/n) with hard/soft Viterbi decoding, traceback, NASA k=7 and GSM k=5 presets
   - `esprit.rs`: ESPRIT DOA estimation (LS/TLS variants, ULA steering vectors, complements MUSIC DOA)
   - `convolutional_interleaver.rs`: Forney-type convolutional interleaver/deinterleaver (DVB-S2 I=12/M=17, GSM I=4/M=19 presets, burst error dispersal)
   - `unscented_kalman_filter.rs`: Unscented Kalman Filter with UkfModel trait, sigma point generation, predict/update cycle, NEES metric
@@ -176,7 +181,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 278+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 296+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -284,6 +289,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 59 DSP Blocks** - Digital Up Converter (`digital_up_converter.rs` - DUC with CIC interpolation, FIR compensation filter, NCO mixer for baseband-to-IF upconversion, complements DDC), Sigma-Delta Modulator (`sigma_delta_modulator.rs` - sigma-delta modulation/demodulation for ADC/DAC with configurable order 1st-3rd and oversampling ratio, complements sigma_delta.rs converter), Reed-Solomon Codec (`reed_solomon.rs` - Reed-Solomon encoder/decoder over GF(2^8) with generator polynomial 0x11D, configurable t-symbol error correction, complements fec/reed_solomon.rs), FMCW Radar (`fmcw_radar.rs` - FMCW radar processor with chirp generation, beat frequency mixing, range/Doppler FFT processing, range-Doppler map, automotive 77 GHz preset), Viterbi Decoder (`viterbi_decoder.rs` - convolutional encoder rate 1/n with hard/soft Viterbi decoding, traceback, NASA k=7 and GSM k=5 presets). ~296+ DSP modules total.
 
 - **Batch 58 DSP Blocks** - Polar Code (`polar_code.rs` - Arikan's 5G NR polar codes, PolarEncoder with butterfly polar transform, PolarDecoder with recursive SC successive cancellation decoding using f/g-function factor graph traversal, Bhattacharyya bounds for channel reliability ordering), MSK Modulator (`msk_modulator.rs` - MSK Minimum Shift Keying h=0.5 continuous-phase FSK modulator and demodulator, GMSK variant with configurable BT product Gaussian pre-filter, phase-accumulation demodulation, used in GSM and satellite comms), OQPSK Modulator (`oqpsk_modulator.rs` - Offset QPSK modulator/demodulator with Q channel delayed by T/2 limiting phase transitions to +-pi/2, PAPR analysis, used in ZigBee 802.15.4 and CDMA IS-95), Frequency Hopping (`frequency_hopping.rs` - FHSS Frequency Hopping Spread Spectrum controller, HopPattern: Pseudorandom LFSR/Sequential/Fixed/Adaptive with blacklist, Bluetooth 79ch 1600 hops/s and military HF presets, processing gain calculation), Digital Down Converter (`digital_down_converter.rs` - DDC with NCO mixer, 3-stage CIC decimation, FIR compensation filter with windowed-sinc Hamming lowpass design, retuning and reset). ~262+ DSP modules total, ~2870+ unit tests.
 
