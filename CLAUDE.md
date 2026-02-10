@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 554+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 579+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -293,6 +293,13 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batches 111-115 DSP Blocks** - 25 new modules (579 total, 115 batches complete). New categories: OFDM pilot processing, sequential detection, amateur radio digital modes (JT65/WSPR/PSK31/DRM), quaternion signal processing, satellite TLE tracking, belief propagation decoding, biometric signal processing (ECG/MFCC), direction finding, EMI analysis, advanced math methods:
+  - Batch 111: OFDM Pilot Interpolator, Sequential Detection MLSE, JT65 Modulator, WSPR Modulator, DRM OFDM Processor (559 total)
+  - Batch 112: Instantaneous Frequency Estimator, Space-Time Adaptive Processor, Quaternion Attitude Tracker, Satellite TLE Propagator, Generalized Sidelobe Canceller (564 total)
+  - Batch 113: SLIP Decoder, Belief Propagation Decoder, MFCC Extractor, ECG QRS Detector, Fletcher Checksum (569 total)
+  - Batch 114: Direction Finding Watson-Watt, EMI Conducted Analyzer, Waterfall Image Enhancer, PSK31 Codec, RF Signal Router (574 total)
+  - Batch 115: Expectation Maximization, Volterra Filter, Tensor HOSVD, Matrix Completion Nuclear, Modal Analysis Prony Extended (579 total)
 
 
 - **Batches 106-110 DSP Blocks** - 25 new modules (554 total, 110 batches complete). New categories: higher-order statistics, radar imaging, atmospheric propagation, bearing fault detection, LiDAR, power quality, changepoint detection:

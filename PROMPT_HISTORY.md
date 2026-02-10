@@ -8893,3 +8893,48 @@ Five batches of five modules each, expanding into higher-order statistics, radar
 **Cumulative**: 554 standalone DSP modules, 110 batches complete. Pipeline builder now has 554+ block types. New categories added: higher-order statistics (bispectrum), radar imaging (ISAR, range migration correction), atmospheric propagation (troposcatter, rain attenuation, ionospheric scintillation, meteor burst), bearing fault detection, LiDAR processing, power quality analysis (harmonics/THD), changepoint detection (CUSUM/PELT/Bayesian).
 
 **Documentation Updates**: Updated CLAUDE.md (module count 529+ to 554+, added batches 106-110 Recent Updates bullet), OVERVIEW.md (Batches 13-105 to 13-110, 529 to 554 blocks, added batch entries 106-110), and added batches 106-110 to PROMPT_HISTORY.md.
+
+### Batches 111-115: 25 New DSP Modules (554 to 579 Total)
+
+Five batches of five modules each, expanding into OFDM pilot processing, sequential detection, amateur radio digital modes, quaternion signal processing, satellite tracking, belief propagation decoding, biometric signal processing, direction finding, EMI analysis, and advanced mathematical methods.
+
+**Batch 111 (559 modules) — OFDM Pilot Processing, Sequential Detection & Amateur Radio Digital Modes**:
+1. **OFDM Pilot Interpolator** (`ofdm_pilot_interpolator.rs`) — Pilot-aided channel estimation with interpolation across OFDM subcarriers and symbols.
+2. **Sequential Detection MLSE** (`sequential_detection_mlse.rs`) — Maximum Likelihood Sequence Estimation using sequential detection for ISI channels.
+3. **JT65 Modulator** (`jt65_modulator.rs`) — JT65 amateur radio digital mode modulator/demodulator for weak-signal HF communication.
+4. **WSPR Modulator** (`wspr_modulator.rs`) — Weak Signal Propagation Reporter modulator/demodulator for low-power beacon propagation monitoring.
+5. **DRM OFDM Processor** (`drm_ofdm_processor.rs`) — Digital Radio Mondiale OFDM signal processing for digital shortwave broadcasting.
+
+**Batch 112 (564 modules) — Frequency Estimation, Space-Time Processing & Satellite Tracking**:
+1. **Instantaneous Frequency Estimator** (`instantaneous_frequency_estimator.rs`) — Real-time instantaneous frequency estimation via analytic signal differentiation.
+2. **Space-Time Adaptive Processor** (`space_time_adaptive_processor.rs`) — STAP for joint spatial-temporal filtering in airborne radar and communications.
+3. **Quaternion Attitude Tracker** (`quaternion_attitude_tracker.rs`) — Quaternion-based attitude estimation and tracking for inertial navigation and antenna pointing.
+4. **Satellite TLE Propagator** (`satellite_tle_propagator.rs`) — SGP4/SDP4 satellite orbit propagation from Two-Line Element sets for pass prediction.
+5. **Generalized Sidelobe Canceller** (`generalized_sidelobe_canceller.rs`) — GSC adaptive beamforming for interference rejection in antenna arrays.
+
+**Batch 113 (569 modules) — Error Correction, Feature Extraction & Biometric Signal Processing**:
+1. **SLIP Decoder** (`slip_decoder.rs`) — Serial Line Internet Protocol framing encoder/decoder for serial-to-IP packet encapsulation.
+2. **Belief Propagation Decoder** (`belief_propagation_decoder.rs`) — Sum-product belief propagation decoder for LDPC and turbo codes on factor graphs.
+3. **MFCC Extractor** (`mfcc_extractor.rs`) — Mel-Frequency Cepstral Coefficients extraction for speech and audio feature analysis.
+4. **ECG QRS Detector** (`ecg_qrs_detector.rs`) — ECG QRS complex detection using Pan-Tompkins algorithm for heart rate monitoring.
+5. **Fletcher Checksum** (`fletcher_checksum.rs`) — Fletcher-16/32/64 checksum computation for lightweight data integrity verification.
+
+**Batch 114 (574 modules) — Direction Finding, EMI Analysis & Digital Mode Codecs**:
+1. **Direction Finding Watson-Watt** (`direction_finding_watson_watt.rs`) — Watson-Watt direction finding using crossed-loop/sense antenna for HF/VHF bearing estimation.
+2. **EMI Conducted Analyzer** (`emi_conducted_analyzer.rs`) — Conducted EMI analysis with quasi-peak and average detection per CISPR standards.
+3. **Waterfall Image Enhancer** (`waterfall_image_enhancer.rs`) — Waterfall/spectrogram image enhancement with contrast stretching and noise floor removal.
+4. **PSK31 Codec** (`psk31_codec.rs`) — PSK31 amateur radio digital mode encoder/decoder for keyboard-to-keyboard HF communication.
+5. **RF Signal Router** (`rf_signal_router.rs`) — Programmable RF signal routing matrix for multi-channel SDR switching and distribution.
+
+**Batch 115 (579 modules) — Advanced Mathematical Methods & Signal Decomposition**:
+1. **Expectation Maximization** (`expectation_maximization.rs`) — EM algorithm for Gaussian mixture model fitting and signal classification.
+2. **Volterra Filter** (`volterra_filter.rs`) — Volterra series nonlinear adaptive filter for power amplifier linearization and nonlinear system modeling.
+3. **Tensor HOSVD** (`tensor_hosvd.rs`) — Higher-Order Singular Value Decomposition for multi-dimensional signal analysis and compression.
+4. **Matrix Completion Nuclear** (`matrix_completion_nuclear.rs`) — Nuclear norm minimization for matrix completion and missing data recovery in sparse arrays.
+5. **Modal Analysis Prony Extended** (`modal_analysis_prony_extended.rs`) — Extended Prony method for modal analysis, damped sinusoid parameter estimation, and system identification.
+
+**Session Totals**: 25 new modules (554 to 579), 115 batches complete.
+
+**Cumulative**: 579 standalone DSP modules, 115 batches complete. Pipeline builder now has 579+ block types. New categories added: OFDM pilot processing, sequential detection (MLSE), amateur radio digital modes (JT65, WSPR, PSK31, DRM), quaternion signal processing, satellite TLE tracking (SGP4/SDP4), belief propagation decoding, biometric signal processing (ECG QRS detection, MFCC), direction finding (Watson-Watt), EMI conducted analysis (CISPR), advanced mathematical methods (expectation maximization, Volterra series, tensor HOSVD, matrix completion, Prony method).
+
+**Documentation Updates**: Updated CLAUDE.md (module count 554+ to 579+, added batches 111-115 Recent Updates bullet), OVERVIEW.md (Batches 13-110 to 13-115, 554 to 579 blocks, added batch entries 111-115), and added batches 111-115 to PROMPT_HISTORY.md.

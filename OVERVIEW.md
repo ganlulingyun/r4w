@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-110) — 504+ new DSP modules bringing the total to 554 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-115) — 504+ new DSP modules bringing the total to 579 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -724,7 +724,12 @@ Measured with `tokei`:
   - Batch 108: Periodic Autocorrelator (cyclostationary signal detection and period estimation), Successive Interference Canceller (SIC for multi-user detection and NOMA), Entropy Calculator (Shannon/Renyi/min-entropy estimation), Trilateration Solver (position estimation from range measurements), Uniform Scalar Quantizer (mid-rise/mid-tread quantization with configurable bit depth)
   - Batch 109: Meteor Burst Decoder (meteor burst communication signal decoding), Troposcatter Propagation (tropospheric scatter propagation modeling), Rain Attenuation Predictor (ITU-R rain attenuation for satellite/microwave links), Inverse Synthetic Aperture Imager (ISAR imaging for target classification), Ionospheric Scintillation Analyzer (S4/sigma-phi scintillation index computation)
   - Batch 110: Vibration Bearing Fault Detector (bearing fault detection from vibration envelope analysis), Magnetometer Vector Rotator (3-axis magnetometer heading computation), LiDAR Peak Matcher (LiDAR return pulse peak detection and matching), Power Quality Harmonics Analyzer (THD computation and power quality per IEC 61000), Time Series Changepoint Detector (CUSUM/PELT/Bayesian changepoint detection)
-  - All blocks wired into the visual pipeline builder (now 554 blocks) with property editors and block metadata
+  - Batch 111: OFDM Pilot Interpolator (pilot-aided channel estimation with interpolation), Sequential Detection MLSE (maximum likelihood sequence estimation for ISI channels), JT65 Modulator (amateur radio weak-signal HF digital mode), WSPR Modulator (weak signal propagation reporter for beacon monitoring), DRM OFDM Processor (Digital Radio Mondiale OFDM for digital shortwave)
+  - Batch 112: Instantaneous Frequency Estimator (real-time IF estimation via analytic signal), Space-Time Adaptive Processor (STAP for airborne radar joint spatial-temporal filtering), Quaternion Attitude Tracker (quaternion-based attitude estimation for inertial navigation), Satellite TLE Propagator (SGP4/SDP4 orbit propagation from TLE sets), Generalized Sidelobe Canceller (GSC adaptive beamforming for interference rejection)
+  - Batch 113: SLIP Decoder (Serial Line Internet Protocol framing encoder/decoder), Belief Propagation Decoder (sum-product BP for LDPC/turbo codes on factor graphs), MFCC Extractor (Mel-Frequency Cepstral Coefficients for audio features), ECG QRS Detector (Pan-Tompkins QRS detection for heart rate monitoring), Fletcher Checksum (Fletcher-16/32/64 for lightweight data integrity)
+  - Batch 114: Direction Finding Watson-Watt (crossed-loop/sense antenna HF/VHF bearing estimation), EMI Conducted Analyzer (conducted EMI analysis per CISPR standards), Waterfall Image Enhancer (spectrogram contrast stretching and noise floor removal), PSK31 Codec (amateur radio keyboard-to-keyboard HF digital mode), RF Signal Router (programmable RF signal routing matrix for multi-channel SDR)
+  - Batch 115: Expectation Maximization (EM algorithm for GMM fitting and signal classification), Volterra Filter (Volterra series nonlinear adaptive filter for PA linearization), Tensor HOSVD (higher-order SVD for multi-dimensional signal analysis), Matrix Completion Nuclear (nuclear norm minimization for sparse array data recovery), Modal Analysis Prony Extended (extended Prony method for damped sinusoid estimation)
+  - All blocks wired into the visual pipeline builder (now 579 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
