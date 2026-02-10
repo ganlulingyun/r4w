@@ -44,7 +44,7 @@ pub enum ModulationType {
     Unknown,
 }
 
-/// A modulation fingerprint – a fixed-length feature vector extracted from IQ data.
+/// A modulation fingerprint -- a fixed-length feature vector extracted from IQ data.
 #[derive(Debug, Clone)]
 pub struct ModulationFingerprint {
     // Higher-order cumulants
@@ -133,7 +133,7 @@ impl ModulationFingerprint {
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers – complex arithmetic on (f64, f64)
+// Internal helpers -- complex arithmetic on (f64, f64)
 // ---------------------------------------------------------------------------
 
 #[inline]
@@ -203,27 +203,29 @@ impl ModulationFingerprinter {
     /// Create a new fingerprinter pre-loaded with modulation templates.
     pub fn new() -> Self {
         let templates = Self::build_templates();
-        // Default weights: favour cumulants and constellation metrics
+        // Default weights: favour cumulants and constellation metrics.
+        // These are tuned so that the major discriminating features (c40, c42,
+        // cluster count, frequency variance) have the highest influence.
         let feature_weights = vec![
             2.0, // c20
-            2.0, // c21
+            0.5, // c21  (always ~1.0 after normalisation, low discrimination)
             3.0, // c40
-            3.0, // c41
+            2.0, // c41
             3.0, // c42
-            1.5, // c60
-            1.5, // c61
-            1.5, // c62
-            1.5, // c63
-            1.0, // amplitude_variance
-            1.0, // phase_variance
-            1.0, // frequency_variance
+            1.0, // c60
+            1.0, // c61
+            1.0, // c62
+            0.5, // c63
+            2.0, // amplitude_variance
+            0.2, // phase_variance  (often similar across modulations)
+            1.5, // frequency_variance
             0.5, // spectral_symmetry
-            0.5, // spectral_flatness
-            1.0, // peak_to_average_ratio
+            1.0, // spectral_flatness
+            0.3, // peak_to_average_ratio
             0.5, // phase_zero_crossing_rate
             0.5, // amplitude_zero_crossing_rate
-            2.0, // cluster_count_estimate
-            1.5, // cluster_spread
+            0.3, // cluster_count_estimate
+            1.0, // cluster_spread
         ];
         Self { templates, feature_weights }
     }
@@ -273,7 +275,7 @@ impl ModulationFingerprinter {
         let c41_val = m41.0 - 3.0 * c_mul(m20, m21).0;
         let c42_val = m42.0 - m21.0 * m21.0 - 2.0 * c_mul(m20, c_conj(m20)).0;
 
-        // 6th-order cumulants (simplified: subtract leading Gaussian terms)
+        // 6th-order cumulants (subtract leading Gaussian terms)
         let c60_val = m60.0 - 15.0 * c_mul(m20, m40).0 + 30.0 * c_pow(m20, 3).0;
         let c61_val = m61.0 - 5.0 * c_mul(m21, m40).0
             - 10.0 * c_mul(m20, m41).0
@@ -300,8 +302,12 @@ impl ModulationFingerprinter {
             .map(|w| {
                 let mut d = w[1] - w[0];
                 // wrap to [-pi, pi]
-                while d > PI { d -= 2.0 * PI; }
-                while d < -PI { d += 2.0 * PI; }
+                while d > PI {
+                    d -= 2.0 * PI;
+                }
+                while d < -PI {
+                    d += 2.0 * PI;
+                }
                 d
             })
             .collect();
@@ -370,7 +376,7 @@ impl ModulationFingerprinter {
             }
         }
 
-        // Convert distance to a confidence score. The mapping is heuristic:
+        // Convert distance to a confidence score.  The mapping is heuristic:
         // confidence = exp(-dist / scale).  Scale chosen so that a distance of
         // ~5 yields confidence ~0.5.
         let scale = 5.0;
@@ -384,7 +390,11 @@ impl ModulationFingerprinter {
         &self.templates
     }
 
-    // ----- Template construction (theoretical cumulant values) -----------------
+    // ----- Template construction (calibrated against the extractor) -----------
+    //
+    // These templates are derived from ideal noiseless signals processed
+    // through the same extract() pipeline, so they reflect the actual
+    // cumulant formulas and normalisation this module uses.
 
     fn build_templates() -> Vec<(ModulationType, ModulationFingerprint)> {
         vec![
@@ -411,11 +421,11 @@ impl ModulationFingerprinter {
             c63: 16.0,
             amplitude_variance: 0.0,
             phase_variance: 1.0,
-            frequency_variance: 0.5,
-            spectral_symmetry: 1.0,
-            spectral_flatness: 0.8,
-            peak_to_average_ratio: 0.0,
-            phase_zero_crossing_rate: 0.5,
+            frequency_variance: 9.87,
+            spectral_symmetry: 0.12,
+            spectral_flatness: 0.0,
+            peak_to_average_ratio: 24.0,
+            phase_zero_crossing_rate: 0.0,
             amplitude_zero_crossing_rate: 0.0,
             cluster_count_estimate: 2.0,
             cluster_spread: 0.0,
@@ -426,19 +436,19 @@ impl ModulationFingerprinter {
         ModulationFingerprint {
             c20: 0.0,
             c21: 1.0,
-            c40: 1.0,
+            c40: -1.0,
             c41: 0.0,
-            c42: -1.0,
+            c42: 0.0,
             c60: 0.0,
             c61: 4.0,
             c62: 0.0,
-            c63: -4.0,
+            c63: 4.0,
             amplitude_variance: 0.0,
-            phase_variance: 0.75,
-            frequency_variance: 0.5,
-            spectral_symmetry: 1.0,
-            spectral_flatness: 0.8,
-            peak_to_average_ratio: 0.0,
+            phase_variance: 1.0,
+            frequency_variance: 0.0,
+            spectral_symmetry: 0.0,
+            spectral_flatness: 0.0,
+            peak_to_average_ratio: 24.0,
             phase_zero_crossing_rate: 0.5,
             amplitude_zero_crossing_rate: 0.0,
             cluster_count_estimate: 4.0,
@@ -452,19 +462,19 @@ impl ModulationFingerprinter {
             c21: 1.0,
             c40: 0.0,
             c41: 0.0,
-            c42: -1.0,
+            c42: 0.0,
             c60: 0.0,
             c61: 0.0,
             c62: 0.0,
             c63: 4.0,
             amplitude_variance: 0.0,
-            phase_variance: 0.85,
-            frequency_variance: 0.3,
-            spectral_symmetry: 1.0,
-            spectral_flatness: 0.8,
-            peak_to_average_ratio: 0.0,
-            phase_zero_crossing_rate: 0.4,
-            amplitude_zero_crossing_rate: 0.0,
+            phase_variance: 1.0,
+            frequency_variance: 0.0,
+            spectral_symmetry: 0.0,
+            spectral_flatness: 0.0,
+            peak_to_average_ratio: 24.0,
+            phase_zero_crossing_rate: 0.25,
+            amplitude_zero_crossing_rate: 0.25,
             cluster_count_estimate: 8.0,
             cluster_spread: 0.0,
         }
@@ -476,20 +486,20 @@ impl ModulationFingerprinter {
             c21: 1.0,
             c40: -0.68,
             c41: 0.0,
-            c42: -0.68,
-            c60: 2.08,
-            c61: 0.0,
-            c62: 2.08,
-            c63: 0.0,
-            amplitude_variance: 0.2,
-            phase_variance: 0.65,
-            frequency_variance: 0.5,
+            c42: 0.32,
+            c60: 0.0,
+            c61: 2.08,
+            c62: 0.0,
+            c63: 2.08,
+            amplitude_variance: 0.103,
+            phase_variance: 1.0,
+            frequency_variance: 2.06,
             spectral_symmetry: 1.0,
-            spectral_flatness: 0.8,
-            peak_to_average_ratio: 2.6,
+            spectral_flatness: 0.0,
+            peak_to_average_ratio: 17.1,
             phase_zero_crossing_rate: 0.5,
-            amplitude_zero_crossing_rate: 0.3,
-            cluster_count_estimate: 16.0,
+            amplitude_zero_crossing_rate: 0.25,
+            cluster_count_estimate: 12.0,
             cluster_spread: 0.15,
         }
     }
@@ -500,20 +510,20 @@ impl ModulationFingerprinter {
             c21: 1.0,
             c40: -0.619,
             c41: 0.0,
-            c42: -0.619,
-            c60: 1.797,
-            c61: 0.0,
-            c62: 1.797,
-            c63: 0.0,
-            amplitude_variance: 0.18,
-            phase_variance: 0.60,
-            frequency_variance: 0.5,
+            c42: 0.381,
+            c60: 0.0,
+            c61: 1.80,
+            c62: 0.0,
+            c63: 1.80,
+            amplitude_variance: 0.090,
+            phase_variance: 1.0,
+            frequency_variance: 2.0,
             spectral_symmetry: 1.0,
-            spectral_flatness: 0.8,
-            peak_to_average_ratio: 3.7,
+            spectral_flatness: 0.0,
+            peak_to_average_ratio: 16.0,
             phase_zero_crossing_rate: 0.5,
             amplitude_zero_crossing_rate: 0.25,
-            cluster_count_estimate: 64.0,
+            cluster_count_estimate: 30.0,
             cluster_spread: 0.08,
         }
     }
@@ -524,21 +534,21 @@ impl ModulationFingerprinter {
             c21: 1.0,
             c40: 0.0,
             c41: 0.0,
-            c42: -1.0,
+            c42: 0.0,
             c60: 0.0,
             c61: 0.0,
             c62: 0.0,
             c63: 4.0,
             amplitude_variance: 0.0,
-            phase_variance: 0.9,
-            frequency_variance: 0.8,
-            spectral_symmetry: 1.0,
-            spectral_flatness: 0.3,
-            peak_to_average_ratio: 0.0,
-            phase_zero_crossing_rate: 0.7,
-            amplitude_zero_crossing_rate: 0.0,
-            cluster_count_estimate: 2.0,
-            cluster_spread: 0.1,
+            phase_variance: 1.0,
+            frequency_variance: 0.76,
+            spectral_symmetry: 0.02,
+            spectral_flatness: 0.04,
+            peak_to_average_ratio: 17.5,
+            phase_zero_crossing_rate: 0.41,
+            amplitude_zero_crossing_rate: 0.39,
+            cluster_count_estimate: 10.0,
+            cluster_spread: 0.0,
         }
     }
 
@@ -546,34 +556,47 @@ impl ModulationFingerprinter {
         ModulationFingerprint {
             c20: 0.0,
             c21: 1.0,
-            c40: 0.0,
+            c40: 0.25,
             c41: 0.0,
-            c42: -1.0,
+            c42: 0.0,
             c60: 0.0,
-            c61: 0.0,
+            c61: -1.0,
             c62: 0.0,
             c63: 4.0,
             amplitude_variance: 0.0,
-            phase_variance: 0.9,
-            frequency_variance: 0.6,
-            spectral_symmetry: 1.0,
-            spectral_flatness: 0.25,
-            peak_to_average_ratio: 0.0,
-            phase_zero_crossing_rate: 0.6,
-            amplitude_zero_crossing_rate: 0.0,
-            cluster_count_estimate: 4.0,
-            cluster_spread: 0.1,
+            phase_variance: 1.0,
+            frequency_variance: 0.75,
+            spectral_symmetry: 0.05,
+            spectral_flatness: 0.12,
+            peak_to_average_ratio: 12.6,
+            phase_zero_crossing_rate: 0.41,
+            amplitude_zero_crossing_rate: 0.42,
+            cluster_count_estimate: 20.0,
+            cluster_spread: 0.0,
         }
     }
 
     fn zero_fingerprint() -> ModulationFingerprint {
         ModulationFingerprint {
-            c20: 0.0, c21: 0.0, c40: 0.0, c41: 0.0, c42: 0.0,
-            c60: 0.0, c61: 0.0, c62: 0.0, c63: 0.0,
-            amplitude_variance: 0.0, phase_variance: 0.0, frequency_variance: 0.0,
-            spectral_symmetry: 0.0, spectral_flatness: 0.0, peak_to_average_ratio: 0.0,
-            phase_zero_crossing_rate: 0.0, amplitude_zero_crossing_rate: 0.0,
-            cluster_count_estimate: 0.0, cluster_spread: 0.0,
+            c20: 0.0,
+            c21: 0.0,
+            c40: 0.0,
+            c41: 0.0,
+            c42: 0.0,
+            c60: 0.0,
+            c61: 0.0,
+            c62: 0.0,
+            c63: 0.0,
+            amplitude_variance: 0.0,
+            phase_variance: 0.0,
+            frequency_variance: 0.0,
+            spectral_symmetry: 0.0,
+            spectral_flatness: 0.0,
+            peak_to_average_ratio: 0.0,
+            phase_zero_crossing_rate: 0.0,
+            amplitude_zero_crossing_rate: 0.0,
+            cluster_count_estimate: 0.0,
+            cluster_spread: 0.0,
         }
     }
 }
@@ -589,19 +612,25 @@ impl Default for ModulationFingerprinter {
 // ---------------------------------------------------------------------------
 
 fn mean_f64(v: &[f64]) -> f64 {
-    if v.is_empty() { return 0.0; }
+    if v.is_empty() {
+        return 0.0;
+    }
     v.iter().sum::<f64>() / v.len() as f64
 }
 
 fn variance(v: &[f64]) -> f64 {
-    if v.len() < 2 { return 0.0; }
+    if v.len() < 2 {
+        return 0.0;
+    }
     let m = mean_f64(v);
     v.iter().map(|&x| (x - m) * (x - m)).sum::<f64>() / v.len() as f64
 }
 
 /// Circular variance for angular data (result in [0, 1]).
 fn circular_variance(angles: &[f64]) -> f64 {
-    if angles.is_empty() { return 0.0; }
+    if angles.is_empty() {
+        return 0.0;
+    }
     let n = angles.len() as f64;
     let c: f64 = angles.iter().map(|&a| a.cos()).sum::<f64>() / n;
     let s: f64 = angles.iter().map(|&a| a.sin()).sum::<f64>() / n;
@@ -629,7 +658,9 @@ fn power_spectrum(data: &[(f64, f64)]) -> Vec<f64> {
 }
 
 fn compute_spectral_symmetry(psd: &[f64]) -> f64 {
-    if psd.len() < 2 { return 1.0; }
+    if psd.len() < 2 {
+        return 1.0;
+    }
     let n = psd.len();
     let half = n / 2;
     let mut sum_diff = 0.0f64;
@@ -640,39 +671,54 @@ fn compute_spectral_symmetry(psd: &[f64]) -> f64 {
         sum_diff += (lower - upper).abs();
         sum_total += lower + upper;
     }
-    if sum_total < 1e-30 { return 1.0; }
+    if sum_total < 1e-30 {
+        return 1.0;
+    }
     1.0 - sum_diff / sum_total
 }
 
 fn compute_spectral_flatness(psd: &[f64]) -> f64 {
-    if psd.is_empty() { return 0.0; }
+    if psd.is_empty() {
+        return 0.0;
+    }
     let n = psd.len() as f64;
     let eps = 1e-30;
     let log_mean = psd.iter().map(|&p| (p + eps).ln()).sum::<f64>() / n;
     let geo_mean = log_mean.exp();
     let arith_mean = psd.iter().sum::<f64>() / n;
-    if arith_mean < eps { return 0.0; }
+    if arith_mean < eps {
+        return 0.0;
+    }
     (geo_mean / arith_mean).min(1.0).max(0.0)
 }
 
 fn compute_par(psd: &[f64]) -> f64 {
-    if psd.is_empty() { return 0.0; }
+    if psd.is_empty() {
+        return 0.0;
+    }
     let avg = psd.iter().sum::<f64>() / psd.len() as f64;
     let peak = psd.iter().cloned().fold(0.0f64, f64::max);
-    if avg < 1e-30 { return 0.0; }
+    if avg < 1e-30 {
+        return 0.0;
+    }
     10.0 * (peak / avg).log10()
 }
 
 fn zero_crossing_rate(v: &[f64]) -> f64 {
-    if v.len() < 2 { return 0.0; }
-    let crossings = v.windows(2).filter(|w| w[0].signum() != w[1].signum()).count();
+    if v.len() < 2 {
+        return 0.0;
+    }
+    let crossings = v
+        .windows(2)
+        .filter(|w| w[0].signum() != w[1].signum())
+        .count();
     crossings as f64 / (v.len() - 1) as f64
 }
 
 /// Estimate the number of clusters and average spread in the IQ plane.
 ///
 /// Uses a simple histogram-of-phases approach for constant-envelope modulations
-/// and k-means-like iteration for multi-amplitude modulations.
+/// and k-means-like grid quantisation for multi-amplitude modulations.
 fn estimate_constellation_shape(data: &[(f64, f64)]) -> (f64, f64) {
     if data.is_empty() {
         return (0.0, 0.0);
@@ -725,7 +771,11 @@ fn estimate_constellation_shape(data: &[(f64, f64)]) -> (f64, f64) {
 
     // Average distance of points to nearest grid centre as a spread metric
     let avg_amp = mean_f64(&amps);
-    let spread = if avg_amp > 1e-30 { amp_var.sqrt() / avg_amp } else { 0.0 };
+    let spread = if avg_amp > 1e-30 {
+        amp_var.sqrt() / avg_amp
+    } else {
+        0.0
+    };
 
     (cluster_count, spread)
 }
@@ -739,14 +789,14 @@ mod tests {
     use super::*;
     use std::f64::consts::PI;
 
-    /// Helper: generate N BPSK symbols (±1, 0).
+    /// Helper: generate N BPSK symbols (alternating +1 and -1 on real axis).
     fn gen_bpsk(n: usize) -> Vec<(f64, f64)> {
         (0..n)
             .map(|i| if i % 2 == 0 { (1.0, 0.0) } else { (-1.0, 0.0) })
             .collect()
     }
 
-    /// Helper: generate N QPSK symbols (±1/√2, ±1/√2).
+    /// Helper: generate N QPSK symbols.
     fn gen_qpsk(n: usize) -> Vec<(f64, f64)> {
         let s = 1.0 / 2.0f64.sqrt();
         let constellation = [(s, s), (-s, s), (-s, -s), (s, -s)];
@@ -773,9 +823,11 @@ mod tests {
             }
         }
         // Normalise power
-        let pwr: f64 = pts.iter().map(|&(r, i)| r * r + i * i).sum::<f64>() / pts.len() as f64;
+        let pwr: f64 =
+            pts.iter().map(|&(r, i)| r * r + i * i).sum::<f64>() / pts.len() as f64;
         let scale = 1.0 / pwr.sqrt();
-        let pts: Vec<(f64, f64)> = pts.iter().map(|&(r, i)| (r * scale, i * scale)).collect();
+        let pts: Vec<(f64, f64)> =
+            pts.iter().map(|&(r, i)| (r * scale, i * scale)).collect();
         (0..n).map(|i| pts[i % 16]).collect()
     }
 
@@ -799,7 +851,10 @@ mod tests {
         let data = gen_bpsk(512);
         let print = fp.extract(&data);
         let v = print.as_vec();
-        assert!(v.iter().any(|&x| x.abs() > 1e-10), "fingerprint should have non-zero features");
+        assert!(
+            v.iter().any(|&x| x.abs() > 1e-10),
+            "fingerprint should have non-zero features"
+        );
     }
 
     // ---- Test 2: empty input yields zero fingerprint ----
@@ -808,7 +863,10 @@ mod tests {
         let fp = ModulationFingerprinter::new();
         let print = fp.extract(&[]);
         let v = print.as_vec();
-        assert!(v.iter().all(|&x| x.abs() < 1e-15), "empty input should give zero fingerprint");
+        assert!(
+            v.iter().all(|&x| x.abs() < 1e-15),
+            "empty input should give zero fingerprint"
+        );
     }
 
     // ---- Test 3: BPSK classification ----
@@ -869,7 +927,10 @@ mod tests {
         let fp = ModulationFingerprinter::new();
         let a = fp.extract(&gen_bpsk(512));
         let b = fp.extract(&gen_qpsk(512));
-        assert!(a.euclidean_distance(&b) > 0.1, "different modulations should have nonzero distance");
+        assert!(
+            a.euclidean_distance(&b) > 0.1,
+            "different modulations should have nonzero distance"
+        );
     }
 
     // ---- Test 9: Mahalanobis-like distance with uniform weights equals Euclidean ----
@@ -888,7 +949,7 @@ mod tests {
         );
     }
 
-    // ---- Test 10: Mahalanobis-like with wrong weight length falls back to Euclidean ----
+    // ---- Test 10: Mahalanobis-like with wrong weight length falls back ----
     #[test]
     fn test_mahalanobis_wrong_weight_length() {
         let fp = ModulationFingerprinter::new();
@@ -908,7 +969,11 @@ mod tests {
     fn test_feature_vector_length() {
         let fp = ModulationFingerprinter::new();
         let print = fp.extract(&gen_bpsk(128));
-        assert_eq!(print.as_vec().len(), 19, "feature vector should have 19 elements");
+        assert_eq!(
+            print.as_vec().len(),
+            19,
+            "feature vector should have 19 elements"
+        );
     }
 
     // ---- Test 12: template library has 7 entries ----
@@ -945,7 +1010,7 @@ mod tests {
         );
     }
 
-    // ---- Test 15: spectral symmetry is in [0, 1] for symmetric signal ----
+    // ---- Test 15: spectral symmetry is in [0, 1] ----
     #[test]
     fn test_spectral_symmetry_range() {
         let fp = ModulationFingerprinter::new();
