@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 504+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 529+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -295,6 +295,12 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 ### Recent Updates
 
 
+- **Batches 101-105 DSP Blocks** - 25 new modules (529 total, 105 batches complete). New categories: photonics, quantum, automotive, acoustics, wavelets:
+  - Batch 101: Blind Spectrum Sensing, Companding Codec, Subcarrier Allocator, Multipath Equalizer Sparse, Injection Locking Detector (509 total)
+  - Batch 102: Cyclic Spectral Analysis, RF Impairment Calibrator, Spectrogram Anomaly Detector, Network Time Synchronizer, Pulse Descriptor Extractor (514 total)
+  - Batch 103: Photonic Processing, Oscilloscope Trigger, Psychoacoustic Codec, Quantum Key Distribution, Ultra Wideband Ranging (519 total)
+  - Batch 104: Wavelength Division Mux, IMU-Aided Tracking, RF Impedance Tuner, Bistatic Radar Processor, Frequency Domain Oversampled DFT (524 total)
+  - Batch 105: Acoustic Echo Canceller, Welch Periodogram, Pulse Doppler Processor, DTMF Detector, Wavelet Denoiser (529 total)
 - **Batches 91-100 DSP Blocks (500+ Milestone)** - 50 new modules (504 total, 100 batches complete). New categories: automotive radar, IoT protocols, spectrum monitoring, advanced MIMO:
   - Batch 91-94: (modules 455-478) Various DSP blocks continuing radar/EW, satellite, and advanced signal processing
   - Batch 95: Phasor Measurement Unit, FMCW Automotive Processor, NR Resource Grid Mapper, Sigfox Decoder, Ambient Backscatter Processor (479 total)

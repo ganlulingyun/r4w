@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-100) — 454+ new DSP modules bringing the total to 504 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-105) — 479+ new DSP modules bringing the total to 529 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -714,7 +714,12 @@ Measured with `tokei`:
   - Batch 98: Spectrum Hole Detector (cognitive radio spectrum opportunity identification), Time-Frequency Reassignment (sharpened spectrogram via reassignment method), Phase Coherence Analyzer (multi-channel phase stability measurement), Spurious Emission Scanner (regulatory compliance spurious emission detection), Carrier Aggregation Scheduler (multi-carrier resource allocation for LTE-A/5G)
   - Batch 99: Spatio-Temporal Fusion (multi-sensor data fusion across space and time), Spectral Correlation Analyzer (cyclostationary feature extraction and analysis), Spurs Mitigation (spurious signal detection and cancellation), OAM Beam Generator (orbital angular momentum beam synthesis for MIMO), Protocol Anomaly Detector (RF protocol deviation and anomaly detection)
   - Batch 100: Cyclic Redundancy Check Parallel (high-throughput parallel CRC computation), Particle Filter Tracker (sequential Monte Carlo target tracking), Spectral Kurtosis Detector (non-Gaussian transient detection via spectral kurtosis), Orthogonal Space-Time Block Code (generalized OSTBC for multi-antenna diversity), Root Raised Cosine Matched Filter Bank (multi-rate RRC matched filtering for symbol detection)
-  - All blocks wired into the visual pipeline builder (now 504 blocks) with property editors and block metadata
+  - Batch 101: Blind Spectrum Sensing (wideband energy/cyclostationary spectrum sensing), Companding Codec (mu-law/A-law companding for voice), Subcarrier Allocator (OFDM subcarrier resource allocation), Multipath Equalizer Sparse (sparse channel equalization), Injection Locking Detector (oscillator injection locking detection)
+  - Batch 102: Cyclic Spectral Analysis (cyclostationary spectral feature extraction), RF Impairment Calibrator (IQ imbalance and DC offset calibration), Spectrogram Anomaly Detector (time-frequency anomaly identification), Network Time Synchronizer (NTP/PTP network clock synchronization), Pulse Descriptor Extractor (radar pulse parameter extraction for ESM)
+  - Batch 103: Photonic Processing (optical signal processing and modulation), Oscilloscope Trigger (digital oscilloscope triggering modes), Psychoacoustic Codec (perceptual audio coding with masking models), Quantum Key Distribution (BB84 quantum key exchange simulation), Ultra Wideband Ranging (UWB time-of-flight distance measurement)
+  - Batch 104: Wavelength Division Mux (WDM optical channel multiplexing), IMU-Aided Tracking (inertial measurement unit sensor fusion for tracking), RF Impedance Tuner (automated antenna impedance matching), Bistatic Radar Processor (bistatic radar geometry and signal processing), Frequency Domain Oversampled DFT (oversampled DFT filterbank for channelization)
+  - Batch 105: Acoustic Echo Canceller (adaptive echo cancellation for voice communications), Welch Periodogram (Welch method PSD estimation with segment averaging), Pulse Doppler Processor (pulsed radar Doppler processing for moving target detection), DTMF Detector (dual-tone multi-frequency signaling detection), Wavelet Denoiser (wavelet-based signal denoising with thresholding)
+  - All blocks wired into the visual pipeline builder (now 529 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
