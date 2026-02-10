@@ -8938,3 +8938,76 @@ Five batches of five modules each, expanding into OFDM pilot processing, sequent
 **Cumulative**: 579 standalone DSP modules, 115 batches complete. Pipeline builder now has 579+ block types. New categories added: OFDM pilot processing, sequential detection (MLSE), amateur radio digital modes (JT65, WSPR, PSK31, DRM), quaternion signal processing, satellite TLE tracking (SGP4/SDP4), belief propagation decoding, biometric signal processing (ECG QRS detection, MFCC), direction finding (Watson-Watt), EMI conducted analysis (CISPR), advanced mathematical methods (expectation maximization, Volterra series, tensor HOSVD, matrix completion, Prony method).
 
 **Documentation Updates**: Updated CLAUDE.md (module count 554+ to 579+, added batches 111-115 Recent Updates bullet), OVERVIEW.md (Batches 13-110 to 13-115, 554 to 579 blocks, added batch entries 111-115), and added batches 111-115 to PROMPT_HISTORY.md.
+
+### Batches 116-124: 45 New DSP Modules (579 to 624 Total)
+
+Nine batches of five modules each, expanding into free-space optical communications, LoRaWAN MAC scheduling, ZigBee framing, millimeter wave beamforming, optical coherent reception, biomedical ECG classification, synthetic aperture sonar, geomagnetic storm detection, music pitch tracking, photoacoustic imaging, industrial process modulation, acoustic emission sensing, RF adaptive nulling, weather radar clutter suppression, radiation detection, powerline carrier communications, RFID backscatter, inertial navigation, adaptive acoustic beamforming, telemetry framing, seismic detection, EMC radiated immunity, ultrasound beam synthesis, speech enhancement beamforming, GPR subsurface imaging, digital twin state observation, EV motor commutation, precision agriculture soil sensing, passive radar, radio astronomy, underwater acoustic modem, lightning analysis, and RDF network triangulation.
+
+**Batch 116 (584 modules) — Free-Space Optical, LoRaWAN MAC & mmWave Beamforming**:
+1. **Free Space Optical Channel** (`free_space_optical_channel.rs`) — FSO turbulence and scintillation channel model.
+2. **LoRaWAN MAC Scheduler** (`lorawan_mac_scheduler.rs`) — LoRaWAN Class A/B/C MAC layer scheduling.
+3. **Phase Locked Loop Biquad** (`phase_locked_loop_biquad.rs`) — Biquad-based PLL with configurable loop bandwidth.
+4. **Millimeter Wave Beamforming** (`millimeter_wave_beamforming.rs`) — mmWave phased array beamforming for 5G NR.
+5. **IEEE 802.15.4 ZigBee Frame Parser** (`ieee_802154_zigbee_frame_parser.rs`) — ZigBee/802.15.4 MAC frame parsing and construction.
+
+**Batch 117 (589 modules) — Whitening, Classification & Interpolation**:
+1. **Linear Congruential Whitener** (`linear_congruential_whitener.rs`) — LCG-based data whitening/scrambling.
+2. **Automatic Modulation Classifier** (`automatic_modulation_classifier.rs`) — Blind modulation recognition via feature extraction.
+3. **Polyphase Golay Correlator** (`polyphase_golay_correlator.rs`) — Efficient Golay complementary sequence correlation.
+4. **Power Law Spectrum Estimator** (`power_law_spectrum_estimator.rs`) — Power-law spectral density estimation.
+5. **Lagrange Polynomial Interpolator** (`lagrange_polynomial_interpolator.rs`) — Lagrange polynomial interpolation for sample reconstruction.
+
+**Batch 118 (594 modules) — Detection, Oscillators & Frequency Hopping**:
+1. **Incoherent Detector** (`incoherent_detector.rs`) — Non-coherent energy detection for signal presence.
+2. **CSAC Reference Oscillator** (`csac_reference_oscillator.rs`) — Chip-scale atomic clock reference modeling.
+3. **Parametric Doppler Estimator** (`parametric_doppler_estimator.rs`) — Parametric Doppler shift estimation for moving targets.
+4. **Multipath Profile Extractor** (`multipath_profile_extractor.rs`) — Multipath channel profile extraction and characterization.
+5. **Frequency Hopping Controller** (`frequency_hopping_controller.rs`) — FH sequence generation and hop timing control.
+
+**Batch 119 (599 modules) — Optical, Biomedical & Sonar**:
+1. **Optical Coherent Receiver** (`optical_coherent_receiver.rs`) — Coherent optical receiver with digital signal processing.
+2. **Bio ECG Arrhythmia Classifier** (`bio_ecg_arrhythmia_classifier.rs`) — ECG arrhythmia detection and classification.
+3. **Synthetic Aperture Sonar** (`synthetic_aperture_sonar.rs`) — SAS image formation for underwater imaging.
+4. **Geomagnetic Storm Detector** (`geomagnetic_storm_detector.rs`) — Geomagnetic disturbance detection from magnetometer data.
+5. **Music Pitch Tracker** (`music_pitch_tracker.rs`) — Musical pitch detection and tracking.
+
+**Batch 120 (604 modules) — Photoacoustic Imaging, Industrial & Weather Radar**:
+1. **Photoacoustic Image Reconstructor** (`photoacoustic_image_reconstructor.rs`) — Photoacoustic tomography image reconstruction.
+2. **Industrial Process Modulation** (`industrial_process_modulation.rs`) — Process control signal modulation and demodulation.
+3. **Acoustic Emission Sensor** (`acoustic_emission_sensor.rs`) — Acoustic emission event detection for structural monitoring.
+4. **RF Mitigation Adaptive Nulling** (`rf_mitigation_adaptive_nulling.rs`) — Adaptive null steering for RF interference mitigation.
+5. **Weather Radar Clutter Suppressor** (`weather_radar_clutter_suppressor.rs`) — Ground clutter suppression for weather radar.
+
+**Batch 121 (609 modules) — Radiation, Powerline & RFID**:
+1. **Radiation Detector Processor** (`radiation_detector_processor.rs`) — Nuclear radiation pulse processing and spectroscopy.
+2. **Powerline Carrier Modem** (`powerline_carrier_modem.rs`) — Power line communication modem signal processing.
+3. **RFID Backscatter Receiver** (`rfid_backscatter_receiver.rs`) — RFID tag backscatter signal demodulation.
+4. **Inertial Nav Processor** (`inertial_nav_processor.rs`) — INS mechanization and error state Kalman filter.
+5. **Acoustic Beamformer Adaptive** (`acoustic_beamformer_adaptive.rs`) — Adaptive acoustic beamforming for microphone arrays.
+
+**Batch 122 (614 modules) — Telemetry, Seismic & Ultrasound**:
+1. **Telemetry Framer** (`telemetry_framer.rs`) — Telemetry frame synchronization and data extraction.
+2. **Seismic Arrival Detector** (`seismic_arrival_detector.rs`) — P-wave and S-wave seismic arrival time detection.
+3. **Tracking Doppler Estimator** (`tracking_doppler_estimator.rs`) — Target tracking Doppler estimation for radar.
+4. **EMC Radiated Immunity** (`emc_radiated_immunity.rs`) — Radiated EMC immunity test signal generation.
+5. **Ultrasound Beam Synthesizer** (`ultrasound_beam_synthesizer.rs`) — Ultrasound phased array beam synthesis.
+
+**Batch 123 (619 modules) — Speech Enhancement, GPR & Digital Twin**:
+1. **Speech Enhancement Beamforming** (`speech_enhancement_beamforming.rs`) — Multi-microphone speech enhancement via beamforming.
+2. **GPR Subsurface Imager** (`gpr_subsurface_imager.rs`) — Ground-penetrating radar B-scan image formation.
+3. **Digital Twin State Observer** (`digital_twin_state_observer.rs`) — Digital twin state estimation and synchronization.
+4. **EV Motor Commutation Controller** (`ev_motor_commutation_controller.rs`) — Electric vehicle motor FOC commutation control.
+5. **Precision Ag Soil Sensor** (`precision_ag_soil_sensor.rs`) — Precision agriculture soil moisture/nutrient sensing.
+
+**Batch 124 (624 modules) — Passive Radar, Radio Astronomy & Underwater Acoustic**:
+1. **Passive Radar Processor** (`passive_radar_processor.rs`) — Passive bistatic radar signal processing using illuminators of opportunity.
+2. **Radio Astronomy Receiver** (`radio_astronomy_receiver.rs`) — Radio telescope backend signal processing and RFI excision.
+3. **Underwater Acoustic Modem** (`underwater_acoustic_modem.rs`) — Underwater acoustic communication modem with OFDM.
+4. **Lightning Stroke Analyzer** (`lightning_stroke_analyzer.rs`) — Lightning electromagnetic pulse detection and geolocation.
+5. **RDF Network Triangulator** (`rdf_network_triangulator.rs`) — Radio direction finding network triangulation and geolocation.
+
+**Session Totals**: 45 new modules (579 to 624), 124 batches complete.
+
+**Cumulative**: 624 standalone DSP modules, 124 batches complete. Pipeline builder now has 624+ block types. New categories added: free-space optical communications, LoRaWAN MAC scheduling, ZigBee/802.15.4 framing, mmWave beamforming (5G NR), optical coherent reception, biomedical ECG arrhythmia classification, synthetic aperture sonar, geomagnetic storm detection, music pitch tracking, photoacoustic imaging, industrial process modulation, acoustic emission sensing, RF adaptive nulling, weather radar clutter suppression, nuclear radiation detection, powerline carrier communications, RFID backscatter, inertial navigation (INS/Kalman), adaptive acoustic beamforming, telemetry framing, seismic P/S-wave detection, EMC radiated immunity, ultrasound beam synthesis, speech enhancement beamforming, GPR subsurface imaging, digital twin state observation, EV motor commutation (FOC), precision agriculture soil sensing, passive bistatic radar, radio astronomy (RFI excision), underwater acoustic modem, lightning stroke analysis, RDF network triangulation.
+
+**Documentation Updates**: Updated CLAUDE.md (module count 579+ to 624+, added batches 116-124 Recent Updates bullet), OVERVIEW.md (Batches 13-115 to 13-124, 579 to 624 blocks, added batch entries 116-124), and added batches 116-124 to PROMPT_HISTORY.md.

@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 579+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 624+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -293,6 +293,17 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batches 116-124 DSP Blocks** - 45 new modules (624 total, 124 batches complete). New categories: free-space optical, LoRaWAN MAC, ZigBee framing, mmWave beamforming, optical coherent reception, bio-medical ECG classification, synthetic aperture sonar, geomagnetic storm detection, music pitch tracking, photoacoustic imaging, industrial process modulation, acoustic emission sensing, RF adaptive nulling, weather radar clutter suppression, radiation detection, powerline carrier, RFID backscatter, inertial navigation, adaptive acoustic beamforming, telemetry framing, seismic detection, EMC radiated immunity, ultrasound beam synthesis, speech enhancement beamforming, GPR subsurface imaging, digital twin state observation, EV motor commutation, precision agriculture soil sensing, passive radar, radio astronomy, underwater acoustic modem, lightning analysis, RDF triangulation:
+  - Batch 116: Free Space Optical Channel, LoRaWAN MAC Scheduler, Phase Locked Loop Biquad, Millimeter Wave Beamforming, IEEE 802.15.4 ZigBee Frame Parser (584 total)
+  - Batch 117: Linear Congruential Whitener, Automatic Modulation Classifier, Polyphase Golay Correlator, Power Law Spectrum Estimator, Lagrange Polynomial Interpolator (589 total)
+  - Batch 118: Incoherent Detector, CSAC Reference Oscillator, Parametric Doppler Estimator, Multipath Profile Extractor, Frequency Hopping Controller (594 total)
+  - Batch 119: Optical Coherent Receiver, Bio ECG Arrhythmia Classifier, Synthetic Aperture Sonar, Geomagnetic Storm Detector, Music Pitch Tracker (599 total)
+  - Batch 120: Photoacoustic Image Reconstructor, Industrial Process Modulation, Acoustic Emission Sensor, RF Mitigation Adaptive Nulling, Weather Radar Clutter Suppressor (604 total)
+  - Batch 121: Radiation Detector Processor, Powerline Carrier Modem, RFID Backscatter Receiver, Inertial Nav Processor, Acoustic Beamformer Adaptive (609 total)
+  - Batch 122: Telemetry Framer, Seismic Arrival Detector, Tracking Doppler Estimator, EMC Radiated Immunity, Ultrasound Beam Synthesizer (614 total)
+  - Batch 123: Speech Enhancement Beamforming, GPR Subsurface Imager, Digital Twin State Observer, EV Motor Commutation Controller, Precision Ag Soil Sensor (619 total)
+  - Batch 124: Passive Radar Processor, Radio Astronomy Receiver, Underwater Acoustic Modem, Lightning Stroke Analyzer, RDF Network Triangulator (624 total)
 
 - **Batches 111-115 DSP Blocks** - 25 new modules (579 total, 115 batches complete). New categories: OFDM pilot processing, sequential detection, amateur radio digital modes (JT65/WSPR/PSK31/DRM), quaternion signal processing, satellite TLE tracking, belief propagation decoding, biometric signal processing (ECG/MFCC), direction finding, EMI analysis, advanced math methods:
   - Batch 111: OFDM Pilot Interpolator, Sequential Detection MLSE, JT65 Modulator, WSPR Modulator, DRM OFDM Processor (559 total)
