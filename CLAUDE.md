@@ -84,6 +84,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `bin_statistics.rs`: Per-FFT-bin statistical accumulation (BinStatistics min/max/mean/variance, accumulate_max_hold, dynamic_range)
   - `check_lfsr.rs`: LFSR sequence verification for BER testing (LfsrChecker, synchronize offset detection, generate_reference, cumulative BER)
   - `timing_error_detector.rs`: Gardner, Mueller-Muller, Early-Late Gate, Zero-Crossing TEDs for clock recovery (real/complex, streaming TimingErrorDetector block)
+  - `cma_equalizer.rs`: Constant Modulus Algorithm blind equalizer (CMA-2-2, CMA-1-2, RCA variants), Godard cost function, dispersion constant computation, QPSK/16-QAM presets
+  - `pdu_to_tagged_stream.rs`: PDU to tagged stream converter (reverse of tagged_stream_to_pdu), queue-based with drain/drain_one/drain_limited, max queue depth, roundtrip support
+  - `vector_quantizer.rs`: Vector quantization codebook encoder/decoder, Euclidean/Manhattan/EuclideanSquared metrics, k-means codebook training, uniform scalar codebook generation
+  - `frequency_xlating_fft_filter.rs`: Frequency-translating FFT filter with NCO mixing, overlap-save FFT convolution, decimation, windowed-sinc lowpass design (Hamming window)
   - `constellation_demapper.rs`: Soft bit demapping via max-log-MAP (BPSK/QPSK fast-path, generic ConstellationDemapper for arbitrary constellations, hard/soft output)
   - `eye_diagram.rs`: Eye diagram generator with trace accumulation (mean_trace, envelope, eye_opening, timing_jitter_rms for ISI assessment)
   - `evm_calculator.rs`: Error Vector Magnitude measurement (RMS/peak/percentile EVM in linear/dB/percent, streaming EvmCalculator with history)
@@ -181,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 296+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 300+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -289,6 +293,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 60 DSP Blocks** - CMA Equalizer (`cma_equalizer.rs` - Constant Modulus Algorithm blind equalizer with CMA-2-2, CMA-1-2, and Reduced Constellation Algorithm variants, Godard cost function, dispersion constant computation, QPSK/16-QAM presets), PDU to Tagged Stream (`pdu_to_tagged_stream.rs` - PDU to tagged stream converter, reverse of tagged_stream_to_pdu, queue-based with drain/drain_one/drain_limited, max queue depth, roundtrip support), Vector Quantizer (`vector_quantizer.rs` - vector quantization codebook encoder/decoder, Euclidean/Manhattan/EuclideanSquared distance metrics, k-means codebook training from data, uniform scalar codebook generation), Frequency-Xlating FFT Filter (`frequency_xlating_fft_filter.rs` - frequency-translating FFT filter with NCO mixing, overlap-save FFT convolution, decimation, windowed-sinc lowpass design with Hamming window), Timing Error Detector (`timing_error_detector.rs` - standalone timing error detectors: Mueller-Muller, Gardner, Early-Late gate, Zero-crossing, plus PI loop filter with bandwidth/damping design equations). ~300 DSP modules total.
 
 - **Batch 59 DSP Blocks** - Digital Up Converter (`digital_up_converter.rs` - DUC with CIC interpolation, FIR compensation filter, NCO mixer for baseband-to-IF upconversion, complements DDC), Sigma-Delta Modulator (`sigma_delta_modulator.rs` - sigma-delta modulation/demodulation for ADC/DAC with configurable order 1st-3rd and oversampling ratio, complements sigma_delta.rs converter), Reed-Solomon Codec (`reed_solomon.rs` - Reed-Solomon encoder/decoder over GF(2^8) with generator polynomial 0x11D, configurable t-symbol error correction, complements fec/reed_solomon.rs), FMCW Radar (`fmcw_radar.rs` - FMCW radar processor with chirp generation, beat frequency mixing, range/Doppler FFT processing, range-Doppler map, automotive 77 GHz preset), Viterbi Decoder (`viterbi_decoder.rs` - convolutional encoder rate 1/n with hard/soft Viterbi decoding, traceback, NASA k=7 and GSM k=5 presets). ~296+ DSP modules total.
 
