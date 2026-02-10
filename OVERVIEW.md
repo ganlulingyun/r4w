@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-90)** — 404+ new DSP modules bringing the total to 454 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-100) — 454+ new DSP modules bringing the total to 504 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -707,7 +707,14 @@ Measured with `tokei`:
   - Batch 88: NOAA Weather Decoder (SAME/EAS emergency alert decoding), Beam Steering Controller (phased array steering with configurable scan patterns), Link Budget Optimizer (automated RF link budget optimization with margin analysis), Dynamic Spectrum Manager (DSA coordination for cognitive radio networks), Timing Advance Estimator (round-trip delay for cellular timing advance)
   - Batch 89: Emitter Localization (RF emitter geolocation via TDOA/AOA/hybrid), Adaptive Nulling Beamformer (adaptive beamforming with null steering for interference suppression), Radar Waveform Classifier (radar emission ID for ESM/ELINT), Satellite Link Predictor (LEO/MEO/GEO link budget prediction with orbital mechanics), DVB-S2 Deframer (DVB-S2 baseband frame deframing per ETSI EN 302 307)
   - Batch 90: Transmission Line Simulator (impedance matching and VSWR analysis), Radar Cross Section Estimator (RCS estimation for radar target modeling), ESM Receiver (Electronic Support Measures for radar signal intercept), Spectral Mask Painter (spectral mask visualization and compliance checking), RF Propagation Model (Free-space/Hata/COST-231/ITU-R path loss models for link planning)
-  - All blocks wired into the visual pipeline builder (now 454 blocks) with property editors and block metadata
+  - Batch 91-94: (modules 455-478) Continued expansion across radar/EW, satellite, advanced signal processing domains
+  - Batch 95: Phasor Measurement Unit (synchrophasor estimation for power grid monitoring), FMCW Automotive Processor (77 GHz automotive radar target detection), NR Resource Grid Mapper (5G NR OFDM resource element mapping), Sigfox Decoder (ultra-narrowband IoT protocol decoding), Ambient Backscatter Processor (backscatter communication signal extraction)
+  - Batch 96: RF Power Monitor (real-time RF power measurement and logging), Constellation Rotation Detector (blind rotation estimation for digital modulations), Interference Classifier (automated interference type identification), Timing Phase Detector Hybrid (combined Gardner/Mueller-Muller timing recovery), Spectral Occupancy Monitor (wideband spectrum utilization tracking)
+  - Batch 97: Frequency Domain Channel Sounder (wideband channel characterization via frequency-domain probing), Digital Predistortion (memory polynomial DPD for PA linearization), Turbo Equalizer (iterative equalization and decoding), Vector Signal Analyzer (comprehensive modulation quality analysis), Link Adaptation Engine (adaptive MCS selection for throughput optimization)
+  - Batch 98: Spectrum Hole Detector (cognitive radio spectrum opportunity identification), Time-Frequency Reassignment (sharpened spectrogram via reassignment method), Phase Coherence Analyzer (multi-channel phase stability measurement), Spurious Emission Scanner (regulatory compliance spurious emission detection), Carrier Aggregation Scheduler (multi-carrier resource allocation for LTE-A/5G)
+  - Batch 99: Spatio-Temporal Fusion (multi-sensor data fusion across space and time), Spectral Correlation Analyzer (cyclostationary feature extraction and analysis), Spurs Mitigation (spurious signal detection and cancellation), OAM Beam Generator (orbital angular momentum beam synthesis for MIMO), Protocol Anomaly Detector (RF protocol deviation and anomaly detection)
+  - Batch 100: Cyclic Redundancy Check Parallel (high-throughput parallel CRC computation), Particle Filter Tracker (sequential Monte Carlo target tracking), Spectral Kurtosis Detector (non-Gaussian transient detection via spectral kurtosis), Orthogonal Space-Time Block Code (generalized OSTBC for multi-antenna diversity), Root Raised Cosine Matched Filter Bank (multi-rate RRC matched filtering for symbol detection)
+  - All blocks wired into the visual pipeline builder (now 504 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT

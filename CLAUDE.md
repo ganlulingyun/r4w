@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 454+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 504+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -294,6 +294,15 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+
+- **Batches 91-100 DSP Blocks (500+ Milestone)** - 50 new modules (504 total, 100 batches complete). New categories: automotive radar, IoT protocols, spectrum monitoring, advanced MIMO:
+  - Batch 91-94: (modules 455-478) Various DSP blocks continuing radar/EW, satellite, and advanced signal processing
+  - Batch 95: Phasor Measurement Unit, FMCW Automotive Processor, NR Resource Grid Mapper, Sigfox Decoder, Ambient Backscatter Processor (479 total)
+  - Batch 96: RF Power Monitor, Constellation Rotation Detector, Interference Classifier, Timing Phase Detector Hybrid, Spectral Occupancy Monitor (484 total)
+  - Batch 97: Frequency Domain Channel Sounder, Digital Predistortion, Turbo Equalizer, Vector Signal Analyzer, Link Adaptation Engine (489 total)
+  - Batch 98: Spectrum Hole Detector, Time-Frequency Reassignment, Phase Coherence Analyzer, Spurious Emission Scanner, Carrier Aggregation Scheduler (494 total)
+  - Batch 99: Spatio-Temporal Fusion, Spectral Correlation Analyzer, Spurs Mitigation, OAM Beam Generator, Protocol Anomaly Detector (499 total)
+  - Batch 100: Cyclic Redundancy Check Parallel, Particle Filter Tracker, Spectral Kurtosis Detector, Orthogonal Space-Time Block Code, Root Raised Cosine Matched Filter Bank (504 total)
 - **Batches 84-90 DSP Blocks** - 35 new modules (454 total, 90 batches complete). New categories: radar/EW, satellite, propagation, broadcast:
   - Batch 84: Convolutional Encoder, Delay Lock Loop, Blind Timing Recovery, Time Domain Equalizer, ML Sequence Detector (72 tests)
   - Batch 85: Constellation Encoder, Log Likelihood Ratio, Comb Filter, Repetition Code, Overlap Add (88 tests)
