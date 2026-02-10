@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 330+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 379+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -293,6 +293,15 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batches 69-75 DSP Blocks** - 35 new modules (379 total, 75 batches complete):
+  - Batch 69: AGC Attack/Decay (`agc_attack_decay.rs` - dual-rate AGC with separate attack/decay time constants), Noise Gate (`noise_gate.rs` - amplitude-gated noise suppression with threshold hysteresis), Signal Clipper (`signal_clipper.rs` - hard/soft clipping for peak limiting), Cross Correlator (`cross_correlator.rs` - streaming cross-correlation with lag output), Symbol Demapper (`symbol_demapper.rs` - constellation-to-bits with hard/soft decisions)
+  - Batch 70: Depuncture (`depuncture.rs` - FEC depuncturing to restore erased bits), IQ Imbalance Corrector (`iq_imbalance_corrector.rs` - online IQ gain/phase correction), Tagged Stream Mux (`tagged_stream_mux.rs` - multiplex tagged streams by length tags), PLL Carrier Tracking (`pll_carrier_tracking.rs` - second-order PLL for carrier phase/frequency lock), Integrate and Dump (`integrate_and_dump.rs` - matched filter for rectangular pulse detection)
+  - Batch 71: Golay Code (`golay_code.rs` - (23,12) and (24,12) perfect binary Golay encoder/decoder), Variable Rate CIC (`variable_rate_cic.rs` - CIC with runtime-adjustable decimation ratio), Pilot Inserter (`pilot_inserter.rs` - periodic pilot symbol insertion for channel estimation), Freq Lock Detector (`freq_lock_detector.rs` - frequency lock indicator for PLL/FLL loops), CFO Corrector (`cfo_corrector.rs` - carrier frequency offset removal via NCO mixing)
+  - Batch 72: Channel Estimator (`channel_estimator.rs` - pilot-based LS/MMSE channel estimation with interpolation), Mu-Law Codec (`mu_law_codec.rs` - ITU-T G.711 mu-law companding for voice), Pre-Emphasis (`pre_emphasis.rs` - first-order pre/de-emphasis filter for FM and audio), Noise Shaper (`noise_shaper.rs` - error feedback noise shaping for quantization), Crest Factor Reduction (`crest_factor_reduction.rs` - PAPR reduction via peak cancellation)
+  - Batch 73: Barker Code (`barker_code.rs` - Barker sequence generator for all standard lengths 2-13), Zadoff-Chu Generator (`zadoff_chu_generator.rs` - CAZAC sequence generator for LTE/5G preambles), Gold Code Generator (`gold_code_generator.rs` - Gold sequence generator from preferred pair LFSRs), Sync Word Detector (`sync_word_detector.rs` - correlator-based frame synchronization with configurable threshold), Group Delay Equalizer (`group_delay_equalizer.rs` - all-pass filter for group delay compensation)
+  - Batch 74: SC-FDMA (`sc_fdma.rs` - Single-Carrier FDMA modulator/demodulator for LTE uplink), Spectral Mask (`spectral_mask.rs` - out-of-band emission compliance checker), Power Control (`power_control.rs` - open/closed-loop transmit power control with TPC commands), HARQ Manager (`harq_manager.rs` - Hybrid ARQ process manager with Chase combining/incremental redundancy), Rate Matcher (`rate_matcher.rs` - circular buffer rate matching for turbo/LDPC codes)
+  - Batch 75: Alamouti Codec (`alamouti_codec.rs` - Alamouti 2x1/2x2 space-time block coding encoder/decoder), Channel Capacity (`channel_capacity.rs` - Shannon capacity, MIMO capacity, waterfilling allocation), MIMO Precoder (`mimo_precoder.rs` - SVD/ZF/MMSE precoding for spatial multiplexing), Waterfilling (`waterfilling.rs` - optimal power allocation across parallel channels), Antenna Array Response (`antenna_array_response.rs` - ULA/UCA steering vectors, array factor, beampattern visualization)
 
 - **Batch 65 DSP Blocks** - Logarithm (`log_blk.rs` - base-10 and natural logarithm for signal power analysis), Addition (`add_blk.rs` - element-wise addition of two streams), Tapped Delay Line (`tapped_delay_line.rs` - multichannel FIR with configurable tap coefficients), Interpolating Resampler (`interpolating_resampler.rs` - Farrow polynomial structure for fractional sample rate conversion), Socket PDU (`socket_pdu.rs` - UDP socket source/sink for PDU network transport). 330 DSP modules total, 65 batches complete.
 

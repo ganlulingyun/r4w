@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-65)** — 280+ new DSP modules bringing the total to 330 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-75)** — 329+ new DSP modules bringing the total to 379 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -693,7 +693,14 @@ Measured with `tokei`:
   - Batch 63: Unpacked to Packed (boolean bit stream → byte packing with MSB/LSB ordering), Tagged Stream to PDU (reverse of pdu_to_tagged_stream, metadata-driven framing), Complex to Argument (phase angle extraction atan2(Q,I)), Maximum Block (element-wise and windowed max finder), Frequency Shift (NCO-based frequency translation)
   - Batch 64: Absolute Value (complex magnitude and real absolute value), Character to Float (byte/ASCII conversion for text protocol data), Interleave (multiplex N streams with round-robin scheduling), File Descriptor Source/Sink (low-level file I/O for /dev/null and pipe integration)
   - Batch 65: Logarithm (base-10 and natural logarithm for signal power analysis), Addition (element-wise addition of two streams), Tapped Delay Line (multichannel FIR with configurable tap coefficients), Interpolating Resampler (Farrow polynomial structure for fractional sample rate conversion), Socket PDU (UDP socket source/sink for PDU network transport)
-  - All blocks wired into the visual pipeline builder (now 330 blocks) with property editors and block metadata
+  - Batch 69: AGC Attack/Decay (dual-rate AGC with separate attack/decay time constants), Noise Gate (amplitude-gated noise suppression with threshold hysteresis), Signal Clipper (hard/soft clipping for peak limiting), Cross Correlator (streaming cross-correlation with lag output), Symbol Demapper (constellation-to-bits with hard/soft decisions)
+  - Batch 70: Depuncture (FEC depuncturing to restore erased bits), IQ Imbalance Corrector (online IQ gain/phase correction), Tagged Stream Mux (multiplex tagged streams by length tags), PLL Carrier Tracking (second-order PLL for carrier phase/frequency lock), Integrate and Dump (matched filter for rectangular pulse detection)
+  - Batch 71: Golay Code ((23,12) and (24,12) perfect binary Golay encoder/decoder), Variable Rate CIC (CIC with runtime-adjustable decimation ratio), Pilot Inserter (periodic pilot symbol insertion for channel estimation), Freq Lock Detector (frequency lock indicator for PLL/FLL loops), CFO Corrector (carrier frequency offset removal via NCO mixing)
+  - Batch 72: Channel Estimator (pilot-based LS/MMSE channel estimation with interpolation), Mu-Law Codec (ITU-T G.711 mu-law companding for voice), Pre-Emphasis (first-order pre/de-emphasis filter for FM and audio), Noise Shaper (error feedback noise shaping for quantization), Crest Factor Reduction (PAPR reduction via peak cancellation)
+  - Batch 73: Barker Code (Barker sequence generator for all standard lengths 2-13), Zadoff-Chu Generator (CAZAC sequence generator for LTE/5G preambles), Gold Code Generator (Gold sequence generator from preferred pair LFSRs), Sync Word Detector (correlator-based frame synchronization with configurable threshold), Group Delay Equalizer (all-pass filter for group delay compensation)
+  - Batch 74: SC-FDMA (Single-Carrier FDMA modulator/demodulator for LTE uplink), Spectral Mask (out-of-band emission compliance checker), Power Control (open/closed-loop transmit power control with TPC commands), HARQ Manager (Hybrid ARQ process manager with Chase combining/incremental redundancy), Rate Matcher (circular buffer rate matching for turbo/LDPC codes)
+  - Batch 75: Alamouti Codec (Alamouti 2x1/2x2 space-time block coding encoder/decoder), Channel Capacity (Shannon capacity, MIMO capacity, waterfilling allocation), MIMO Precoder (SVD/ZF/MMSE precoding for spatial multiplexing), Waterfilling (optimal power allocation across parallel channels), Antenna Array Response (ULA/UCA steering vectors, array factor, beampattern visualization)
+  - All blocks wired into the visual pipeline builder (now 379 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
