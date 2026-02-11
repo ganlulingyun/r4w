@@ -203,6 +203,7 @@ pub mod dvb_s2_deframer;
 pub mod dvb_s2x_ldpc_codec;
 pub mod ecg_qrs_detector;
 pub mod early_late_gate;
+pub mod electroencephalogram_bci;
 pub mod electromyography_decomposition;
 pub mod elint_pulse_characterizer;
 pub mod emc_radiated_immunity;
