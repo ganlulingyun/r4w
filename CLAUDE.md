@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 624+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 674+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -293,6 +293,15 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batches 128-134 DSP Blocks** - 35 new modules (674 total, 134 batches complete). New categories: engine vibration analysis, GPS spoofing detection, hearing aid feedback suppression, OTDR fiber analysis, power quality event classification, ionospheric scintillation (S4/sigma-phi), synthetic aperture sonar imaging, range-velocity radar (2D CFAR), EMG gesture recognition (FastICA), propagation channel sounding, magnetic anomaly detection (MAD), turbine blade tip timing, radio direction finding (Watson-Watt/MUSIC/interferometer), fiber Bragg grating interrogation, cognitive radio spectrum brokering, sonar sub-bottom profiling, LiDAR point cloud processing (DSM/DTM), acoustic gunshot localization (TDOA), IEEE 519 harmonic analysis, railroad wheel flat detection, seismic event classification (P/S wave), satellite link budgets, MIMO spatial multiplexing (ZF/MMSE/SVD), optical coherence tomography (OCT), particle accelerator BPM, wind profiler radar (DBS), nuclear spectroscopy (gamma-ray), electromyography decomposition (MUAP), acoustic impedance tomography (EIT), QAM modem transceiver (4/16/64/256-QAM), tidal harmonic analysis, LPC speech coding (Levinson-Durbin), pulse oximetry (SpO2/PPG), passive intermodulation (IEC 62037), vibration order tracking:
+  - Batch 128: Engine Vibration Signature Analyzer, GPS Spoofing Detector, Hearing Aid Feedback Suppressor, OTDR Pulse Analyzer, Power Quality Event Classifier (644 total)
+  - Batch 129: Ionospheric Scintillation Detector, Synthetic Aperture Sonar Imager, Range Velocity Decoupling Processor, EMG Gesture Decoder, Propagation Mode Sounder (649 total)
+  - Batch 130: Magnetic Anomaly Detector, Turbine Blade Tip Timing, Radio Direction Finder, Fiber Bragg Grating Interrogator, Cognitive Radio Spectrum Broker (654 total)
+  - Batch 131: Sonar Bottom Profiler, LiDAR Point Cloud Processor, Acoustic Gunshot Localizer, Power Line Harmonic Analyzer, Railroad Wheel Flat Detector (659 total)
+  - Batch 132: Seismograph Event Classifier, Satellite Link Budget Calculator, MIMO Spatial Multiplexer, Optical Coherence Tomography, Particle Accelerator BPM (664 total)
+  - Batch 133: Wind Profiler Radar, Nuclear Spectroscopy Analyzer, Electromyography Decomposition, Acoustic Impedance Tomographer, QAM Modem Transceiver (669 total)
+  - Batch 134: Tidal Harmonic Analyzer, Speech Codec LPC, Pulse Oximeter Processor, Passive Intermod Analyzer, Vibration Order Tracker (674 total)
 
 - **Batches 116-124 DSP Blocks** - 45 new modules (624 total, 124 batches complete). New categories: free-space optical, LoRaWAN MAC, ZigBee framing, mmWave beamforming, optical coherent reception, bio-medical ECG classification, synthetic aperture sonar, geomagnetic storm detection, music pitch tracking, photoacoustic imaging, industrial process modulation, acoustic emission sensing, RF adaptive nulling, weather radar clutter suppression, radiation detection, powerline carrier, RFID backscatter, inertial navigation, adaptive acoustic beamforming, telemetry framing, seismic detection, EMC radiated immunity, ultrasound beam synthesis, speech enhancement beamforming, GPR subsurface imaging, digital twin state observation, EV motor commutation, precision agriculture soil sensing, passive radar, radio astronomy, underwater acoustic modem, lightning analysis, RDF triangulation:
   - Batch 116: Free Space Optical Channel, LoRaWAN MAC Scheduler, Phase Locked Loop Biquad, Millimeter Wave Beamforming, IEEE 802.15.4 ZigBee Frame Parser (584 total)

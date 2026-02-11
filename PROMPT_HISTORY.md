@@ -9011,3 +9011,62 @@ Nine batches of five modules each, expanding into free-space optical communicati
 **Cumulative**: 624 standalone DSP modules, 124 batches complete. Pipeline builder now has 624+ block types. New categories added: free-space optical communications, LoRaWAN MAC scheduling, ZigBee/802.15.4 framing, mmWave beamforming (5G NR), optical coherent reception, biomedical ECG arrhythmia classification, synthetic aperture sonar, geomagnetic storm detection, music pitch tracking, photoacoustic imaging, industrial process modulation, acoustic emission sensing, RF adaptive nulling, weather radar clutter suppression, nuclear radiation detection, powerline carrier communications, RFID backscatter, inertial navigation (INS/Kalman), adaptive acoustic beamforming, telemetry framing, seismic P/S-wave detection, EMC radiated immunity, ultrasound beam synthesis, speech enhancement beamforming, GPR subsurface imaging, digital twin state observation, EV motor commutation (FOC), precision agriculture soil sensing, passive bistatic radar, radio astronomy (RFI excision), underwater acoustic modem, lightning stroke analysis, RDF network triangulation.
 
 **Documentation Updates**: Updated CLAUDE.md (module count 579+ to 624+, added batches 116-124 Recent Updates bullet), OVERVIEW.md (Batches 13-115 to 13-124, 579 to 624 blocks, added batch entries 116-124), and added batches 116-124 to PROMPT_HISTORY.md.
+
+### Batches 128-134: 35 New DSP Modules (639 to 674 Total)
+
+Seven batches of five modules each, expanding into engine vibration analysis, GPS spoofing detection, hearing aid feedback suppression, fiber optic testing, power quality classification, ionospheric scintillation monitoring, synthetic aperture sonar imaging, range-velocity radar processing, EMG gesture recognition, propagation channel sounding, magnetic anomaly detection, turbine blade health monitoring, radio direction finding, fiber Bragg grating interrogation, cognitive radio spectrum brokering, sonar sub-bottom profiling, LiDAR point cloud processing, acoustic gunshot localization, power line harmonic analysis, railroad wheel flat detection, seismic event classification, satellite link budgets, MIMO spatial multiplexing, optical coherence tomography, particle accelerator beam position monitoring, wind profiler radar, nuclear spectroscopy, electromyography decomposition, acoustic impedance tomography, QAM modem transceivers, tidal harmonic analysis, LPC speech coding, pulse oximetry, passive intermodulation analysis, and vibration order tracking.
+
+**Batch 128 (644 modules) — Engine Vibration, GPS Spoofing & Hearing Aid Processing**:
+1. **Engine Vibration Signature Analyzer** (`engine_vibration_signature_analyzer.rs`) — Rotary engine vibration order analysis for condition monitoring.
+2. **GPS Spoofing Detector** (`gps_spoofing_detector.rs`) — Multi-metric GPS spoofing anomaly detection.
+3. **Hearing Aid Feedback Suppressor** (`hearing_aid_feedback_suppressor.rs`) — Acoustic feedback cancellation for hearing aids.
+4. **OTDR Pulse Analyzer** (`otdr_pulse_analyzer.rs`) — Optical Time Domain Reflectometer fiber analysis.
+5. **Power Quality Event Classifier** (`power_quality_event_classifier.rs`) — Power grid event classification (sag/swell/interruption).
+
+**Batch 129 (649 modules) — Ionospheric Scintillation, SAS Imaging & EMG Decoding**:
+1. **Ionospheric Scintillation Detector** (`ionospheric_scintillation_detector.rs`) — S4/sigma-phi scintillation indices for GNSS signal monitoring.
+2. **Synthetic Aperture Sonar Imager** (`synthetic_aperture_sonar_imager.rs`) — SAS coherent imaging for underwater environments.
+3. **Range Velocity Decoupling Processor** (`range_velocity_decoupling_processor.rs`) — Joint range-velocity radar estimation with 2D CFAR.
+4. **EMG Gesture Decoder** (`emg_gesture_decoder.rs`) — Surface EMG gesture classification with FastICA.
+5. **Propagation Mode Sounder** (`propagation_mode_sounder.rs`) — Radio propagation channel characterization.
+
+**Batch 130 (654 modules) — MAD, Turbine Monitoring & Cognitive Radio**:
+1. **Magnetic Anomaly Detector** (`magnetic_anomaly_detector.rs`) — MAD for submarine/UXO detection.
+2. **Turbine Blade Tip Timing** (`turbine_blade_tip_timing.rs`) — Gas turbine blade health monitoring.
+3. **Radio Direction Finder** (`radio_direction_finder.rs`) — Watson-Watt, MUSIC, correlative interferometer RDF.
+4. **Fiber Bragg Grating Interrogator** (`fiber_bragg_grating_interrogator.rs`) — FBG strain/temperature measurement.
+5. **Cognitive Radio Spectrum Broker** (`cognitive_radio_spectrum_broker.rs`) — Dynamic spectrum access management.
+
+**Batch 131 (659 modules) — Sonar Profiling, LiDAR & Gunshot Detection**:
+1. **Sonar Bottom Profiler** (`sonar_bottom_profiler.rs`) — Sub-bottom profiler sediment layer mapping.
+2. **LiDAR Point Cloud Processor** (`lidar_point_cloud_processor.rs`) — LiDAR terrain classification and DSM/DTM generation.
+3. **Acoustic Gunshot Localizer** (`acoustic_gunshot_localizer.rs`) — Gunshot detection and TDOA localization.
+4. **Power Line Harmonic Analyzer** (`power_line_harmonic_analyzer.rs`) — IEEE 519 harmonic distortion analysis.
+5. **Railroad Wheel Flat Detector** (`railroad_wheel_flat_detector.rs`) — Wheel flat spot detection from vibration signatures.
+
+**Batch 132 (664 modules) — Seismology, Satellite Links & MIMO**:
+1. **Seismograph Event Classifier** (`seismograph_event_classifier.rs`) — Seismic event P/S wave classification.
+2. **Satellite Link Budget Calculator** (`satellite_link_budget_calculator.rs`) — Comprehensive satcom link budget analysis.
+3. **MIMO Spatial Multiplexer** (`mimo_spatial_multiplexer.rs`) — MIMO ZF/MMSE/SVD spatial multiplexing.
+4. **Optical Coherence Tomography** (`optical_coherence_tomography.rs`) — OCT medical imaging signal processing.
+5. **Particle Accelerator BPM** (`particle_accelerator_bpm.rs`) — Beam position monitor for particle accelerators.
+
+**Batch 133 (669 modules) — Wind Profiling, Nuclear Spectroscopy & QAM Modem**:
+1. **Wind Profiler Radar** (`wind_profiler_radar.rs`) — DBS atmospheric wind velocity profiling.
+2. **Nuclear Spectroscopy Analyzer** (`nuclear_spectroscopy_analyzer.rs`) — Gamma-ray spectroscopy isotope identification.
+3. **Electromyography Decomposition** (`electromyography_decomposition.rs`) — Motor unit action potential extraction.
+4. **Acoustic Impedance Tomographer** (`acoustic_impedance_tomographer.rs`) — EIT medical imaging reconstruction.
+5. **QAM Modem Transceiver** (`qam_modem_transceiver.rs`) — Complete 4/16/64/256-QAM modem chain.
+
+**Batch 134 (674 modules) — Tidal Analysis, Speech Coding & Pulse Oximetry**:
+1. **Tidal Harmonic Analyzer** (`tidal_harmonic_analyzer.rs`) — Tidal constituent extraction and prediction.
+2. **Speech Codec LPC** (`speech_codec_lpc.rs`) — LPC speech analysis/synthesis with Levinson-Durbin.
+3. **Pulse Oximeter Processor** (`pulse_oximeter_processor.rs`) — SpO2 and heart rate from PPG signals.
+4. **Passive Intermod Analyzer** (`passive_intermod_analyzer.rs`) — PIM analysis per IEC 62037.
+5. **Vibration Order Tracker** (`vibration_order_tracker.rs`) — Rotating machinery order tracking.
+
+**Session Totals**: 35 new modules (639 to 674), 134 batches complete.
+
+**Cumulative**: 674 standalone DSP modules, 134 batches complete. Pipeline builder now has 674+ block types. New categories added: engine vibration analysis, GPS spoofing detection, hearing aid feedback suppression, OTDR fiber analysis, power quality event classification, ionospheric scintillation (S4/sigma-phi), synthetic aperture sonar imaging, range-velocity radar (2D CFAR), EMG gesture recognition (FastICA), propagation channel sounding, magnetic anomaly detection (MAD), turbine blade tip timing, radio direction finding (Watson-Watt/MUSIC/interferometer), fiber Bragg grating interrogation, cognitive radio spectrum brokering, sonar sub-bottom profiling, LiDAR point cloud processing (DSM/DTM), acoustic gunshot localization (TDOA), IEEE 519 harmonic analysis, railroad wheel flat detection, seismic event classification (P/S wave), satellite link budgets, MIMO spatial multiplexing (ZF/MMSE/SVD), optical coherence tomography (OCT), particle accelerator BPM, wind profiler radar (DBS), nuclear spectroscopy (gamma-ray), electromyography decomposition (MUAP), acoustic impedance tomography (EIT), QAM modem transceiver (4/16/64/256-QAM), tidal harmonic analysis, LPC speech coding (Levinson-Durbin), pulse oximetry (SpO2/PPG), passive intermodulation (IEC 62037), vibration order tracking.
+
+**Documentation Updates**: Updated CLAUDE.md (module count 624+ to 674+, added batches 128-134 Recent Updates bullet), OVERVIEW.md (Batches 13-124 to 13-134, 624 to 674 blocks, added batch entries 128-134), and added batches 128-134 to PROMPT_HISTORY.md.

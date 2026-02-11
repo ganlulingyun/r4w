@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-124) — 549+ new DSP modules bringing the total to 624 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-134) — 599+ new DSP modules bringing the total to 674 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -738,7 +738,14 @@ Measured with `tokei`:
   - Batch 122: Telemetry Framer (telemetry frame synchronization and data extraction), Seismic Arrival Detector (P-wave and S-wave seismic arrival time detection), Tracking Doppler Estimator (target tracking Doppler estimation for radar), EMC Radiated Immunity (radiated EMC immunity test signal generation), Ultrasound Beam Synthesizer (ultrasound phased array beam synthesis)
   - Batch 123: Speech Enhancement Beamforming (multi-microphone speech enhancement via beamforming), GPR Subsurface Imager (ground-penetrating radar B-scan image formation), Digital Twin State Observer (digital twin state estimation and synchronization), EV Motor Commutation Controller (electric vehicle motor FOC commutation control), Precision Ag Soil Sensor (precision agriculture soil moisture/nutrient sensing)
   - Batch 124: Passive Radar Processor (passive bistatic radar signal processing using illuminators of opportunity), Radio Astronomy Receiver (radio telescope backend signal processing and RFI excision), Underwater Acoustic Modem (underwater acoustic communication modem with OFDM), Lightning Stroke Analyzer (lightning electromagnetic pulse detection and geolocation), RDF Network Triangulator (radio direction finding network triangulation and geolocation)
-  - All blocks wired into the visual pipeline builder (now 624 blocks) with property editors and block metadata
+  - Batch 128: Engine Vibration Signature Analyzer (rotary engine order analysis), GPS Spoofing Detector (multi-metric anomaly detection), Hearing Aid Feedback Suppressor (acoustic feedback cancellation), OTDR Pulse Analyzer (fiber optic testing), Power Quality Event Classifier (sag/swell/interruption classification)
+  - Batch 129: Ionospheric Scintillation Detector (S4/sigma-phi for GNSS), Synthetic Aperture Sonar Imager (SAS coherent imaging), Range Velocity Decoupling Processor (joint range-velocity with 2D CFAR), EMG Gesture Decoder (surface EMG with FastICA), Propagation Mode Sounder (radio channel characterization)
+  - Batch 130: Magnetic Anomaly Detector (MAD for submarine/UXO detection), Turbine Blade Tip Timing (gas turbine blade health), Radio Direction Finder (Watson-Watt/MUSIC/interferometer), Fiber Bragg Grating Interrogator (FBG strain/temperature), Cognitive Radio Spectrum Broker (dynamic spectrum access)
+  - Batch 131: Sonar Bottom Profiler (sub-bottom sediment layer mapping), LiDAR Point Cloud Processor (terrain classification DSM/DTM), Acoustic Gunshot Localizer (gunshot TDOA localization), Power Line Harmonic Analyzer (IEEE 519 harmonic distortion), Railroad Wheel Flat Detector (wheel flat from vibration)
+  - Batch 132: Seismograph Event Classifier (P/S wave classification), Satellite Link Budget Calculator (comprehensive satcom link budget), MIMO Spatial Multiplexer (ZF/MMSE/SVD), Optical Coherence Tomography (OCT medical imaging), Particle Accelerator BPM (beam position monitoring)
+  - Batch 133: Wind Profiler Radar (DBS atmospheric wind profiling), Nuclear Spectroscopy Analyzer (gamma-ray isotope identification), Electromyography Decomposition (motor unit action potential extraction), Acoustic Impedance Tomographer (EIT medical imaging), QAM Modem Transceiver (complete 4/16/64/256-QAM modem)
+  - Batch 134: Tidal Harmonic Analyzer (tidal constituent extraction/prediction), Speech Codec LPC (LPC analysis/synthesis with Levinson-Durbin), Pulse Oximeter Processor (SpO2 and heart rate from PPG), Passive Intermod Analyzer (PIM per IEC 62037), Vibration Order Tracker (rotating machinery order tracking)
+  - All blocks wired into the visual pipeline builder (now 674 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
