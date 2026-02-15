@@ -185,7 +185,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **r4w-fpga**: FPGA acceleration (Xilinx Zynq, Lattice iCE40/ECP5)
 - **r4w-sandbox**: Waveform isolation (8 security levels)
 - **r4w-gui**: Educational egui application (run with `cargo run --bin r4w-explorer`)
-  - `views/pipeline_wizard.rs`: Visual pipeline builder with 674+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
+  - `views/pipeline_wizard.rs`: Visual pipeline builder with 724+ blocks in 11 categories (incl. GNSS), TX/RX/Channel loading, type-aware test panel
   - `views/block_metadata.rs`: Block documentation, formulas, code links, tests, performance info
 - **r4w-cli**: Command-line interface (run with `cargo run --bin r4w`)
 - **r4w-web**: WebAssembly entry point for browser deployment
@@ -293,6 +293,12 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batches 141-144 DSP Blocks** - 20 new modules (724 total, 144 batches complete). New categories: seismic moment tensor inversion (double-couple/CLVD/isotropic decomposition, beach ball plots), exoplanet transit detection (BLS algorithm, limb darkening, transit parameters), acoustic well logging (sonic transit time, Wyllie equation, cement bond analysis), spiking neural networks (LIF neurons, STDP learning, spike trains), volcanic tremor analysis (harmonic tremor, RSAM, eruption alerts), gravitational redshift compensation (GPS GR corrections, factory offset, Shapiro delay), neutrino Cherenkov detection (PMT hit reconstruction, Frank-Tamm formula), permafrost thaw monitoring (GPR/Topp equation, Stefan equation, thermal profiles), holographic signal reconstruction (CLEAN deconvolution, UV coverage, near-field holography), plasma turbulence analysis (Alfven speed, Kolmogorov/IK spectra, plasma beta), QKD key rate optimization (BB84/B92, QBER, decoy state, privacy amplification), superconducting qubit readout (IQ discrimination, Purcell filter, frequency multiplexing), magnetotelluric impedance estimation (MT tensor, apparent resistivity, tipper), stellar spectroscopy (Doppler radial velocity, CCF, Balmer series, blackbody), microseismic event location (STA/LTA, AIC picker, Wadati diagram, Geiger method), cosmic ray muon tracking (Highland scattering, POCA reconstruction, density mapping), tidal bore prediction (Belanger equation, Froude number, shallow water solver), quantum state tomography (density matrix, Bloch sphere, MLE, Bell states), EEG signal processing (artifact removal, band powers, ERP analysis, coherence), solar flare prediction (GOES X-ray classification, CME prediction, geomagnetic storm forecasting):
+  - Batch 141: Seismic Moment Tensor Inverter, Exoplanet Transit Detector, Acoustic Well Log Processor, Spiking Neural Network, Volcanic Tremor Analyzer (709 total)
+  - Batch 142: Gravitational Redshift Compensator, Neutrino Cherenkov Detector, Permafrost Thaw Monitor, Holographic Signal Reconstructor, Plasma Turbulence Analyzer (714 total)
+  - Batch 143: Quantum Key Rate Optimizer, Superconducting Qubit Readout, Magnetotelluric Impedance Estimator, Stellar Spectroscopy Analyzer, Microseismic Event Locator (719 total)
+  - Batch 144: Cosmic Ray Muon Tracker, Tidal Bore Predictor, Quantum State Tomography, Electroencephalogram Processor, Solar Flare Predictor (724 total)
 
 - **Batches 139-140 DSP Blocks (700-MODULE MILESTONE)** - 10 new modules (704 total, 140 batches complete). New categories: ultrasonic pipeline inspection (wall thickness/corrosion mapping), oceanographic ADCP current profiling, pulsar timing analysis (TOA/dispersion/residuals), hyperspectral mineral classification (spectral unmixing/SAM), aerosol LIDAR retrieval (Klett/Fernald inversion), seismic wave separation (P/S/surface wave polarization analysis), Ising/QUBO combinatorial optimization (simulated annealing), neuromorphic spike encoding (LIF neuron/rate/temporal/delta), atmospheric refraction correction (ITU-R P.835 ray tracing), gravitational lensing simulation (point-mass/SIS lens models):
   - Batch 139: Ultrasonic Pipeline Inspector, Oceanographic Doppler Profiler, Pulsar Timing Analyzer, Hyperspectral Mineral Classifier, Aerosol LIDAR Retrieval (699 total)

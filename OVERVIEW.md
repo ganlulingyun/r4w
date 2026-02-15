@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-140) — 629+ new DSP modules bringing the total to 704 standalone blocks (700-MODULE MILESTONE):
+- **GNU Radio Feature Parity (Batches 13-144) — 649+ new DSP modules bringing the total to 724 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -751,7 +751,11 @@ Measured with `tokei`:
   - Batch 138: Quantum Error Correction Decoder (stabilizer code syndrome decoding), Gravitational Wave Filter Bank (LIGO/Virgo matched filtering), Magnetospheric Plasma Analyzer (ion cyclotron/Alfven wave analysis), Crystal Oscillator Aging Predictor (Kalman-filtered TCXO drift prediction), Distributed Fiber Sensing Processor (phase-OTDR DAS/DTS fiber sensing)
   - Batch 139: Ultrasonic Pipeline Inspector (wall thickness/flow measurement/corrosion mapping), Oceanographic Doppler Profiler (ADCP ocean current velocity profiling), Pulsar Timing Analyzer (TOA estimation/dispersion correction/timing residuals), Hyperspectral Mineral Classifier (spectral unmixing/SAM classification/absorption features), Aerosol LIDAR Retrieval (Klett/Fernald atmospheric inversion/PBL detection)
   - Batch 140 (700-MODULE MILESTONE): Seismic Wave Separator (P/S/surface wave separation/polarization analysis/f-k filtering), Ising Optimizer (Ising/QUBO combinatorial optimization/simulated annealing/max-cut), Neuromorphic Spike Encoder (LIF neuron/rate/temporal/delta encoding/spike trains), Atmospheric Refraction Corrector (ITU-R P.835 refractivity/ray tracing/ducting detection), Gravitational Lensing Simulator (point-mass/SIS lens models/time delay/magnification)
-  - All blocks wired into the visual pipeline builder (now 704 blocks) with property editors and block metadata
+  - Batch 141: Seismic Moment Tensor Inverter (moment tensor decomposition/double-couple/CLVD/isotropic/beach ball plots), Exoplanet Transit Detector (BLS algorithm/limb darkening/transit parameters), Acoustic Well Log Processor (sonic transit time/Wyllie equation/cement bond analysis), Spiking Neural Network (LIF neurons/STDP learning/spike train classification), Volcanic Tremor Analyzer (harmonic tremor/RSAM/spectral peaks/eruption alerts)
+  - Batch 142: Gravitational Redshift Compensator (GPS GR corrections/factory offset/Shapiro delay), Neutrino Cherenkov Detector (PMT hit reconstruction/Frank-Tamm formula/event classification), Permafrost Thaw Monitor (GPR/Topp equation/Stefan equation/thermal profiles), Holographic Signal Reconstructor (CLEAN deconvolution/UV coverage/near-field holography), Plasma Turbulence Analyzer (Alfven speed/Kolmogorov/IK spectra/plasma beta)
+  - Batch 143: Quantum Key Rate Optimizer (BB84/B92 key rates/QBER/decoy state/privacy amplification), Superconducting Qubit Readout (IQ discrimination/Purcell filter/frequency multiplexing), Magnetotelluric Impedance Estimator (MT tensor/apparent resistivity/tipper/dimensionality), Stellar Spectroscopy Analyzer (Doppler radial velocity/CCF/Balmer series/blackbody), Microseismic Event Locator (STA/LTA/AIC picker/Wadati diagram/Geiger location)
+  - Batch 144: Cosmic Ray Muon Tracker (Highland scattering/POCA reconstruction/density mapping/material ID), Tidal Bore Predictor (Belanger equation/Froude number/shallow water solver/tide gauge), Quantum State Tomography (density matrix/Bloch sphere/MLE/Born probability/Bell states), Electroencephalogram Processor (artifact removal/band powers/ERP analysis/coherence/spectral edge), Solar Flare Predictor (GOES X-ray classification/solar radio bursts/CME prediction/geomagnetic storms)
+  - All blocks wired into the visual pipeline builder (now 724 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT

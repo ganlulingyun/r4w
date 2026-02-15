@@ -9132,3 +9132,41 @@ Two batches of five modules each, crossing the 700-module milestone. Expanding i
 **Cumulative**: 704 standalone DSP modules, 140 batches complete. Pipeline builder now has 704+ block types. New categories added: ultrasonic pipeline inspection (wall thickness/corrosion mapping), oceanographic ADCP current profiling, pulsar timing analysis (TOA/dispersion/residuals), hyperspectral mineral classification (spectral unmixing/SAM), aerosol LIDAR retrieval (Klett/Fernald inversion), seismic wave separation (P/S/surface polarization), Ising/QUBO combinatorial optimization (simulated annealing), neuromorphic spike encoding (LIF neuron), atmospheric refraction correction (ITU-R P.835), gravitational lensing simulation (point-mass/SIS).
 
 **Documentation Updates**: Updated CLAUDE.md (module count 694+ to 704+, added batches 139-140 Recent Updates bullet with 700-module milestone), OVERVIEW.md (Batches 13-138 to 13-140, 694 to 704 blocks, added batch entries 139-140 with milestone notation), and added batches 139-140 to PROMPT_HISTORY.md.
+
+### Batches 141-144: 20 New DSP Modules (704 to 724 Total)
+
+Four batches of five modules each, expanding into seismology (moment tensor inversion), astrophysics (exoplanet transit detection, stellar spectroscopy, pulsar timing), geophysics (acoustic well logging, permafrost monitoring, magnetotellurics), neuroscience (spiking neural networks, EEG processing), quantum computing (QKD optimization, qubit readout, state tomography), volcanology (tremor analysis), relativistic physics (gravitational redshift), particle physics (neutrino Cherenkov detection, cosmic ray muon tracking), radio astronomy (holographic aperture synthesis), plasma physics (MHD turbulence), hydrology (tidal bore prediction), and space weather (solar flare prediction).
+
+**Batch 141 (709 modules) — Seismology, Exoplanets & Neuromorphic Computing**:
+1. **Seismic Moment Tensor Inverter** (`seismic_moment_tensor_inverter.rs`) — Seismic source mechanism inversion with moment tensor decomposition, double-couple/CLVD/isotropic components, beach ball plots.
+2. **Exoplanet Transit Detector** (`exoplanet_transit_detector.rs`) — Photometric light curve analysis with Box Least Squares (BLS) algorithm, limb darkening models, transit parameter estimation.
+3. **Acoustic Well Log Processor** (`acoustic_well_log_processor.rs`) — Petroleum well logging with sonic transit time, porosity estimation via Wyllie equation, cement bond analysis.
+4. **Spiking Neural Network** (`spiking_neural_network.rs`) — Neuromorphic signal classification with Leaky Integrate-and-Fire (LIF) neurons, spike trains, Spike-Timing-Dependent Plasticity (STDP) learning.
+5. **Volcanic Tremor Analyzer** (`volcanic_tremor_analyzer.rs`) — Eruption monitoring with harmonic tremor detection, spectral peak analysis, RSAM (Real-time Seismic Amplitude Measurement), eruption alerts.
+
+**Batch 142 (714 modules) — Relativistic Corrections, Neutrinos & Plasma Turbulence**:
+1. **Gravitational Redshift Compensator** (`gravitational_redshift_compensator.rs`) — Relativistic frequency correction for satellite clocks including GPS general relativity corrections, factory offset, and Shapiro delay.
+2. **Neutrino Cherenkov Detector** (`neutrino_cherenkov_detector.rs`) — Water/ice Cherenkov detector signal processing with PMT hit reconstruction, Frank-Tamm radiation formula, event classification.
+3. **Permafrost Thaw Monitor** (`permafrost_thaw_monitor.rs`) — Active layer thickness estimation from GPR using Topp equation for dielectric-moisture conversion, Stefan equation for thaw depth, thermal profile analysis, radargram processing.
+4. **Holographic Signal Reconstructor** (`holographic_signal_reconstructor.rs`) — Holographic aperture synthesis for radio interferometry with CLEAN deconvolution, UV coverage analysis, near-field holography.
+5. **Plasma Turbulence Analyzer** (`plasma_turbulence_analyzer.rs`) — MHD turbulence spectrum analysis for fusion diagnostics including Alfven speed computation, Kolmogorov/Iroshnikov-Kraichnan spectra, plasma beta calculation.
+
+**Batch 143 (719 modules) — Quantum Key Distribution, Qubit Readout & Geophysics**:
+1. **Quantum Key Rate Optimizer** (`quantum_key_rate_optimizer.rs`) — QKD protocol optimization for BB84/B92 key rates, Quantum Bit Error Rate (QBER) estimation, decoy state analysis, privacy amplification.
+2. **Superconducting Qubit Readout** (`superconducting_qubit_readout.rs`) — Circuit QED dispersive readout with IQ plane discrimination, Purcell filter design, multi-qubit frequency-multiplexed readout.
+3. **Magnetotelluric Impedance Estimator** (`magnetotelluric_impedance_estimator.rs`) — MT geophysics with impedance tensor estimation, apparent resistivity curves, tipper vectors, dimensionality analysis.
+4. **Stellar Spectroscopy Analyzer** (`stellar_spectroscopy_analyzer.rs`) — Stellar spectral analysis with Doppler radial velocity measurement via cross-correlation function (CCF), equivalent width, Balmer series identification, blackbody model fitting.
+5. **Microseismic Event Locator** (`microseismic_event_locator.rs`) — Hydraulic fracturing monitoring with STA/LTA trigger, AIC picker for onset detection, Wadati diagram for Vp/Vs ratio, hodogram polarization analysis, Geiger iterative location.
+
+**Batch 144 (724 modules) — Muon Tomography, Quantum States & Space Weather**:
+1. **Cosmic Ray Muon Tracker** (`cosmic_ray_muon_tracker.rs`) — Muon tomography for cargo scanning with Highland scattering angle formula, POCA (Point of Closest Approach) reconstruction, density mapping, material identification.
+2. **Tidal Bore Predictor** (`tidal_bore_predictor.rs`) — Tidal bore propagation modeling with Belanger conjugate depth equation, Froude number analysis, shallow water wave solver, tide gauge data processing.
+3. **Quantum State Tomography** (`quantum_state_tomography.rs`) — Quantum state reconstruction with density matrix estimation, Bloch sphere visualization, Maximum Likelihood Estimation (MLE), Born probability rule, state fidelity metrics, Bell state analysis.
+4. **Electroencephalogram Processor** (`electroencephalogram_processor.rs`) — EEG signal processing with artifact removal, frequency band power extraction (delta/theta/alpha/beta/gamma), Event-Related Potential (ERP) analysis, coherence computation, spectral edge frequency.
+5. **Solar Flare Predictor** (`solar_flare_predictor.rs`) — Space weather analysis with GOES X-ray flux classification (A/B/C/M/X), solar radio burst detection, Coronal Mass Ejection (CME) prediction, geomagnetic storm forecasting.
+
+**Session Totals**: 20 new modules (704 to 724), 144 batches complete.
+
+**Cumulative**: 724 standalone DSP modules, 144 batches complete. Pipeline builder now has 724+ block types. New categories added: seismic moment tensor inversion (double-couple/CLVD/isotropic), exoplanet transit detection (BLS algorithm/limb darkening), acoustic well logging (Wyllie equation), spiking neural networks (LIF/STDP), volcanic tremor analysis (RSAM), gravitational redshift compensation (GPS GR corrections), neutrino Cherenkov detection (Frank-Tamm), permafrost thaw monitoring (Topp/Stefan equations), holographic aperture synthesis (CLEAN deconvolution), plasma turbulence analysis (Alfven/Kolmogorov), QKD key rate optimization (BB84/B92), superconducting qubit readout (dispersive readout), magnetotelluric impedance estimation, stellar spectroscopy (Doppler radial velocity), microseismic event location (Geiger method), cosmic ray muon tracking (POCA reconstruction), tidal bore prediction (Belanger equation), quantum state tomography (density matrix/Bloch sphere), EEG signal processing (band powers/ERP), solar flare prediction (GOES classification/CME).
+
+**Documentation Updates**: Updated CLAUDE.md (module count 704+ to 724+, added batches 141-144 Recent Updates bullet), OVERVIEW.md (Batches 13-140 to 13-144, 704 to 724 blocks, added batch entries 141-144), and added batches 141-144 to PROMPT_HISTORY.md.
