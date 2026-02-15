@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-138) — 619+ new DSP modules bringing the total to 694 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-140) — 629+ new DSP modules bringing the total to 704 standalone blocks (700-MODULE MILESTONE):
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -749,7 +749,9 @@ Measured with `tokei`:
   - Batch 136: Dam Seepage Monitor (dam structural monitoring), Radio Telescope Correlator (FX correlator for interferometry), Photovoltaic MPPT Controller (solar MPPT P&O/IC), Ultrasonic NDT Processor (flaw detection), Gravity Gradiometer Processor (FTG gravity survey)
   - Batch 137: Thermal Imaging Processor (thermal image processing), Electric Motor Fault Detector (MCSA motor fault detection), Spread Spectrum Watermark (DSSS audio watermarking), Geophone Array Processor (seismic reflection processing), Doppler Ultrasound Processor (medical Doppler ultrasound)
   - Batch 138: Quantum Error Correction Decoder (stabilizer code syndrome decoding), Gravitational Wave Filter Bank (LIGO/Virgo matched filtering), Magnetospheric Plasma Analyzer (ion cyclotron/Alfven wave analysis), Crystal Oscillator Aging Predictor (Kalman-filtered TCXO drift prediction), Distributed Fiber Sensing Processor (phase-OTDR DAS/DTS fiber sensing)
-  - All blocks wired into the visual pipeline builder (now 694 blocks) with property editors and block metadata
+  - Batch 139: Ultrasonic Pipeline Inspector (wall thickness/flow measurement/corrosion mapping), Oceanographic Doppler Profiler (ADCP ocean current velocity profiling), Pulsar Timing Analyzer (TOA estimation/dispersion correction/timing residuals), Hyperspectral Mineral Classifier (spectral unmixing/SAM classification/absorption features), Aerosol LIDAR Retrieval (Klett/Fernald atmospheric inversion/PBL detection)
+  - Batch 140 (700-MODULE MILESTONE): Seismic Wave Separator (P/S/surface wave separation/polarization analysis/f-k filtering), Ising Optimizer (Ising/QUBO combinatorial optimization/simulated annealing/max-cut), Neuromorphic Spike Encoder (LIF neuron/rate/temporal/delta encoding/spike trains), Atmospheric Refraction Corrector (ITU-R P.835 refractivity/ray tracing/ducting detection), Gravitational Lensing Simulator (point-mass/SIS lens models/time delay/magnification)
+  - All blocks wired into the visual pipeline builder (now 704 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
