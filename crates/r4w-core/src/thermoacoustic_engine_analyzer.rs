@@ -505,11 +505,13 @@ pub struct TwoMicResult {
 /// Two-microphone wave decomposition.
 ///
 /// Given complex pressure measurements p1, p2 at positions x1, x2 along the
-/// duct, and the wavenumber k, decompose into forward and backward travelling
-/// waves.
+/// duct, and the wavenumber k, decompose into forward (A*exp(-jkx)) and
+/// backward (B*exp(+jkx)) travelling waves.
 ///
-/// p_forward = (p1*e^{-jkx2} - p2*e^{-jkx1}) / (2j*sin(k*(x2-x1)))
-/// p_backward = (p2*e^{jkx1} - p1*e^{jkx2}) / (2j*sin(k*(x2-x1)))
+/// From p1 = A*exp(-jkx1) + B*exp(jkx1), p2 = A*exp(-jkx2) + B*exp(jkx2):
+///
+/// A = (p1*exp(jkx2) - p2*exp(jkx1)) / (2j*sin(k*(x2-x1)))
+/// B = (p2*exp(-jkx1) - p1*exp(-jkx2)) / (2j*sin(k*(x2-x1)))
 pub fn two_microphone_decomposition(
     p1_re: f64,
     p1_im: f64,
@@ -538,15 +540,12 @@ pub fn two_microphone_decomposition(
     let denom_re = 0.0; // 2j*sin => pure imaginary: (0, 2*sin)
     let denom_im = 2.0 * sin_val;
 
-    // p1 * e^{-jkx2}
-    let a_re = p1_re * e_neg_jkx2_re - p1_im * e_neg_jkx2_im;
-    let a_im = p1_re * e_neg_jkx2_im + p1_im * e_neg_jkx2_re;
+    // A (forward): numerator = p1*exp(+jkx2) - p2*exp(+jkx1)
+    let a_re = p1_re * e_pos_jkx2_re - p1_im * e_pos_jkx2_im;
+    let a_im = p1_re * e_pos_jkx2_im + p1_im * e_pos_jkx2_re;
+    let b_re = p2_re * e_pos_jkx1_re - p2_im * e_pos_jkx1_im;
+    let b_im = p2_re * e_pos_jkx1_im + p2_im * e_pos_jkx1_re;
 
-    // p2 * e^{-jkx1}
-    let b_re = p2_re * e_neg_jkx1_re - p2_im * e_neg_jkx1_im;
-    let b_im = p2_re * e_neg_jkx1_im + p2_im * e_neg_jkx1_re;
-
-    // Numerator for p_forward: a - b
     let num_fwd_re = a_re - b_re;
     let num_fwd_im = a_im - b_im;
 
@@ -561,11 +560,11 @@ pub fn two_microphone_decomposition(
         (0.0, 0.0)
     };
 
-    // Numerator for p_backward: p2*e^{jkx1} - p1*e^{jkx2}
-    let c_re = p2_re * e_pos_jkx1_re - p2_im * e_pos_jkx1_im;
-    let c_im = p2_re * e_pos_jkx1_im + p2_im * e_pos_jkx1_re;
-    let d_re = p1_re * e_pos_jkx2_re - p1_im * e_pos_jkx2_im;
-    let d_im = p1_re * e_pos_jkx2_im + p1_im * e_pos_jkx2_re;
+    // B (backward): numerator = p2*exp(-jkx1) - p1*exp(-jkx2)
+    let c_re = p2_re * e_neg_jkx1_re - p2_im * e_neg_jkx1_im;
+    let c_im = p2_re * e_neg_jkx1_im + p2_im * e_neg_jkx1_re;
+    let d_re = p1_re * e_neg_jkx2_re - p1_im * e_neg_jkx2_im;
+    let d_im = p1_re * e_neg_jkx2_im + p1_im * e_neg_jkx2_re;
 
     let num_bwd_re = c_re - d_re;
     let num_bwd_im = c_im - d_im;
@@ -1397,8 +1396,11 @@ mod tests {
             .map(|i| (2.0 * PI * 5.0 * i as f64 / n as f64).cos())
             .collect();
         let phase = phase_between_signals(&a, &b);
-        // cos leads sin by pi/2
-        assert!((phase - (-PI / 2.0)).abs() < 0.2 || (phase - (3.0 * PI / 2.0)).abs() < 0.2);
+        // Phase difference between cos and sin: should be +-pi/2
+        assert!(
+            phase.abs() - PI / 2.0 < 0.2,
+            "phase = {phase}, expected +-pi/2"
+        );
     }
 
     // -----------------------------------------------------------------------
