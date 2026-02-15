@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-144) — 649+ new DSP modules bringing the total to 724 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-150) — 679+ new DSP modules bringing the total to 754 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -755,7 +755,13 @@ Measured with `tokei`:
   - Batch 142: Gravitational Redshift Compensator (GPS GR corrections/factory offset/Shapiro delay), Neutrino Cherenkov Detector (PMT hit reconstruction/Frank-Tamm formula/event classification), Permafrost Thaw Monitor (GPR/Topp equation/Stefan equation/thermal profiles), Holographic Signal Reconstructor (CLEAN deconvolution/UV coverage/near-field holography), Plasma Turbulence Analyzer (Alfven speed/Kolmogorov/IK spectra/plasma beta)
   - Batch 143: Quantum Key Rate Optimizer (BB84/B92 key rates/QBER/decoy state/privacy amplification), Superconducting Qubit Readout (IQ discrimination/Purcell filter/frequency multiplexing), Magnetotelluric Impedance Estimator (MT tensor/apparent resistivity/tipper/dimensionality), Stellar Spectroscopy Analyzer (Doppler radial velocity/CCF/Balmer series/blackbody), Microseismic Event Locator (STA/LTA/AIC picker/Wadati diagram/Geiger location)
   - Batch 144: Cosmic Ray Muon Tracker (Highland scattering/POCA reconstruction/density mapping/material ID), Tidal Bore Predictor (Belanger equation/Froude number/shallow water solver/tide gauge), Quantum State Tomography (density matrix/Bloch sphere/MLE/Born probability/Bell states), Electroencephalogram Processor (artifact removal/band powers/ERP analysis/coherence/spectral edge), Solar Flare Predictor (GOES X-ray classification/solar radio bursts/CME prediction/geomagnetic storms)
-  - All blocks wired into the visual pipeline builder (now 724 blocks) with property editors and block metadata
+  - Batch 145: Aurora Borealis Classifier (magnetometer/riometer auroral zone detection), Acoustic Levitation Controller (standing wave/node optimization), Submarine Sonar Classifier (DEMON/LOFAR analysis), Radio Occultation Processor (Abel transform/bending angle), Laser Vibrometer Processor (heterodyne/homodyne vibration measurement)
+  - Batch 146: Tokamak Plasma Control (PID/MHD mode suppression), Glacier Flow Tracker (InSAR/feature tracking), Speech Diarization Engine (speaker segmentation/BIC/clustering), Gravitational Wave Matched Filter (CBC/inspiral templates), Quantum Radar Processor (quantum illumination/entanglement-based detection)
+  - Batch 147: Drug Dissolution Monitor (UV spectrophotometry/Noyes-Whitney kinetics), Particle Image Velocimetry (PIV cross-correlation/velocity fields), Magneto Encephalography Processor (MEG source localization/beamforming), Cryogenic Thermometry Processor (Cernox/RuO2 calibration curves), Marine Mammal Detector (cetacean vocalization/spectrogram classification)
+  - Batch 148: Flow Cytometry Analyzer (scatter/fluorescence gating/population clustering), Space Debris Tracker (TLE propagation/conjunction assessment), Mass Spectrometry Processor (peak detection/isotope patterns/fragmentation), Seismoacoustic Infrasound Detector (microbarom/volcanic infrasound), Eddy Current Inspector (impedance plane analysis/defect classification)
+  - Batch 149: Photon Counting Detector (TCSPC/photon statistics/antibunching), Quantum Entanglement Witness (Bell inequality/CHSH/entanglement measures), Atmospheric Gravity Wave Detector (hodograph/wavelet/buoyancy frequency), Electrostatic Discharge Analyzer (ESD waveform characterization/HBM/CDM), Quantum Decoherence Characterizer (T1/T2/Ramsey/spin echo)
+  - Batch 150: MEMS Inertial Navigator (IMU mechanization/Allan variance), Biosensor Impedance Analyzer (EIS/Nyquist/Randles circuit), Nuclear Magnetic Resonance Processor (FID/spin echo/relaxometry), Fiber Optic Gyroscope Processor (FOG Sagnac/bias stability), Terahertz Imaging Processor (THz time-domain spectroscopy/tomography)
+  - All blocks wired into the visual pipeline builder (now 754 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
