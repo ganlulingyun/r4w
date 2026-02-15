@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-134) — 599+ new DSP modules bringing the total to 674 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-138) — 619+ new DSP modules bringing the total to 694 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -745,7 +745,11 @@ Measured with `tokei`:
   - Batch 132: Seismograph Event Classifier (P/S wave classification), Satellite Link Budget Calculator (comprehensive satcom link budget), MIMO Spatial Multiplexer (ZF/MMSE/SVD), Optical Coherence Tomography (OCT medical imaging), Particle Accelerator BPM (beam position monitoring)
   - Batch 133: Wind Profiler Radar (DBS atmospheric wind profiling), Nuclear Spectroscopy Analyzer (gamma-ray isotope identification), Electromyography Decomposition (motor unit action potential extraction), Acoustic Impedance Tomographer (EIT medical imaging), QAM Modem Transceiver (complete 4/16/64/256-QAM modem)
   - Batch 134: Tidal Harmonic Analyzer (tidal constituent extraction/prediction), Speech Codec LPC (LPC analysis/synthesis with Levinson-Durbin), Pulse Oximeter Processor (SpO2 and heart rate from PPG), Passive Intermod Analyzer (PIM per IEC 62037), Vibration Order Tracker (rotating machinery order tracking)
-  - All blocks wired into the visual pipeline builder (now 674 blocks) with property editors and block metadata
+  - Batch 135: Automotive Radar Tracker (ADAS multi-target Kalman tracking), Electroencephalogram BCI (EEG brain-computer interface with CSP spatial filtering), Reservoir Acoustic Monitor (DAS/DTS fiber optic monitoring), Music Pitch Detector (YIN pitch detection with chromagram), Plasma Diagnostics Processor (Langmuir probe plasma physics)
+  - Batch 136: Dam Seepage Monitor (dam structural monitoring), Radio Telescope Correlator (FX correlator for interferometry), Photovoltaic MPPT Controller (solar MPPT P&O/IC), Ultrasonic NDT Processor (flaw detection), Gravity Gradiometer Processor (FTG gravity survey)
+  - Batch 137: Thermal Imaging Processor (thermal image processing), Electric Motor Fault Detector (MCSA motor fault detection), Spread Spectrum Watermark (DSSS audio watermarking), Geophone Array Processor (seismic reflection processing), Doppler Ultrasound Processor (medical Doppler ultrasound)
+  - Batch 138: Quantum Error Correction Decoder (stabilizer code syndrome decoding), Gravitational Wave Filter Bank (LIGO/Virgo matched filtering), Magnetospheric Plasma Analyzer (ion cyclotron/Alfven wave analysis), Crystal Oscillator Aging Predictor (Kalman-filtered TCXO drift prediction), Distributed Fiber Sensing Processor (phase-OTDR DAS/DTS fiber sensing)
+  - All blocks wired into the visual pipeline builder (now 694 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
