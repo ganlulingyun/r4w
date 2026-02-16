@@ -1292,7 +1292,8 @@ impl TemperatureCorrector {
     ///
     /// Returns viscosity in Pa*s (SI units).
     pub fn water_viscosity(temperature_k: f64) -> f64 {
-        // VFT parameters for water
+        // VFT parameters for water (base-10 form)
+        // eta = A * 10^(B / (T - C))
         let a = 2.414e-5; // Pa*s
         let b = 247.8; // K
         let c = 140.0; // K
@@ -1300,7 +1301,7 @@ impl TemperatureCorrector {
         if denom <= 0.0 {
             return 1.0e-3; // fallback to ~room temperature
         }
-        a * (b / denom).exp()
+        a * 10.0_f64.powf(b / denom)
     }
 
     /// Correct a hydrodynamic diameter measured at one temperature to another.
