@@ -9320,3 +9320,50 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 793 standalone DSP modules, 158 batches complete. Pipeline builder now has 793+ block types. New categories added: electron spin resonance spectroscopy (EPR hyperfine splitting), laser Doppler anemometry (fringe spacing/burst detection), capacitive micromachined ultrasonic transducers (CMUT beamforming), stellar interferometry (UV coverage/CLEAN), magnetostrictive sensing (waveguide position/Villari effect), ion mobility spectrometry (chemical detection/Mason-Schamp), acoustic holography (planar NAH/HELS), quantum cascade laser control (WMS 2f/1f), geotechnical inclinometry (displacement/shear zone), photoplethysmography (PPG/SpO2/HRV), laser heterodyne interferometry (Edlen/Heydemann), diamond anvil cell analysis (ruby fluorescence/Birch-Murnaghan), neutron radiography (Beer-Lambert/FBP/Bragg edge), atomic clock synchronization (Allan variance/Ramsey/TWSTFT), bolometer signal processing (optimal filtering/TES/NEP/CMB).
 
 **Documentation Updates**: Updated CLAUDE.md (added batches 156-158 Recent Updates entry), OVERVIEW.md (Batches 13-155 to 13-158, 778 to 793 blocks, added batch entries 156-158), and added batches 156-158 to PROMPT_HISTORY.md.
+
+## Session: Batches 159-162 Documentation Update
+
+**Date**: February 15, 2026
+
+### User Request
+> Update documentation files for batches 159-162 (793 to 813 modules).
+
+**Actions Taken**:
+1. Updated CLAUDE.md with new batches 159-162 entry at top of Recent Updates section
+2. Updated OVERVIEW.md module count from 793 to 813, batch range from 13-158 to 13-162, added batch entries 159-162
+3. Updated PROMPT_HISTORY.md with this session entry
+4. Committed and pushed changes
+
+**Batch 159 (798 modules) -- Optical Characterization, Seismology & Biomedical**:
+1. **Ellipsometry Analyzer** (`ellipsometry_analyzer.rs`) -- Thin film optical characterization using Fresnel equations, transfer matrix method, Cauchy/Sellmeier/Drude dispersion models. 57 tests.
+2. **Schlieren Imaging Processor** (`schlieren_imaging_processor.rs`) -- Refractive index gradient visualization with knife-edge cutoff, Abel inversion for axisymmetric flows. 70 tests.
+3. **Seismic Velocity Inversion** (`seismic_velocity_inversion.rs`) -- Normal moveout correction, semblance analysis, Dix inversion, and SIRT tomographic inversion. 55 tests.
+4. **Cardiac Electrogram Mapper** (`cardiac_electrogram_mapper.rs`) -- Activation time mapping, voltage mapping, rotor detection, and complex fractionated atrial electrogram (CFAE) analysis. 56 tests.
+5. **Magneto-Optical Trap Controller** (`magneto_optical_trap_controller.rs`) -- Doppler cooling dynamics, MOT simulation, and saturated absorption spectroscopy. 59 tests.
+
+**Batch 160 (803 modules) -- Synchrotron Science, Atmospheric & Fusion**:
+1. **Synchrotron Radiation Processor** (`synchrotron_radiation_processor.rs`) -- Brilliance computation, undulator spectrum modeling, XAFS analysis, and monochromator control. 60 tests.
+2. **Neutron Activation Analyzer** (`neutron_activation_analyzer.rs`) -- NAA activity calculation, decay correction, and pulse shape discrimination. 62 tests.
+3. **Raman LIDAR Processor** (`raman_lidar_processor.rs`) -- Atmospheric profiling with Klett-Fernald inversion and water vapor mixing ratio retrieval. 61 tests.
+4. **Hyperpolarized Xenon NMR** (`hyperpolarized_xenon_nmr.rs`) -- Hp-Xe lung imaging, spin-exchange optical pumping (SEOP), dissolved phase analysis, and variable flip angle (VFA) methods. 61 tests.
+5. **Muon-Catalyzed Fusion Diagnostics** (`muon_catalyzed_fusion_diagnostics.rs`) -- Rayleigh-Plesset bubble dynamics, sticking probability, cycling rate estimation, and energy yield calculation. 65 tests.
+
+**Batch 161 (808 modules) -- Geoscience, Materials & Sensors**:
+1. **Neutron Porosity Analyzer** (`neutron_porosity_analyzer.rs`) -- Well log porosity computation, lithology correction, and gas detection from neutron count ratios. 57 tests.
+2. **Interferometric Strain Processor** (`interferometric_strain_processor.rs`) -- InSAR deformation, fiber Bragg grating strain, distributed acoustic sensing (DAS), and Mogi/Okada source models. 53 tests.
+3. **Borehole Temperature Logger** (`borehole_temperature_logger.rs`) -- Geothermal gradient computation, Horner correction for drilling disturbance, and distributed temperature sensing (DTS). 46 tests.
+4. **Crystallographic Phase Identifier** (`crystallographic_phase_identifier.rs`) -- XRD peak finding, Scherrer crystallite size, and Williamson-Hall strain analysis. 44 tests.
+5. **Surface Acoustic Wave Processor** (`surface_acoustic_wave_processor.rs`) -- SAW resonance analysis, Sauerbrey mass loading, IDT frequency response, and Love wave sensitivity. 60 tests.
+
+**Batch 162 (813 modules) -- Spectroscopy, Astrophysics & Microscopy**:
+1. **Precision Spectroscopy Analyzer** (`precision_spectroscopy_analyzer.rs`) -- Voigt profile fitting, frequency comb referencing, cavity ring-down spectroscopy (CRDS), and Fabry-Perot analysis. 64 tests.
+2. **Cosmic Ray Shower Detector** (`cosmic_ray_shower_detector.rs`) -- NKG lateral distribution fitting, Gaisser-Hillas longitudinal profile, and Cherenkov emission analysis. 50 tests.
+3. **Sonoluminescence Emission Analyzer** (`sonoluminescence_emission_analyzer.rs`) -- Rayleigh-Plesset bubble dynamics, blackbody emission fitting, and cavitation threshold detection. 44 tests.
+4. **Scanning Electron Microscope Processor** (`scanning_electron_microscope_processor.rs`) -- SE/BSE signal processing, EDX elemental analysis, grain size measurement, and charging artifact detection. 53 tests.
+5. **Cyclotron Resonance Spectrometer** (`cyclotron_resonance_spectrometer.rs`) -- FT-ICR mass spectrometry, isotope pattern analysis, and Kendrick mass defect computation. 59 tests.
+
+**Session Totals**: 20 new modules (793 to 813), 162 batches complete.
+
+**Cumulative**: 813 standalone DSP modules, 162 batches complete. Pipeline builder now has 813+ block types. New categories added: ellipsometry (Fresnel/transfer matrix/dispersion models), schlieren imaging (refractive index gradient/Abel inversion), seismic velocity inversion (NMO/semblance/Dix/SIRT), cardiac electrogram mapping (activation time/voltage/rotor/CFAE), magneto-optical trap control (Doppler cooling/MOT/saturated absorption), synchrotron radiation (brilliance/undulator/XAFS), neutron activation analysis (NAA/decay correction/PSD), Raman LIDAR (Klett-Fernald/water vapor), hyperpolarized xenon NMR (lung imaging/SEOP/VFA), muon-catalyzed fusion (Rayleigh-Plesset/sticking/cycling), neutron porosity (well log/lithology/gas detection), interferometric strain (InSAR/FBG/DAS/Mogi/Okada), borehole temperature (geothermal gradient/Horner/DTS), crystallographic phase ID (XRD/Scherrer/Williamson-Hall), surface acoustic wave (SAW/Sauerbrey/IDT/Love wave), precision spectroscopy (Voigt/frequency comb/CRDS/Fabry-Perot), cosmic ray shower (NKG/Gaisser-Hillas/Cherenkov), sonoluminescence (Rayleigh-Plesset/blackbody/cavitation), scanning electron microscope (SE/BSE/EDX/grain size), cyclotron resonance (FT-ICR MS/isotope patterns/Kendrick mass defect).
+
+**Documentation Updates**: Updated CLAUDE.md (added batches 159-162 Recent Updates entry), OVERVIEW.md (Batches 13-158 to 13-162, 793 to 813 blocks, added batch entries 159-162), and added batches 159-162 to PROMPT_HISTORY.md.
