@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-155) — 703+ new DSP modules bringing the total to 778 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-158) — 718+ new DSP modules bringing the total to 793 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -766,7 +766,10 @@ Measured with `tokei`:
   - Batch 153: Superconducting Magnetometer (SQUID signal processing/flux quantization), Electron Beam Lithography Controller (dose optimization/proximity effect), Microfluidic Droplet Detector (droplet counting/size distribution), Gravitational Gradient Tensor Processor (gradiometry/tensor invariants), Laser Induced Breakdown Spectroscopy (LIBS plasma emission/elemental ID)
   - Batch 154: Piezoelectric Energy Harvester (vibration-to-electric/impedance matching), Raman Spectroscopy Processor (spectral peak fitting/molecular fingerprinting), Quantum Hall Resistance Meter (quantized plateaus/metrology), Sonic Anemometer Processor (ultrasonic wind speed/turbulence), Muon Tomography Reconstructor (cosmic ray scattering/density imaging)
   - Batch 155: Atomic Force Microscopy Processor (AFM topography/force curves), Plasma Wakefield Accelerator (beam-driven plasma waves/energy gain), Turbidity Current Monitor (sediment transport/density flow), Josephson Voltage Standard (quantized voltage steps/metrology), Thermoacoustic Engine Analyzer (acoustic power/Stirling cycle)
-  - All blocks wired into the visual pipeline builder (now 778 blocks) with property editors and block metadata
+  - Batch 156: Electron Spin Resonance Processor (EPR hyperfine splitting/spin quantitation), Laser Doppler Anemometer (fringe spacing/burst detection/Bragg shifting), Capacitive Micromachined Ultrasonic (CMUT beamforming/pulse-echo/harmonic imaging), Stellar Interferometry Processor (UV coverage/CLEAN/closure phase), Magnetostrictive Sensor Processor (waveguide position/Villari effect/Jiles-Atherton)
+  - Batch 157: Ion Mobility Spectrometer (IMS chemical detection/Mason-Schamp/alarm logic), Acoustic Holography Processor (planar NAH/2D FFT/HELS), Quantum Cascade Laser Controller (QCL/WMS 2f-1f/Allan variance/etalon suppression), Geotechnical Inclinometer (displacement profiles/shear zone/inverse velocity), Photoplethysmography Processor (PPG heart rate/SpO2/HRV/SDPPG)
+  - Batch 158: Laser Heterodyne Interferometer (heterodyne demodulation/Edlen equation/Heydemann correction), Diamond Anvil Cell Analyzer (ruby fluorescence/Birch-Murnaghan EOS/laser heating), Neutron Radiography Processor (Beer-Lambert/FBP reconstruction/Bragg edge), Atomic Clock Synchronizer (Allan variance/Ramsey fringes/TWSTFT/timescale), Bolometer Signal Processor (optimal filtering/TES model/NEP/CMB)
+  - All blocks wired into the visual pipeline builder (now 793 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT

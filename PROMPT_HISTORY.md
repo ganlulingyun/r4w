@@ -9280,3 +9280,43 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 778 standalone DSP modules, 155 batches complete. Pipeline builder now has 778+ block types. New categories added: plasma diagnostics (Langmuir probe), quantum annealing optimization (Ising/QUBO), geophone signal processing (seismic reflection), optical tweezers control (trap stiffness), neutron diffraction (Rietveld refinement), acoustic emission localization (AE source location), X-ray fluorescence (XRF quantification), magnetohydrodynamic flow metering (MHD Lorentz), quantum dot spectroscopy (photoluminescence), seismic ambient noise tomography (Green's function), superconducting magnetometry (SQUID), electron beam lithography (proximity effect), microfluidic droplet detection (size distribution), gravitational gradient tensor processing (gradiometry), laser-induced breakdown spectroscopy (LIBS), piezoelectric energy harvesting (impedance matching), Raman spectroscopy (molecular fingerprinting), quantum Hall resistance metering (metrology), sonic anemometry (ultrasonic wind), muon tomography (density imaging), atomic force microscopy (AFM topography), plasma wakefield acceleration (beam-driven waves), turbidity current monitoring (sediment transport), Josephson voltage standard (quantized steps), thermoacoustic engine analysis (Stirling cycle).
 
 **Documentation Updates**: Updated CLAUDE.md (added batches 151-155 Recent Updates entry), OVERVIEW.md (Batches 13-150 to 13-155, 754 to 778 blocks, added batch entries 151-155), and added batches 151-155 to PROMPT_HISTORY.md.
+
+## Session: Batches 156-158 Documentation Update
+
+**Date**: February 15, 2026
+
+### User Request
+> Update documentation files for batches 156-158 (778 to 793 modules).
+
+**Actions Taken**:
+1. Updated CLAUDE.md with new batches 156-158 entry at top of Recent Updates section
+2. Updated OVERVIEW.md module count from 778 to 793, batch range from 13-155 to 13-158, added batch entries 156-158
+3. Updated PROMPT_HISTORY.md with this session entry
+4. Committed and pushed changes
+
+**Batch 156 (783 modules) -- Spectroscopy, Anemometry & Interferometry**:
+1. **Electron Spin Resonance Processor** (`electron_spin_resonance_processor.rs`) -- EPR spectroscopy with hyperfine splitting analysis and spin quantitation. 53 tests.
+2. **Laser Doppler Anemometer** (`laser_doppler_anemometer.rs`) -- Fringe spacing computation, burst detection, Bragg shifting, and Reynolds stress measurement. 46 tests.
+3. **Capacitive Micromachined Ultrasonic** (`capacitive_micromachined_ultrasonic.rs`) -- CMUT beamforming, pulse-echo imaging, and harmonic imaging. 53 tests.
+4. **Stellar Interferometry Processor** (`stellar_interferometry_processor.rs`) -- UV coverage computation, CLEAN deconvolution, closure phase, and source models. 53 tests.
+5. **Magnetostrictive Sensor Processor** (`magnetostrictive_sensor_processor.rs`) -- Waveguide position sensing, Villari effect, and Jiles-Atherton hysteresis modeling. 61 tests.
+
+**Batch 157 (788 modules) -- Chemical Detection, Acoustics & Biomedical**:
+1. **Ion Mobility Spectrometer** (`ion_mobility_spectrometer.rs`) -- IMS chemical detection with Mason-Schamp mobility and alarm logic. 50 tests.
+2. **Acoustic Holography Processor** (`acoustic_holography_processor.rs`) -- Planar near-field acoustic holography, 2D FFT, HELS, and beamforming. 46 tests.
+3. **Quantum Cascade Laser Controller** (`quantum_cascade_laser_controller.rs`) -- QCL control with wavelength modulation spectroscopy 2f/1f, Allan variance, and etalon suppression. 46 tests.
+4. **Geotechnical Inclinometer** (`geotechnical_inclinometer.rs`) -- Displacement profile computation, shear zone detection, and inverse velocity method for slope monitoring. 52 tests.
+5. **Photoplethysmography Processor** (`photoplethysmography_processor.rs`) -- PPG heart rate extraction, SpO2 estimation, HRV analysis, and SDPPG aging index. 51 tests.
+
+**Batch 158 (793 modules) -- Precision Measurement, Materials Science & Astrophysics**:
+1. **Laser Heterodyne Interferometer** (`laser_heterodyne_interferometer.rs`) -- Heterodyne demodulation, Edlen equation for refractive index, and Heydemann correction for nonlinearity. 64 tests.
+2. **Diamond Anvil Cell Analyzer** (`diamond_anvil_cell_analyzer.rs`) -- Ruby fluorescence pressure measurement, Birch-Murnaghan equation of state, and laser heating analysis. 46 tests.
+3. **Neutron Radiography Processor** (`neutron_radiography_processor.rs`) -- Beer-Lambert transmission, filtered back-projection reconstruction, and Bragg edge analysis. 57 tests.
+4. **Atomic Clock Synchronizer** (`atomic_clock_synchronizer.rs`) -- Allan variance computation, Ramsey fringe analysis, TWSTFT synchronization, and timescale algorithm. 66 tests.
+5. **Bolometer Signal Processor** (`bolometer_signal_processor.rs`) -- Optimal filtering for bolometric detectors, TES model, NEP calculation, and CMB analysis. 62 tests.
+
+**Session Totals**: 15 new modules (778 to 793), 158 batches complete.
+
+**Cumulative**: 793 standalone DSP modules, 158 batches complete. Pipeline builder now has 793+ block types. New categories added: electron spin resonance spectroscopy (EPR hyperfine splitting), laser Doppler anemometry (fringe spacing/burst detection), capacitive micromachined ultrasonic transducers (CMUT beamforming), stellar interferometry (UV coverage/CLEAN), magnetostrictive sensing (waveguide position/Villari effect), ion mobility spectrometry (chemical detection/Mason-Schamp), acoustic holography (planar NAH/HELS), quantum cascade laser control (WMS 2f/1f), geotechnical inclinometry (displacement/shear zone), photoplethysmography (PPG/SpO2/HRV), laser heterodyne interferometry (Edlen/Heydemann), diamond anvil cell analysis (ruby fluorescence/Birch-Murnaghan), neutron radiography (Beer-Lambert/FBP/Bragg edge), atomic clock synchronization (Allan variance/Ramsey/TWSTFT), bolometer signal processing (optimal filtering/TES/NEP/CMB).
+
+**Documentation Updates**: Updated CLAUDE.md (added batches 156-158 Recent Updates entry), OVERVIEW.md (Batches 13-155 to 13-158, 778 to 793 blocks, added batch entries 156-158), and added batches 156-158 to PROMPT_HISTORY.md.
