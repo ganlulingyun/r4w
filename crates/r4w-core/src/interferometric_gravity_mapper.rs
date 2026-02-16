@@ -490,33 +490,44 @@ impl FringeScanner {
 
     /// Fit the accumulated data to `P = offset + amplitude * cos(phi_L - phi_0)`.
     ///
-    /// Uses single-bin DFT (Fourier analysis) to extract the fundamental component.
+    /// Uses least-squares projection onto cos/sin basis to extract the fundamental
+    /// component: `P ~ a0 + a1*cos(phi_L) + a2*sin(phi_L)`, then
+    /// `amplitude = sqrt(a1^2 + a2^2)`, `phi_0 = atan2(-a2, a1)`.
     pub fn fit(&self) -> Option<FringeFitResult> {
         let n = self.data.len();
         if n < 3 {
             return None;
         }
 
-        // DC component (mean)
-        let offset: f64 = self.data.iter().map(|&(_, p)| p).sum::<f64>() / n as f64;
+        // Least-squares: fit P = a0 + a1*cos(phi) + a2*sin(phi)
+        // For equally-spaced phases on [0, 2*pi), the basis is orthogonal:
+        //   a0 = mean(P)
+        //   a1 = (2/N) * sum(P * cos(phi))
+        //   a2 = (2/N) * sum(P * sin(phi))
+        let mut sum_p = 0.0_f64;
+        let mut sum_p_cos = 0.0_f64;
+        let mut sum_p_sin = 0.0_f64;
 
-        // Single-bin DFT at fundamental frequency
-        let mut cos_sum = 0.0_f64;
-        let mut sin_sum = 0.0_f64;
         for &(phi_l, p) in &self.data {
-            cos_sum += p * phi_l.cos();
-            sin_sum += p * phi_l.sin();
+            sum_p += p;
+            sum_p_cos += p * phi_l.cos();
+            sum_p_sin += p * phi_l.sin();
         }
-        cos_sum *= 2.0 / n as f64;
-        sin_sum *= 2.0 / n as f64;
 
-        let amplitude = (cos_sum * cos_sum + sin_sum * sin_sum).sqrt();
-        let phase = (-sin_sum).atan2(cos_sum); // negative because P = offset + amp * cos(phi_L - phi_0)
+        let a0 = sum_p / n as f64;
+        let a1 = 2.0 * sum_p_cos / n as f64;
+        let a2 = 2.0 * sum_p_sin / n as f64;
+
+        let amplitude = (a1 * a1 + a2 * a2).sqrt();
+        // P = a0 + amplitude * cos(phi_L - phi_0)
+        //   = a0 + amplitude * [cos(phi_L)*cos(phi_0) + sin(phi_L)*sin(phi_0)]
+        // So a1 = amplitude*cos(phi_0), a2 = amplitude*sin(phi_0)
+        let phase = a2.atan2(a1);
 
         // Compute residual
         let mut residual_sum = 0.0;
         for &(phi_l, p) in &self.data {
-            let p_fit = offset + amplitude * (phi_l - phase).cos();
+            let p_fit = a0 + amplitude * (phi_l - phase).cos();
             let diff = p - p_fit;
             residual_sum += diff * diff;
         }
@@ -528,7 +539,7 @@ impl FringeScanner {
         Some(FringeFitResult {
             phase_rad: phase,
             contrast,
-            offset,
+            offset: a0,
             residual_rms,
         })
     }
@@ -758,36 +769,54 @@ impl DriftEstimator {
         Self { degree: degree.max(1) }
     }
 
-    /// Fit polynomial to the time series and return the coefficients [a0, a1, ..., a_n].
+    /// Fit polynomial to the time series using centered and scaled coordinates
+    /// for numerical stability.
     ///
-    /// Uses normal equations: (X^T X) c = X^T y, solved by Cholesky-like approach.
-    pub fn fit_polynomial(&self, times: &[f64], values: &[f64]) -> Vec<f64> {
+    /// Returns `(coeffs_centered, t_mean, t_scale)` where the polynomial is
+    /// `y(t) = sum_k coeffs[k] * u^k` with `u = (t - t_mean) / t_scale`.
+    fn fit_centered(&self, times: &[f64], values: &[f64]) -> (Vec<f64>, f64, f64) {
         let n = times.len();
         let p = self.degree + 1;
         if n < p {
-            return vec![0.0; p];
+            return (vec![0.0; p], 0.0, 1.0);
         }
 
-        // Build normal equations: A * c = b
-        // where A[i][j] = sum(t^(i+j)), b[i] = sum(t^i * y)
+        // Center and scale times for numerical stability
+        let t_mean = times.iter().sum::<f64>() / n as f64;
+        let t_range = times
+            .iter()
+            .fold(0.0_f64, |mx, &t| mx.max((t - t_mean).abs()));
+        let t_scale = if t_range > 1e-15 { t_range } else { 1.0 };
+
+        let centered: Vec<f64> = times.iter().map(|&t| (t - t_mean) / t_scale).collect();
+
+        // Build normal equations in centered coordinates
+        // A[i][j] = sum_k tc[k]^(i+j), b[i] = sum_k tc[k]^i * y[k]
+        // Pre-compute powers of tc for each data point
         let mut a = vec![vec![0.0_f64; p]; p];
         let mut b = vec![0.0_f64; p];
 
         for k in 0..n {
-            let t = times[k];
+            let tc = centered[k];
             let y = values[k];
-            let mut t_pow_i = 1.0_f64;
+            // Compute tc^0, tc^1, ..., tc^(2*(p-1))
+            let max_pow = 2 * (p - 1) + 1;
+            let mut powers = vec![1.0_f64; max_pow];
+            for m in 1..max_pow {
+                powers[m] = powers[m - 1] * tc;
+            }
             for i in 0..p {
-                b[i] += t_pow_i * y;
-                let mut t_pow_ij = t_pow_i;
+                b[i] += powers[i] * y;
                 for j in i..p {
-                    a[i][j] += t_pow_ij;
-                    if i != j {
-                        a[j][i] = a[i][j];
-                    }
-                    t_pow_ij *= t;
+                    a[i][j] += powers[i + j];
                 }
-                t_pow_i *= t;
+            }
+        }
+
+        // Fill lower triangle
+        for i in 0..p {
+            for j in 0..i {
+                a[i][j] = a[j][i];
             }
         }
 
@@ -801,7 +830,6 @@ impl DriftEstimator {
         }
 
         for col in 0..p {
-            // Find pivot
             let mut max_val = aug[col][col].abs();
             let mut max_row = col;
             for row in (col + 1)..p {
@@ -837,12 +865,56 @@ impl DriftEstimator {
             }
         }
 
-        coeffs
+        (coeffs, t_mean, t_scale)
     }
 
-    /// Evaluate a polynomial at time t.
+    /// Evaluate centered polynomial: `sum_k coeffs[k] * u^k` where `u = (t - t_mean) / t_scale`.
+    fn eval_centered(coeffs: &[f64], t: f64, t_mean: f64, t_scale: f64) -> f64 {
+        let u = (t - t_mean) / t_scale;
+        let mut result = 0.0;
+        for c in coeffs.iter().rev() {
+            result = result * u + c;
+        }
+        result
+    }
+
+    /// Fit polynomial and return coefficients in the original (uncentered) time variable.
+    ///
+    /// Uses `fit_centered` internally, then evaluates at original time points.
+    /// The returned coefficients satisfy: `y(t) = sum_k coeffs[k] * t^k`.
+    pub fn fit_polynomial(&self, times: &[f64], values: &[f64]) -> Vec<f64> {
+        let (c, t_mean, t_scale) = self.fit_centered(times, values);
+        // For API compatibility, return coefficients in original variable.
+        // We do this via polynomial composition using the centered coefficients.
+        // c[k] applies to u^k where u = (t - t_mean)/t_scale = t/t_scale - t_mean/t_scale
+        // Expand using nested multiplication.
+        let p = c.len();
+        let alpha = 1.0 / t_scale;
+        let beta = -t_mean / t_scale;
+
+        // Build coefficients in t: start with c[p-1], multiply by (alpha*t + beta), add c[p-2], etc.
+        // Maintain a polynomial in t as a vector of coefficients.
+        let mut result = vec![0.0_f64; p];
+        result[0] = c[p - 1];
+
+        for i in (0..p - 1).rev() {
+            // Multiply current polynomial by (alpha*t + beta): shift up and scale
+            let mut new = vec![0.0_f64; p];
+            for j in (0..p).rev() {
+                if j > 0 {
+                    new[j] += result[j - 1] * alpha;
+                }
+                new[j] += result[j] * beta;
+            }
+            new[0] += c[i];
+            result = new;
+        }
+
+        result
+    }
+
+    /// Evaluate a polynomial at time t: `sum_k coeffs[k] * t^k` via Horner's method.
     pub fn eval_polynomial(coeffs: &[f64], t: f64) -> f64 {
-        // Horner's method
         let mut result = 0.0;
         for c in coeffs.iter().rev() {
             result = result * t + c;
@@ -852,10 +924,10 @@ impl DriftEstimator {
 
     /// Compute the drift (trend) values for each time point.
     pub fn compute_drift(&self, times: &[f64], values: &[f64]) -> Vec<f64> {
-        let coeffs = self.fit_polynomial(times, values);
+        let (coeffs, t_mean, t_scale) = self.fit_centered(times, values);
         times
             .iter()
-            .map(|&t| Self::eval_polynomial(&coeffs, t))
+            .map(|&t| Self::eval_centered(&coeffs, t, t_mean, t_scale))
             .collect()
     }
 
@@ -869,11 +941,14 @@ impl DriftEstimator {
             .collect()
     }
 
-    /// Estimate linear drift rate from the fitted polynomial (coefficient a1).
+    /// Estimate linear drift rate from the fitted polynomial.
+    ///
+    /// For centered polynomial `y(u) = c0 + c1*u + ...`, the drift rate in
+    /// original time is `c1 / t_scale` (derivative dy/dt at the center).
     pub fn linear_drift_rate(&self, times: &[f64], values: &[f64]) -> f64 {
-        let coeffs = self.fit_polynomial(times, values);
+        let (coeffs, _t_mean, t_scale) = self.fit_centered(times, values);
         if coeffs.len() > 1 {
-            coeffs[1]
+            coeffs[1] / t_scale
         } else {
             0.0
         }
