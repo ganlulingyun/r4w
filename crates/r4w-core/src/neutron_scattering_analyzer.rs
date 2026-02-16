@@ -833,7 +833,8 @@ impl StructureFactorEstimator {
     /// Analytical solution for hard spheres of radius R_hs at volume fraction eta.
     pub fn percus_yevick(q: f64, r_hs: f64, eta: f64) -> f64 {
         let x = 2.0 * q * r_hs;
-        if x.abs() < 1e-10 {
+        if x.abs() < 1e-4 {
+            // S(0) = (1-eta)^4 / (1+2*eta)^2 for hard spheres (compressibility equation)
             let alpha = (1.0 + 2.0 * eta).powi(2) / (1.0 - eta).powi(4);
             return 1.0 / alpha;
         }
