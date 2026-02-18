@@ -369,6 +369,7 @@ pub mod io;
 pub mod ionospheric_scintillation_analyzer;
 pub mod ionospheric_scintillation_detector;
 pub mod ising_optimizer;
+pub mod isothermal_titration_calorimetry_analyzer;
 pub mod iq_balance;
 pub mod iq_imbalance_corrector;
 pub mod iq_imbalance_estimator;
