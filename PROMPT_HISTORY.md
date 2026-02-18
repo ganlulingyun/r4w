@@ -9754,3 +9754,30 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 888 standalone DSP modules, 177 batches complete. Pipeline builder now has 888+ block types. New categories added: capillary electrophoresis (electrophoretic mobility, EOF correction, plate count), chemiluminescence detection (flash/glow kinetics, luminol-H2O2), flow injection analysis (dispersion coefficient, tanks-in-series model), cyclic voltammetry (Randles-Sevcik, Butler-Volmer kinetics), quartz crystal microbalance (Sauerbrey mass, Kanazawa-Gordon viscoelastic).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-176 to 13-177, 883 to 888 blocks, updated header count to 808+ to 813+ modules), updated CLAUDE.md Recent Updates, and added batch 177 to PROMPT_HISTORY.md.
+
+## Session: Batch 178 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update documentation files for batch 178 (893 modules total).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-177) — 813+ new DSP modules bringing the total to 888" to "Batches 13-178) — 818+ new DSP modules bringing the total to 893"
+2. Updated block count from 888 to 893 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 178 entry to OVERVIEW.md
+4. Added batch 178 entry to PROMPT_HISTORY.md
+5. Updated CLAUDE.md Recent Updates with batch 178
+
+**Batch 178 (893 modules) -- Surface/Mass Spectrometry & Separation Science**:
+1. **SIMS Secondary Ion Mass Analyzer** (`sims_secondary_ion_mass_analyzer.rs`) -- SIMS depth profiling with Sigmund sputter yield, RSF quantification, isotope ratios, interface width estimation.
+2. **Proton Induced X-Ray Emission Analyzer** (`proton_induced_xray_emission_analyzer.rs`) -- PIXE elemental analysis with Moseley's law, X-ray cross sections, spectrum simulation.
+3. **Isoelectric Focusing Processor** (`isoelectric_focusing_processor.rs`) -- IEF protein separation with pI determination, Henderson-Hasselbalch charge calculation, peak capacity.
+4. **Size Exclusion Chromatography Processor** (`size_exclusion_chromatography_processor.rs`) -- SEC/GPC molecular weight distribution with universal calibration, Mn/Mw/Mz averages.
+5. **Laser Ablation ICP Mass Processor** (`laser_ablation_icp_mass_processor.rs`) -- LA-ICP-MS elemental mapping with transient signal processing, external calibration.
+
+**Session Totals**: 5 new modules (888 to 893), 178 batches complete.
+
+**Cumulative**: 893 standalone DSP modules, 178 batches complete. Pipeline builder now has 893+ block types. New categories added: SIMS depth profiling (Sigmund sputter yield, RSF quantification, isotope ratios), PIXE elemental analysis (Moseley's law, X-ray cross sections), isoelectric focusing (pI determination, Henderson-Hasselbalch), size exclusion chromatography (SEC/GPC universal calibration, Mn/Mw/Mz), laser ablation ICP-MS (elemental mapping, transient signal processing).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-177 to 13-178, 888 to 893 blocks, updated header count to 813+ to 818+ modules), updated CLAUDE.md Recent Updates, and added batch 178 to PROMPT_HISTORY.md.

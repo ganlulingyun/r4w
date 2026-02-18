@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-177) — 813+ new DSP modules bringing the total to 888 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-178) — 818+ new DSP modules bringing the total to 893 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -785,7 +785,8 @@ Measured with `tokei`:
   - Batch 172: Tensiometry Surface Tension Processor (du Noüy ring, Wilhelmy plate, pendant drop, Gibbs adsorption, CMC detection), Osmometry Colligative Analyzer (van't Hoff equation, membrane osmometry, freezing point depression, Mn determination), Particle Size Laser Diffraction Analyzer (Fraunhofer/Mie scattering, D10/D50/D90 percentiles, Rosin-Rammler fits), Thermal Conductivity Detector Processor (Wheatstone bridge, GC-TCD signal processing, carrier gas correction), Vapor Pressure Osmometry Analyzer (VPO MW determination, Raoult's law, Flory-Huggins chi, equilibration fit)
   - Batch 176: Electron Spin Resonance Analyzer (ESR/EPR DEER/PELDOR dipolar coupling, ESEEM, g-tensor anisotropy), Fluorescence Spectroscopy Analyzer (Stokes shift, quantum yield, Stern-Volmer, FRET, EEM), Infrared Spectroscopy FTIR Processor (interferogram, apodization, Beer-Lambert, ATR correction), Mass Spectrometry Quadrupole Analyzer (Mathieu stability, isotope patterns, quadrupole filter), X-Ray Diffraction Processor (Bragg's law, Scherrer equation, Williamson-Hall analysis)
   - Batch 177: Capillary Electrophoresis Processor (electrophoretic mobility, EOF correction, plate count, resolution, Joule heating, Gaussian deconvolution), Chemiluminescence Detector Processor (flash/glow kinetics, quantum yield, luminol-H2O2, log-linear calibration, decay fitting), Flow Injection Analysis Processor (dispersion coefficient, tanks-in-series, EMG peak model, residence time, calibration), Potentiostatic Sweep Analyzer (CV Randles-Sevcik, Cottrell, Levich, Tafel, Butler-Volmer, Nernst, scan rate dependence), Quartz Crystal Microbalance Processor (QCM-D Sauerbrey mass, overtone analysis, Kanazawa-Gordon, BVD circuit, Voigt model, adsorption kinetics) (888 total)
-  - All blocks wired into the visual pipeline builder (now 888 blocks) with property editors and block metadata
+  - Batch 178: SIMS Secondary Ion Mass Analyzer (Sigmund sputter yield, RSF quantification, isotope ratios, interface width), Proton Induced X-Ray Emission Analyzer (PIXE Moseley's law, X-ray cross sections, spectrum simulation), Isoelectric Focusing Processor (IEF pI determination, Henderson-Hasselbalch, peak capacity), Size Exclusion Chromatography Processor (SEC/GPC universal calibration, Mn/Mw/Mz averages), Laser Ablation ICP Mass Processor (LA-ICP-MS elemental mapping, transient signal processing, external calibration) (893 total)
+  - All blocks wired into the visual pipeline builder (now 893 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT

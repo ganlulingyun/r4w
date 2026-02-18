@@ -294,6 +294,9 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Batch 178 DSP Blocks** - 5 new modules (893 total, 178 batches complete). New categories: SIMS depth profiling (Sigmund sputter yield, RSF quantification, isotope ratios, interface width estimation), PIXE elemental analysis (Moseley's law, X-ray cross sections, spectrum simulation), isoelectric focusing (pI determination, Henderson-Hasselbalch charge calculation, peak capacity), size exclusion chromatography (SEC/GPC universal calibration, Mn/Mw/Mz molecular weight averages), laser ablation ICP-MS (elemental mapping, transient signal processing, external calibration):
+  - Batch 178: SIMS Secondary Ion Mass Analyzer, Proton Induced X-Ray Emission Analyzer, Isoelectric Focusing Processor, Size Exclusion Chromatography Processor, Laser Ablation ICP Mass Processor (893 total)
+
 - **Batch 177 DSP Blocks** - 5 new modules (888 total, 177 batches complete). New categories: capillary electrophoresis (electrophoretic mobility, EOF correction, plate count, resolution, Joule heating, Gaussian deconvolution), chemiluminescence detection (flash/glow kinetics, quantum yield, luminol-H2O2, log-linear calibration, decay fitting), flow injection analysis (dispersion coefficient, tanks-in-series, EMG peak model, residence time, calibration), cyclic voltammetry (Randles-Sevcik, Cottrell, Levich, Tafel, Butler-Volmer, Nernst, scan rate dependence), quartz crystal microbalance (QCM-D Sauerbrey mass, overtone analysis, Kanazawa-Gordon, BVD circuit, Voigt model, adsorption kinetics):
   - Batch 177: Capillary Electrophoresis Processor, Chemiluminescence Detector Processor, Flow Injection Analysis Processor, Potentiostatic Sweep Analyzer, Quartz Crystal Microbalance Processor (888 total)
 
