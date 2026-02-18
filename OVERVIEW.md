@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-167) — 763+ new DSP modules bringing the total to 838 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-168) — 768+ new DSP modules bringing the total to 843 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -778,7 +778,8 @@ Measured with `tokei`:
   - Batch 165: Positron Emission Tomography Processor (PET scanner coincidence detection/FBP image reconstruction), Small Angle X-Ray Scattering Analyzer (SAXS nanostructure characterization), Gel Electrophoresis Band Detector (DNA/protein gel band detection/quantification), Electrochemical Impedance Spectroscopy Analyzer (EIS circuit fitting/Nyquist/Bode analysis), Pair Distribution Function Calculator (real-space total scattering PDF analysis)
   - Batch 166: Superconductor Transition Analyzer (Tc/Hc2/BCS gap characterization), Cryogenic Helium Boiloff Predictor (LHe consumption and Dewar thermal modeling), Chromatographic Peak Resolver (HPLC/GC peak deconvolution and quantification), Larmor Precession Tracker (NMR/MRI frequency tracking and relaxometry), Polarimetric Optical Rotation Analyzer (chirality and sugar concentration measurement)
   - Batch 167: Mössbauer Spectroscopy Analyzer (hyperfine interaction analysis), Fluorescence Lifetime Imaging Processor (FLIM/TCSPC/FRET analysis), Ellipsometry Thin Film Analyzer (spectroscopic ellipsometry optical constants/thickness), XPS Photoelectron Analyzer (surface chemical composition analysis), Mass Spectrometry Peak Finder (m/z analysis/molecular formula determination)
-  - All blocks wired into the visual pipeline builder (now 838 blocks) with property editors and block metadata
+  - Batch 168: Scanning Tunneling Microscopy Processor (STM topography/STS LDOS/atomic-scale characterization), Thermogravimetric Analyzer (TGA kinetics/proximate analysis/thermal stability), Differential Scanning Calorimetry (DSC thermal transitions/curing kinetics/Tg/melting analysis), Isothermal Titration Calorimetry Analyzer (ITC binding thermodynamics/Wiseman fitting/Ka/ΔH/ΔS), Electron Diffraction Pattern Analyzer (SAED/CBED crystal structure/d-spacing/Kikuchi/orientation/defect ID)
+  - All blocks wired into the visual pipeline builder (now 843 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
