@@ -872,6 +872,7 @@ pub mod wind_turbine_vibration_monitor;
 pub mod wola_channelizer;
 pub mod wspr_modulator;
 pub mod x_ray_fluorescence_analyzer;
+pub mod xps_photoelectron_analyzer;
 pub mod zadoff_chu_generator;
 pub mod waterfall_image_enhancer;
 pub mod waterfilling;
