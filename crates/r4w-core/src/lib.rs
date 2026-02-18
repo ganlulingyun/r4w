@@ -700,6 +700,7 @@ pub mod silence_detector;
 pub mod single_pole_iir;
 pub mod skiphead;
 pub mod slip_decoder;
+pub mod small_angle_xray_scattering_analyzer;
 pub mod snr_estimator;
 pub mod sonar_bottom_profiler;
 pub mod space_debris_tracker;
