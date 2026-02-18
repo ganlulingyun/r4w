@@ -242,6 +242,7 @@ pub mod electromyography_decomposition;
 pub mod electrostatic_discharge_analyzer;
 pub mod elint_pulse_characterizer;
 pub mod ellipsometry_analyzer;
+pub mod ellipsometry_thin_film_analyzer;
 pub mod emc_radiated_immunity;
 pub mod emi_conducted_analyzer;
 pub mod emg_gesture_decoder;
