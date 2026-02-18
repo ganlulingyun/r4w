@@ -204,6 +204,7 @@ pub mod cosmic_ray_detector;
 pub mod costas_loop;
 pub mod cosmic_ray_muon_tracker;
 pub mod cosmic_ray_shower_detector;
+pub mod coulometry_charge_analyzer;
 pub mod covert_timing_encoder;
 pub mod cpm;
 pub mod ctcss_squelch;
