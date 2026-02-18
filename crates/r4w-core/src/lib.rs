@@ -661,6 +661,7 @@ pub mod radio_direction_finder;
 pub mod radio_occultation_processor;
 pub mod rds_decoder;
 pub mod reed_solomon;
+pub mod refractometry_brix_analyzer;
 pub mod regenerate_bb;
 pub mod repeat;
 pub mod rf_circuit_em_simulator;
