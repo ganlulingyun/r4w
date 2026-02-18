@@ -524,6 +524,7 @@ pub mod packet_encoder;
 pub mod packet_framing;
 pub mod packet_header_parser;
 pub mod packet_sink;
+pub mod pair_distribution_function_calculator;
 pub mod papr_reduction;
 pub mod pfb_clock_sync;
 pub mod probe;
