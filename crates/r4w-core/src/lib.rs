@@ -200,6 +200,7 @@ pub mod constellation_demapper;
 pub mod constellation_encoder;
 pub mod constellation_soft_decoder;
 pub mod constellation_tracer;
+pub mod contact_angle_goniometer_processor;
 pub mod cosmic_ray_detector;
 pub mod costas_loop;
 pub mod cosmic_ray_muon_tracker;
