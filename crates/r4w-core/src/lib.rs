@@ -695,6 +695,7 @@ pub mod seismic_moment_tensor_inverter;
 pub mod seismograph_event_classifier;
 pub mod seismic_velocity_inversion;
 pub mod seismic_wave_separator;
+pub mod sedimentation_velocity_analyzer;
 pub mod seismoacoustic_infrasound_detector;
 pub mod satellite_link_predictor;
 pub mod satellite_link_budget_calculator;
