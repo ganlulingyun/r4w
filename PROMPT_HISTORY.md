@@ -9367,3 +9367,29 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 813 standalone DSP modules, 162 batches complete. Pipeline builder now has 813+ block types. New categories added: ellipsometry (Fresnel/transfer matrix/dispersion models), schlieren imaging (refractive index gradient/Abel inversion), seismic velocity inversion (NMO/semblance/Dix/SIRT), cardiac electrogram mapping (activation time/voltage/rotor/CFAE), magneto-optical trap control (Doppler cooling/MOT/saturated absorption), synchrotron radiation (brilliance/undulator/XAFS), neutron activation analysis (NAA/decay correction/PSD), Raman LIDAR (Klett-Fernald/water vapor), hyperpolarized xenon NMR (lung imaging/SEOP/VFA), muon-catalyzed fusion (Rayleigh-Plesset/sticking/cycling), neutron porosity (well log/lithology/gas detection), interferometric strain (InSAR/FBG/DAS/Mogi/Okada), borehole temperature (geothermal gradient/Horner/DTS), crystallographic phase ID (XRD/Scherrer/Williamson-Hall), surface acoustic wave (SAW/Sauerbrey/IDT/Love wave), precision spectroscopy (Voigt/frequency comb/CRDS/Fabry-Perot), cosmic ray shower (NKG/Gaisser-Hillas/Cherenkov), sonoluminescence (Rayleigh-Plesset/blackbody/cavitation), scanning electron microscope (SE/BSE/EDX/grain size), cyclotron resonance (FT-ICR MS/isotope patterns/Kendrick mass defect).
 
 **Documentation Updates**: Updated CLAUDE.md (added batches 159-162 Recent Updates entry), OVERVIEW.md (Batches 13-158 to 13-162, 793 to 813 blocks, added batch entries 159-162), and added batches 159-162 to PROMPT_HISTORY.md.
+
+## Session: Batch 163 Documentation Update
+
+**Date**: February 17, 2026
+
+### User Request
+> Update the documentation files for batch 163 of DSP modules in the r4w-core crate.
+
+**Actions Taken**:
+1. Updated CLAUDE.md with new batch 163 entry at top of Recent Updates section
+2. Updated OVERVIEW.md module count from 813 to 818, batch range from 13-162 to 13-163
+3. Updated PROMPT_HISTORY.md with this session entry
+4. Committed and pushed changes
+
+**Batch 163 (818 modules) -- Quantum Sensing, Scattering & Optical Analysis**:
+1. **Neutron Scattering Analyzer** (`neutron_scattering_analyzer.rs`) -- SANS data reduction, Guinier/Porod analysis, form factors (sphere/cylinder/ellipsoid), structure factor, Percus-Yevick hard-sphere model. 54 tests.
+2. **Dynamic Light Scattering Processor** (`dynamic_light_scattering_processor.rs`) -- Autocorrelation, Siegert relation, cumulant analysis, Stokes-Einstein diffusion, CONTIN-like regularization. 53 tests.
+3. **Interferometric Gravity Mapper** (`interferometric_gravity_mapper.rs`) -- Mach-Zehnder atom interferometer, tidal correction, Allan deviation, gravity gradient tensor. 63 tests.
+4. **Holographic Microscopy Processor** (`holographic_microscopy_processor.rs`) -- Fresnel propagation, angular spectrum method, phase retrieval, autofocus metrics. 51 tests.
+5. **Quantum Sensing Magnetometer** (`quantum_sensing_magnetometer.rs`) -- NV-center ODMR, Ramsey interferometry, spin echo, dynamical decoupling, vector magnetometry. 59 tests.
+
+**Session Totals**: 5 new modules (813 to 818), 163 batches complete.
+
+**Cumulative**: 818 standalone DSP modules, 163 batches complete. Pipeline builder now has 818+ block types. New categories added: neutron scattering analysis (SANS/Guinier/Porod/form factors/structure factor), dynamic light scattering (DLS/autocorrelation/Siegert/cumulant analysis), interferometric gravity mapping (atom interferometry/tidal correction/Allan deviation), holographic microscopy (Fresnel/angular spectrum/phase retrieval), quantum sensing magnetometry (NV-center ODMR/Ramsey/spin echo/dynamical decoupling).
+
+**Documentation Updates**: Updated CLAUDE.md (added batch 163 Recent Updates entry), OVERVIEW.md (Batches 13-162 to 13-163, 813 to 818 blocks, updated block count references), and added batch 163 to PROMPT_HISTORY.md.

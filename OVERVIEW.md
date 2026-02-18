@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-162) — 738+ new DSP modules bringing the total to 813 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-163) — 743+ new DSP modules bringing the total to 818 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -773,7 +773,7 @@ Measured with `tokei`:
   - Batch 160: Synchrotron Radiation Processor (brilliance/undulator spectrum/XAFS/monochromator), Neutron Activation Analyzer (NAA activity/decay correction/pulse shape discrimination), Raman LIDAR Processor (atmospheric profiling/Klett-Fernald/water vapor retrieval), Hyperpolarized Xenon NMR (Hp-Xe lung imaging/SEOP/dissolved phase/VFA), Muon-Catalyzed Fusion Diagnostics (Rayleigh-Plesset/sticking/cycling rate/energy yield)
   - Batch 161: Neutron Porosity Analyzer (well log porosity/lithology correction/gas detection), Interferometric Strain Processor (InSAR/fiber Bragg/DAS/Mogi/Okada), Borehole Temperature Logger (geothermal gradient/Horner correction/DTS), Crystallographic Phase Identifier (XRD peak finding/Scherrer/Williamson-Hall), Surface Acoustic Wave Processor (SAW resonance/Sauerbrey/IDT response/Love wave)
   - Batch 162: Precision Spectroscopy Analyzer (Voigt fitting/frequency comb/CRDS/Fabry-Perot), Cosmic Ray Shower Detector (NKG lateral distribution/Gaisser-Hillas/Cherenkov), Sonoluminescence Emission Analyzer (Rayleigh-Plesset/blackbody/cavitation threshold), Scanning Electron Microscope Processor (SE/BSE/EDX/grain size/charging detection), Cyclotron Resonance Spectrometer (FT-ICR MS/isotope patterns/Kendrick mass defect)
-  - All blocks wired into the visual pipeline builder (now 813 blocks) with property editors and block metadata
+  - All blocks wired into the visual pipeline builder (now 818 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
