@@ -232,6 +232,7 @@ pub mod ecg_qrs_detector;
 pub mod eddy_current_inspector;
 pub mod early_late_gate;
 pub mod electric_motor_fault_detector;
+pub mod electrochemical_impedance_spectroscopy_analyzer;
 pub mod electron_beam_lithography_controller;
 pub mod electroencephalogram_bci;
 pub mod electroencephalogram_processor;
