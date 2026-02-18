@@ -290,6 +290,7 @@ pub mod fmcw_automotive_processor;
 pub mod fmcw_radar;
 pub mod fll_band_edge;
 pub mod float_to_complex;
+pub mod fluorescence_lifetime_imaging_processor;
 pub mod flow_cytometry_analyzer;
 pub mod fm_emphasis;
 pub mod fm_stereo_decoder;
