@@ -172,6 +172,7 @@ pub mod cic_filter;
 pub mod chirp;
 pub mod chirp_compressor;
 pub mod chirp_z_transform;
+pub mod circular_dichroism_spectrometer;
 pub mod chromatographic_peak_resolver;
 pub mod chunks_to_symbols;
 pub mod clutter_filter;
