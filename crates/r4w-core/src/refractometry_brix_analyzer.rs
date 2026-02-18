@@ -1424,7 +1424,7 @@ mod tests {
     fn test_fresnel_normal_incidence() {
         let (rs, rp) = fresnel_reflectance(1.0, 1.5, 0.0).unwrap();
         // At normal incidence Rs = Rp = ((1-1.5)/(1+1.5))² = 0.04
-        let expected = ((1.0 - 1.5) / (1.0 + 1.5)).powi(2);
+        let expected = ((1.0_f64 - 1.5) / (1.0_f64 + 1.5)).powi(2);
         assert!((rs - expected).abs() < TOL);
         assert!((rp - expected).abs() < TOL);
     }
@@ -1517,7 +1517,7 @@ mod tests {
     #[test]
     fn test_normal_incidence_reflectance_air_glass() {
         let r = normal_incidence_reflectance(1.0, 1.5);
-        let expected = ((1.0 - 1.5) / (1.0 + 1.5)).powi(2);
+        let expected = ((1.0_f64 - 1.5) / (1.0_f64 + 1.5)).powi(2);
         assert!((r - expected).abs() < TOL);
     }
 
@@ -1550,7 +1550,7 @@ mod tests {
     #[test]
     fn test_average_reflectance_normal() {
         let r = average_reflectance(1.0, 1.5, 0.0).unwrap();
-        let expected = ((1.0 - 1.5) / (1.0 + 1.5)).powi(2);
+        let expected = ((1.0_f64 - 1.5) / (1.0_f64 + 1.5)).powi(2);
         assert!((r - expected).abs() < TOL);
     }
 
