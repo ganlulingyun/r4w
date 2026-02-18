@@ -170,6 +170,7 @@ pub mod cic_filter;
 pub mod chirp;
 pub mod chirp_compressor;
 pub mod chirp_z_transform;
+pub mod chromatographic_peak_resolver;
 pub mod chunks_to_symbols;
 pub mod clutter_filter;
 pub mod coding;
