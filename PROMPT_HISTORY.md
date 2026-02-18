@@ -9469,3 +9469,30 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 833 standalone DSP modules, 166 batches complete. Pipeline builder now has 833+ block types. New categories added: superconductor characterization (Tc/Hc2/BCS gap analysis), cryogenic system management (LHe boiloff/thermal modeling), chromatographic signal processing (HPLC/GC peak resolution), NMR/MRI signal processing (Larmor tracking/relaxometry), polarimetric optical analysis (chirality/sugar concentration).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-165 to 13-166, 828 to 833 blocks, added batch 166 entry, updated header count to 758+ modules), and added batch 166 to PROMPT_HISTORY.md.
+
+## Session: Batch 167 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update the documentation files for the r4w project to reflect batch 167 completion (838 modules total).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md batch range from 13-166 to 13-167
+2. Updated module count from 758+ to 763+ in header
+3. Updated block count from 833 to 838
+4. Added batch 167 entry to OVERVIEW.md with all 5 module summaries
+5. Updated PROMPT_HISTORY.md with this session entry
+
+**Batch 167 (838 modules) -- Advanced Spectroscopy & Surface Analysis**:
+1. **Mössbauer Spectroscopy Analyzer** (`mossbauer_spectroscopy_analyzer.rs`) -- Mössbauer spectroscopy hyperfine interaction analysis with isomer shift, quadrupole splitting, and magnetic field characterization. 91 tests.
+2. **Fluorescence Lifetime Imaging Processor** (`fluorescence_lifetime_imaging_processor.rs`) -- FLIM/TCSPC lifetime imaging and FRET (Förster Resonance Energy Transfer) analysis for fluorescence microscopy. 80 tests.
+3. **Ellipsometry Thin Film Analyzer** (`ellipsometry_thin_film_analyzer.rs`) -- Spectroscopic ellipsometry optical constant and thickness characterization for thin film metrology. 76 tests.
+4. **XPS Photoelectron Analyzer** (`xps_photoelectron_analyzer.rs`) -- X-ray photoelectron spectroscopy surface chemical composition analysis with peak fitting and quantification. 92 tests.
+5. **Mass Spectrometry Peak Finder** (`mass_spectrometry_peak_finder.rs`) -- Mass spectrometry m/z analysis and molecular formula determination with isotope pattern matching. 82 tests.
+
+**Session Totals**: 5 new modules (833 to 838), 167 batches complete.
+
+**Cumulative**: 838 standalone DSP modules, 167 batches complete. Pipeline builder now has 838+ block types. New categories added: Mössbauer spectroscopy (hyperfine interaction analysis), fluorescence lifetime imaging (FLIM/TCSPC/FRET), spectroscopic ellipsometry (thin film characterization), X-ray photoelectron spectroscopy (XPS surface analysis), mass spectrometry (m/z analysis/molecular formula).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-166 to 13-167, 833 to 838 blocks, added batch 167 entry, updated header count to 763+ modules), and added batch 167 to PROMPT_HISTORY.md.
