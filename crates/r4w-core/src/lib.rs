@@ -236,6 +236,7 @@ pub mod early_late_gate;
 pub mod electric_motor_fault_detector;
 pub mod electrochemical_impedance_spectroscopy_analyzer;
 pub mod electron_beam_lithography_controller;
+pub mod electron_diffraction_pattern_analyzer;
 pub mod electroencephalogram_bci;
 pub mod electroencephalogram_processor;
 pub mod electron_spin_resonance_processor;
