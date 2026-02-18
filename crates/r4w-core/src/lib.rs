@@ -760,6 +760,7 @@ pub mod superconducting_qubit_readout;
 pub mod superconducting_magnetometer;
 pub mod superconductor_transition_analyzer;
 pub mod surface_acoustic_wave_processor;
+pub mod surface_plasmon_resonance_processor;
 pub mod hdlc;
 pub mod header_payload_demux;
 pub mod hilbert;
