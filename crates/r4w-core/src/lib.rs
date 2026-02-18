@@ -123,6 +123,7 @@ pub mod diff_phasor;
 pub mod differential;
 pub mod differential_scanning_calorimetry;
 pub mod diamond_anvil_cell_analyzer;
+pub mod dielectric_spectroscopy_processor;
 pub mod digital_down_converter;
 pub mod digital_predistortion;
 pub mod digital_up_converter;
