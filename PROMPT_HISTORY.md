@@ -9808,3 +9808,29 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 898 standalone DSP modules, 179 batches complete. Pipeline builder now has 898+ block types. New categories added: thermogravimetric evolved gas analysis (TGA-EGA, Kissinger, Ozawa-Flynn-Wall), differential pulse voltammetry (DPV/SWV, Parry-Osteryoung, Nernst), inductively coupled plasma torch (ICP-OES, Boltzmann, Stark broadening, Saha), scanning tunneling microscopy (STM imaging, dI/dV spectroscopy, roughness analysis), neutron activation analysis (NAA, k0 standardization, Currie detection limit).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-178 to 13-179, 893 to 898 blocks, updated header count from 818+ to 823+ modules), updated CLAUDE.md Recent Updates, and added batch 179 to PROMPT_HISTORY.md.
+
+---
+
+### Batch 180 Documentation Update (2026-02-18)
+
+> Update documentation files for batch 180 (903 modules total, 180 batches complete).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-179) -- 823+ new DSP modules bringing the total to 898" to "Batches 13-180) -- 828+ new DSP modules bringing the total to 903"
+2. Updated block count from 898 to 903 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 180 entry to OVERVIEW.md
+4. Added batch 180 entry to CLAUDE.md Recent Updates
+5. Added batch 180 entry to PROMPT_HISTORY.md
+
+**Batch 180 (903 modules) -- Surface Analysis, Microscopy & Spectroscopy**:
+1. **X-Ray Photoelectron Spectroscopy Processor** (`x_ray_photoelectron_spectroscopy_processor.rs`) -- XPS binding energy, chemical shift, Shirley/Tougaard/linear backgrounds, quantification via Scofield sensitivity factors, Auger parameter, Doniach-Sunjic line shape, overlayer thickness model, charge correction, IMFP estimate. 38 tests.
+2. **Atomic Force Microscope Processor** (`atomic_force_microscope_processor.rs`) -- AFM force-distance curves, Hertz/DMT/JKR contact mechanics modulus, adhesion force, plane subtraction, line leveling, roughness Ra/Rq/Rmax/Rsk/Rku/Rz, grain analysis, PSD, bearing ratio, tip deconvolution, Sader/thermal spring constant calibration. 30 tests.
+3. **Raman Confocal Microscope Processor** (`raman_confocal_microscope_processor.rs`) -- Stokes/anti-Stokes temperature ratio, depolarization ratio, Lorentzian/Gaussian/Voigt peak fitting, polynomial fluorescence background removal, Savitzky-Golay smoothing, cosmic ray removal, SERS enhancement factor, Bose-Einstein correction. 27 tests.
+4. **Cathodoluminescence Imaging Processor** (`cathodoluminescence_imaging_processor.rs`) -- CL band gap from onset, Varshni temperature dependence, Kanaya-Okayama penetration depth, dead layer estimation, thermal quenching, e-h pair generation, quantum efficiency, semiconductor presets. 29 tests.
+5. **Electron Energy Loss Spectroscopy Processor** (`electron_energy_loss_spectroscopy_processor.rs`) -- EELS zero-loss peak, log-ratio thickness, plasmon peaks, power-law background, core-loss edge extraction, Kramers-Kronig dielectric function, Fourier-log deconvolution, Malis MFP, hydrogenic cross-section. 25 tests.
+
+**Session Totals**: 5 new modules (898 to 903), 180 batches complete. 149 tests total across batch.
+
+**Cumulative**: 903 standalone DSP modules, 180 batches complete. Pipeline builder now has 903+ block types. New categories added: X-ray photoelectron spectroscopy (XPS, Scofield sensitivity factors, Auger parameter, Doniach-Sunjic), atomic force microscopy (AFM, Hertz/DMT/JKR, grain analysis, tip deconvolution), confocal Raman microscopy (Stokes/anti-Stokes, SERS, Bose-Einstein correction), cathodoluminescence imaging (CL, Varshni, Kanaya-Okayama, quantum efficiency), electron energy loss spectroscopy (EELS, Kramers-Kronig, Fourier-log deconvolution, Malis MFP).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-179 to 13-180, 898 to 903 blocks, updated header count from 823+ to 828+ modules), updated CLAUDE.md Recent Updates, and added batch 180 to PROMPT_HISTORY.md.
