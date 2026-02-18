@@ -308,6 +308,7 @@ pub mod freq_xlating_fir;
 pub mod frequency_xlating_fft_filter;
 pub mod full_duplex_self_interference_canceller;
 pub mod gardner_ted;
+pub mod gel_electrophoresis_band_detector;
 pub mod geomagnetic_storm_detector;
 pub mod geophone_array_processor;
 pub mod geophone_signal_processor;
