@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-172) — 788+ new DSP modules bringing the total to 863 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-175) — 803+ new DSP modules bringing the total to 878 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -783,7 +783,7 @@ Measured with `tokei`:
   - Batch 170: Coulometry Charge Analyzer (battery cycling, Faraday electrolysis, Karl Fischer titration), Potentiometric Titration Processor (acid-base, redox, complexometric titration analysis), Flame Emission Spectroscopy Analyzer (flame photometry and AAS alkali metal quantification), Sedimentation Velocity Analyzer (AUC macromolecule sedimentation analysis), Contact Angle Goniometer Processor (wettability and surface energy analysis)
   - Batch 171: Zeta Potential Analyzer (colloidal stability via electrophoretic mobility, Smoluchowski/Henry equations, DLVO theory), Turbidimetry Nephelometry Processor (water turbidity NTU calibration, Rayleigh-Mie scattering, jar testing), Refractometry Brix Analyzer (Snell's law, Abbe refractometer, Brix sugar measurement, Cauchy/Sellmeier dispersion), Karl Fischer Moisture Analyzer (coulometric/volumetric KF titration, biamperometric endpoint detection, ASTM E203/E1064), Viscometry Intrinsic Processor (capillary viscometry, Huggins/Kraemer extrapolation, Mark-Houwink MW estimation)
   - Batch 172: Tensiometry Surface Tension Processor (du Noüy ring, Wilhelmy plate, pendant drop, Gibbs adsorption, CMC detection), Osmometry Colligative Analyzer (van't Hoff equation, membrane osmometry, freezing point depression, Mn determination), Particle Size Laser Diffraction Analyzer (Fraunhofer/Mie scattering, D10/D50/D90 percentiles, Rosin-Rammler fits), Thermal Conductivity Detector Processor (Wheatstone bridge, GC-TCD signal processing, carrier gas correction), Vapor Pressure Osmometry Analyzer (VPO MW determination, Raoult's law, Flory-Huggins chi, equilibration fit)
-  - All blocks wired into the visual pipeline builder (now 863 blocks) with property editors and block metadata
+  - All blocks wired into the visual pipeline builder (now 878 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT

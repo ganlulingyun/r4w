@@ -9631,3 +9631,72 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 863 standalone DSP modules, 172 batches complete. Pipeline builder now has 863+ block types. New categories added: tensiometry (surface tension measurement/Gibbs adsorption/CMC), osmometry (colligative properties/molecular weight determination), particle size analysis (laser diffraction/Mie theory/percentiles), thermal conductivity detection (GC-TCD/carrier gas correction), vapor pressure osmometry (molecular weight/Raoult's law).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-171 to 13-172, 858 to 863 blocks, updated header count to 788+ modules, added batch 172 entry), and added batch 172 to PROMPT_HISTORY.md.
+
+## Session: Batch 173 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update documentation files for the r4w project after batch 173.
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-172) — 788+ new DSP modules bringing the total to 863" to "Batches 13-173) — 793+ new DSP modules bringing the total to 868"
+2. Updated block count from 863 to 868 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 173 entry to PROMPT_HISTORY.md
+
+**Batch 173 (868 modules) -- Advanced Analytical Chemistry (Colligative/Elemental Methods)**:
+1. **Ebulliometry Boiling Point Analyzer** (`ebulliometry_boiling_point_analyzer.rs`) -- Clausius-Clapeyron equation, ebullioscopic constants, molecular weight determination, Cottrell pump ebulliometer. 109 tests.
+2. **Cryoscopy Freezing Point Processor** (`cryoscopy_freezing_point_processor.rs`) -- Cryoscopic constants, cooling curve analysis, eutectic point detection, solute purity analysis. 93 tests.
+3. **Conductometry Titration Analyzer** (`conductometry_titration_analyzer.rs`) -- Kohlrausch law, Debye-Hückel-Onsager theory, endpoint detection, ion mobility calculations. 105 tests.
+4. **Electrogravimetry Deposition Processor** (`electrogravimetry_deposition_processor.rs`) -- Faraday's law, Nernst equation, Butler-Volmer kinetics, Cottrell equation current decay. 110 tests.
+5. **Atomic Absorption Spectroscopy Analyzer** (`atomic_absorption_spectroscopy_analyzer.rs`) -- Beer-Lambert law, hollow cathode lamp calibration, flame/GFAAS analysis, background correction. 97 tests.
+
+## Session: Batch 174 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update documentation files for the r4w project after batch 174.
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-173) — 793+ new DSP modules bringing the total to 868" to "Batches 13-174) — 798+ new DSP modules bringing the total to 873"
+2. Updated block count from 868 to 873 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 174 entry to PROMPT_HISTORY.md
+
+**Batch 174 (873 modules) -- Materials Science Analytical Methods (Spectroscopy/Chromatography/Thermal)**:
+1. **ICP Optical Emission Spectrometer** (`icp_optical_emission_spectrometer.rs`) -- ICP plasma physics, Boltzmann/Saha equations, spectral line identification, Voigt profile fitting, Method Detection Limits. 91 tests.
+2. **Gel Permeation Chromatography Processor** (`gel_permeation_chromatography_processor.rs`) -- Molecular weight determination (Mn/Mw), Polydispersity Index (PDI), Mark-Houwink universal calibration, Van Deemter peak broadening. 98 tests.
+3. **Thermomechanical Analysis Processor** (`thermomechanical_analysis_processor.rs`) -- Coefficient of Thermal Expansion (CTE), Glass transition temperature (Tg) detection, Vicat softening point, Burger's creep model, Williams-Landel-Ferry (WLF) shift factors. 90 tests.
+4. **Dynamic Mechanical Analysis Processor** (`dynamic_mechanical_analysis_processor.rs`) -- Storage/loss modulus (E'/E''), loss tangent, WLF temperature dependence, Maxwell model, Havriliak-Negami equation, Linear Viscoelastic Region (LVR). 89 tests.
+5. **Ion Chromatography Analyzer** (`ion_chromatography_analyzer.rs`) -- Suppressed conductivity detection, peak detection and integration, EPA Method 300.0, gradient elution profile analysis, conductivity baseline correction. 97 tests.
+
+**Session Totals**: 5 new modules (863 to 868), 173 batches complete.
+
+**Cumulative**: 868 standalone DSP modules, 173 batches complete. Pipeline builder now has 868+ block types. New categories added: ebulliometry (boiling point elevation/molecular weight/Clausius-Clapeyron), cryoscopy (freezing point depression/cooling curves/eutectic analysis), conductometry titration (conductivity-based endpoint detection/Kohlrausch law), electrogravimetry (electrochemical deposition/Faraday's law/Cottrell), atomic absorption spectroscopy (flame/GFAAS/hollow cathode lamps/background correction).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-172 to 13-173, 863 to 868 blocks, updated header count to 793+ modules, added batch 173 entry), and added batch 173 to PROMPT_HISTORY.md.
+
+## Session: Batch 175 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update documentation files for the r4w project after batch 175.
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-174) — 798+ new DSP modules bringing the total to 873" to "Batches 13-175) — 803+ new DSP modules bringing the total to 878"
+2. Updated block count from 873 to 878 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 175 entry to PROMPT_HISTORY.md
+
+**Batch 175 (878 modules) -- Electrochemistry & Spectroscopy Analytical Methods**:
+1. **Amperometric Titration Analyzer** (`amperometric_titration_analyzer.rs`) -- Biamperometric and amperometric titration, Karl Fischer dead-stop endpoint detection, Rotating Disk Electrode (RDE) voltammetry, Levich equation diffusion, Gran plot extrapolation. 106 tests.
+2. **Flame Photometry Emission Processor** (`flame_photometry_emission_processor.rs`) -- Flame emission spectrometry, Boltzmann and Wien distribution laws, Voigt line profile fitting, Na/K/Li/Ca/Ba multi-element analysis with intensity standards. 111 tests.
+3. **Polarography Voltammetry Analyzer** (`polarography_voltammetry_analyzer.rs`) -- Linear Sweep Voltammetry (LSV), Cyclic Voltammetry (CV), Differential Pulse Voltammetry (DPV), Square Wave Voltammetry (SWV), DC polarography, Randles-Sevcik equation, Cottrell chronoamperometry, Levich equation, Butler-Volmer kinetics, Tafel analysis, Ilkovic equation. 79 tests.
+4. **Nephelometric Immunoassay Processor** (`nephelometric_immunoassay_processor.rs`) -- Rayleigh and Mie scattering analysis, Beer-Lambert law turbidimetry, 4-Parameter Logistic (4PL) calibration, prozone effect detection in competitive immunoassays. 100 tests.
+5. **Coulometric Titration Processor** (`coulometric_titration_processor.rs`) -- Faraday's law electrochemistry, Karl Fischer coulometric water determination, acid-base and redox coulometric titrations, drift compensation. 103 tests.
+
+**Session Totals**: 5 new modules (873 to 878), 175 batches complete.
+
+**Cumulative**: 878 standalone DSP modules, 175 batches complete. Pipeline builder now has 878+ block types. New categories added: amperometric titration (Karl Fischer dead-stop/RDE voltammetry), flame photometry (multi-element Na/K/Li/Ca/Ba analysis), polarography (LSV/CV/DPV/SWV with Tafel/Butler-Volmer), nephelometry (Mie scattering/4PL calibration), coulometry (Faraday's law/electrodeposition).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-174 to 13-175, 873 to 878 blocks, updated header count to 798+ to 803+ modules), and added batch 175 to PROMPT_HISTORY.md.
