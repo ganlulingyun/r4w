@@ -801,6 +801,7 @@ pub mod tensor_hosvd;
 pub mod terahertz_imaging_processor;
 pub mod thermal_imaging_processor;
 pub mod thermoacoustic_engine_analyzer;
+pub mod thermogravimetric_analyzer;
 pub mod threshold;
 pub mod tidal_harmonic_analyzer;
 pub mod tidal_bore_predictor;
