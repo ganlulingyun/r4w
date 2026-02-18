@@ -9443,3 +9443,29 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 828 standalone DSP modules, 165 batches complete. Pipeline builder now has 828+ block types. New categories added: positron emission tomography (PET/coincidence detection/FBP reconstruction), small-angle X-ray scattering (SAXS/nanostructure characterization), gel electrophoresis band detection (DNA/protein quantification), electrochemical impedance spectroscopy (EIS/circuit fitting/Nyquist/Bode), pair distribution function analysis (PDF/total scattering).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-164 to 13-165, 823 to 828 blocks, added batch 165 entry), and added batch 165 to PROMPT_HISTORY.md.
+
+## Session: Batch 166 Documentation Update
+
+**Date**: February 17, 2026
+
+### User Request
+> Update the documentation files for batch 166 of DSP modules in the r4w-core crate.
+
+**Actions Taken**:
+1. Updated OVERVIEW.md module count from 828 to 833, batch range from 13-165 to 13-166
+2. Added batch 166 entry to OVERVIEW.md
+3. Updated PROMPT_HISTORY.md with this session entry
+4. Committed and pushed changes
+
+**Batch 166 (833 modules) -- Cryogenics, Spectroscopy & Chromatography**:
+1. **Superconductor Transition Analyzer** (`superconductor_transition_analyzer.rs`) -- Critical temperature (Tc), upper critical field (Hc2), and BCS energy gap characterization for superconducting materials. 84 tests.
+2. **Cryogenic Helium Boiloff Predictor** (`cryogenic_helium_boiloff_predictor.rs`) -- Liquid helium consumption modeling and Dewar thermal analysis for cryogenic system management. 104 tests.
+3. **Chromatographic Peak Resolver** (`chromatographic_peak_resolver.rs`) -- HPLC and GC peak deconvolution and quantification with signal processing and baseline correction. 90 tests.
+4. **Larmor Precession Tracker** (`larmor_precession_tracker.rs`) -- NMR and MRI frequency tracking with relaxometry and precession analysis. 87 tests.
+5. **Polarimetric Optical Rotation Analyzer** (`polarimetric_optical_rotation_analyzer.rs`) -- Chirality detection and sugar concentration measurement via polarimetric optical rotation. 80 tests.
+
+**Session Totals**: 5 new modules (828 to 833), 166 batches complete.
+
+**Cumulative**: 833 standalone DSP modules, 166 batches complete. Pipeline builder now has 833+ block types. New categories added: superconductor characterization (Tc/Hc2/BCS gap analysis), cryogenic system management (LHe boiloff/thermal modeling), chromatographic signal processing (HPLC/GC peak resolution), NMR/MRI signal processing (Larmor tracking/relaxometry), polarimetric optical analysis (chirality/sugar concentration).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-165 to 13-166, 828 to 833 blocks, added batch 166 entry, updated header count to 758+ modules), and added batch 166 to PROMPT_HISTORY.md.
