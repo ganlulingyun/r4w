@@ -893,6 +893,7 @@ pub mod zadoff_chu_generator;
 pub mod waterfall_image_enhancer;
 pub mod waterfilling;
 pub mod zero_crossing_detector;
+pub mod zeta_potential_analyzer;
 
 // Mesh networking support
 pub mod mesh;
