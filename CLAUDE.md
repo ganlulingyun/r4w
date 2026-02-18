@@ -294,6 +294,9 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Batch 177 DSP Blocks** - 5 new modules (888 total, 177 batches complete). New categories: capillary electrophoresis (electrophoretic mobility, EOF correction, plate count, resolution, Joule heating, Gaussian deconvolution), chemiluminescence detection (flash/glow kinetics, quantum yield, luminol-H2O2, log-linear calibration, decay fitting), flow injection analysis (dispersion coefficient, tanks-in-series, EMG peak model, residence time, calibration), cyclic voltammetry (Randles-Sevcik, Cottrell, Levich, Tafel, Butler-Volmer, Nernst, scan rate dependence), quartz crystal microbalance (QCM-D Sauerbrey mass, overtone analysis, Kanazawa-Gordon, BVD circuit, Voigt model, adsorption kinetics):
+  - Batch 177: Capillary Electrophoresis Processor, Chemiluminescence Detector Processor, Flow Injection Analysis Processor, Potentiostatic Sweep Analyzer, Quartz Crystal Microbalance Processor (888 total)
+
 - **Batch 176 DSP Blocks** - 5 new modules (883 total, 176 batches complete). New categories: advanced ESR/EPR spectroscopy (DEER/PELDOR dipolar coupling, ESEEM, powder patterns, g-tensor anisotropy, T1/T2 relaxation, spin counting), fluorescence spectroscopy (Stokes shift, quantum yield Parker-Rees, Stern-Volmer quenching, FRET, lifetime decay, anisotropy, EEM), FTIR infrared spectroscopy (interferogram, apodization, FFT, Beer-Lambert, ATR correction, spectral comparison, band ID), quadrupole mass spectrometry (Mathieu stability, isotope patterns, quadrupole filter simulation, mass accuracy, calibration), powder X-ray diffraction (Bragg's law, crystal lattice d-spacings, Scherrer equation, Williamson-Hall analysis):
   - Batch 176: Electron Spin Resonance Analyzer, Fluorescence Spectroscopy Analyzer, Infrared Spectroscopy FTIR Processor, Mass Spectrometry Quadrupole Analyzer, X-Ray Diffraction Processor (883 total)
 

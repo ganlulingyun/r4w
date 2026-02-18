@@ -9727,3 +9727,30 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 883 standalone DSP modules, 176 batches complete. Pipeline builder now has 883+ block types. New categories added: ESR/EPR spectroscopy (DEER/PELDOR dipolar coupling, ESEEM modulation), fluorescence spectroscopy (quantum yield, Stern-Volmer quenching, FRET), FTIR spectroscopy (interferogram processing, Beer-Lambert absorption), quadrupole mass spectrometry (Mathieu stability, isotope patterns), X-ray diffraction (Bragg's law, Scherrer crystallite sizing, Williamson-Hall strain analysis).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-175 to 13-176, 878 to 883 blocks, updated header count to 803+ to 808+ modules), updated CLAUDE.md Recent Updates, and added batch 176 to PROMPT_HISTORY.md.
+
+## Session: Batch 177 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update documentation files for batch 177 (888 modules total).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-176) — 808+ new DSP modules bringing the total to 883" to "Batches 13-177) — 813+ new DSP modules bringing the total to 888"
+2. Updated block count from 883 to 888 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 177 entry to OVERVIEW.md
+4. Added batch 177 entry to PROMPT_HISTORY.md
+5. Updated CLAUDE.md Recent Updates with batch 177
+
+**Batch 177 (888 modules) -- Analytical Chemistry & Electrochemistry**:
+1. **Capillary Electrophoresis Processor** (`capillary_electrophoresis_processor.rs`) -- CE: electrophoretic mobility, EOF correction, plate count, resolution, Joule heating, injection volume, Gaussian deconvolution.
+2. **Chemiluminescence Detector Processor** (`chemiluminescence_detector_processor.rs`) -- CL: flash/glow kinetics, quantum yield, luminol-H2O2, log-linear calibration, decay fitting.
+3. **Flow Injection Analysis Processor** (`flow_injection_analysis_processor.rs`) -- FIA: dispersion coefficient, tanks-in-series, EMG peak model, residence time, calibration.
+4. **Potentiostatic Sweep Analyzer** (`potentiostatic_sweep_analyzer.rs`) -- CV: Randles-Sevcik, Cottrell, Levich, Tafel, Butler-Volmer, Nernst, scan rate dependence.
+5. **Quartz Crystal Microbalance Processor** (`quartz_crystal_microbalance_processor.rs`) -- QCM-D: Sauerbrey mass, overtone analysis, Kanazawa-Gordon, BVD circuit, Voigt model, adsorption kinetics.
+
+**Session Totals**: 5 new modules (883 to 888), 177 batches complete.
+
+**Cumulative**: 888 standalone DSP modules, 177 batches complete. Pipeline builder now has 888+ block types. New categories added: capillary electrophoresis (electrophoretic mobility, EOF correction, plate count), chemiluminescence detection (flash/glow kinetics, luminol-H2O2), flow injection analysis (dispersion coefficient, tanks-in-series model), cyclic voltammetry (Randles-Sevcik, Butler-Volmer kinetics), quartz crystal microbalance (Sauerbrey mass, Kanazawa-Gordon viscoelastic).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-176 to 13-177, 883 to 888 blocks, updated header count to 808+ to 813+ modules), updated CLAUDE.md Recent Updates, and added batch 177 to PROMPT_HISTORY.md.
