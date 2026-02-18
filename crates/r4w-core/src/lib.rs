@@ -276,6 +276,7 @@ pub mod correlate_estimate;
 pub mod correlate_sync;
 pub mod cross_ambiguity_function;
 pub mod cross_correlator;
+pub mod cryogenic_helium_boiloff_predictor;
 pub mod cryogenic_thermometry_processor;
 pub mod fec;
 pub mod fec_generic_api;
