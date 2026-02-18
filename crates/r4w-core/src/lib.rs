@@ -445,6 +445,7 @@ pub mod moving_minmax;
 pub mod moving_rms;
 pub mod moving_variance;
 pub mod mr_spectroscopy_processor;
+pub mod mossbauer_spectroscopy_analyzer;
 pub mod msk_modulator;
 pub mod mti_filter;
 pub mod mu_law_codec;
