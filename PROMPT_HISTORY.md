@@ -9605,3 +9605,29 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 858 standalone DSP modules, 171 batches complete. Pipeline builder now has 858+ block types. New categories added: zeta potential analysis (colloidal stability/electrophoresis/DLVO), turbidimetry/nephelometry (water turbidity/scattering/jar testing), refractometry (refractive index/sugar concentration/Brix), Karl Fischer titration (coulometric/volumetric moisture analysis), viscometry (intrinsic viscosity/Mark-Houwink/molecular weight estimation).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-170 to 13-171, 853 to 858 blocks, updated header count to 783+ modules, added batch 171 entry), and added batch 171 to PROMPT_HISTORY.md.
+
+## Session: Batch 172 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update documentation files for the r4w project after batch 172.
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-171) — 783+ new DSP modules bringing the total to 858" to "Batches 13-172) — 788+ new DSP modules bringing the total to 863"
+2. Updated block count from 858 to 863 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 172 entry to OVERVIEW.md with all 5 module summaries
+4. Updated PROMPT_HISTORY.md with this session entry
+
+**Batch 172 (863 modules) -- Advanced Analytical Chemistry & Materials Science**:
+1. **Tensiometry Surface Tension Processor** (`tensiometry_surface_tension_processor.rs`) -- du Noüy ring, Wilhelmy plate, pendant drop, Gibbs adsorption, CMC detection. 117 tests.
+2. **Osmometry Colligative Analyzer** (`osmometry_colligative_analyzer.rs`) -- van't Hoff equation, membrane osmometry, freezing point depression, Mn determination. 101 tests.
+3. **Particle Size Laser Diffraction Analyzer** (`particle_size_laser_diffraction_analyzer.rs`) -- Fraunhofer/Mie scattering, D10/D50/D90 percentiles, Rosin-Rammler fits. 108 tests.
+4. **Thermal Conductivity Detector Processor** (`thermal_conductivity_detector_processor.rs`) -- Wheatstone bridge, GC-TCD signal processing, carrier gas correction. 110 tests.
+5. **Vapor Pressure Osmometry Analyzer** (`vapor_pressure_osmometry_analyzer.rs`) -- VPO MW determination, Raoult's law, Flory-Huggins chi, equilibration fit. 109 tests.
+
+**Session Totals**: 5 new modules (858 to 863), 172 batches complete.
+
+**Cumulative**: 863 standalone DSP modules, 172 batches complete. Pipeline builder now has 863+ block types. New categories added: tensiometry (surface tension measurement/Gibbs adsorption/CMC), osmometry (colligative properties/molecular weight determination), particle size analysis (laser diffraction/Mie theory/percentiles), thermal conductivity detection (GC-TCD/carrier gas correction), vapor pressure osmometry (molecular weight/Raoult's law).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-171 to 13-172, 858 to 863 blocks, updated header count to 788+ modules, added batch 172 entry), and added batch 172 to PROMPT_HISTORY.md.
