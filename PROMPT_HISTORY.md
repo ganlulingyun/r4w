@@ -9781,3 +9781,30 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 893 standalone DSP modules, 178 batches complete. Pipeline builder now has 893+ block types. New categories added: SIMS depth profiling (Sigmund sputter yield, RSF quantification, isotope ratios), PIXE elemental analysis (Moseley's law, X-ray cross sections), isoelectric focusing (pI determination, Henderson-Hasselbalch), size exclusion chromatography (SEC/GPC universal calibration, Mn/Mw/Mz), laser ablation ICP-MS (elemental mapping, transient signal processing).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-177 to 13-178, 888 to 893 blocks, updated header count to 813+ to 818+ modules), updated CLAUDE.md Recent Updates, and added batch 178 to PROMPT_HISTORY.md.
+
+## Session: Batch 179 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update documentation files for batch 179 (898 modules total).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-178) -- 818+ new DSP modules bringing the total to 893" to "Batches 13-179) -- 823+ new DSP modules bringing the total to 898"
+2. Updated block count from 893 to 898 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 179 entry to OVERVIEW.md
+4. Added batch 179 entry to PROMPT_HISTORY.md
+5. Updated CLAUDE.md Recent Updates with batch 179
+
+**Batch 179 (898 modules) -- Thermal Analysis, Electrochemistry, Plasma Spectroscopy & Surface Science**:
+1. **Thermogravimetric Evolved Gas Analyzer** (`thermogravimetric_evolved_gas_analyzer.rs`) -- TGA-EGA mass%, DTG derivative, onset/endset temperature, weight loss steps, Kissinger activation energy, Ozawa-Flynn-Wall isoconversional, buoyancy correction, TGA-MS correlation, gas evolution rate. 40 tests.
+2. **Differential Pulse Voltammetry Processor** (`differential_pulse_voltammetry_processor.rs`) -- DPV/SWV differential current, Parry-Osteryoung peak current, half-peak width, parabolic interpolation peak detection, baseline correction, Savitzky-Golay smoothing, linear calibration, LOD/LOQ, Nernst equation. 38 tests.
+3. **Inductively Coupled Plasma Torch Processor** (`inductively_coupled_plasma_torch_processor.rs`) -- ICP-OES emission line database (15 elements), Boltzmann distribution intensity, two-line temperature method, Boltzmann plot, Stark broadening electron density, internal standard ratio, spectral interference correction, Saha ionization, Voigt profile. 37 tests.
+4. **Scanning Tunneling Microscope Processor** (`scanning_tunneling_microscope_processor.rs`) -- STM tunneling current, apparent barrier height, plane subtraction, line-by-line leveling, roughness Ra/Rq/Rmax/Rsk/Rku, step edge detection, dI/dV spectroscopy, band gap measurement, lattice parameter. 37 tests.
+5. **Neutron Activation Analysis Processor** (`neutron_activation_analysis_processor.rs`) -- NAA activation equation, decay/saturation/counting factors, comparator method, k0 standardization, Gaussian peak fitting, net peak area, Currie detection limit, self-shielding, coincidence summing, dead time correction. 41 tests.
+
+**Session Totals**: 5 new modules (893 to 898), 179 batches complete. 193 tests total across batch.
+
+**Cumulative**: 898 standalone DSP modules, 179 batches complete. Pipeline builder now has 898+ block types. New categories added: thermogravimetric evolved gas analysis (TGA-EGA, Kissinger, Ozawa-Flynn-Wall), differential pulse voltammetry (DPV/SWV, Parry-Osteryoung, Nernst), inductively coupled plasma torch (ICP-OES, Boltzmann, Stark broadening, Saha), scanning tunneling microscopy (STM imaging, dI/dV spectroscopy, roughness analysis), neutron activation analysis (NAA, k0 standardization, Currie detection limit).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-178 to 13-179, 893 to 898 blocks, updated header count from 818+ to 823+ modules), updated CLAUDE.md Recent Updates, and added batch 179 to PROMPT_HISTORY.md.
