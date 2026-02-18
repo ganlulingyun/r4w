@@ -9912,3 +9912,27 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-182 to 13-183, 913 to 918 blocks, updated header count from 838+ to 843+ modules), updated CLAUDE.md Recent Updates, and added batch 183 to PROMPT_HISTORY.md.
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-181 to 13-182, 908 to 913 blocks, updated header count from 833+ to 838+ modules), updated CLAUDE.md Recent Updates, and added batch 182 to PROMPT_HISTORY.md.
+
+### Batch 184 Documentation Update (2026-02-18)
+
+> Update documentation files for batch 184 (923 modules total, 184 batches complete).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-183) -- 843+ new DSP modules bringing the total to 918" to "Batches 13-184) -- 848+ new DSP modules bringing the total to 923"
+2. Updated block count from 918 to 923 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 184 entry to OVERVIEW.md
+4. Added batch 184 entry to CLAUDE.md Recent Updates
+5. Added batch 184 entry to PROMPT_HISTORY.md
+
+**Batch 184 (923 modules) -- Materials Characterization & Surface Science**:
+1. **Nanoparticle Tracking Analysis** (`nanoparticle_tracking_analysis.rs`) -- Brownian motion particle sizing: Stokes-Einstein equation, MSD analysis, diffusion coefficient estimation, size distribution (D10/D50/D90/PDI), concentration estimation, drift correction, solvent viscosity database. 51 tests.
+2. **Brillouin Scattering Spectrometer** (`brillouin_scattering_spectrometer.rs`) -- Brillouin light scattering for elastic properties: νB = 2nVs sin(θ/2)/λ, Fabry-Perot interferometer (Airy function, FSR, finesse), 7-material database, Lorentzian/pseudo-Voigt fitting, spatial mapping. 54 tests.
+3. **Plasma Etch Endpoint Detector** (`plasma_etch_endpoint_detector.rs`) -- Semiconductor OES endpoint detection: single-wavelength/ratio/derivative/PCA algorithms, 8 emission lines database, interferometric etch rate, over-etch control, SPC limits. 62 tests.
+4. **Thermal Desorption Spectroscopy Analyzer** (`thermal_desorption_spectroscopy_analyzer.rs`) -- TDS/TPD surface kinetics: Polanyi-Wigner equation, Redhead/Kissinger methods, 0th/1st/2nd order desorption, peak deconvolution, 8-system database. 57 tests.
+5. **Spin Echo NMR Processor** (`spin_echo_nmr_processor.rs`) -- Hahn echo, CPMG T2, inversion recovery T1, Stejskal-Tanner diffusion, NNLS T2 distribution, well logging (porosity, FFI/BVI, Timur-Coates permeability), 8-material database. 59 tests.
+
+**Session Totals**: 5 new modules (918 to 923), 184 batches complete. 283 tests total across batch.
+
+**Cumulative**: 923 standalone DSP modules, 184 batches complete. Pipeline builder now has 923+ block types. New categories added: nanoparticle tracking analysis (Stokes-Einstein Brownian motion sizing, MSD, diffusion coefficient, D10/D50/D90/PDI size distribution, concentration estimation, drift correction, solvent viscosity database), Brillouin light scattering spectroscopy (νB = 2nVs sin(θ/2)/λ, Fabry-Perot interferometer with Airy function/FSR/finesse, 7-material database, Lorentzian/pseudo-Voigt fitting, spatial mapping), plasma etch endpoint detection (OES single-wavelength/ratio/derivative/PCA algorithms, 8 emission lines database, interferometric etch rate, over-etch control, SPC limits), thermal desorption spectroscopy (Polanyi-Wigner equation, Redhead/Kissinger methods, 0th/1st/2nd order desorption, peak deconvolution, 8-system database), spin echo NMR processing (Hahn echo, CPMG T2, inversion recovery T1, Stejskal-Tanner diffusion, NNLS T2 distribution, well logging porosity/FFI/BVI/Timur-Coates permeability, 8-material database).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-183 to 13-184, 918 to 923 blocks, updated header count from 843+ to 848+ modules), updated CLAUDE.md Recent Updates, and added batch 184 to PROMPT_HISTORY.md.
