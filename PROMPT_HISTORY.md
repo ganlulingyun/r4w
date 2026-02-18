@@ -9550,3 +9550,58 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 848 standalone DSP modules, 169 batches complete. Pipeline builder now has 848+ block types. New categories added: Auger electron spectroscopy (AES surface analysis), surface plasmon resonance (SPR biosensor/affinity analysis), circular dichroism spectroscopy (CD protein structure/conformational analysis), rheology analysis (viscoelastic moduli/flow characterization), dielectric spectroscopy (complex permittivity/relaxation/conductivity).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-168 to 13-169, 843 to 848 blocks, updated header count to 773+ modules, added batch 169 entry), and added batch 169 to PROMPT_HISTORY.md.
+
+---
+
+## Session: Batch 170 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update the documentation files for the r4w project to reflect batch 170 completion (853 modules total).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-169) — 773+ new DSP modules bringing the total to 848" to "Batches 13-170) — 778+ new DSP modules bringing the total to 853"
+2. Updated block count from 848 to 853 in OVERVIEW.md
+3. Added batch 170 entry to OVERVIEW.md with all 5 module summaries
+4. Updated PROMPT_HISTORY.md with this session entry
+
+**Batch 170 (853 modules) -- Advanced Electrochemistry & Analytical Instrumentation**:
+1. **Coulometry Charge Analyzer** (`coulometry_charge_analyzer.rs`) -- Battery cycling analysis, Faraday electrolysis measurements, and Karl Fischer titration water quantification. 89 tests.
+2. **Potentiometric Titration Processor** (`potentiometric_titration_processor.rs`) -- Acid-base, redox, and complexometric titration analysis with endpoint detection and equivalence point computation. 81 tests.
+3. **Flame Emission Spectroscopy Analyzer** (`flame_emission_spectroscopy_analyzer.rs`) -- Flame photometry and atomic absorption spectroscopy (AAS) for alkali metal quantification and spectral line intensity measurement. 87 tests.
+4. **Sedimentation Velocity Analyzer** (`sedimentation_velocity_analyzer.rs`) -- Analytical ultracentrifugation (AUC) macromolecule sedimentation analysis with Lamm equation modeling and molecular weight determination. 73 tests.
+5. **Contact Angle Goniometer Processor** (`contact_angle_goniometer_processor.rs`) -- Wettability characterization and surface energy analysis with Young-Laplace equation and sessile drop/pendant drop methods. 86 tests.
+
+**Session Totals**: 5 new modules (848 to 853), 170 batches complete.
+
+**Cumulative**: 853 standalone DSP modules, 170 batches complete. Pipeline builder now has 853+ block types. New categories added: Coulometry (battery/electrolysis/water titration), potentiometric titration (acid-base/redox/complexometric analysis), flame emission spectroscopy (flame photometry/AAS alkali quantification), sedimentation velocity analysis (AUC/macromolecule characterization), contact angle goniometry (wettability/surface energy).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-169 to 13-170, 848 to 853 blocks, updated header count to 778+ modules, added batch 170 entry), and added batch 170 to PROMPT_HISTORY.md.
+
+## Session: Batch 171 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update the documentation files for batch 171 of the R4W project. The current module count is 858 (batch 171 complete).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-170) — 778+ new DSP modules bringing the total to 853" to "Batches 13-171) — 783+ new DSP modules bringing the total to 858"
+2. Updated block count from 853 to 858 in OVERVIEW.md
+3. Added batch 171 entry to OVERVIEW.md with all 5 module summaries
+4. Updated PROMPT_HISTORY.md with this session entry
+5. Committed and pushed changes
+
+**Batch 171 (858 modules) -- Analytical Chemistry & Materials Characterization**:
+1. **Zeta Potential Analyzer** (`zeta_potential_analyzer.rs`) -- Colloidal stability via electrophoretic mobility, Smoluchowski/Henry equations, DLVO theory, isoelectric point determination. 98 tests.
+2. **Turbidimetry Nephelometry Processor** (`turbidimetry_nephelometry_processor.rs`) -- Water turbidity NTU calibration, Rayleigh-Mie scattering, nephelometric ratio, jar test optimization. 86 tests.
+3. **Refractometry Brix Analyzer** (`refractometry_brix_analyzer.rs`) -- Snell's law, Abbe refractometer simulation, Brix sugar measurement, Cauchy/Sellmeier dispersion, Fresnel reflectance. 70+ tests.
+4. **Karl Fischer Moisture Analyzer** (`karl_fischer_moisture_analyzer.rs`) -- Coulometric/volumetric KF titration, biamperometric endpoint detection, drift correction, Faraday's law, ASTM E203/E1064. 70+ tests.
+5. **Viscometry Intrinsic Processor** (`viscometry_intrinsic_processor.rs`) -- Capillary viscometry, Huggins/Kraemer extrapolation, Mark-Houwink MW estimation, Poiseuille flow, Arrhenius/VFT/WLF models. 102 tests.
+
+**Session Totals**: 5 new modules (853 to 858), 171 batches complete.
+
+**Cumulative**: 858 standalone DSP modules, 171 batches complete. Pipeline builder now has 858+ block types. New categories added: zeta potential analysis (colloidal stability/electrophoresis/DLVO), turbidimetry/nephelometry (water turbidity/scattering/jar testing), refractometry (refractive index/sugar concentration/Brix), Karl Fischer titration (coulometric/volumetric moisture analysis), viscometry (intrinsic viscosity/Mark-Houwink/molecular weight estimation).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-170 to 13-171, 853 to 858 blocks, updated header count to 783+ modules, added batch 171 entry), and added batch 171 to PROMPT_HISTORY.md.
