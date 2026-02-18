@@ -9700,3 +9700,30 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 878 standalone DSP modules, 175 batches complete. Pipeline builder now has 878+ block types. New categories added: amperometric titration (Karl Fischer dead-stop/RDE voltammetry), flame photometry (multi-element Na/K/Li/Ca/Ba analysis), polarography (LSV/CV/DPV/SWV with Tafel/Butler-Volmer), nephelometry (Mie scattering/4PL calibration), coulometry (Faraday's law/electrodeposition).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-174 to 13-175, 873 to 878 blocks, updated header count to 798+ to 803+ modules), and added batch 175 to PROMPT_HISTORY.md.
+
+## Session: Batch 176 Documentation Update
+
+**Date**: February 18, 2026
+
+### User Request
+> Update documentation files for batch 176 (883 modules total).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-175) — 803+ new DSP modules bringing the total to 878" to "Batches 13-176) — 808+ new DSP modules bringing the total to 883"
+2. Updated block count from 878 to 883 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 176 entry to OVERVIEW.md
+4. Added batch 176 entry to PROMPT_HISTORY.md
+5. Updated CLAUDE.md Recent Updates with batch 176
+
+**Batch 176 (883 modules) -- Advanced Spectroscopy & Analytical Chemistry**:
+1. **Electron Spin Resonance Analyzer** (`electron_spin_resonance_analyzer.rs`) -- Advanced ESR/EPR: DEER/PELDOR dipolar coupling, ESEEM, powder patterns, g-tensor anisotropy, T1/T2 relaxation, spin counting.
+2. **Fluorescence Spectroscopy Analyzer** (`fluorescence_spectroscopy_analyzer.rs`) -- Fluorescence: Stokes shift, quantum yield (Parker-Rees), Stern-Volmer quenching, FRET, lifetime decay, anisotropy, EEM.
+3. **Infrared Spectroscopy FTIR Processor** (`infrared_spectroscopy_ftir_processor.rs`) -- FTIR: interferogram, apodization, FFT, Beer-Lambert, ATR correction, spectral comparison, band ID.
+4. **Mass Spectrometry Quadrupole Analyzer** (`mass_spectrometry_quadrupole_analyzer.rs`) -- Quadrupole MS: Mathieu stability, isotope patterns, quadrupole filter simulation, mass accuracy, calibration.
+5. **X-Ray Diffraction Processor** (`xray_diffraction_processor.rs`) -- Powder XRD: Bragg's law, crystal lattice d-spacings, Scherrer equation, Williamson-Hall analysis.
+
+**Session Totals**: 5 new modules (878 to 883), 176 batches complete.
+
+**Cumulative**: 883 standalone DSP modules, 176 batches complete. Pipeline builder now has 883+ block types. New categories added: ESR/EPR spectroscopy (DEER/PELDOR dipolar coupling, ESEEM modulation), fluorescence spectroscopy (quantum yield, Stern-Volmer quenching, FRET), FTIR spectroscopy (interferogram processing, Beer-Lambert absorption), quadrupole mass spectrometry (Mathieu stability, isotope patterns), X-ray diffraction (Bragg's law, Scherrer crystallite sizing, Williamson-Hall strain analysis).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-175 to 13-176, 878 to 883 blocks, updated header count to 803+ to 808+ modules), updated CLAUDE.md Recent Updates, and added batch 176 to PROMPT_HISTORY.md.
