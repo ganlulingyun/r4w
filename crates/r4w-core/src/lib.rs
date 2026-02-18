@@ -292,6 +292,7 @@ pub mod fft_filter;
 pub mod fft_utils;
 pub mod filters;
 pub mod filter_synthesis_engine;
+pub mod flame_emission_spectroscopy_analyzer;
 pub mod fletcher_checksum;
 pub mod fmcw_automotive_processor;
 pub mod fmcw_radar;
