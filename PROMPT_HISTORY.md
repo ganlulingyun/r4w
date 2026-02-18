@@ -9393,3 +9393,53 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 818 standalone DSP modules, 163 batches complete. Pipeline builder now has 818+ block types. New categories added: neutron scattering analysis (SANS/Guinier/Porod/form factors/structure factor), dynamic light scattering (DLS/autocorrelation/Siegert/cumulant analysis), interferometric gravity mapping (atom interferometry/tidal correction/Allan deviation), holographic microscopy (Fresnel/angular spectrum/phase retrieval), quantum sensing magnetometry (NV-center ODMR/Ramsey/spin echo/dynamical decoupling).
 
 **Documentation Updates**: Updated CLAUDE.md (added batch 163 Recent Updates entry), OVERVIEW.md (Batches 13-162 to 13-163, 813 to 818 blocks, updated block count references), and added batch 163 to PROMPT_HISTORY.md.
+
+## Session: Batch 164 Documentation Update
+
+**Date**: February 17, 2026
+
+### User Request
+> Update the documentation files for batch 164 of DSP modules in the r4w-core crate.
+
+**Actions Taken**:
+1. Updated OVERVIEW.md module count from 818 to 823, batch range from 13-163 to 13-164
+2. Added batch 163 and 164 entries to OVERVIEW.md
+3. Updated PROMPT_HISTORY.md with this session entry
+
+**Batch 164 (823 modules) -- Quantum Optics, Materials Physics & Precision Measurement**:
+1. **Positron Annihilation Lifetime Analyzer** (`positron_annihilation_lifetime_analyzer.rs`) -- PALS materials characterization with positron lifetime extraction, momentum correlation analysis, and annihilation gamma-ray spectroscopy. 71 tests.
+2. **Microwave Kinetic Inductance Detector** (`microwave_kinetic_inductance_detector.rs`) -- MKID readout processor for superconducting photon detection with resonance tracking, quality factor measurement, and photon energy reconstruction. 77 tests.
+3. **Rayleigh Scattering Depolarization Meter** (`rayleigh_scattering_depolarization_meter.rs`) -- Atmospheric lidar depolarization measurement with molecular/particle depolarization ratio and volume depolarization profiling. 84 tests.
+4. **Cavity QED Simulator** (`cavity_qed_simulator.rs`) -- Jaynes-Cummings model cavity QED simulation with atom-cavity coupling dynamics, Rabi oscillations, and decay analysis. 73 tests.
+5. **Muon g-2 Anomaly Detector** (`muon_g_2_anomaly_detector.rs`) -- Muon g-2 anomalous magnetic moment precession analysis with spin precession frequency measurement and anomaly quantification. 89 tests.
+
+**Session Totals**: 5 new modules (818 to 823), 164 batches complete.
+
+**Cumulative**: 823 standalone DSP modules, 164 batches complete. Pipeline builder now has 823+ block types. New categories added: positron annihilation lifetime spectroscopy (PALS/materials characterization), microwave kinetic inductance detection (MKID photon detection), atmospheric lidar depolarization measurement (Rayleigh scattering), cavity quantum electrodynamics (Jaynes-Cummings/atom-cavity coupling), muon g-2 anomaly measurement (magnetic moment precession).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-163 to 13-164, 818 to 823 blocks, added batch 163 and 164 entries), and added batch 164 to PROMPT_HISTORY.md.
+
+## Session: Batch 165 Documentation Update
+
+**Date**: February 17, 2026
+
+### User Request
+> Update the documentation files for batch 165 of DSP modules in the r4w-core crate.
+
+**Actions Taken**:
+1. Updated OVERVIEW.md module count from 823 to 828, batch range from 13-164 to 13-165
+2. Added batch 165 entry to OVERVIEW.md
+3. Updated PROMPT_HISTORY.md with this session entry
+
+**Batch 165 (828 modules) -- Biomedical Analysis, Molecular Characterization & Scattering Science**:
+1. **Positron Emission Tomography Processor** (`positron_emission_tomography_processor.rs`) -- PET scanner coincidence detection and Filtered Back-Projection (FBP) image reconstruction for positron-emitter tracer imaging. 94 tests.
+2. **Small Angle X-Ray Scattering Analyzer** (`small_angle_xray_scattering_analyzer.rs`) -- SAXS nanostructure characterization with scattering curve analysis, size distribution extraction, and form factor fitting. 76 tests.
+3. **Gel Electrophoresis Band Detector** (`gel_electrophoresis_band_detector.rs`) -- DNA/protein gel band detection and intensity quantification from gel images. 76 tests.
+4. **Electrochemical Impedance Spectroscopy Analyzer** (`electrochemical_impedance_spectroscopy_analyzer.rs`) -- EIS circuit fitting, Nyquist and Bode plot analysis for material characterization. 78 tests.
+5. **Pair Distribution Function Calculator** (`pair_distribution_function_calculator.rs`) -- Real-space total scattering PDF analysis for structural characterization. 67 tests.
+
+**Session Totals**: 5 new modules (823 to 828), 165 batches complete.
+
+**Cumulative**: 828 standalone DSP modules, 165 batches complete. Pipeline builder now has 828+ block types. New categories added: positron emission tomography (PET/coincidence detection/FBP reconstruction), small-angle X-ray scattering (SAXS/nanostructure characterization), gel electrophoresis band detection (DNA/protein quantification), electrochemical impedance spectroscopy (EIS/circuit fitting/Nyquist/Bode), pair distribution function analysis (PDF/total scattering).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-164 to 13-165, 823 to 828 blocks, added batch 165 entry), and added batch 165 to PROMPT_HISTORY.md.

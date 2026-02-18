@@ -640,7 +640,7 @@ Measured with `tokei`:
 
 ### February 2026 (Pipeline Builder & Interop)
 
-- **GNU Radio Feature Parity (Batches 13-163) — 743+ new DSP modules bringing the total to 818 standalone blocks:
+- **GNU Radio Feature Parity (Batches 13-165) — 753+ new DSP modules bringing the total to 828 standalone blocks:
   - Batch 13: PFB Synthesizer, Moving Average, Sample Ops (keep-one-in-N, repeat)
   - Batch 14: Delay, Multiply/MultiplyConst, Bit Packing (pack/unpack/repack), Power Squelch, Stream Mux/Demux, Plateau Detector
   - Batch 15: Binary Slicer, HDLC Framer/Deframer, Clock Recovery M&M, FM Receiver (NBFM/WBFM), Symbol Sync (Gardner/ZC/M&M TEDs)
@@ -773,7 +773,10 @@ Measured with `tokei`:
   - Batch 160: Synchrotron Radiation Processor (brilliance/undulator spectrum/XAFS/monochromator), Neutron Activation Analyzer (NAA activity/decay correction/pulse shape discrimination), Raman LIDAR Processor (atmospheric profiling/Klett-Fernald/water vapor retrieval), Hyperpolarized Xenon NMR (Hp-Xe lung imaging/SEOP/dissolved phase/VFA), Muon-Catalyzed Fusion Diagnostics (Rayleigh-Plesset/sticking/cycling rate/energy yield)
   - Batch 161: Neutron Porosity Analyzer (well log porosity/lithology correction/gas detection), Interferometric Strain Processor (InSAR/fiber Bragg/DAS/Mogi/Okada), Borehole Temperature Logger (geothermal gradient/Horner correction/DTS), Crystallographic Phase Identifier (XRD peak finding/Scherrer/Williamson-Hall), Surface Acoustic Wave Processor (SAW resonance/Sauerbrey/IDT response/Love wave)
   - Batch 162: Precision Spectroscopy Analyzer (Voigt fitting/frequency comb/CRDS/Fabry-Perot), Cosmic Ray Shower Detector (NKG lateral distribution/Gaisser-Hillas/Cherenkov), Sonoluminescence Emission Analyzer (Rayleigh-Plesset/blackbody/cavitation threshold), Scanning Electron Microscope Processor (SE/BSE/EDX/grain size/charging detection), Cyclotron Resonance Spectrometer (FT-ICR MS/isotope patterns/Kendrick mass defect)
-  - All blocks wired into the visual pipeline builder (now 818 blocks) with property editors and block metadata
+  - Batch 163: Neutron Scattering Analyzer (SANS data reduction/Guinier/Porod/form factors/structure factor/Percus-Yevick), Dynamic Light Scattering Processor (autocorrelation/Siegert relation/cumulant analysis/Stokes-Einstein/CONTIN), Interferometric Gravity Mapper (atom interferometer/tidal correction/Allan deviation/gravity gradient), Holographic Microscopy Processor (Fresnel propagation/angular spectrum/phase retrieval/autofocus), Quantum Sensing Magnetometer (NV-center ODMR/Ramsey/spin echo/dynamical decoupling/vector magnetometry)
+  - Batch 164: Positron Annihilation Lifetime Analyzer (PALS materials characterization), Microwave Kinetic Inductance Detector (MKID readout for superconducting photon detection), Rayleigh Scattering Depolarization Meter (atmospheric lidar depolarization measurement), Cavity QED Simulator (Jaynes-Cummings model cavity QED simulation), Muon g-2 Anomaly Detector (muon g-2 anomalous magnetic moment precession analysis)
+  - Batch 165: Positron Emission Tomography Processor (PET scanner coincidence detection/FBP image reconstruction), Small Angle X-Ray Scattering Analyzer (SAXS nanostructure characterization), Gel Electrophoresis Band Detector (DNA/protein gel band detection/quantification), Electrochemical Impedance Spectroscopy Analyzer (EIS circuit fitting/Nyquist/Bode analysis), Pair Distribution Function Calculator (real-space total scattering PDF analysis)
+  - All blocks wired into the visual pipeline builder (now 828 blocks) with property editors and block metadata
 
 - **GNU Radio Feature Parity (Batches 11-12)** — 10 new DSP modules:
   - Frequency Xlating FIR, FM Pre/De-emphasis, CTCSS Squelch, Stream Control (Head/SkipHead/Throttle), Log Power FFT
