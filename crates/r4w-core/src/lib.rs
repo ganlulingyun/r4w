@@ -577,6 +577,7 @@ pub mod photonic_processing;
 pub mod photoplethysmography_processor;
 pub mod photovoltaic_mppt_controller;
 pub mod positron_annihilation_lifetime_analyzer;
+pub mod positron_emission_tomography_processor;
 pub mod pid_controller;
 pub mod piezoelectric_energy_harvester;
 pub mod pilot_inserter;
