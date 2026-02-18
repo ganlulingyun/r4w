@@ -385,6 +385,7 @@ pub mod jitter_analyzer;
 pub mod josephson_voltage_standard;
 pub mod jt65_modulator;
 pub mod kalman_filter;
+pub mod karl_fischer_moisture_analyzer;
 pub mod keep_m_in_n;
 pub mod lagrange_polynomial_interpolator;
 pub mod larmor_precession_tracker;
