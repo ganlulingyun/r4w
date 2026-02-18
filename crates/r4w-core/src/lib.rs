@@ -376,6 +376,7 @@ pub mod jt65_modulator;
 pub mod kalman_filter;
 pub mod keep_m_in_n;
 pub mod lagrange_polynomial_interpolator;
+pub mod larmor_precession_tracker;
 pub mod laser_doppler_anemometer;
 pub mod laser_heterodyne_interferometer;
 pub mod laser_induced_breakdown_spectroscopy;
