@@ -413,6 +413,7 @@ pub mod map_decoder;
 pub mod matched_filter_bank;
 pub mod matched_filter_pulse_radar;
 pub mod marine_mammal_detector;
+pub mod mass_spectrometry_peak_finder;
 pub mod mass_spectrometry_processor;
 pub mod matrix_eigenvalue;
 pub mod matrix_completion_nuclear;
