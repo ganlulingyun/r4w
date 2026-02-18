@@ -693,6 +693,7 @@ pub mod savitzky_golay;
 pub mod scrambler;
 pub mod sc_fdma;
 pub mod scanning_electron_microscope_processor;
+pub mod scanning_tunneling_microscopy_processor;
 pub mod scheduler;
 pub mod schlieren_imaging_processor;
 pub mod selector;
