@@ -87,6 +87,7 @@ pub mod atmospheric_gravity_wave_detector;
 pub mod atmospheric_refraction_corrector;
 pub mod atomic_clock_synchronizer;
 pub mod atomic_force_microscopy_processor;
+pub mod auger_electron_spectroscopy_analyzer;
 pub mod aurora_borealis_classifier;
 pub mod automatic_modulation_classifier;
 pub mod avalanche_transceiver_correlator;
