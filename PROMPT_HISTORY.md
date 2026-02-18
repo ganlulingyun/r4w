@@ -9834,3 +9834,29 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 903 standalone DSP modules, 180 batches complete. Pipeline builder now has 903+ block types. New categories added: X-ray photoelectron spectroscopy (XPS, Scofield sensitivity factors, Auger parameter, Doniach-Sunjic), atomic force microscopy (AFM, Hertz/DMT/JKR, grain analysis, tip deconvolution), confocal Raman microscopy (Stokes/anti-Stokes, SERS, Bose-Einstein correction), cathodoluminescence imaging (CL, Varshni, Kanaya-Okayama, quantum efficiency), electron energy loss spectroscopy (EELS, Kramers-Kronig, Fourier-log deconvolution, Malis MFP).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-179 to 13-180, 898 to 903 blocks, updated header count from 823+ to 828+ modules), updated CLAUDE.md Recent Updates, and added batch 180 to PROMPT_HISTORY.md.
+
+---
+
+### Batch 181 Documentation Update (2026-02-18)
+
+> Update documentation files for batch 181 (908 modules total, 181 batches complete).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-180) -- 828+ new DSP modules bringing the total to 903" to "Batches 13-181) -- 833+ new DSP modules bringing the total to 908"
+2. Updated block count from 903 to 908 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 181 entry to OVERVIEW.md
+4. Added batch 181 entry to CLAUDE.md Recent Updates
+5. Added batch 181 entry to PROMPT_HISTORY.md
+
+**Batch 181 (908 modules) -- Surface Analysis & Spectroscopy II**:
+1. **Auger Electron Spectroscopy Processor** (`auger_electron_spectroscopy_processor.rs`) -- AES derivative spectra, peak-to-peak quantification via sensitivity factors, Auger parameter, sputter depth profiling, backscatter correction, IMFP estimation, linear background subtraction, chemical shift. 30 tests.
+2. **Ellipsometry Thin Film Processor** (`ellipsometry_thin_film_processor.rs`) -- Spectroscopic ellipsometry with Fresnel equations, Parratt recursion for multilayers, Cauchy/Sellmeier/Drude optical models, psi/delta computation, Brewster angle, pseudo-dielectric function, thickness estimation. 27 tests.
+3. **Photoluminescence Lifetime Analyzer** (`photoluminescence_lifetime_analyzer.rs`) -- TRPL single/bi/stretched exponential decay fitting, amplitude/intensity-weighted average lifetime, radiative/non-radiative rates, Stern-Volmer quenching, FRET efficiency/distance, Arrhenius activation energy, Stokes shift. 27 tests.
+4. **Energy Dispersive X-Ray Processor** (`energy_dispersive_xray_processor.rs`) -- EDX/EDS X-ray line database, peak identification, Kramers background, Cliff-Lorimer quantification, ZAF matrix correction, Philibert absorption, electron range, X-ray generation depth, detection limits, dead time correction. 26 tests.
+5. **Neutron Reflectometry Processor** (`neutron_reflectometry_processor.rs`) -- Parratt recursion for multilayer reflectivity, SLD material database, Nevot-Croce roughness, Kiessig fringe analysis, Born approximation, contrast matching, D2O/H2O mixing, critical angle/Q. 24 tests.
+
+**Session Totals**: 5 new modules (903 to 908), 181 batches complete. 134 tests total across batch.
+
+**Cumulative**: 908 standalone DSP modules, 181 batches complete. Pipeline builder now has 908+ block types. New categories added: Auger electron spectroscopy (AES derivative spectra, sensitivity factors, sputter depth profiling, backscatter correction), spectroscopic ellipsometry (Fresnel equations, Parratt recursion, Cauchy/Sellmeier/Drude models, psi/delta), time-resolved photoluminescence (TRPL decay fitting, Stern-Volmer, FRET, Arrhenius), energy dispersive X-ray spectroscopy (EDX/EDS, Cliff-Lorimer, ZAF correction, Philibert absorption), neutron reflectometry (Parratt multilayer reflectivity, SLD database, Nevot-Croce roughness, Kiessig fringes).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-180 to 13-181, 903 to 908 blocks, updated header count from 828+ to 833+ modules), updated CLAUDE.md Recent Updates, and added batch 181 to PROMPT_HISTORY.md.
