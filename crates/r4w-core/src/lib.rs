@@ -593,6 +593,7 @@ pub mod pn_scrambler;
 pub mod pn_sync;
 pub mod pocsag_decoder;
 pub mod polar_code;
+pub mod polarimetric_optical_rotation_analyzer;
 pub mod polyphase_golay_correlator;
 pub mod power_amplifier_dpd;
 pub mod power_amplifier_model;
