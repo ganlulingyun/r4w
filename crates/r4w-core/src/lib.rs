@@ -863,6 +863,7 @@ pub mod vibration_bearing_fault_detector;
 pub mod vibration_order_tracker;
 pub mod viterbi_decoder;
 pub mod viterbi_sova;
+pub mod viscometry_intrinsic_processor;
 pub mod vlc_modulator;
 pub mod volterra_filter;
 pub mod vector_insert;
