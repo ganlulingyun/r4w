@@ -9936,3 +9936,27 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 923 standalone DSP modules, 184 batches complete. Pipeline builder now has 923+ block types. New categories added: nanoparticle tracking analysis (Stokes-Einstein Brownian motion sizing, MSD, diffusion coefficient, D10/D50/D90/PDI size distribution, concentration estimation, drift correction, solvent viscosity database), Brillouin light scattering spectroscopy (νB = 2nVs sin(θ/2)/λ, Fabry-Perot interferometer with Airy function/FSR/finesse, 7-material database, Lorentzian/pseudo-Voigt fitting, spatial mapping), plasma etch endpoint detection (OES single-wavelength/ratio/derivative/PCA algorithms, 8 emission lines database, interferometric etch rate, over-etch control, SPC limits), thermal desorption spectroscopy (Polanyi-Wigner equation, Redhead/Kissinger methods, 0th/1st/2nd order desorption, peak deconvolution, 8-system database), spin echo NMR processing (Hahn echo, CPMG T2, inversion recovery T1, Stejskal-Tanner diffusion, NNLS T2 distribution, well logging porosity/FFI/BVI/Timur-Coates permeability, 8-material database).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-183 to 13-184, 918 to 923 blocks, updated header count from 843+ to 848+ modules), updated CLAUDE.md Recent Updates, and added batch 184 to PROMPT_HISTORY.md.
+
+### Batch 185 Documentation Update (2026-02-23)
+
+> Update documentation files for batch 185 (928 modules total, 185 batches complete).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-184) -- 848+ new DSP modules bringing the total to 923" to "Batches 13-185) -- 853+ new DSP modules bringing the total to 928"
+2. Updated block count from 923 to 928 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 185 entry to OVERVIEW.md
+4. Added batch 185 entry to CLAUDE.md Recent Updates
+5. Added batch 185 entry to PROMPT_HISTORY.md
+
+**Batch 185 (928 modules) -- Advanced Microscopy & Surface Analysis II**:
+1. **Lock-In Amplifier Processor** (`lock_in_amplifier_processor.rs`) -- Dual-phase lock-in detection: reference signal generation, X/Y quadrature demodulation, time constant IIR filtering, harmonic detection, R/theta output, noise rejection, phase-sensitive measurement. 42 tests.
+2. **Magnetic Force Microscopy Processor** (`magnetic_force_microscopy_processor.rs`) -- MFM domain imaging: lift-mode phase/frequency shift detection, cantilever resonance modeling, magnetic tip-sample interaction force gradient, quantitative domain analysis, background correction. 44 tests.
+3. **Photothermal Deflection Spectroscopy** (`photothermal_deflection_spectroscopy.rs`) -- PDS sub-bandgap absorption measurement: pump-probe configuration, thermal wave analysis, transverse/surface PDS geometries, surface/bulk absorption separation, sensitivity calibration. 52 tests.
+4. **Scanning Near-Field Optical Microscope** (`scanning_near_field_optical_microscope.rs`) -- SNOM/NSOM sub-wavelength imaging: aperture and apertureless modes, near-field to far-field conversion, tip enhancement factor (TERS), resolution below diffraction limit. 47 tests.
+5. **Streak Camera Temporal Analyzer** (`streak_camera_temporal_analyzer.rs`) -- Ultrafast time-resolved spectroscopy: sweep unit calibration, temporal profile extraction, jitter correction, multi-shot averaging, instrument response function deconvolution, picosecond-to-nanosecond resolution. 49 tests.
+
+**Session Totals**: 5 new modules (923 to 928), 185 batches complete. 234 tests total across batch.
+
+**Cumulative**: 928 standalone DSP modules, 185 batches complete. Pipeline builder now has 928+ block types. New categories added: lock-in amplifier processing (dual-phase demodulation, time constant filtering, harmonic detection, noise rejection, phase-sensitive measurement), magnetic force microscopy (MFM domain imaging, lift-mode phase/frequency detection, quantitative analysis, tip-sample interaction modeling), photothermal deflection spectroscopy (sub-bandgap absorption, pump-probe configuration, thermal wave analysis, surface/bulk separation), scanning near-field optical microscopy (SNOM/NSOM sub-wavelength imaging, aperture/apertureless modes, near-field to far-field conversion, tip enhancement), streak camera temporal analysis (ultrafast time-resolved spectroscopy, sweep calibration, temporal profile extraction, jitter correction, multi-shot averaging).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-184 to 13-185, 923 to 928 blocks, updated header count from 848+ to 853+ modules), updated CLAUDE.md Recent Updates, and added batch 185 to PROMPT_HISTORY.md.
