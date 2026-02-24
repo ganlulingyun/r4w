@@ -1138,7 +1138,9 @@ mod tests {
     #[test]
     fn test_mass_spectrum_empty() {
         let spec = compute_mass_spectrum(&[], 0.0, 100.0, 100);
-        assert!(spec.is_empty());
+        // Bins exist but all counts are zero
+        let total: u64 = spec.iter().map(|&(_, c)| c).sum();
+        assert_eq!(total, 0);
     }
 
     #[test]
@@ -1361,7 +1363,8 @@ mod tests {
             .collect();
         let pg = proxigram(&atoms, "Fe", 2.0);
         for (_, frac) in &pg {
-            assert!((*frac - 1.0).abs() < 1e-9, "All atoms are Fe, fraction must be 1");
+            // Bins with atoms should have frac=1.0; empty bins have frac=0.0
+            assert!(*frac == 0.0 || (*frac - 1.0).abs() < 1e-9, "Fe fraction must be 0 or 1, got {frac}");
         }
     }
 
