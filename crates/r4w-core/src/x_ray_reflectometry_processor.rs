@@ -320,119 +320,72 @@ impl XrrProcessor {
     /// X_substrate = 0 (no reflection below substrate)
     /// X_j = exp(-2i*k_{z,j}*d_j) * (r_j + X_{j+1}) / (1 + r_j * X_{j+1})
     /// R = |X_vacuum|^2
+    /// Parratt recursion: compute reflectivity at a single angle theta (rad)
+    ///
+    /// Media numbered 0 (vacuum/ambient) to M (substrate), M = n_layers + 1.
+    /// kz[j] is the z-component of the wavevector in medium j.
+    ///
+    /// Canonical Parratt recursion (bottom-up):
+    ///   X[M] = r_{M-1,M}   (Fresnel reflection into substrate, no further propagation)
+    ///   X[j] = (r_{j,j+1} + X[j+1] * P[j+1]^2) / (1 + r_{j,j+1} * X[j+1] * P[j+1]^2)
+    ///   where P[j+1]^2 = exp(2i * kz[j+1] * d[j+1])  (round-trip phase in medium j+1)
+    /// R = |X[0]|^2
     pub fn reflectivity_at_angle(&self, theta: f64) -> f64 {
-        // Build complete layer stack: [ambient/vacuum, layer_0, ..., layer_N-1, substrate]
-        // Ambient: vacuum (SLD = 0)
-        let ambient_sld_re = 0.0f64;
-        let ambient_sld_im = 0.0f64;
-
-        // Compute k_z for each layer including ambient and substrate
-        let kz_ambient = self.kz(theta, ambient_sld_re, ambient_sld_im);
-
-        // Collect all layers (surface to substrate)
         let n_layers = self.model.layers.len();
+        // Media: 0 = vacuum, 1..=n_layers = film layers, m = substrate
+        let m = n_layers + 1;
 
-        // Build k_z array for [layer_0, ..., layer_N-1, substrate]
-        let mut kz_layers: Vec<Complex> = Vec::with_capacity(n_layers + 1);
+        // Build kz[0..=m]
+        let mut kz = Vec::with_capacity(m + 1);
+        kz.push(self.kz(theta, 0.0, 0.0)); // vacuum
         for layer in &self.model.layers {
-            kz_layers.push(self.kz(theta, layer.sld_real, layer.sld_imag));
+            kz.push(self.kz(theta, layer.sld_real, layer.sld_imag));
         }
-        kz_layers.push(self.kz(
-            theta,
-            self.model.substrate.sld_real,
-            self.model.substrate.sld_imag,
-        ));
+        kz.push(self.kz(theta, self.model.substrate.sld_real, self.model.substrate.sld_imag));
 
-        // Roughness array: sigma at each interface
-        // Interface i is between layer i and layer i+1 (0-indexed from surface)
-        // sigma[i] = roughness of the lower interface of layer i
-        // For interface between layers[i] and layers[i+1]: sigma = layers[i+1].roughness_nm
-        // For interface between last layer and substrate: sigma = substrate.roughness_nm
+        // Roughness sigma[i] at interface i → i+1
+        let mut sigma = vec![0.0f64; m];
+        if n_layers > 0 {
+            sigma[0] = self.model.layers[0].roughness_nm; // vacuum/film_0
+            for i in 1..n_layers {
+                sigma[i] = self.model.layers[i].roughness_nm; // film_{i-1}/film_i
+            }
+            sigma[n_layers] = self.model.substrate.roughness_nm; // film_{n-1}/substrate
+        } else {
+            sigma[0] = self.model.substrate.roughness_nm; // vacuum/substrate
+        }
 
-        // Parratt recursion starting from substrate
-        // X_substrate = 0
-        let mut x = Complex::new(0.0, 0.0);
+        // Thickness of each medium: d[j] for j = 1..m (film layers)
+        // d[0] = 0 (vacuum, semi-infinite), d[m] = 0 (substrate, semi-infinite)
+        let mut d = vec![0.0f64; m + 1];
+        for (i, layer) in self.model.layers.iter().enumerate() {
+            d[i + 1] = layer.thickness_nm;
+        }
 
-        // Recurse upward: from interface (n_layers-1 → substrate) to (ambient → layer_0)
-        // We have n_layers + 1 boundaries total:
-        //   boundary 0: ambient ↔ layer_0
-        //   boundary k: layer_{k-1} ↔ layer_k    (k = 1..n_layers-1)
-        //   boundary n_layers: layer_{n_layers-1} ↔ substrate
+        // Bottom-most interface: m-1 → m (last film or vacuum → substrate)
+        // X[m] = r_{m-1, m} (substrate interface, no further propagation below)
+        let r_sub = Self::fresnel_r(kz[m - 1], kz[m], sigma[m - 1]);
+        let mut x = r_sub;
 
-        // Process from deepest interface upward
-        for i in (0..=n_layers).rev() {
-            let (kzj, kzj1, sigma, thickness) = if i == n_layers {
-                // Bottom interface: last film layer ↔ substrate
-                let kzj = if n_layers == 0 { kz_ambient } else { kz_layers[n_layers - 1] };
-                let kzj1 = kz_layers[n_layers]; // substrate
-                let sigma = self.model.substrate.roughness_nm;
-                // thickness belongs to layer above this interface; no propagation at substrate
-                (kzj, kzj1, sigma, 0.0f64)
-            } else if i == 0 {
-                // Top interface: ambient ↔ layer_0 (or substrate if no layers)
-                let kzj = kz_ambient;
-                let kzj1 = if n_layers == 0 {
-                    kz_layers[0] // substrate directly
-                } else {
-                    kz_layers[0]
-                };
-                let sigma = if n_layers == 0 {
-                    self.model.substrate.roughness_nm
-                } else {
-                    self.model.layers[0].roughness_nm
-                };
-                (kzj, kzj1, sigma, 0.0f64)
-            } else {
-                // Interior interface: layer_{i-1} ↔ layer_i
-                let kzj = kz_layers[i - 1];
-                let kzj1 = kz_layers[i];
-                let sigma = self.model.layers[i].roughness_nm;
-                let thickness = self.model.layers[i - 1].thickness_nm;
-                (kzj, kzj1, sigma, thickness)
+        // Recurse upward from interface m-2 down to 0
+        for i in (0..m - 1).rev() {
+            // Fresnel coefficient at interface i → i+1
+            let r_i = Self::fresnel_r(kz[i], kz[i + 1], sigma[i]);
+
+            // Round-trip propagation in medium i+1: P[i+1]^2 = exp(2i * kz[i+1] * d[i+1])
+            let p_sq = {
+                let arg = Complex::new(0.0, 2.0 * d[i + 1]).mul(&kz[i + 1]);
+                arg.exp()
             };
 
-            let r = Self::fresnel_r(kzj, kzj1, sigma);
-
-            // Propagate X through layer above this interface (if not at top)
-            if i > 0 && i < n_layers {
-                // Apply propagation phase for layer i (thickness d_{i})
-                // After computing r_{i}, apply phase exp(2i*k_{z,i}*d_i)
-                let kz_layer_i = kz_layers[i - 1];
-                let d_i = self.model.layers[i - 1].thickness_nm;
-                let phase = Self::propagation_factor(kz_layer_i, d_i);
-                // X_i = phase * (r + X_{i+1}) / (1 + r*X_{i+1})
-                let one = Complex::from_real(1.0);
-                let numerator = r.add(&x);
-                let denominator = one.add(&r.mul(&x));
-                x = phase.mul(&numerator.div(&denominator));
-            } else if i == n_layers {
-                // At deepest interface, just compute X from substrate
-                // X = r_{n} (no phase below substrate)
-                let one = Complex::from_real(1.0);
-                let numerator = r.add(&x);
-                let denominator = one.add(&r.mul(&x));
-                x = numerator.div(&denominator);
-            } else {
-                // i == 0: top interface
-                // If there are layers below, apply phase for layer_0
-                if n_layers > 0 {
-                    let d0 = self.model.layers[0].thickness_nm;
-                    let phase = Self::propagation_factor(kz_layers[0], d0);
-                    let one = Complex::from_real(1.0);
-                    let numerator = r.add(&x);
-                    let denominator = one.add(&r.mul(&x));
-                    x = phase.mul(&numerator.div(&denominator));
-                } else {
-                    let one = Complex::from_real(1.0);
-                    let numerator = r.add(&x);
-                    let denominator = one.add(&r.mul(&x));
-                    x = numerator.div(&denominator);
-                }
-            }
+            // X[i] = (r_i + X * p_sq) / (1 + r_i * X * p_sq)
+            let x_p = x.mul(&p_sq);
+            let numerator = r_i.add(&x_p);
+            let denominator = Complex::from_real(1.0).add(&r_i.mul(&x_p));
+            x = numerator.div(&denominator);
         }
 
-        let r_total = x.abs_sq();
-        r_total.min(1.0)
+        x.abs_sq().min(1.0)
     }
 
     /// Compute full reflectivity curve over theta range
