@@ -520,6 +520,7 @@ pub mod muon_g2_anomaly_detector;
 pub mod muon_tomography_reconstructor;
 pub mod mvdr_beamformer;
 pub mod nanoparticle_tracking_analysis;
+pub mod near_infrared_spectroscopy_processor;
 pub mod nephelometric_immunoassay_processor;
 pub mod network_analyzer;
 pub mod network_time_synchronizer;
