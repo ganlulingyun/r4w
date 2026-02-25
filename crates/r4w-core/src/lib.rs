@@ -548,6 +548,7 @@ pub mod noise_shaper;
 pub mod noise_shaping_quantizer;
 pub mod noma_decoder;
 pub mod nr_prach_detector;
+pub mod nr_pdcch_decoder;
 pub mod nr_pdsch_processor;
 pub mod nr_resource_grid_mapper;
 pub mod nr_ssb_detector;
