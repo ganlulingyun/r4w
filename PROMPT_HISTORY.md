@@ -9984,3 +9984,27 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 933 standalone DSP modules, 186 batches complete. Pipeline builder now has 933+ block types. New categories added: white light interferometry profiling (VSI/PSI surface profiling, coherence envelope FIR Hilbert detection, five-point peak fitting, Hariharan phase shifting, ISO 25178 Sa/Sq areal roughness, Gaussian highpass filter, 4 material presets), transmission electron microscopy (TEM diffraction d-spacing, zone axis, SAED ring indexing, HRTEM 2D DFT lattice fringe analysis, CTF Scherzer defocus/Thon rings, Wiener filter, thickness log-ratio EELS, moiré/Kikuchi analysis, 6-material database), focused ion beam processing (Sigmund sputter yield Thomas-Fermi nuclear stopping, ion dose/mill depth, Gaussian beam+halo, curtaining correction, redeposition model, TEM lamella prep, FIB-SEM serial sectioning, SE channeling contrast, 52° dual-beam geometry, 8-material database, 4 ion species), atom probe tomography (mass-to-charge TOF analysis, Kingham curves, Bas et al. point-projection reconstruction, 28-isotope library, proxigram composition, maximum-separation cluster analysis with Guinier radius, binomial frequency distribution, 2D density maps, detection efficiency correction, 3 material presets), glow discharge optical emission spectroscopy (GD-OES/Grimm source depth profiling, 30 emission lines 15 elements, multi-point calibration matrix correction, depth profile/interface detection, coating analysis Zn/Cr/CrN presets, Boltzmann self-absorption correction, spectral interference correction, SPC control charts).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-185 to 13-186, 928 to 933 blocks, updated header count from 853+ to 858+ modules), updated CLAUDE.md Recent Updates, and added batch 186 to PROMPT_HISTORY.md.
+
+### Batch 187 Documentation Update (2026-02-25)
+
+> Update documentation files for batch 187 (938 modules total, 187 batches complete).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-186) -- 858+ new DSP modules bringing the total to 933" to "Batches 13-187) -- 863+ new DSP modules bringing the total to 938"
+2. Updated block count from 933 to 938 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 187 entry to OVERVIEW.md
+4. Added batch 187 entry to CLAUDE.md Recent Updates
+5. Added batch 187 entry to PROMPT_HISTORY.md
+
+**Batch 187 (938 modules) -- Materials Characterization IV**:
+1. **Near-Infrared Spectroscopy Processor** (`near_infrared_spectroscopy_processor.rs`) -- NIR chemometrics: SNV/MSC preprocessing, PLS regression multivariate analysis, wavelength selection via VIP, cross-validation model validation, spectral preprocessing with Savitzky-Golay, chemical constituent quantification.
+2. **Nanoindentation Hardness Tester** (`nanoindentation_hardness_tester.rs`) -- Oliver-Pharr analysis: hardness/reduced modulus extraction from load-displacement curves, tip area calibration via reference material, depth-sensing mechanics, sink-in correction, contact stiffness S calculation.
+3. **Laser Flash Thermal Analyzer** (`laser_flash_thermal_analyzer.rs`) -- LFA thermal analysis: Parker's equation diffusivity calculation, Cowan correction for radiative losses and finite pulse width, thermal conductivity from Cp/density, apparatus constant calibration.
+4. **X-Ray Reflectometry Processor** (`xray_reflectometry_processor.rs`) -- XRR thin film characterization: Parratt recursion for multilayer reflectivity modeling, thin film density and thickness extraction, Kiessig fringe period analysis, Fresnel equations, critical angle determination.
+5. **Inverse Gas Chromatography Processor** (`inverse_gas_chromatography_processor.rs`) -- IGC surface energy: surface energy dispersive/polar component separation, Schultz and Dorris-Gray methods, acid-base interactions via Lewis definition, polymer/solid surface characterization, temperature-dependent analysis.
+
+**Session Totals**: 5 new modules (933 to 938), 187 batches complete. 236 tests total across batch.
+
+**Cumulative**: 938 standalone DSP modules, 187 batches complete. Pipeline builder now has 938+ block types. New categories added: near-infrared spectroscopy (SNV/MSC preprocessing, PLS regression multivariate analysis, wavelength selection via VIP, cross-validation validation, chemical constituent quantification), nanoindentation hardness testing (Oliver-Pharr analysis, hardness/reduced modulus extraction, tip area calibration, depth-sensing mechanics, contact stiffness), laser flash thermal analysis (Parker's equation diffusivity, Cowan correction for radiative losses/finite pulse width, thermal conductivity calculation, apparatus constant calibration), X-ray reflectometry (Parratt recursion multilayer modeling, thin film density/thickness extraction, Kiessig fringe analysis, critical angle), inverse gas chromatography (surface energy dispersive/polar components, Schultz/Dorris-Gray methods, acid-base interactions via Lewis definition, polymer surface characterization, temperature-dependent analysis).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-186 to 13-187, 933 to 938 blocks, updated header count from 858+ to 863+ modules), updated CLAUDE.md Recent Updates, and added batch 187 to PROMPT_HISTORY.md.
