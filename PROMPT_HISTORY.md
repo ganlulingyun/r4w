@@ -10008,3 +10008,24 @@ Four batches of five modules each, expanding into seismology (moment tensor inve
 **Cumulative**: 938 standalone DSP modules, 187 batches complete. Pipeline builder now has 938+ block types. New categories added: near-infrared spectroscopy (SNV/MSC preprocessing, PLS regression multivariate analysis, wavelength selection via VIP, cross-validation validation, chemical constituent quantification), nanoindentation hardness testing (Oliver-Pharr analysis, hardness/reduced modulus extraction, tip area calibration, depth-sensing mechanics, contact stiffness), laser flash thermal analysis (Parker's equation diffusivity, Cowan correction for radiative losses/finite pulse width, thermal conductivity calculation, apparatus constant calibration), X-ray reflectometry (Parratt recursion multilayer modeling, thin film density/thickness extraction, Kiessig fringe analysis, critical angle), inverse gas chromatography (surface energy dispersive/polar components, Schultz/Dorris-Gray methods, acid-base interactions via Lewis definition, polymer surface characterization, temperature-dependent analysis).
 
 **Documentation Updates**: Updated OVERVIEW.md (Batches 13-186 to 13-187, 933 to 938 blocks, updated header count from 858+ to 863+ modules), updated CLAUDE.md Recent Updates, and added batch 187 to PROMPT_HISTORY.md.
+
+### Batch 188 Documentation Update (2026-02-25)
+
+> Update documentation files for batch 188 (941 modules total, 188 batches complete).
+
+**Actions Taken**:
+1. Updated OVERVIEW.md header from "Batches 13-187) -- 863+ new DSP modules bringing the total to 938" to "Batches 13-188) -- 868+ new DSP modules bringing the total to 941"
+2. Updated block count from 938 to 941 in OVERVIEW.md (pipeline builder reference)
+3. Added batch 188 entry to CLAUDE.md Recent Updates
+4. Added batch 188 entry to PROMPT_HISTORY.md
+
+**Batch 188 (941 modules) -- 5G NR Physical Layer I**:
+1. **NR SSB Detector** (`nr_ssb_detector.rs`) -- Synchronization Signal Block detection: GSCN (Global Synchronization Channel Number) raster cell search, PSS/SSS (Primary/Secondary Synchronization Signal) demodulation, SSB index determination from PBCH (Physical Broadcast Channel), timing/frequency offset estimation via correlation.
+2. **NR PDSCH Processor** (`nr_pdsch_processor.rs`) -- Physical Downlink Shared Channel decoding: LDPC (Low-Density Parity-Check) code decoding per 3GPP TS 38.212, MCS (Modulation and Coding Scheme) lookup table, TBS (Transport Block Size) calculation, soft-bit LLR input, turbo equalization with CRC verification.
+3. **NR PRACH Detector** (`nr_prach_detector.rs`) -- Physical Random Access Channel detection: Zadoff-Chu preamble correlation, PRACH preamble detection with SNR threshold, timing advance (TA) estimation from correlation peak, frequency offset estimation, RACH slot detection per GSCN configuration.
+
+**Session Totals**: 3 new modules (938 to 941), 188 batches complete. 5G NR physical layer foundation established.
+
+**Cumulative**: 941 standalone DSP modules, 188 batches complete. Pipeline builder now has 941+ block types. New category added: 5G NR Physical Layer I (SSB cell search with GSCN raster, PSS/SSS demodulation, SSB index from PBCH, PDSCH with LDPC/MCS/TBS, PRACH with Zadoff-Chu preamble detection and timing advance estimation).
+
+**Documentation Updates**: Updated OVERVIEW.md (Batches 13-187 to 13-188, 938 to 941 blocks, updated header count from 863+ to 868+ modules), updated CLAUDE.md Recent Updates, and added batch 188 to PROMPT_HISTORY.md.

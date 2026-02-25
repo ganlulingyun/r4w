@@ -294,6 +294,8 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 
 ### Recent Updates
 
+- **Batch 188 DSP Blocks** - 3 new modules (941 total, 188 batches complete). 5G NR Physical Layer I: NR SSB (Synchronization Signal Block) detector with GSCN raster cell search (PSS/SSS demodulation, SSB index determination), NR PDSCH (Physical Downlink Shared Channel) processor with LDPC decoding/MCS/TBS lookup, NR PRACH (Physical Random Access Channel) detector with Zadoff-Chu preamble detection and timing advance estimation:
+  - Batch 188: NR SSB Detector, NR PDSCH Processor, NR PRACH Detector (941 total)
 - **Batch 187 DSP Blocks** - 5 new modules (938 total, 187 batches complete). New categories: near-infrared spectroscopy (SNV/MSC preprocessing, PLS regression, wavelength selection, cross-validation), nanoindentation hardness (Oliver-Pharr analysis, hardness/modulus extraction, tip area calibration, depth-sensing mechanics), laser flash thermal analysis (Parker's equation, Cowan correction, thermal diffusivity/conductivity), X-ray reflectometry (Parratt recursion, thin film density/thickness, Kiessig fringe analysis, Fresnel equations), inverse gas chromatography (surface energy dispersive/polar components, Schultz/Dorris-Gray methods, acid-base interactions):
   - Batch 187: Near-Infrared Spectroscopy Processor, Nanoindentation Hardness Tester, Laser Flash Thermal Analyzer, X-Ray Reflectometry Processor, Inverse Gas Chromatography Processor (938 total)
 
