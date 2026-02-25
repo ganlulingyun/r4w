@@ -448,6 +448,8 @@ pub mod log_likelihood_ratio;
 pub mod log_power_fft;
 pub mod lorawan_mac_scheduler;
 pub mod lpi_metrics;
+pub mod lte_prach_detector;
+pub mod lte_pdcch_decoder;
 pub mod magnetic_anomaly_detector;
 pub mod magnetic_force_microscopy_processor;
 pub mod magneto_encephalography_processor;
