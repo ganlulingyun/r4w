@@ -2046,7 +2046,7 @@ mod tests {
     #[test]
     fn test_interleave_empty() {
         let bits: Vec<bool> = vec![];
-        assert_eq!(interleave_bits(&bits), vec![]);
+        assert_eq!(interleave_bits(&bits), Vec::<bool>::new());
     }
 
     // --- Scrambling ---
