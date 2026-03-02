@@ -130,6 +130,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `msk_modulator.rs`: MSK (Minimum Shift Keying, h=0.5 continuous-phase FSK) modulator/demodulator, GMSK variant with configurable BT product Gaussian pre-filter, phase-accumulation demod (GSM, satellite)
   - `oqpsk_modulator.rs`: Offset QPSK modulator/demodulator (Q delayed by T/2, +-pi/2 phase transitions, PAPR analysis, ZigBee 802.15.4, CDMA IS-95)
   - `frequency_hopping.rs`: FHSS controller (Pseudorandom/Sequential/Fixed/Adaptive hop patterns, Bluetooth 79ch/1600hps and military HF presets, processing gain)
+  - `link16_jtids_processor.rs`: Link 16/JTIDS physical layer (MIL-STD-6016, educational only): GF(2^5) arithmetic, RS(31,15) encoder/decoder (BM+Chien+Forney), 32-chip CCSK modulator/demodulator, LFSR frequency hop sequence (51 hops 969-1206 MHz), symbol interleaver, TDMA slot framer (128 slots/epoch), J-series/PPLI message formatter, MSK baseband, RF link budget with jam margin
   - `digital_down_converter.rs`: DDC with NCO mixer, 3-stage CIC decimation, windowed-sinc FIR compensation filter, retuning, reset
   - `digital_up_converter.rs`: DUC with CIC interpolation, FIR compensation filter, NCO mixer for baseband-to-IF upconversion
   - `sigma_delta_modulator.rs`: Sigma-delta modulation/demodulation for ADC/DAC, configurable order (1st-3rd), oversampling ratio
@@ -293,6 +294,9 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 199 DSP Blocks** - 1 new module (975 total). Link 16/JTIDS physical layer processor implementing MIL-STD-6016 (educational/simulation, no classified material): GF(2^5) arithmetic tables, RS(31,15) over GF(2^5) encoder with LFSR and decoder with Berlekamp-Massey/Chien/Forney, 32-chip CCSK (Cyclic Code Shift Keying) modulator/demodulator, LFSR frequency hop sequence generator (51 hops in 969-1206 MHz), symbol interleaver/deinterleaver, TDMA slot framer (128 slots/epoch, 7.8125ms slots), J-series/PPLI message formatter, MSK baseband modulator, RF link budget with jam margin, 66 unit tests:
+  - Batch 199: Link 16 JTIDS Processor (975 total)
 
 - **Batch 188 DSP Blocks** - 3 new modules (941 total, 188 batches complete). 5G NR Physical Layer I: NR SSB (Synchronization Signal Block) detector with GSCN raster cell search (PSS/SSS demodulation, SSB index determination), NR PDSCH (Physical Downlink Shared Channel) processor with LDPC decoding/MCS/TBS lookup, NR PRACH (Physical Random Access Channel) detector with Zadoff-Chu preamble detection and timing advance estimation:
   - Batch 188: NR SSB Detector, NR PDSCH Processor, NR PRACH Detector (941 total)

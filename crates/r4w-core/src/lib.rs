@@ -452,6 +452,7 @@ pub mod lightning_stroke_analyzer;
 pub mod linear_congruential_whitener;
 pub mod linear_equalizer;
 pub mod link_adaptation_engine;
+pub mod link16_jtids_processor;
 pub mod link_budget;
 pub mod link_budget_optimizer;
 pub mod lms_filter;
