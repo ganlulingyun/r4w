@@ -153,6 +153,7 @@ pub mod anti_jam;
 pub mod barker_code;
 pub mod beam_steering_controller;
 pub mod bch_code;
+pub mod beidou_b1c_processor;
 pub mod beamformer;
 pub mod belief_propagation_decoder;
 pub mod benchmark;
