@@ -385,6 +385,7 @@ pub mod gravitational_gradient_tensor_processor;
 pub mod gravity_gradiometer_processor;
 pub mod group_delay_equalizer;
 pub mod harq_manager;
+pub mod havequick_processor;
 pub mod head;
 pub mod hearing_aid_feedback_suppressor;
 pub mod hier_block;
