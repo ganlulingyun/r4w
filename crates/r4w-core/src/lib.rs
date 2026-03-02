@@ -591,6 +591,7 @@ pub mod ofdm_carrier_allocator;
 pub mod ofdm_channel_est;
 pub mod ofdm_frame_equalizer;
 pub mod ofdm_pilot_interpolator;
+pub mod ofdm_plc_modem;
 pub mod ofdm_resource_mapper;
 pub mod ofdm_sync_schmidl_cox;
 pub mod optical_coherent_receiver;
