@@ -963,6 +963,7 @@ pub mod types;
 pub mod udp_source_sink;
 pub mod ultra_wideband_ranging;
 pub mod ultrasonic_ndt_processor;
+pub mod uwb_impulse_radio;
 pub mod ultrasonic_pipeline_inspector;
 pub mod ultrasound_beam_synthesizer;
 pub mod underwater_acoustic_modem;
