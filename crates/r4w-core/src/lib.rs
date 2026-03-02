@@ -547,6 +547,7 @@ pub mod muon_tomography_reconstructor;
 pub mod mvdr_beamformer;
 pub mod nanoparticle_tracking_analysis;
 pub mod nanoindentation_hardness_tester;
+pub mod navic_l5_processor;
 pub mod nb_iot_processor;
 pub mod near_infrared_spectroscopy_processor;
 pub mod nephelometric_immunoassay_processor;
