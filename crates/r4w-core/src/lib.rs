@@ -138,6 +138,7 @@ pub mod dielectric_spectroscopy_processor;
 pub mod digital_down_converter;
 pub mod digital_predistortion;
 pub mod digital_up_converter;
+pub mod dsl_vectoring_processor;
 pub mod digital_twin_state_observer;
 pub mod direction_finding_watson_watt;
 pub mod distributed_fiber_sensing_processor;
