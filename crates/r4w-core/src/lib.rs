@@ -919,6 +919,7 @@ pub mod tcp_source_sink;
 pub mod tdoa_estimator;
 pub mod teager_kaiser_energy;
 pub mod telemetry_framer;
+pub mod tetra_processor;
 pub mod tensor_hosvd;
 pub mod tensiometry_surface_tension_processor;
 pub mod terahertz_imaging_processor;
