@@ -706,6 +706,7 @@ pub mod power_quality_event_classifier;
 pub mod power_quality_harmonics_analyzer;
 pub mod powerline_carrier_modem;
 pub mod plugin;
+pub mod qam_coherent_dsp;
 pub mod qam_modem_transceiver;
 pub mod quadrature_demod;
 pub mod quantum_annealing_optimizer;
