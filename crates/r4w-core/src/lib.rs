@@ -127,6 +127,7 @@ pub mod crystal_oscillator_aging_predictor;
 pub mod crystallographic_phase_identifier;
 pub mod csma_ca_mac;
 pub mod dc_blocker;
+pub mod dect_processor;
 pub mod decision_feedback_equalizer;
 pub mod decimating_fir;
 pub mod diff_phasor;

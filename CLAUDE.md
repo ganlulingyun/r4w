@@ -131,6 +131,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   - `oqpsk_modulator.rs`: Offset QPSK modulator/demodulator (Q delayed by T/2, +-pi/2 phase transitions, PAPR analysis, ZigBee 802.15.4, CDMA IS-95)
   - `frequency_hopping.rs`: FHSS controller (Pseudorandom/Sequential/Fixed/Adaptive hop patterns, Bluetooth 79ch/1600hps and military HF presets, processing gain)
   - `link16_jtids_processor.rs`: Link 16/JTIDS physical layer (MIL-STD-6016, educational only): GF(2^5) arithmetic, RS(31,15) encoder/decoder (BM+Chien+Forney), 32-chip CCSK modulator/demodulator, LFSR frequency hop sequence (51 hops 969-1206 MHz), symbol interleaver, TDMA slot framer (128 slots/epoch), J-series/PPLI message formatter, MSK baseband, RF link budget with jam margin
+  - `dect_processor.rs`: DECT (Digital Enhanced Cordless Telecommunications) physical layer per ETSI EN 300 175: GFSK modem (BT=0.5, 1.152 Mbit/s, h=0.5, Gaussian pre-filter), TDMA/TDD 10ms frame (24 slots, FP TX slots 0-11 / PP TX slots 12-23), CRC-8 A-field (64 bits), B-field (320 bits), 17-bit LFSR scrambler (x^17+x^14+1), preamble/sync word detection (FP: 0xE98A77CE, PP: 0x16758831), RSSI-based channel selection (Europe 1880-1900 MHz / US 1920-1930 MHz), DECT-2020/NR+ (pi/2-BPSK, pi/4-QPSK, 16-QAM, 64-QAM, OFDM, HARQ Chase combining), 62 tests
   - `digital_down_converter.rs`: DDC with NCO mixer, 3-stage CIC decimation, windowed-sinc FIR compensation filter, retuning, reset
   - `digital_up_converter.rs`: DUC with CIC interpolation, FIR compensation filter, NCO mixer for baseband-to-IF upconversion
   - `sigma_delta_modulator.rs`: Sigma-delta modulation/demodulation for ADC/DAC, configurable order (1st-3rd), oversampling ratio
@@ -294,6 +295,9 @@ See OVERVIEW.md for the full Waveform Developer's Guide and Porting Guide.
 - PSK/FSK/QAM waveforms for comparison and education
 
 ### Recent Updates
+
+- **Batch 200 DSP Blocks** - 1 new module (976 total). DECT (Digital Enhanced Cordless Telecommunications) physical layer processor per ETSI EN 300 175: GFSK modem (BT=0.5, 1.152 Mbit/s, modulation index h=0.5, Gaussian pre-filter), TDMA/TDD 10 ms frame structure (24 slots, FP TX slots 0-11, PP TX slots 12-23, 416.67 µs/slot), CRC-8 A-field channel coding (polynomial 0x07, init 0xFF), B-field (320 bits payload), 17-bit Galois LFSR scrambler (polynomial x^17+x^14+1), 32-bit preamble + FP sync (0xE98A77CE) / PP sync (0x16758831) detection, RSSI-based dynamic channel selection with exponential smoothing (Europe 10ch 1880-1900 MHz / US 5ch 1920-1930 MHz), DECT-2020/NR+ uplink: pi/2-BPSK / pi/4-QPSK / 16-QAM / 64-QAM / OFDM modulation and HARQ Chase combining via LLR addition, 62 unit tests:
+  - Batch 200: DECT Physical Layer Processor (976 total)
 
 - **Batch 199 DSP Blocks** - 1 new module (975 total). Link 16/JTIDS physical layer processor implementing MIL-STD-6016 (educational/simulation, no classified material): GF(2^5) arithmetic tables, RS(31,15) over GF(2^5) encoder with LFSR and decoder with Berlekamp-Massey/Chien/Forney, 32-chip CCSK (Cyclic Code Shift Keying) modulator/demodulator, LFSR frequency hop sequence generator (51 hops in 969-1206 MHz), symbol interleaver/deinterleaver, TDMA slot framer (128 slots/epoch, 7.8125ms slots), J-series/PPLI message formatter, MSK baseband modulator, RF link budget with jam margin, 66 unit tests:
   - Batch 199: Link 16 JTIDS Processor (975 total)
