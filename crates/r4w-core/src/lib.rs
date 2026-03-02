@@ -767,6 +767,7 @@ pub mod rf_signal_router;
 pub mod rfid_backscatter_receiver;
 pub mod rheology_viscoelastic_analyzer;
 pub mod ris_phase_controller;
+pub mod roadm_wss_controller;
 pub mod rms;
 pub mod rotator;
 pub mod root_raised_cosine_matched_filter_bank;
