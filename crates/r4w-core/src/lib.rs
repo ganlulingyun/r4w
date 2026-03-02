@@ -817,6 +817,7 @@ pub mod signal_quality_metrics;
 pub mod signal_recorder_indexed;
 pub mod signal_source;
 pub mod sigfox_decoder;
+pub mod sincgars_fh_processor;
 pub mod silence_detector;
 pub mod sims_secondary_ion_mass_analyzer;
 pub mod single_pole_iir;
