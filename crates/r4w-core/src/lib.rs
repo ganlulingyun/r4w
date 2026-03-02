@@ -805,6 +805,7 @@ pub mod satellite_link_predictor;
 pub mod satellite_link_budget_calculator;
 pub mod satellite_tle_propagator;
 pub mod savitzky_golay;
+pub mod sbas_processor;
 pub mod scrambler;
 pub mod sc_fdma;
 pub mod scanning_electron_microscope_processor;
