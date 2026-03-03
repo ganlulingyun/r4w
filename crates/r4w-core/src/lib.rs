@@ -475,6 +475,7 @@ pub mod log_likelihood_ratio;
 pub mod log_power_fft;
 pub mod lorawan_mac_scheduler;
 pub mod lpi_metrics;
+pub mod lte_cat_nb2_processor;
 pub mod lte_m_processor;
 pub mod lte_pdcch_decoder;
 pub mod lte_pdsch_processor;
