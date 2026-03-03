@@ -1014,6 +1014,7 @@ pub mod welch_periodogram;
 pub mod wiener_filter;
 pub mod white_light_interferometry_profiler;
 pub mod whitening;
+pub mod wifi_ax_he_processor;
 pub mod wifi_ax_ofdma;
 pub mod wifi_channel_estimator;
 pub mod wifi_csi_processor;
