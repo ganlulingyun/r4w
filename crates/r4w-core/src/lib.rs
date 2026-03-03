@@ -1017,6 +1017,7 @@ pub mod whitening;
 pub mod wifi_ax_ofdma;
 pub mod wifi_channel_estimator;
 pub mod wifi_ofdm_transceiver;
+pub mod wifi_ftm_ranging;
 pub mod wigner_ville_distribution;
 pub mod wind_profiler_radar;
 pub mod wind_turbine_vibration_monitor;
