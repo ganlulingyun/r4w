@@ -574,6 +574,7 @@ pub mod noise_shaper;
 pub mod noise_shaping_quantizer;
 pub mod noma_decoder;
 pub mod nr_csirs_processor;
+pub mod nr_dmrs_processor;
 pub mod nr_ldpc_layered_decoder;
 pub mod nr_pdcch_decoder;
 pub mod nr_pdsch_processor;
