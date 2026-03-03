@@ -106,6 +106,7 @@ pub mod cathodoluminescence_imaging_processor;
 pub mod cavity_qed_simulator;
 pub mod ccsds_frame_processor;
 pub mod ccsds_turbo_codec;
+pub mod cbrs_sas_processor;
 pub mod c_v2x_processor;
 pub mod char_to_float;
 pub mod channel_capacity;
