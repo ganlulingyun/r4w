@@ -469,7 +469,6 @@ impl PropagationModel {
         }
         let freq_hz = freq_mhz * 1e6;
         let lambda = SPEED_OF_LIGHT / freq_hz;
-        let loss = (4.0 * std::f64::consts::PI * distance_m / lambda).ln() / std::f64::consts::LN_2;
         // Convert: FSPL(dB) = 20*log10(4*pi*d/lambda)
         20.0 * (4.0 * std::f64::consts::PI * distance_m / lambda).log10()
     }
