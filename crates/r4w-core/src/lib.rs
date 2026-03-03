@@ -595,6 +595,7 @@ pub mod nr_pusch_processor;
 pub mod nr_resource_grid_mapper;
 pub mod nr_srs_processor;
 pub mod nr_ssb_beam_mgmt;
+pub mod nr_redcap_processor;
 pub mod nr_ssb_detector;
 pub mod null_sink_source;
 pub mod nuclear_magnetic_resonance_processor;
