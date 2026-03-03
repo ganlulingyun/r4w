@@ -581,6 +581,7 @@ pub mod nr_pdsch_processor;
 pub mod nr_polar_rate_match;
 pub mod nr_prach_detector;
 pub mod nr_pucch_processor;
+pub mod nr_pusch_processor;
 pub mod nr_resource_grid_mapper;
 pub mod nr_srs_processor;
 pub mod nr_ssb_detector;
