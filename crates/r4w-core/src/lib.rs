@@ -293,6 +293,7 @@ pub mod energy_detector;
 pub mod engine_vibration_signature_analyzer;
 pub mod entropy_calculator;
 pub mod envelope_detector;
+pub mod epon_processor;
 pub mod esprit;
 pub mod esm_receiver;
 pub mod ev_motor_commutation_controller;
