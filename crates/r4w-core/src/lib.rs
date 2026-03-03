@@ -968,6 +968,7 @@ pub mod turbo_equalizer;
 pub mod turbidity_current_monitor;
 pub mod turbidimetry_nephelometry_processor;
 pub mod turbine_blade_tip_timing;
+pub mod twdm_pon_processor;
 pub mod type_conversions;
 pub mod types;
 pub mod udp_source_sink;
