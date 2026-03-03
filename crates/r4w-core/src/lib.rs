@@ -1030,6 +1030,7 @@ pub mod x_ray_fluorescence_analyzer;
 pub mod x_ray_fluorescence_spectrometer;
 pub mod x_ray_photoelectron_spectroscopy_processor;
 pub mod x_ray_reflectometry_processor;
+pub mod xgs_pon_processor;
 pub mod xpic_processor;
 pub mod xps_photoelectron_analyzer;
 pub mod xray_diffraction_processor;
