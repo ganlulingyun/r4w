@@ -1212,7 +1212,9 @@ impl RanSlicingProcessor {
             .sum();
         let mut pool = PrbPool::new(self.total_prbs, dedicated_total);
 
-        // Step 3: Assign base (dedicated) PRBs and collect policies
+        // Step 3: Assign base (dedicated) PRBs and collect policies.
+        // Soft slices draw their guaranteed allocation from the shared pool,
+        // so we deduct their dedicated_prbs from shared_available here.
         let mut allocations: Vec<(SliceId, u32)> = Vec::new();
         for &sid in &active_ids {
             let instance = &self.slices[&sid];
@@ -1221,7 +1223,8 @@ impl RanSlicingProcessor {
                     allocations.push((sid, instance.config.dedicated_prbs));
                 }
                 IsolationLevel::Soft => {
-                    allocations.push((sid, instance.config.dedicated_prbs));
+                    let dedicated = pool.take_shared(instance.config.dedicated_prbs);
+                    allocations.push((sid, dedicated));
                 }
                 IsolationLevel::BestEffort => {
                     allocations.push((sid, 0));
